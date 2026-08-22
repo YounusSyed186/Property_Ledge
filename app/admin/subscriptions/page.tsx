@@ -1,119 +1,197 @@
-import React from 'react';
-import { getAdminSubscriptions } from '@/lib/admin/queries';
-import { SubscriptionStatusBadge } from '@/components/subscription/subscription-status';
-import Link from 'next/link';
-import { Search, Filter, Eye } from 'lucide-react';
+'use client';
 
-export const revalidate = 0;
+import React, { useState } from 'react';
+import { Search, Filter, CreditCard, ArrowRight, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { SubscriptionDrawer } from '@/components/admin/SubscriptionDrawer';
 
-interface PageProps {
-  searchParams: Promise<{ page?: string; status?: string; search?: string }>;
-}
+export default function AdminSubscriptionsPage() {
+  const [filter, setFilter] = useState<'all' | 'under_review' | 'active' | 'pending'>('all');
+  const [search, setSearch] = useState('');
+  const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [drawerData, setDrawerData] = useState<any>(null);
 
-export default async function AdminSubscriptionsPage({ searchParams }: PageProps) {
-  const params = await searchParams;
-  const page = parseInt(params.page || '1', 10);
-  const status = params.status || 'all';
-  const search = params.search || '';
+  const subscriptions = [
+    {
+      id: 'sub-001',
+      paymentId: 'pay-001',
+      userName: 'Sarah Williams',
+      userEmail: 'sarah.williams@propertyledge.com.au',
+      planName: 'Property Manager',
+      billingInterval: 'monthly',
+      amount: 79,
+      reference: 'PL-2026-84920',
+      status: 'under_review',
+      created_at: '2026-08-22',
+    },
+    {
+      id: 'sub-002',
+      paymentId: 'pay-002',
+      userName: 'Michael Carter',
+      userEmail: 'michael@carterproperties.com.au',
+      planName: 'Landlord',
+      billingInterval: 'monthly',
+      amount: 29,
+      reference: 'PL-2026-19402',
+      status: 'under_review',
+      created_at: '2026-08-22',
+    },
+    {
+      id: 'sub-003',
+      paymentId: 'pay-003',
+      userName: 'David Miller',
+      userEmail: 'david.miller@investments.com.au',
+      planName: 'Landlord',
+      billingInterval: 'yearly',
+      amount: 290,
+      reference: 'PL-2026-50193',
+      status: 'active',
+      created_at: '2026-08-21',
+    },
+    {
+      id: 'sub-004',
+      paymentId: 'pay-004',
+      userName: 'Emma Thompson',
+      userEmail: 'emma@thompsonrealestate.com.au',
+      planName: 'Property Manager',
+      billingInterval: 'monthly',
+      amount: 79,
+      reference: 'PL-2026-92817',
+      status: 'active',
+      created_at: '2026-08-20',
+    },
+  ];
 
-  const { data: subscriptions, totalPages, total } = await getAdminSubscriptions({
-    page,
-    limit: 10,
-    search,
-    status,
+  const filtered = subscriptions.filter((s) => {
+    if (filter !== 'all' && s.status !== filter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return (
+        s.userName.toLowerCase().includes(q) ||
+        s.userEmail.toLowerCase().includes(q) ||
+        s.reference.toLowerCase().includes(q) ||
+        s.planName.toLowerCase().includes(q)
+      );
+    }
+    return true;
   });
 
-  const statuses = ['all', 'active', 'trialing', 'past_due', 'paused', 'canceled', 'expired'];
+  const handleOpenDrawer = (item: any) => {
+    setSelectedSubId(item.id);
+    setDrawerData({
+      paymentId: item.paymentId,
+      userName: item.userName,
+      userEmail: item.userEmail,
+      planName: item.planName,
+      billingInterval: item.billingInterval,
+      amount: item.amount,
+      reference: item.reference,
+      status: item.status,
+    });
+    setIsDrawerOpen(true);
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">Account Subscriptions</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            View and manage account subscriptions across the platform.
-          </p>
+    <div className="space-y-6 text-left pb-8 font-sans">
+      {/* Header Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-admin-surface border border-admin-border rounded-xl p-4 shadow-xs">
+        {/* Status Filter Tabs */}
+        <div className="flex items-center gap-1 bg-admin-sidebar-surface p-1 rounded-lg border border-admin-border text-xs">
+          {(['all', 'under_review', 'active', 'pending'] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-md font-semibold capitalize transition-all ${
+                filter === f
+                  ? 'bg-admin-primary text-black font-bold shadow-xs'
+                  : 'text-admin-muted hover:text-admin-foreground'
+              }`}
+            >
+              {f.replace('_', ' ')}
+            </button>
+          ))}
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative w-full sm:w-72">
+          <Search className="w-4 h-4 text-admin-muted absolute left-3 top-2.5" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Filter subscriptions..."
+            className="w-full pl-9 pr-3 py-2 rounded-lg bg-admin-sidebar-surface border border-admin-border text-xs text-admin-foreground focus:outline-none focus:border-admin-primary"
+          />
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-200 pb-2 dark:border-slate-800">
-        <Filter className="h-4 w-4 text-slate-400 mr-2 flex-shrink-0" />
-        {statuses.map((st) => (
-          <Link
-            key={st}
-            href={`/admin/subscriptions?status=${st}`}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap ${
-              status === st
-                ? 'bg-indigo-600 text-white'
-                : 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800'
-            }`}
-          >
-            {st.replace('_', ' ')}
-          </Link>
-        ))}
-      </div>
+      {/* Subscriptions Data Table */}
+      <div className="bg-admin-surface border border-admin-border rounded-xl shadow-xs overflow-hidden">
+        <div className="p-4 border-b border-admin-border/60 flex items-center justify-between">
+          <h2 className="text-sm font-bold font-heading text-white uppercase tracking-wider">
+            Subscription Lifecycle ({filtered.length})
+          </h2>
+        </div>
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-600 dark:text-slate-400">
-            <thead className="border-b border-slate-100 bg-slate-50/50 text-xs uppercase font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-800/40">
-              <tr>
-                <th className="px-6 py-3.5">Account ID / User</th>
-                <th className="px-6 py-3.5">Current Plan</th>
-                <th className="px-6 py-3.5">Status</th>
-                <th className="px-6 py-3.5">Provider</th>
-                <th className="px-6 py-3.5">Created</th>
-                <th className="px-6 py-3.5 text-right">Actions</th>
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-admin-border/60 bg-admin-sidebar-surface/40 text-admin-muted uppercase font-mono text-[10px]">
+                <th className="p-3.5 font-semibold">Customer</th>
+                <th className="p-3.5 font-semibold">Plan</th>
+                <th className="p-3.5 font-semibold">Reference</th>
+                <th className="p-3.5 font-semibold">Amount</th>
+                <th className="p-3.5 font-semibold">Status</th>
+                <th className="p-3.5 font-semibold text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {subscriptions.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                    No subscriptions found matching criteria.
+            <tbody className="divide-y divide-admin-border/40 text-admin-foreground">
+              {filtered.map((item) => (
+                <tr key={item.id} className="hover:bg-admin-sidebar-surface/40 transition-colors">
+                  <td className="p-3.5">
+                    <p className="font-bold text-white">{item.userName}</p>
+                    <p className="text-[10px] text-admin-muted font-mono">{item.userEmail}</p>
+                  </td>
+                  <td className="p-3.5 font-medium">{item.planName} ({item.billingInterval})</td>
+                  <td className="p-3.5 font-mono text-admin-primary">{item.reference}</td>
+                  <td className="p-3.5 font-extrabold text-white">${item.amount.toFixed(2)} AUD</td>
+                  <td className="p-3.5">
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase border ${
+                        item.status === 'active'
+                          ? 'bg-admin-success-soft text-admin-success border-admin-success/30'
+                          : item.status === 'under_review'
+                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                          : 'bg-admin-danger/10 text-admin-danger border-admin-danger/30'
+                      }`}
+                    >
+                      {item.status.replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td className="p-3.5 text-right">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDrawer(item)}
+                      className="px-3 py-1.5 rounded-lg bg-admin-primary-soft text-admin-primary hover:bg-admin-primary hover:text-black font-semibold text-[11px] transition-all"
+                    >
+                      Inspect & Review
+                    </button>
                   </td>
                 </tr>
-              ) : (
-                subscriptions.map((sub: any) => {
-                  const profile = sub.account_context?.profiles;
-                  const name = profile?.full_name || sub.account_id;
-
-                  return (
-                    <tr key={sub.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
-                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        <div>{name}</div>
-                        <div className="text-xs text-slate-400 font-mono mt-0.5">{sub.account_id}</div>
-                      </td>
-                      <td className="px-6 py-4 font-semibold text-slate-800 dark:text-slate-200">
-                        {sub.subscription_plans?.name || 'Unknown Plan'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <SubscriptionStatusBadge status={sub.status} />
-                      </td>
-                      <td className="px-6 py-4 font-mono text-xs uppercase text-slate-500">
-                        {sub.provider || 'stripe'}
-                      </td>
-                      <td className="px-6 py-4 text-xs text-slate-500">
-                        {new Date(sub.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <Link
-                          href={`/admin/subscriptions/${sub.id}`}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
-                        >
-                          <Eye className="h-3.5 w-3.5" /> Details
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+              ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      <SubscriptionDrawer
+        subscriptionId={selectedSubId}
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onSuccess={() => setIsDrawerOpen(false)}
+        initialData={drawerData}
+      />
     </div>
   );
 }

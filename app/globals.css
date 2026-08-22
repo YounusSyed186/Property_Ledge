@@ -42,6 +42,31 @@
   --shell-active-pill: #FFFFFF;
   --shell-active-pill-border: rgba(0, 0, 0, 0.1);
   --shell-active-text: #0F172A;
+
+  /* ========== V2 ADMIN PANEL DESIGN TOKENS ========== */
+  --admin-background: #0B0E14;
+  --admin-surface: #11151C;
+  --admin-surface-elevated: #1A1F2B;
+  --admin-surface-subtle: #141824;
+  --admin-border: #1E2433;
+  --admin-border-subtle: #272F42;
+  --admin-divider: #1A202C;
+  --admin-sidebar: #090B0F;
+  --admin-sidebar-surface: #131722;
+  --admin-sidebar-border: #1A1E2B;
+  --admin-sidebar-border-subtle: #242A3C;
+  --admin-sidebar-foreground: #F1F5F9;
+  --admin-sidebar-muted: #64748B;
+  --admin-foreground: #F8FAFC;
+  --admin-muted: #64748B;
+  --admin-muted-foreground: #94A3B8;
+  --admin-primary: #C7A66A;
+  --admin-primary-hover: #B59357;
+  --admin-primary-soft: rgba(199, 166, 106, 0.12);
+  --admin-success: #10B981;
+  --admin-success-soft: rgba(16, 185, 129, 0.12);
+  --admin-warning: #F59E0B;
+  --admin-danger: #EF4444;
 }
 
 .dark {

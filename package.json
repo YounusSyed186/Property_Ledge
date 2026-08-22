@@ -23,6 +23,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.6",
     "@playwright/test": "^1.62.1",
     "@types/node": "^20.17.19",
     "@types/react": "^19.0.8",

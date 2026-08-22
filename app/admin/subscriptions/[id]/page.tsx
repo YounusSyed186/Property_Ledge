@@ -1,10 +1,12 @@
 import React from 'react';
 import { getAdminSubscriptionById, getAdminPlans } from '@/lib/admin/queries';
 import { adminUpdateSubscription } from '@/lib/admin/service';
+import { getSubscriptionPaymentBySubId, getPaymentProofByPaymentId, approveManualPayment, rejectManualPayment } from '@/lib/billing/service';
+import { requireAdmin } from '@/lib/admin/authorization';
 import { SubscriptionStatusBadge } from '@/components/subscription/subscription-status';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Shield, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Shield, CheckCircle, XCircle, FileText, Download } from 'lucide-react';
 
 export const revalidate = 0;
 
@@ -23,6 +25,10 @@ export default async function AdminSubscriptionDetailPage({ params }: PageProps)
   const plans = await getAdminPlans();
   const profile = sub.account_context?.profiles;
 
+  // Manual payment details
+  const payment = await getSubscriptionPaymentBySubId(id);
+  const proof = payment ? await getPaymentProofByPaymentId(payment.id) : null;
+
   async function handleUpdateSubscriptionAction(formData: FormData) {
     'use server';
     const status = formData.get('status') as any;
@@ -36,6 +42,22 @@ export default async function AdminSubscriptionDetailPage({ params }: PageProps)
     });
 
     redirect(`/admin/subscriptions/${id}?updated=true`);
+  }
+
+  async function handleApprovePaymentAction(formData: FormData) {
+    'use server';
+    const adminId = await requireAdmin();
+    const payId = formData.get('paymentId') as string;
+    await approveManualPayment(payId, adminId);
+    redirect(`/admin/subscriptions/${id}?approved=true`);
+  }
+
+  async function handleRejectPaymentAction(formData: FormData) {
+    'use server';
+    const adminId = await requireAdmin();
+    const payId = formData.get('paymentId') as string;
+    await rejectManualPayment(payId, adminId);
+    redirect(`/admin/subscriptions/${id}?rejected=true`);
   }
 
   return (
@@ -54,7 +76,7 @@ export default async function AdminSubscriptionDetailPage({ params }: PageProps)
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        {/* Info Card */}
+        {/* Info Cards */}
         <div className="lg:col-span-2 space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
@@ -98,6 +120,88 @@ export default async function AdminSubscriptionDetailPage({ params }: PageProps)
               </div>
             </div>
           </div>
+
+          {/* Manual Payment Verification Card */}
+          {payment && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Bank Transfer Verification</h3>
+                <span className="font-mono text-xs font-semibold px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+                  Ref: {payment.reference}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-xs text-slate-400">Payment Status</span>
+                  <p className="font-bold uppercase text-slate-900 dark:text-white mt-0.5">{payment.status}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400">Expected / Submitted</span>
+                  <p className="font-bold text-slate-900 dark:text-white mt-0.5">
+                    ${payment.expected_amount} / ${payment.submitted_amount || 0} AUD
+                  </p>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400">Transaction ID</span>
+                  <p className="font-mono text-slate-800 dark:text-slate-200 mt-0.5">{payment.transaction_id || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400">Payment Date</span>
+                  <p className="text-slate-800 dark:text-slate-200 mt-0.5">
+                    {payment.payment_date ? new Date(payment.payment_date).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Uploaded Proof */}
+              {proof && (
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">{proof.file_name}</p>
+                      <p className="text-[10px] text-slate-400">{(proof.file_size / 1024).toFixed(1)} KB • {proof.mime_type}</p>
+                    </div>
+                  </div>
+
+                  {proof.file_preview_url && (
+                    <a
+                      href={proof.file_preview_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
+                    >
+                      <Download className="h-3.5 w-3.5" /> View Receipt
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* Approval Actions */}
+              <div className="flex items-center gap-3 pt-2">
+                <form action={handleApprovePaymentAction} className="flex-1">
+                  <input type="hidden" name="paymentId" value={payment.id} />
+                  <button
+                    type="submit"
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700 transition-colors shadow-sm"
+                  >
+                    <CheckCircle className="h-4 w-4" /> Approve Payment & Activate Sub
+                  </button>
+                </form>
+
+                <form action={handleRejectPaymentAction} className="flex-1">
+                  <input type="hidden" name="paymentId" value={payment.id} />
+                  <button
+                    type="submit"
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-400 transition-colors"
+                  >
+                    <XCircle className="h-4 w-4" /> Reject Payment
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Actions Sidebar Form */}
@@ -133,6 +237,8 @@ export default async function AdminSubscriptionDetailPage({ params }: PageProps)
                   className="w-full rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-950 text-slate-900 dark:text-white"
                 >
                   <option value="active">Active</option>
+                  <option value="under_review">Under Review</option>
+                  <option value="pending_payment">Pending Payment</option>
                   <option value="trialing">Trialing</option>
                   <option value="past_due">Past Due</option>
                   <option value="paused">Paused</option>

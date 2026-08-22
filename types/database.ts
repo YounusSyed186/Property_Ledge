@@ -120,7 +120,7 @@ export interface Database {
           key: string
           name: string
           description?: string | null
-          value_type: 'boolean' | 'number' | 'string'
+          value_type?: 'boolean' | 'number' | 'string'
           created_at?: string
           updated_at?: string
         }
@@ -165,7 +165,7 @@ export interface Database {
           id: string
           account_id: string
           plan_id: string
-          status: 'trialing' | 'active' | 'past_due' | 'paused' | 'canceled' | 'expired'
+          status: 'draft' | 'pending_payment' | 'under_review' | 'trialing' | 'active' | 'past_due' | 'paused' | 'canceled' | 'expired'
           current_period_start: string | null
           current_period_end: string | null
           cancel_at_period_end: boolean
@@ -182,7 +182,7 @@ export interface Database {
           id?: string
           account_id: string
           plan_id: string
-          status?: 'trialing' | 'active' | 'past_due' | 'paused' | 'canceled' | 'expired'
+          status?: 'draft' | 'pending_payment' | 'under_review' | 'trialing' | 'active' | 'past_due' | 'paused' | 'canceled' | 'expired'
           current_period_start?: string | null
           current_period_end?: string | null
           cancel_at_period_end?: boolean
@@ -199,7 +199,7 @@ export interface Database {
           id?: string
           account_id?: string
           plan_id?: string
-          status?: 'trialing' | 'active' | 'past_due' | 'paused' | 'canceled' | 'expired'
+          status?: 'draft' | 'pending_payment' | 'under_review' | 'trialing' | 'active' | 'past_due' | 'paused' | 'canceled' | 'expired'
           current_period_start?: string | null
           current_period_end?: string | null
           cancel_at_period_end?: boolean
@@ -211,6 +211,91 @@ export interface Database {
           provider_subscription_id?: string | null
           created_at?: string
           updated_at?: string
+        }
+      }
+      subscription_payments: {
+        Row: {
+          id: string
+          subscription_id: string
+          account_id: string
+          reference: string
+          expected_amount: number
+          submitted_amount: number | null
+          currency: string
+          payment_date: string | null
+          transaction_id: string | null
+          status: 'pending' | 'under_review' | 'verified' | 'rejected'
+          submitted_at: string | null
+          verified_at: string | null
+          verified_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          subscription_id: string
+          account_id: string
+          reference: string
+          expected_amount: number
+          submitted_amount?: number | null
+          currency?: string
+          payment_date?: string | null
+          transaction_id?: string | null
+          status?: 'pending' | 'under_review' | 'verified' | 'rejected'
+          submitted_at?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          subscription_id?: string
+          account_id?: string
+          reference?: string
+          expected_amount?: number
+          submitted_amount?: number | null
+          currency?: string
+          payment_date?: string | null
+          transaction_id?: string | null
+          status?: 'pending' | 'under_review' | 'verified' | 'rejected'
+          submitted_at?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      payment_proofs: {
+        Row: {
+          id: string
+          payment_id: string
+          storage_path: string
+          file_name: string
+          mime_type: string
+          file_size: number
+          file_preview_url: string | null
+          uploaded_at: string
+        }
+        Insert: {
+          id?: string
+          payment_id: string
+          storage_path: string
+          file_name: string
+          mime_type: string
+          file_size: number
+          file_preview_url?: string | null
+          uploaded_at?: string
+        }
+        Update: {
+          id?: string
+          payment_id?: string
+          storage_path?: string
+          file_name?: string
+          mime_type?: string
+          file_size?: number
+          file_preview_url?: string | null
+          uploaded_at?: string
         }
       }
       subscription_events: {

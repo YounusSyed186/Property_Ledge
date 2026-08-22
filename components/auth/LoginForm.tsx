@@ -76,7 +76,10 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         onSuccess();
       }
 
-      router.push("/dashboard");
+      const params = new URLSearchParams(window.location.search);
+      const redirectTo = params.get("redirectTo") || "/dashboard";
+
+      router.push(redirectTo);
       router.refresh();
     } catch {
       setErrorMessage("A network error occurred while signing you in. Please try again.");

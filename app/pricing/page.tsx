@@ -3,7 +3,6 @@ import { getSubscriptionPlans, getSubscription } from '@/lib/subscriptions/queri
 import { getCurrentUser } from '@/lib/auth/queries';
 import { PlanCard } from '@/components/subscription/plan-card';
 import Link from 'next/link';
-import { createCheckoutSession } from '@/lib/billing/service';
 import { redirect } from 'next/navigation';
 
 export const revalidate = 0;
@@ -20,17 +19,10 @@ export default async function PricingPage() {
     const currentUser = await getCurrentUser();
 
     if (!currentUser) {
-      redirect('/login');
+      redirect(`/login?redirectTo=/checkout?plan=${planSlug}`);
     }
 
-    const result = await createCheckoutSession({
-      accountId: currentUser.id,
-      planSlug,
-      successUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/subscription?checkout=success`,
-      cancelUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/pricing`,
-    });
-
-    redirect(result.url);
+    redirect(`/checkout?plan=${planSlug}`);
   }
 
   return (

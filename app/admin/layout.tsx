@@ -1,23 +1,26 @@
 import React from 'react';
 import { requireAdmin } from '@/lib/admin/authorization';
+import { getCurrentUser } from '@/lib/auth/queries';
 import { redirect } from 'next/navigation';
-import { AdminNav } from '@/components/admin/admin-nav';
+import { AdminClientLayout } from '@/components/admin/AdminClientLayout';
 
 export const revalidate = 0;
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  let user: any = null;
   try {
     await requireAdmin();
+    user = await getCurrentUser();
   } catch (err) {
     redirect('/login?error=unauthorized_admin');
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-      <AdminNav />
-      <main className="flex-1 p-8 overflow-y-auto">
-        <div className="mx-auto max-w-6xl">{children}</div>
-      </main>
-    </div>
+    <AdminClientLayout
+      userEmail={user?.email || 'admin@propertyledge.com.au'}
+      userName={user?.user_metadata?.full_name || 'PropertyLedge Administrator'}
+    >
+      {children}
+    </AdminClientLayout>
   );
 }

@@ -22,7 +22,7 @@ export function Pricing() {
       ],
       popular: false,
       cta: "Choose Plan →",
-      href: "/signup?plan=landlord",
+      href: "/checkout?plan=pro",
     },
     {
       id: "manager",
@@ -38,7 +38,7 @@ export function Pricing() {
       ],
       popular: true,
       cta: "Choose Plan →",
-      href: "/signup?plan=manager",
+      href: "/checkout?plan=business",
     },
     {
       id: "agency",

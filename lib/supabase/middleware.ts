@@ -35,7 +35,12 @@ export async function updateSession(request: NextRequest) {
   const pathname = url.pathname;
 
   // Protected application routes
-  const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/subscription') || pathname.startsWith('/admin');
+  const isProtectedRoute =
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/subscription') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/checkout') ||
+    pathname.startsWith('/onboarding');
 
   // Auth pages (login, signup, etc.)
   const isAuthPage =
@@ -45,13 +50,17 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/reset-password');
 
   if (isProtectedRoute && !user) {
+    const redirectTarget = pathname + url.search;
     url.pathname = '/login';
+    url.search = `?redirectTo=${encodeURIComponent(redirectTarget)}`;
     return NextResponse.redirect(url);
   }
 
   if (isAuthPage && user) {
-    url.pathname = '/dashboard';
-    return NextResponse.redirect(url);
+    const planParam = request.nextUrl.searchParams.get('plan');
+    const defaultTarget = planParam ? `/checkout?plan=${planParam}` : '/dashboard';
+    const redirectTo = request.nextUrl.searchParams.get('redirectTo') || defaultTarget;
+    return NextResponse.redirect(new URL(redirectTo, request.url));
   }
 
   return supabaseResponse;

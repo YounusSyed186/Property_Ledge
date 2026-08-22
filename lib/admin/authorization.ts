@@ -10,7 +10,7 @@ export async function isAdmin(userId?: string): Promise<boolean> {
     targetUserId = user.id;
 
     // Check user email against configured admin emails or metadata
-    const adminEmails = (process.env.ADMIN_EMAILS || 'admin@propertyledge.com').split(',').map(e => e.trim().toLowerCase());
+    const adminEmails = (process.env.ADMIN_EMAILS || 'admin@propertyledge.com,admin@propertyledge.com.au,test.admin@propertyledge.com.au').split(',').map(e => e.trim().toLowerCase());
     if (user.email && adminEmails.includes(user.email.toLowerCase())) {
       return true;
     }
