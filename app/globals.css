@@ -1,0 +1,197 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light Mode (Unified Canvas) */
+  --background: #F9FAFB;
+  --foreground: #111827;
+  --surface: #FFFFFF;
+  --surface-elevated: #F9FAFB;
+  --surface-subtle: #F3F4F6;
+  --muted: #6B7280;
+  --muted-dark: #4B5563;
+  --accent: #6B7280;
+  --accent-hover: #4B5563;
+  --accent-subtle: rgba(107, 114, 128, 0.08);
+  --border: #D1D5DB;
+  --border-subtle: #E5E7EB;
+  --success: #36B86B;
+  --shadow-color: rgba(0, 0, 0, 0.05);
+
+  --auth-dark: #0A0A0F;
+  --auth-dark-soft: #121217;
+  --auth-surface: #FAFAFC;
+  --auth-surface-elevated: #FFFFFF;
+  --auth-text: #18181B;
+  --auth-text-muted: #6B7280;
+  --auth-accent: #A3A4A7;
+  --auth-accent-soft: #E5E5E7;
+  --auth-border: rgba(25, 25, 27, 0.1);
+  --auth-success: #059669;
+  --auth-danger: #EF4444;
+
+  --shell-bg: #F1F3F5;
+  --shell-sidebar-bg: #F1F3F5;
+  --shell-surface: #FFFFFF;
+  --shell-fg: #0F172A;
+  --shell-muted: #64748B;
+  --shell-border: rgba(0, 0, 0, 0.08);
+  --shell-border-subtle: rgba(0, 0, 0, 0.04);
+  --shell-hover: rgba(0, 0, 0, 0.05);
+  --shell-active-pill: #FFFFFF;
+  --shell-active-pill-border: rgba(0, 0, 0, 0.1);
+  --shell-active-text: #0F172A;
+}
+
+.dark {
+  --background: #070A0D;
+  --foreground: #F2F5F8;
+  --surface: #0E1317;
+  --surface-elevated: #13191E;
+  --surface-subtle: #172026;
+  --muted: #8E99A4;
+  --muted-dark: #5C6773;
+  --accent: #8E99A4;
+  --accent-hover: #CBD5E1;
+  --accent-subtle: rgba(255, 255, 255, 0.06);
+  --border: #1E262C;
+  --border-subtle: #161F24;
+  --success: #36B86B;
+  --shadow-color: rgba(0, 0, 0, 0.55);
+
+  --auth-dark: #0A0A0F;
+  --auth-dark-soft: #121217;
+  --auth-surface: #F7F6F2;
+  --auth-surface-elevated: #FFFFFF;
+  --auth-text: #11181C;
+  --auth-text-muted: #697277;
+  --auth-accent: #C7A66A;
+  --auth-accent-soft: #EFE2C9;
+  --auth-border: rgba(17, 24, 28, 0.12);
+  --auth-success: #16856A;
+  --auth-danger: #C94A4A;
+
+  --shell-bg: #07090C;
+  --shell-sidebar-bg: #07090C;
+  --shell-surface: #10151B;
+  --shell-fg: #F3F4F6;
+  --shell-muted: #9CA3AF;
+  --shell-border: rgba(255, 255, 255, 0.08);
+  --shell-border-subtle: rgba(255, 255, 255, 0.04);
+  --shell-hover: rgba(255, 255, 255, 0.06);
+  --shell-active-pill: #161D26;
+  --shell-active-pill-border: rgba(255, 255, 255, 0.12);
+  --shell-active-text: #FFFFFF;
+}
+
+html[data-theme-mode="light"] {
+  --background: #F9FAFB;
+  --foreground: #111827;
+  --surface: #FFFFFF;
+  --surface-elevated: #F9FAFB;
+  --surface-subtle: #F3F4F6;
+  --muted: #6B7280;
+  --muted-dark: #4B5563;
+  --accent: #6B7280;
+  --accent-hover: #4B5563;
+  --accent-subtle: rgba(107, 114, 128, 0.08);
+  --border: #D1D5DB;
+  --border-subtle: #E5E7EB;
+  --shadow-color: rgba(0, 0, 0, 0.05);
+}
+
+html[data-theme-mode="dark"] {
+  --background: #070A0D;
+  --foreground: #F2F5F8;
+  --surface: #0E1317;
+  --surface-elevated: #13191E;
+  --surface-subtle: #172026;
+  --muted: #8E99A4;
+  --muted-dark: #5C6773;
+  --accent: #8E99A4;
+  --accent-hover: #CBD5E1;
+  --accent-subtle: rgba(255, 255, 255, 0.06);
+  --border: #1E262C;
+  --border-subtle: #161F24;
+  --shadow-color: rgba(0, 0, 0, 0.55);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  color-scheme: dark;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-outfit), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+  transition: background-color 0.4s ease-out, color 0.4s ease-out, border-color 0.4s ease-out;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.bg-architectural-grid {
+  background-size: 40px 40px;
+  background-image:
+    linear-gradient(to right, var(--border-subtle) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border-subtle) 1px, transparent 1px);
+}
+
+.bg-dot-pattern {
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 40s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee:hover,
+.group:hover .animate-marquee {
+  animation-play-state: paused;
+}
+
+.mask-edge-fade {
+  mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+}
+
+@keyframes apple-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.apple-enter-1 { animation: apple-fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both; }
+.apple-enter-2 { animation: apple-fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; }
+.apple-enter-3 { animation: apple-fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both; }
+.apple-enter-4 { animation: apple-fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.35s both; }
+.apple-enter-5 { animation: apple-fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.45s both; }
+.apple-enter-6 { animation: apple-fade-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both; }

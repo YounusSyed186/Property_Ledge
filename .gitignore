@@ -1,0 +1,33 @@
+# dependencies
+/node_modules
+/.pnpm-store
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# local env files
+.env*.local
+.env
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# testing
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Playwright
+node_modules/
+/playwright/.auth/
