@@ -1,7 +1,7 @@
 import React from 'react';
 import { getAdminEntitlements } from '@/lib/admin/queries';
 import { createAdminEntitlement } from '@/lib/admin/service';
-import { Key, Plus, Hash, ToggleLeft, Type } from 'lucide-react';
+import { Key, Plus } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import {
   PageContainer,
@@ -9,19 +9,12 @@ import {
   Card,
   CardHeader,
   CardContent,
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-  Badge,
   Button,
   Input,
   Select,
   Textarea,
-  EmptyState,
 } from '@/components/admin/ui';
+import { AdminEntitlementsGridView } from '@/components/admin/data-grid/views/AdminEntitlementsGridView';
 
 export const revalidate = 0;
 
@@ -45,76 +38,12 @@ export default async function AdminEntitlementsPage() {
     redirect('/admin/entitlements?created=true');
   }
 
-  const getValueTypeIcon = (type: string) => {
-    if (type === 'boolean') return <ToggleLeft className="w-3.5 h-3.5" />;
-    if (type === 'number') return <Hash className="w-3.5 h-3.5" />;
-    return <Type className="w-3.5 h-3.5" />;
-  };
-
   return (
     <PageContainer>
-      <PageHeader
-        title="Entitlements"
-        description="Define system capabilities and limits that can be assigned to subscription plans."
-        breadcrumb={
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-caption text-admin-muted">
-            <span>Business</span>
-            <span aria-hidden="true" className="text-admin-muted/50">/</span>
-            <span className="text-admin-foreground font-medium">Entitlements</span>
-          </nav>
-        }
-      />
-
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Entitlements Table */}
+        {/* Entitlements DataGrid */}
         <div className="lg:col-span-2 space-y-4">
-          <Card>
-            <CardHeader
-              title="Entitlements Registry"
-              description="System capabilities and limits"
-              icon={<Key className="w-5 h-5" />}
-            />
-            {entitlements.length === 0 ? (
-              <EmptyState
-                icon={<Key className="w-6 h-6" />}
-                title="No entitlements yet"
-                description="Create your first entitlement to define system capabilities."
-              />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Key / Name</TableHead>
-                    <TableHead>Value Type</TableHead>
-                    <TableHead>Description</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {entitlements.map((ent: any) => (
-                    <TableRow key={ent.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-semibold text-admin-foreground">{ent.name}</p>
-                          <p className="text-metadata text-admin-primary font-mono">{ent.key}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="neutral">
-                          <span className="flex items-center gap-1.5">
-                            {getValueTypeIcon(ent.value_type)}
-                            {ent.value_type}
-                          </span>
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-body-sm text-admin-muted">{ent.description || '—'}</span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </Card>
+          <AdminEntitlementsGridView entitlements={entitlements} />
         </div>
 
         {/* Create Entitlement Sidebar */}

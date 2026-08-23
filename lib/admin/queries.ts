@@ -1,12 +1,12 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { requireAdmin } from './authorization';
 
 export async function getAdminOverviewMetrics() {
   await requireAdmin();
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const [accountsRes, subsRes, plansRes] = await Promise.all([
-    (supabase as any).from('account_context').select('*', { count: 'exact', head: true }),
+    (supabase as any).from('profiles').select('*', { count: 'exact', head: true }),
     (supabase as any).from('subscriptions').select('status'),
     (supabase as any).from('subscription_plans').select('*', { count: 'exact', head: true }).eq('status', 'active'),
   ]);
@@ -32,7 +32,7 @@ export async function getAdminOverviewMetrics() {
 
 export async function getAdminSubscriptions({
   page = 1,
-  limit = 10,
+  limit = 50,
   search = '',
   status = 'all',
 }: {
@@ -42,11 +42,11 @@ export async function getAdminSubscriptions({
   status?: string;
 }) {
   await requireAdmin();
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   let query = (supabase as any)
     .from('subscriptions')
-    .select('*, subscription_plans(*), account_context!inner(*, profiles:user_id(*))', { count: 'exact' });
+    .select('*, subscription_plans(*)', { count: 'exact' });
 
   if (status !== 'all') {
     query = query.eq('status', status);
@@ -57,35 +57,93 @@ export async function getAdminSubscriptions({
 
   query = query.order('created_at', { ascending: false }).range(from, to);
 
-  const { data, count, error } = await query;
-  if (error) throw new Error(error.message);
+  const { data: subs, count, error } = await query;
+  if (error || !subs) {
+    console.error('getAdminSubscriptions error:', error);
+    return { data: [], total: 0, page, limit, totalPages: 0 };
+  }
+
+  // Fetch auth users to get exact emails
+  const { data: authUsersRes } = await supabase.auth.admin.listUsers();
+  const authUsersMap = new Map();
+  if (authUsersRes?.users) {
+    authUsersRes.users.forEach((u) => authUsersMap.set(u.id, u));
+  }
+
+  const accountIds = Array.from(new Set(subs.map((s: any) => s.account_id).filter(Boolean)));
+  let profileMap = new Map();
+  if (accountIds.length > 0) {
+    const { data: profiles } = await (supabase as any)
+      .from('profiles')
+      .select('*')
+      .in('id', accountIds);
+
+    if (profiles) {
+      profiles.forEach((p: any) => profileMap.set(p.id, p));
+    }
+  }
+
+  const formattedData = subs.map((s: any) => {
+    const profile = profileMap.get(s.account_id);
+    const authUser = authUsersMap.get(s.account_id);
+
+    return {
+      ...s,
+      account_context: {
+        id: s.account_id,
+        user_id: s.account_id,
+        profiles: {
+          full_name: profile?.full_name || authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || 'Customer Account',
+          email: authUser?.email || profile?.email || 'customer@propertyledge.com.au',
+        },
+      },
+    };
+  });
 
   return {
-    data: data || [],
-    total: count || 0,
+    data: formattedData,
+    total: count || formattedData.length,
     page,
     limit,
-    totalPages: Math.ceil((count || 0) / limit),
+    totalPages: Math.ceil((count || formattedData.length) / limit),
   };
 }
 
 export async function getAdminSubscriptionById(subscriptionId: string) {
   await requireAdmin();
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
-  const { data, error } = await (supabase as any)
+  const { data: sub, error } = await (supabase as any)
     .from('subscriptions')
-    .select('*, subscription_plans(*), account_context!inner(*, profiles:user_id(*))')
+    .select('*, subscription_plans(*)')
     .eq('id', subscriptionId)
     .single();
 
-  if (error) return null;
-  return data;
+  if (error || !sub) return null;
+
+  const { data: authUser } = await supabase.auth.admin.getUserById(sub.account_id);
+  const { data: profile } = await (supabase as any)
+    .from('profiles')
+    .select('*')
+    .eq('id', sub.account_id)
+    .maybeSingle();
+
+  return {
+    ...sub,
+    account_context: {
+      id: sub.account_id,
+      user_id: sub.account_id,
+      profiles: {
+        full_name: profile?.full_name || authUser?.user?.user_metadata?.full_name || 'Customer Account',
+        email: authUser?.user?.email || 'customer@propertyledge.com.au',
+      },
+    },
+  };
 }
 
 export async function getAdminPlans() {
   await requireAdmin();
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await (supabase as any)
     .from('subscription_plans')
@@ -98,7 +156,7 @@ export async function getAdminPlans() {
 
 export async function getAdminPlanById(planId: string) {
   await requireAdmin();
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await (supabase as any)
     .from('subscription_plans')
@@ -112,7 +170,7 @@ export async function getAdminPlanById(planId: string) {
 
 export async function getAdminEntitlements() {
   await requireAdmin();
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data, error } = await (supabase as any)
     .from('entitlements')
@@ -123,9 +181,9 @@ export async function getAdminEntitlements() {
   return data || [];
 }
 
-export async function getAdminBillingEvents({ page = 1, limit = 10 }: { page?: number; limit?: number }) {
+export async function getAdminBillingEvents({ page = 1, limit = 50 }: { page?: number; limit?: number }) {
   await requireAdmin();
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const from = (page - 1) * limit;
   const to = from + limit - 1;
@@ -147,9 +205,152 @@ export async function getAdminBillingEvents({ page = 1, limit = 10 }: { page?: n
   };
 }
 
-export async function getAdminAuditLogs({ page = 1, limit = 10 }: { page?: number; limit?: number }) {
+export async function getAdminUsers({
+  page = 1,
+  limit = 50,
+  search = '',
+  status = 'all',
+}: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+} = {}) {
   await requireAdmin();
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
+
+  // Fetch real auth users from Supabase Auth admin API
+  const { data: authUsersRes, error: authErr } = await supabase.auth.admin.listUsers();
+  const authUsers = authUsersRes?.users || [];
+
+  const { data: profiles } = await (supabase as any)
+    .from('profiles')
+    .select('*');
+
+  let profileMap = new Map();
+  if (profiles) {
+    profiles.forEach((p: any) => profileMap.set(p.id, p));
+  }
+
+  let contextMap = new Map();
+  try {
+    const { data: contexts } = await (supabase as any)
+      .from('account_context')
+      .select('*, subscriptions(id, status, plan_id, subscription_plans(name, slug))');
+
+    if (contexts) {
+      contexts.forEach((c: any) => contextMap.set(c.user_id, c));
+    }
+  } catch (ctxErr) {
+    console.warn('getAdminUsers context error:', ctxErr);
+  }
+
+  const combined = authUsers.map((u: any) => {
+    const profile = profileMap.get(u.id);
+    const ctx = contextMap.get(u.id);
+
+    return {
+      id: u.id,
+      email: u.email || '—',
+      full_name: profile?.full_name || u.user_metadata?.full_name || u.email?.split('@')[0] || 'User',
+      phone: profile?.phone || u.phone || u.user_metadata?.phone || '—',
+      role: u.app_metadata?.role || (u.user_metadata?.is_admin ? 'admin' : undefined),
+      user_metadata: u.user_metadata,
+      app_metadata: u.app_metadata,
+      created_at: profile?.created_at || u.created_at,
+      updated_at: profile?.updated_at || u.updated_at || u.last_sign_in_at,
+      account_context: ctx ? [ctx] : [],
+    };
+  });
+
+  return {
+    data: combined,
+    total: combined.length,
+    page: 1,
+    limit: 50,
+    totalPages: 1,
+  };
+}
+
+export async function getAdminPayments({
+  page = 1,
+  limit = 50,
+  status = 'all',
+}: {
+  page?: number;
+  limit?: number;
+  status?: string;
+} = {}) {
+  await requireAdmin();
+  const supabase = await createAdminClient();
+
+  let query = (supabase as any)
+    .from('subscription_payments')
+    .select('*, subscriptions(*, subscription_plans(*))', { count: 'exact' });
+
+  if (status !== 'all') {
+    query = query.eq('status', status);
+  }
+
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  query = query.order('created_at', { ascending: false }).range(from, to);
+
+  const { data: payments, count, error } = await query;
+  if (error || !payments) {
+    console.error('getAdminPayments error:', error);
+    return { data: [], total: 0, page, limit, totalPages: 0 };
+  }
+
+  const { data: authUsersRes } = await supabase.auth.admin.listUsers();
+  const authUsersMap = new Map();
+  if (authUsersRes?.users) {
+    authUsersRes.users.forEach((u) => authUsersMap.set(u.id, u));
+  }
+
+  const accountIds = Array.from(new Set(payments.map((p: any) => p.account_id).filter(Boolean)));
+  let profileMap = new Map();
+  if (accountIds.length > 0) {
+    const { data: profiles } = await (supabase as any)
+      .from('profiles')
+      .select('*')
+      .in('id', accountIds);
+
+    if (profiles) {
+      profiles.forEach((pr: any) => profileMap.set(pr.id, pr));
+    }
+  }
+
+  const formattedData = payments.map((p: any) => {
+    const profile = profileMap.get(p.account_id);
+    const authUser = authUsersMap.get(p.account_id);
+
+    return {
+      ...p,
+      account_context: {
+        id: p.account_id,
+        user_id: p.account_id,
+        profiles: {
+          full_name: profile?.full_name || authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || 'Customer Account',
+          email: authUser?.email || profile?.email || 'customer@propertyledge.com.au',
+        },
+      },
+    };
+  });
+
+  return {
+    data: formattedData,
+    total: count || formattedData.length,
+    page,
+    limit,
+    totalPages: Math.ceil((count || formattedData.length) / limit),
+  };
+}
+
+export async function getAdminAuditLogs({ page = 1, limit = 50 }: { page?: number; limit?: number } = {}) {
+  await requireAdmin();
+  const supabase = await createAdminClient();
 
   const from = (page - 1) * limit;
   const to = from + limit - 1;

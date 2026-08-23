@@ -5,4 +5,19 @@ test.describe('Phase 2 E2E - Admin Route Protection', () => {
     await page.goto('/admin');
     await expect(page).toHaveURL(/\/login/);
   });
+
+  test('redirects unauthenticated user away from /admin/subscriptions', async ({ page }) => {
+    await page.goto('/admin/subscriptions');
+    await expect(page).toHaveURL(/\/login/);
+  });
+
+  test('redirects unauthenticated user away from /admin/plans', async ({ page }) => {
+    await page.goto('/admin/plans');
+    await expect(page).toHaveURL(/\/login/);
+  });
+
+  test('redirects unauthenticated user away from /admin/entitlements', async ({ page }) => {
+    await page.goto('/admin/entitlements');
+    await expect(page).toHaveURL(/\/login/);
+  });
 });

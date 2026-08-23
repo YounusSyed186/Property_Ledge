@@ -64,6 +64,7 @@ export function SubscriptionCheckout({
   const [state, setState] = useState('VIC');
   const [postcode, setPostcode] = useState('3000');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [stepError, setStepError] = useState<string>('');
 
   // Step 3 Payment Form State
   const [copySuccess, setCopySuccess] = useState(false);
@@ -111,18 +112,16 @@ export function SubscriptionCheckout({
   // Step 1 -> Step 2
   const handleProceedToDetails = async () => {
     setIsSubmitting(true);
+    setStepError('');
     try {
       const session = await handleCreateManualCheckoutSession(selectedPlanSlug, billingInterval);
-      setCheckoutSession(session);
-      setCurrentStep(2);
+      if (session) {
+        setCheckoutSession(session);
+        setCurrentStep(2);
+      }
     } catch (err: any) {
-      setCheckoutSession({
-        subscriptionId: `sub-${Math.random().toString(36).substring(2, 9)}`,
-        paymentId: `pay-${Math.random().toString(36).substring(2, 9)}`,
-        reference: `${BANK_DETAILS.referencePrefix}${Math.floor(100000 + Math.random() * 900000)}`,
-        expectedAmount,
-      });
-      setCurrentStep(2);
+      console.error('Failed to create manual checkout session:', err);
+      setStepError(err.message || 'Unable to connect to billing session. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -204,9 +203,13 @@ export function SubscriptionCheckout({
       return;
     }
 
-    if (!checkoutSession) return;
+    if (!checkoutSession) {
+      setFileError('No active checkout session found. Please refresh and try again.');
+      return;
+    }
 
     setIsSubmitting(true);
+    setFileError('');
 
     try {
       await handleSubmitManualPayment(checkoutSession.paymentId, {
@@ -221,8 +224,9 @@ export function SubscriptionCheckout({
       });
 
       setCurrentStep(4);
-    } catch (err) {
-      setCurrentStep(4);
+    } catch (err: any) {
+      console.error('Failed to submit payment:', err);
+      setFileError(err.message || 'Failed to record payment submission in database.');
     } finally {
       setIsSubmitting(false);
     }
@@ -314,11 +318,17 @@ export function SubscriptionCheckout({
         </div>
       </div>
 
-      {/* MAIN CHECKOUT BODY (TWO-COLUMN LAYOUT) */}
+      {/* MAIN CHECKOUT BODY */}
       <main className="flex-1 max-w-[1440px] mx-auto px-5 sm:px-8 py-8 md:py-12 w-full">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           {/* LEFT COLUMN: ACTIVE STEP FORM */}
           <div className="lg:col-span-7 space-y-8">
+            {stepError && (
+              <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-xs font-medium">
+                {stepError}
+              </div>
+            )}
+
             {/* STEP 1: PLAN REVIEW */}
             {currentStep === 1 && (
               <div className="bg-surface rounded-2xl border border-border p-6 sm:p-8 space-y-6 shadow-subtle-card">
@@ -415,9 +425,9 @@ export function SubscriptionCheckout({
                     type="button"
                     onClick={handleProceedToDetails}
                     disabled={isSubmitting}
-                    className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-foreground text-background font-semibold text-xs flex items-center justify-center gap-2 hover:bg-foreground/90 transition-all shadow-sm"
+                    className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-foreground text-background font-semibold text-xs flex items-center justify-center gap-2 hover:bg-foreground/90 transition-all shadow-sm disabled:opacity-50"
                   >
-                    <span>Continue to Details</span>
+                    <span>{isSubmitting ? 'Initializing...' : 'Continue to Details'}</span>
                     <ArrowRight className="w-3.5 h-3.5 text-accent" />
                   </button>
                 </div>
@@ -752,6 +762,12 @@ export function SubscriptionCheckout({
                     </p>
                   </div>
 
+                  {fileError && (
+                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-500 text-xs font-medium">
+                      {fileError}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-foreground">Payment Date</label>
@@ -801,56 +817,48 @@ export function SubscriptionCheckout({
                         </div>
                       </label>
                     ) : (
-                      <div className="p-4 rounded-xl border border-accent/50 bg-accent/5 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-accent text-white flex items-center justify-center shrink-0">
-                            <FileText className="w-4 h-4" />
+                      <div className="p-4 rounded-xl bg-surface-subtle border border-border flex items-center justify-between">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-lg bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                            <FileText className="w-5 h-5" />
                           </div>
-                          <div>
-                            <p className="text-xs font-bold text-foreground truncate max-w-[200px] sm:max-w-xs">
-                              {uploadedFile.name}
-                            </p>
-                            <p className="text-[10px] text-muted">
-                              {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready to submit
-                            </p>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-foreground truncate">{uploadedFile.name}</p>
+                            <p className="text-[11px] text-muted">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
                           </div>
                         </div>
-
                         <button
                           type="button"
                           onClick={handleRemoveFile}
-                          className="p-1.5 rounded-lg border border-border hover:bg-surface text-muted hover:text-red-500 transition-colors"
-                          title="Remove file"
+                          className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-surface transition-all"
                         >
                           <X className="w-4 h-4" />
                         </button>
                       </div>
                     )}
-
-                    {fileError && <p className="text-xs text-red-500 font-medium">{fileError}</p>}
                   </div>
 
                   <div className="pt-4 flex items-center justify-between border-t border-border">
                     <button
                       type="button"
                       onClick={() => setCurrentStep(2)}
-                      className="text-xs font-semibold text-muted hover:text-foreground flex items-center gap-1"
+                      className="text-xs font-semibold text-muted hover:text-foreground flex items-center gap-1 px-2 py-2"
                     >
                       <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>Back</span>
+                      <span>Back to Details</span>
                     </button>
 
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="px-8 py-3.5 rounded-xl bg-foreground text-background font-semibold text-xs flex items-center gap-2 hover:bg-foreground/90 transition-all shadow-sm disabled:opacity-50"
+                      className="px-8 py-3.5 rounded-xl bg-accent text-white font-semibold text-xs flex items-center gap-2 hover:bg-accent/90 transition-all shadow-md disabled:opacity-50"
                     >
                       {isSubmitting ? (
-                        <span>Submitting payment...</span>
+                        <span>Submitting Payment Proof...</span>
                       ) : (
                         <>
-                          <span>Submit Payment for Verification</span>
-                          <ArrowRight className="w-3.5 h-3.5 text-accent" />
+                          <span>Submit Payment Proof</span>
+                          <CheckCircle2 className="w-4 h-4" />
                         </>
                       )}
                     </button>
@@ -859,139 +867,119 @@ export function SubscriptionCheckout({
               </div>
             )}
 
-            {/* STEP 4: CONFIRMATION & VERIFICATION PENDING */}
+            {/* STEP 4: VERIFICATION CONFIRMATION */}
             {currentStep === 4 && (
-              <div className="bg-surface rounded-2xl border border-border p-6 sm:p-8 space-y-6 shadow-subtle-card text-center sm:text-left">
-                <div className="flex flex-col sm:flex-row items-center gap-4 border-b border-border pb-6">
-                  <div className="w-14 h-14 rounded-full bg-accent/15 text-accent border border-accent/30 flex items-center justify-center shrink-0">
-                    <CheckCircle2 className="w-8 h-8" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-accent font-heading">
-                      STATUS: UNDER REVIEW
-                    </span>
-                    <h2 className="text-2xl sm:text-3xl font-bold font-heading uppercase text-foreground tracking-tight">
-                      Payment Submitted Successfully
-                    </h2>
-                    <p className="text-xs text-muted mt-1">
-                      We've received your payment details and will manually verify your transfer before activating your PropertyLedge subscription.
-                    </p>
-                  </div>
+              <div className="bg-surface rounded-2xl border border-border p-8 sm:p-12 text-center space-y-6 shadow-subtle-card">
+                <div className="w-16 h-16 rounded-full bg-accent/10 border-2 border-accent/30 text-accent flex items-center justify-center mx-auto">
+                  <Clock className="w-8 h-8" />
                 </div>
 
-                <div className="p-5 rounded-xl bg-surface-subtle/40 border border-border space-y-3 text-xs">
-                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                    <span className="text-muted">Subscription Plan</span>
-                    <span className="font-bold text-foreground">{plan.name} ({billingInterval})</span>
+                <div className="space-y-2 max-w-md mx-auto">
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-amber-500 font-heading">
+                    STATUS: UNDER REVIEW
+                  </span>
+                  <h2 className="text-2xl sm:text-3xl font-bold font-heading uppercase text-foreground tracking-tight">
+                    Payment Proof Submitted
+                  </h2>
+                  <p className="text-xs text-muted leading-relaxed">
+                    Thank you! Your payment receipt has been submitted for manual verification. Our team will review your transfer against reference{' '}
+                    <strong className="font-mono text-foreground">{checkoutSession?.reference}</strong>.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-surface-subtle/50 border border-border max-w-md mx-auto text-left space-y-2 text-xs">
+                  <div className="flex items-center justify-between text-muted">
+                    <span>Selected Plan:</span>
+                    <span className="font-bold text-foreground">{plan.name}</span>
                   </div>
-                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                    <span className="text-muted">Amount Submitted</span>
-                    <span className="font-bold text-foreground">${expectedAmount.toFixed(2)} AUD</span>
-                  </div>
-                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                    <span className="text-muted">Payment Reference</span>
+                  <div className="flex items-center justify-between text-muted">
+                    <span>Payment Reference:</span>
                     <span className="font-mono font-bold text-foreground">{checkoutSession?.reference}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">Status</span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold uppercase text-[10px]">
-                      Under Review
-                    </span>
+                  <div className="flex items-center justify-between text-muted">
+                    <span>Verification Time:</span>
+                    <span className="font-semibold text-foreground">Usually 1-4 business hours</span>
                   </div>
                 </div>
 
-                <div className="space-y-4 pt-2">
-                  <h3 className="text-xs font-semibold uppercase text-muted tracking-wider">Next Steps Timeline</h3>
-                  <div className="space-y-3 text-xs">
-                    <div className="flex items-center gap-3 text-foreground">
-                      <div className="w-5 h-5 rounded-full bg-accent text-white flex items-center justify-center shrink-0">
-                        <Check className="w-3 h-3" />
-                      </div>
-                      <span className="font-semibold">Payment details submitted</span>
-                    </div>
-
-                    <div className="flex items-center gap-3 text-foreground">
-                      <div className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 animate-pulse">
-                        <Clock className="w-3 h-3" />
-                      </div>
-                      <span className="font-semibold">Manual payment verification in progress</span>
-                    </div>
-
-                    <div className="flex items-center gap-3 text-muted opacity-50">
-                      <div className="w-5 h-5 rounded-full border border-border flex items-center justify-center shrink-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-muted" />
-                      </div>
-                      <span>Subscription activation</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-4 flex flex-col sm:flex-row items-center gap-3 border-t border-border">
-                  <button
-                    type="button"
-                    onClick={() => router.push('/subscription')}
-                    className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-foreground text-background font-semibold text-xs flex items-center justify-center gap-2 hover:bg-foreground/90 transition-all shadow-sm"
+                <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <Link
+                    href="/subscription"
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-foreground text-background font-semibold text-xs hover:bg-foreground/90 transition-all shadow-sm"
                   >
-                    <span>View Subscription Dashboard</span>
-                    <ArrowRight className="w-3.5 h-3.5 text-accent" />
-                  </button>
+                    View Subscription Status
+                  </Link>
+                  <Link
+                    href="/"
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-surface-subtle border border-border text-foreground font-semibold text-xs hover:bg-surface-elevated transition-all"
+                  >
+                    Return to Dashboard
+                  </Link>
                 </div>
               </div>
             )}
           </div>
 
-          {/* RIGHT COLUMN: STICKY ORDER SUMMARY */}
-          <div className="lg:col-span-5 sticky top-24 space-y-6">
-            <div className="bg-surface rounded-2xl border border-border p-6 sm:p-8 space-y-6 shadow-subtle-card">
-              <div className="border-b border-border pb-4">
-                <span className="text-[10px] uppercase font-bold tracking-widest text-accent font-heading">
-                  ORDER SUMMARY
-                </span>
-                <h3 className="text-xl font-bold font-heading text-foreground mt-0.5">
-                  PropertyLedge {plan.name}
+          {/* RIGHT COLUMN: ORDER SUMMARY SIDEBAR */}
+          <div className="lg:col-span-5 sticky top-24">
+            <div className="bg-surface rounded-2xl border border-border p-6 space-y-6 shadow-subtle-card">
+              <div className="flex items-center justify-between border-b border-border pb-4">
+                <h3 className="font-heading font-bold text-sm text-foreground uppercase tracking-wider">
+                  Order Summary
                 </h3>
-                <p className="text-xs text-muted mt-0.5">
-                  {billingInterval === 'yearly' ? 'Annual Billing (2 Months Free)' : 'Monthly Billing'}
+                <span className="text-[11px] font-semibold text-accent capitalize">{billingInterval} Billing</span>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h4 className="font-heading font-bold text-base text-foreground">{plan.name} Plan</h4>
+                    <p className="text-xs text-muted mt-0.5">{plan.features[0]}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-heading font-bold text-lg text-foreground">
+                      ${plan.price}
+                    </span>
+                    <span className="text-[11px] text-muted block">AUD / mo</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-xs pt-3 border-t border-border/50">
+                  <div className="flex items-center justify-between text-muted">
+                    <span>Billing Interval</span>
+                    <span className="font-semibold text-foreground capitalize">{billingInterval}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-muted">
+                    <span>GST (Included)</span>
+                    <span className="font-semibold text-foreground">$0.00 AUD</span>
+                  </div>
+                  {billingInterval === 'yearly' && (
+                    <div className="flex items-center justify-between text-green-500 font-semibold">
+                      <span>Annual Discount</span>
+                      <span>2 Months Free</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-4 border-t-2 border-border flex items-baseline justify-between">
+                  <span className="font-heading font-bold text-sm uppercase text-foreground">Total Due</span>
+                  <div className="text-right">
+                    <span className="font-heading font-extrabold text-2xl text-foreground">
+                      ${expectedAmount.toFixed(2)}
+                    </span>
+                    <span className="text-[10px] text-muted uppercase tracking-wider block">AUD</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-surface-subtle/50 border border-border space-y-2 text-[11px] text-muted">
+                <div className="flex items-center gap-2 text-foreground font-semibold">
+                  <ShieldCheck className="w-4 h-4 text-accent" />
+                  <span>PropertyLedge Subscription Contract</span>
+                </div>
+                <p className="leading-relaxed">
+                  Your manual payment will be verified by PropertyLedge administration. An official tax invoice and approval notification will be emailed to your account upon verification.
                 </p>
-              </div>
-
-              <div className="space-y-3 text-xs">
-                <div className="text-muted font-semibold uppercase text-[10px] tracking-wider">
-                  Included Features:
-                </div>
-                <ul className="space-y-2">
-                  {plan.features.map((feat, i) => (
-                    <li key={i} className="flex items-center gap-2 text-foreground/80">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-accent shrink-0" />
-                      <span>{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="pt-4 border-t border-border space-y-2 text-xs">
-                <div className="flex items-center justify-between text-muted">
-                  <span>Subtotal</span>
-                  <span>${expectedAmount.toFixed(2)} AUD</span>
-                </div>
-                <div className="flex items-center justify-between text-muted">
-                  <span>GST / Tax</span>
-                  <span>Included</span>
-                </div>
-                <div className="flex items-center justify-between text-base font-extrabold font-heading text-foreground pt-2 border-t border-border">
-                  <span>Total Due</span>
-                  <span>${expectedAmount.toFixed(2)} AUD</span>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-accent/5 border border-accent/20 flex items-start gap-3">
-                <ShieldCheck className="w-5 h-5 text-accent shrink-0 mt-0.5" />
-                <div>
-                  <div className="text-xs font-bold text-foreground">14-Day Money Back Guarantee</div>
-                  <p className="text-[11px] text-muted leading-tight mt-0.5">
-                    If you are not satisfied within 14 days of activation, contact us for a full refund.
-                  </p>
-                </div>
               </div>
             </div>
           </div>

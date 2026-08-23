@@ -72,26 +72,16 @@ export default async function AdminSubscriptionDetailPage({ params }: PageProps)
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Subscription Details"
-        description={sub.id}
-        breadcrumb={
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-caption text-admin-muted">
-            <Link href="/admin/subscriptions" className="hover:text-admin-primary transition-colors">
-              Subscriptions
-            </Link>
-            <span aria-hidden="true" className="text-admin-muted/50">/</span>
-            <span className="text-admin-foreground font-medium">Details</span>
-          </nav>
-        }
-        actions={
-          <Link href="/admin/subscriptions">
-            <Button variant="secondary" size="sm" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}>
-              Back
-            </Button>
-          </Link>
-        }
-      />
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <Link
+          href="/admin/subscriptions"
+          className="inline-flex items-center gap-2 text-caption font-semibold text-admin-muted hover:text-admin-foreground transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Subscriptions</span>
+        </Link>
+        <span className="font-mono text-metadata text-admin-muted">{sub.id}</span>
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Info Cards */}
@@ -111,7 +101,7 @@ export default async function AdminSubscriptionDetailPage({ params }: PageProps)
                 </div>
                 <div>
                   <span className="text-caption text-admin-muted">Current Plan</span>
-                  <p className="font-bold text-admin-primary mt-0.5">{sub.subscription_plans?.name}</p>
+                  <p className="font-bold text-admin-foreground mt-0.5">{sub.subscription_plans?.name}</p>
                 </div>
                 <div>
                   <span className="text-caption text-admin-muted">Provider</span>
@@ -175,7 +165,7 @@ export default async function AdminSubscriptionDetailPage({ params }: PageProps)
                 {proof && (
                   <div className="p-4 rounded-lg bg-admin-surface-subtle border border-admin-border flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-admin-primary" />
+                      <FileText className="w-5 h-5 text-admin-muted" />
                       <div>
                         <p className="text-body-sm font-semibold text-admin-foreground">{proof.file_name}</p>
                         <p className="text-metadata text-admin-muted">{(proof.file_size / 1024).toFixed(1)} KB • {proof.mime_type}</p>
@@ -187,7 +177,7 @@ export default async function AdminSubscriptionDetailPage({ params }: PageProps)
                         href={proof.file_preview_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-caption font-semibold text-admin-primary hover:text-admin-primary-hover"
+                        className="inline-flex items-center gap-1 text-caption font-semibold text-admin-foreground hover:underline"
                       >
                         <Download className="w-3.5 h-3.5" /> View Receipt
                       </a>

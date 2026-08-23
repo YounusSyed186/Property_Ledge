@@ -62,14 +62,6 @@ const navSections = [
     label: 'Business',
     items: [
       { label: 'Plans', href: '/admin/plans', icon: Layers },
-      { label: 'Entitlements', href: '/admin/entitlements', icon: KeyRound },
-    ],
-  },
-  {
-    label: 'Operations',
-    items: [
-      { label: 'Billing Events', href: '/admin/billing-events', icon: Activity },
-      { label: 'Audit Logs', href: '/admin/audit-logs', icon: ShieldCheck },
     ],
   },
 ];
@@ -201,10 +193,12 @@ interface SidebarProps {
   userEmail: string;
   onLogout: () => void;
   onNavigate?: () => void;
+  themeMode: string;
 }
 
-function Sidebar({ isCollapsed, onToggleCollapse, pathname, userName, userEmail, onLogout, onNavigate }: SidebarProps) {
+function Sidebar({ isCollapsed, onToggleCollapse, pathname, userName, userEmail, onLogout, onNavigate, themeMode }: SidebarProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const isShellDark = themeMode === 'light' || themeMode === 'full-dark' || themeMode === 'dark';
 
   const toggleGroup = (groupLabel: string) => {
     setCollapsedGroups((prev) => ({
@@ -244,9 +238,13 @@ function Sidebar({ isCollapsed, onToggleCollapse, pathname, userName, userEmail,
                 <motion.div
                   whileHover={{ scale: 1.08, rotate: -3 }}
                   whileTap={{ scale: 0.95 }}
-                  className="w-8 h-8 rounded-xl bg-admin-sidebar-surface border border-admin-sidebar-border flex items-center justify-center shrink-0 shadow-xs transition-shadow group-hover:shadow-md"
+                  className="w-8 h-8 rounded-xl bg-admin-sidebar-surface border border-admin-sidebar-border flex items-center justify-center shrink-0 shadow-xs transition-shadow group-hover:shadow-md overflow-hidden"
                 >
-                  <Building2 className="w-4 h-4 text-admin-sidebar-foreground" />
+                  <img
+                    src={isShellDark ? "/logo_Dark.png" : "/logo_Light.png"}
+                    alt="PropertyLedge Logo"
+                    className="w-5 h-5 object-contain"
+                  />
                 </motion.div>
 
                 <div className="flex items-center gap-1.5 min-w-0 truncate">
@@ -287,8 +285,12 @@ function Sidebar({ isCollapsed, onToggleCollapse, pathname, userName, userEmail,
               title="Expand Sidebar"
               aria-label="Expand sidebar"
             >
-              <div className="w-6 h-6 flex items-center justify-center relative">
-                 <Building2 className="w-4 h-4 text-admin-sidebar-foreground transition-opacity group-hover:opacity-0" />
+              <div className="w-6 h-6 flex items-center justify-center relative overflow-hidden">
+                <img
+                  src={isShellDark ? "/logo_Dark.png" : "/logo_Light.png"}
+                  alt="PropertyLedge Logo"
+                  className="w-4 h-4 object-contain transition-opacity group-hover:opacity-0"
+                />
                 <PanelLeftOpen className="w-4 h-4 absolute opacity-0 group-hover:opacity-100 transition-opacity text-admin-sidebar-foreground" />
               </div>
             </motion.button>
@@ -424,10 +426,12 @@ interface MobileDrawerProps {
   userName: string;
   userEmail: string;
   onLogout: () => void;
+  themeMode: string;
 }
 
-function MobileDrawer({ isOpen, onClose, pathname, userName, userEmail, onLogout }: MobileDrawerProps) {
+function MobileDrawer({ isOpen, onClose, pathname, userName, userEmail, onLogout, themeMode }: MobileDrawerProps) {
   if (!isOpen) return null;
+  const isShellDark = themeMode === 'light' || themeMode === 'full-dark' || themeMode === 'dark';
 
   return (
     <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
@@ -448,8 +452,12 @@ function MobileDrawer({ isOpen, onClose, pathname, userName, userEmail, onLogout
         <div className="space-y-6">
           <div className="flex items-center justify-between pb-3 border-b border-admin-sidebar-border">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-admin-sidebar-surface border border-admin-sidebar-border flex items-center justify-center">
-                <Building2 className="w-4 h-4 text-admin-sidebar-foreground" />
+              <div className="w-8 h-8 rounded-xl bg-admin-sidebar-surface border border-admin-sidebar-border flex items-center justify-center overflow-hidden">
+                <img
+                  src={isShellDark ? "/logo_Dark.png" : "/logo_Light.png"}
+                  alt="PropertyLedge Logo"
+                  className="w-5 h-5 object-contain"
+                />
               </div>
               <span className="font-heading font-bold text-base tracking-tight text-admin-sidebar-foreground">PropertyLedge</span>
             </div>
@@ -539,14 +547,31 @@ function MobileDrawer({ isOpen, onClose, pathname, userName, userEmail, onLogout
 export function AdminClientLayout({ children, userEmail = 'admin@propertyledge.com.au', userName = 'PropertyLedge Admin' }: AdminClientLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const [themeMode, setThemeMode] = useState<'light' | 'full-light' | 'full-dark' | 'dark'>('light');
   const [mounted, setMounted] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const stored = localStorage.getItem('propertyledge_theme') as any;
+      const currentMode = stored || document.documentElement.getAttribute('data-theme-mode') || 'light';
+      setThemeMode(currentMode);
+    }
+    const syncTheme = () => {
+      const stored = localStorage.getItem('propertyledge_theme') as any;
+      if (stored) setThemeMode(stored);
+    };
+    window.addEventListener('theme-change', syncTheme);
+    return () => window.removeEventListener('theme-change', syncTheme);
+  }, []);
+
+  useEffect(() => {
     setMounted(true);
   }, []);
+
+  const isShellDark = themeMode === 'light' || themeMode === 'full-dark' || themeMode === 'dark';
 
   // Handle hotkeys (⌘K or Ctrl+K)
   useEffect(() => {
@@ -595,13 +620,18 @@ export function AdminClientLayout({ children, userEmail = 'admin@propertyledge.c
           userName={userName}
           userEmail={userEmail}
           onLogout={handleLogout}
+          themeMode={themeMode}
         />
 
         {/* ============ MOBILE TOP BAR ============ */}
         <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-admin-sidebar-border bg-admin-sidebar text-admin-sidebar-foreground shrink-0 z-30">
           <Link href="/admin" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-admin-sidebar-surface border border-admin-sidebar-border flex items-center justify-center">
-              <Building2 className="w-3.5 h-3.5 text-admin-sidebar-foreground" />
+            <div className="w-7 h-7 rounded-lg bg-admin-sidebar-surface border border-admin-sidebar-border flex items-center justify-center overflow-hidden">
+              <img
+                src={isShellDark ? "/logo_Dark.png" : "/logo_Light.png"}
+                alt="PropertyLedge Logo"
+                className="w-4 h-4 object-contain"
+              />
             </div>
             <span className="font-heading font-bold text-sm tracking-tight text-admin-sidebar-foreground">PropertyLedge Admin</span>
           </Link>
@@ -629,6 +659,7 @@ export function AdminClientLayout({ children, userEmail = 'admin@propertyledge.c
               userName={userName}
               userEmail={userEmail}
               onLogout={handleLogout}
+              themeMode={themeMode}
             />
           )}
         </AnimatePresence>
@@ -688,7 +719,7 @@ export function AdminClientLayout({ children, userEmail = 'admin@propertyledge.c
             </header>
 
             {/* Workspace Content */}
-            <main className="flex-1 overflow-y-auto admin-scrollbar p-4 sm:p-6 lg:p-8 flex flex-col min-w-0">
+            <main className="flex-1 overflow-hidden p-1 sm:p-1.5 flex flex-col min-w-0 min-h-0 h-full">
               {children}
             </main>
           </div>

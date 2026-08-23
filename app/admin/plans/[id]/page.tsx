@@ -61,26 +61,16 @@ export default async function AdminPlanDetailPage({ params }: PageProps) {
 
   return (
     <PageContainer>
-      <PageHeader
-        title={`Plan: ${plan.name}`}
-        description={`slug: ${plan.slug}`}
-        breadcrumb={
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-caption text-admin-muted">
-            <Link href="/admin/plans" className="hover:text-admin-primary transition-colors">
-              Plans
-            </Link>
-            <span aria-hidden="true" className="text-admin-muted/50">/</span>
-            <span className="text-admin-foreground font-medium">{plan.name}</span>
-          </nav>
-        }
-        actions={
-          <Link href="/admin/plans">
-            <Button variant="secondary" size="sm" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}>
-              Back
-            </Button>
-          </Link>
-        }
-      />
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <Link
+          href="/admin/plans"
+          className="inline-flex items-center gap-2 text-caption font-semibold text-admin-muted hover:text-admin-foreground transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Plans</span>
+        </Link>
+        <Badge variant="primary">{plan.name}</Badge>
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Entitlements assigned to this plan */}

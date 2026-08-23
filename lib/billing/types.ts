@@ -1,23 +1,19 @@
 export interface CheckoutSessionOptions {
   accountId: string;
   planSlug: string;
-  billingInterval?: 'monthly' | 'yearly';
-  successUrl: string;
-  cancelUrl: string;
+  interval?: 'monthly' | 'yearly';
+  successUrl?: string;
+  cancelUrl?: string;
 }
 
 export interface CheckoutSessionResult {
   sessionId: string;
   url: string;
-  subscriptionId?: string;
-  paymentId?: string;
-  reference?: string;
-  expectedAmount?: number;
 }
 
 export interface BillingPortalOptions {
   accountId: string;
-  returnUrl: string;
+  returnUrl?: string;
 }
 
 export interface BillingPortalResult {
@@ -28,10 +24,10 @@ export interface WebhookEventPayload {
   id: string;
   type: string;
   accountId?: string;
+  planSlug?: string;
   providerCustomerId?: string;
   providerSubscriptionId?: string;
-  planSlug?: string;
-  data: Record<string, unknown>;
+  data: Record<string, any>;
 }
 
 export interface IBillingProvider {
@@ -42,9 +38,9 @@ export interface IBillingProvider {
 }
 
 export const BANK_DETAILS = {
-  accountName: "PROPERTYLEDGE PTY LTD",
-  bankName: "National Australia Bank (NAB)",
-  bsb: "083-004",
-  accountNumber: "9876 54321",
-  referencePrefix: "PL-2026-",
+  accountName: process.env.NEXT_PUBLIC_BANK_ACCOUNT_NAME || "PROPERTYLEDGE PTY LTD",
+  bankName: process.env.NEXT_PUBLIC_BANK_NAME || "National Australia Bank (NAB)",
+  bsb: process.env.NEXT_PUBLIC_BANK_BSB || "083-004",
+  accountNumber: process.env.NEXT_PUBLIC_BANK_ACCOUNT_NUMBER || "9876 54321",
+  referencePrefix: process.env.NEXT_PUBLIC_BANK_REFERENCE_PREFIX || "PL-2026-",
 };

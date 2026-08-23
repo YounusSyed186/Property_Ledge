@@ -44,16 +44,6 @@ export default async function AdminDashboardPage() {
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Platform Overview"
-        description="Real-time metrics, subscription queues, and system health across the PropertyLedge platform."
-        breadcrumb={
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-caption text-admin-muted">
-            <span className="text-admin-foreground font-medium">Dashboard</span>
-          </nav>
-        }
-      />
-
       {/* ============ KPI CARDS ============ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         <StatCard
@@ -142,43 +132,43 @@ export default async function AdminDashboardPage() {
           <CardContent className="space-y-2">
             <Link
               href="/admin/subscriptions"
-              className="flex items-center justify-between p-3 rounded-lg border border-admin-border hover:border-admin-primary/40 hover:bg-admin-primary-soft/50 transition-all duration-200 group"
+              className="flex items-center justify-between p-3 rounded-lg border border-admin-border hover:border-admin-border-subtle hover:bg-admin-surface-elevated transition-all duration-200 group"
             >
               <div className="flex items-center gap-3">
-                <CreditCard className="w-4 h-4 text-admin-primary" />
+                <CreditCard className="w-4 h-4 text-admin-muted" />
                 <span className="text-body-sm font-medium text-admin-foreground">Review Subscriptions</span>
               </div>
-              <ArrowUpRight className="w-4 h-4 text-admin-muted group-hover:text-admin-primary transition-colors" />
+              <ArrowUpRight className="w-4 h-4 text-admin-muted group-hover:text-admin-foreground transition-colors" />
             </Link>
             <Link
               href="/admin/payments"
-              className="flex items-center justify-between p-3 rounded-lg border border-admin-border hover:border-admin-primary/40 hover:bg-admin-primary-soft/50 transition-all duration-200 group"
+              className="flex items-center justify-between p-3 rounded-lg border border-admin-border hover:border-admin-border-subtle hover:bg-admin-surface-elevated transition-all duration-200 group"
             >
               <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-4 h-4 text-admin-primary" />
+                <CheckCircle2 className="w-4 h-4 text-admin-muted" />
                 <span className="text-body-sm font-medium text-admin-foreground">Verify Payments</span>
               </div>
-              <ArrowUpRight className="w-4 h-4 text-admin-muted group-hover:text-admin-primary transition-colors" />
+              <ArrowUpRight className="w-4 h-4 text-admin-muted group-hover:text-admin-foreground transition-colors" />
             </Link>
             <Link
               href="/admin/users"
-              className="flex items-center justify-between p-3 rounded-lg border border-admin-border hover:border-admin-primary/40 hover:bg-admin-primary-soft/50 transition-all duration-200 group"
+              className="flex items-center justify-between p-3 rounded-lg border border-admin-border hover:border-admin-border-subtle hover:bg-admin-surface-elevated transition-all duration-200 group"
             >
               <div className="flex items-center gap-3">
-                <Users className="w-4 h-4 text-admin-primary" />
+                <Users className="w-4 h-4 text-admin-muted" />
                 <span className="text-body-sm font-medium text-admin-foreground">Manage Users</span>
               </div>
-              <ArrowUpRight className="w-4 h-4 text-admin-muted group-hover:text-admin-primary transition-colors" />
+              <ArrowUpRight className="w-4 h-4 text-admin-muted group-hover:text-admin-foreground transition-colors" />
             </Link>
             <Link
               href="/admin/plans"
-              className="flex items-center justify-between p-3 rounded-lg border border-admin-border hover:border-admin-primary/40 hover:bg-admin-primary-soft/50 transition-all duration-200 group"
+              className="flex items-center justify-between p-3 rounded-lg border border-admin-border hover:border-admin-border-subtle hover:bg-admin-surface-elevated transition-all duration-200 group"
             >
               <div className="flex items-center gap-3">
-                <Layers className="w-4 h-4 text-admin-primary" />
+                <Layers className="w-4 h-4 text-admin-muted" />
                 <span className="text-body-sm font-medium text-admin-foreground">Configure Plans</span>
               </div>
-              <ArrowUpRight className="w-4 h-4 text-admin-muted group-hover:text-admin-primary transition-colors" />
+              <ArrowUpRight className="w-4 h-4 text-admin-muted group-hover:text-admin-foreground transition-colors" />
             </Link>
           </CardContent>
         </Card>

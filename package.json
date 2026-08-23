@@ -13,6 +13,8 @@
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.48.1",
+    "ag-grid-community": "^36.1.0",
+    "ag-grid-react": "^36.1.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.4.7",
     "lucide-react": "^0.475.0",

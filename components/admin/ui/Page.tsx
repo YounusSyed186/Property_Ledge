@@ -9,12 +9,11 @@ interface PageContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   fullWidth?: boolean;
 }
 
-export function PageContainer({ fullWidth = false, className, ...props }: PageContainerProps) {
+export function PageContainer({ fullWidth = true, className, ...props }: PageContainerProps) {
   return (
     <div
       className={cn(
-        'w-full mx-auto flex-1 flex flex-col',
-        fullWidth ? 'max-w-none' : 'max-w-[1400px]',
+        'w-full flex-1 flex flex-col min-h-0 h-full p-1',
         className
       )}
       {...props}

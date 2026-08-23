@@ -19,4 +19,5 @@ export { ToastProvider, useToast } from './Toast';
 export { Dropdown, DropdownItem, DropdownTrigger } from './Dropdown';
 export { Tabs, SegmentedControl } from './Tabs';
 export { Tooltip } from './Tooltip';
+export { DiceBearAvatar } from './DiceBearAvatar';
 export { SubscriptionDrawer } from '../SubscriptionDrawer';

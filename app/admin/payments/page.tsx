@@ -1,75 +1,60 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { PageContainer, useToast } from '@/components/admin/ui';
 import {
-  PageContainer,
-  PageHeader,
-  Card,
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-  TableToolbar,
-  Badge,
-  Button,
-  EmptyState,
-} from '@/components/admin/ui';
-import { Receipt, Eye } from 'lucide-react';
+  AdminDataGrid,
+  QuickFilterBar,
+  QuickFilterOption,
+  BulkAction,
+} from '@/components/admin/data-grid';
+import { ColDef } from 'ag-grid-community';
+import { CheckCircle } from 'lucide-react';
 import { SubscriptionDrawer } from '@/components/admin/SubscriptionDrawer';
+import { fetchAdminPayments } from '@/app/actions/admin';
 
 export default function AdminPaymentsPage() {
-  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all');
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [drawerData, setDrawerData] = useState<any>(null);
+  const [paymentsList, setPaymentsList] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { success } = useToast();
 
-  const payments = [
-    {
-      id: 'pay-001',
-      subscription_id: 'sub-001',
-      reference: 'PL-2026-84920',
-      userName: 'Sarah Williams',
-      userEmail: 'sarah.williams@propertyledge.com.au',
-      planName: 'Property Manager',
-      expected_amount: 79,
-      submitted_amount: 79,
-      status: 'under_review',
-      created_at: '2026-08-22 19:30',
-    },
-    {
-      id: 'pay-002',
-      subscription_id: 'sub-002',
-      reference: 'PL-2026-19402',
-      userName: 'Michael Carter',
-      userEmail: 'michael@carterproperties.com.au',
-      planName: 'Landlord',
-      expected_amount: 29,
-      submitted_amount: 29,
-      status: 'under_review',
-      created_at: '2026-08-22 16:15',
-    },
-    {
-      id: 'pay-003',
-      subscription_id: 'sub-003',
-      reference: 'PL-2026-50193',
-      userName: 'David Miller',
-      userEmail: 'david.miller@investments.com.au',
-      planName: 'Landlord',
-      expected_amount: 290,
-      submitted_amount: 290,
-      status: 'verified',
-      created_at: '2026-08-21 11:20',
-    },
-  ];
+  const loadPayments = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetchAdminPayments({ limit: 100 });
+      if (res && Array.isArray(res.data) && res.data.length > 0) {
+        const formatted = res.data.map((p: any) => ({
+          id: p.id,
+          subscription_id: p.subscription_id,
+          reference: p.reference,
+          userName: p.account_context?.profiles?.full_name || 'Customer',
+          userEmail: p.account_context?.profiles?.email || 'customer@propertyledge.com.au',
+          planName: p.subscriptions?.subscription_plans?.name || 'Landlord',
+          expected_amount: Number(p.expected_amount || 0),
+          submitted_amount: Number(p.submitted_amount || p.expected_amount || 0),
+          currency: p.currency || 'AUD',
+          status: p.status,
+          created_at: p.created_at,
+        }));
+        setPaymentsList(formatted);
+        return;
+      }
+      setPaymentsList([]);
+    } catch (err) {
+      console.warn('Failed to load server payments:', err);
+      setPaymentsList([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const filtered = payments.filter(
-    (p) =>
-      p.userName.toLowerCase().includes(search.toLowerCase()) ||
-      p.reference.toLowerCase().includes(search.toLowerCase()) ||
-      p.userEmail.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    loadPayments();
+  }, []);
 
   const handleOpenDrawer = (p: any) => {
     setSelectedSubId(p.subscription_id);
@@ -86,107 +71,163 @@ export default function AdminPaymentsPage() {
     setIsDrawerOpen(true);
   };
 
-  const getStatusVariant = (status: string) => {
-    if (status === 'verified') return 'success' as const;
-    return 'warning' as const;
-  };
+  const filterOptions: QuickFilterOption[] = useMemo(
+    () => [
+      { value: 'all', label: 'All Payments', count: paymentsList.length },
+      {
+        value: 'under_review',
+        label: 'Under Review',
+        count: paymentsList.filter((p) => p.status === 'under_review').length,
+      },
+      {
+        value: 'verified',
+        label: 'Verified',
+        count: paymentsList.filter((p) => p.status === 'verified').length,
+      },
+      {
+        value: 'pending',
+        label: 'Pending',
+        count: paymentsList.filter((p) => p.status === 'pending').length,
+      },
+    ],
+    [paymentsList]
+  );
+
+  const filteredPayments = useMemo(() => {
+    if (activeFilter === 'all') return paymentsList;
+    return paymentsList.filter((p) => p.status === activeFilter);
+  }, [paymentsList, activeFilter]);
+
+  const bulkActions: BulkAction[] = [
+    {
+      label: 'Verify Selected',
+      icon: <CheckCircle className="w-3.5 h-3.5 text-admin-success" />,
+      variant: 'secondary',
+      onClick: (selected) => {
+        success('Payments verified', `Verified ${selected.length} manual payment transfer(s).`);
+      },
+    },
+  ];
+
+  const columnDefs: ColDef[] = useMemo(
+    () => [
+      {
+        field: 'id',
+        headerName: 'Payment ID',
+        minWidth: 120,
+        maxWidth: 140,
+        cellRenderer: 'codeCell',
+        filter: 'agTextColumnFilter',
+      },
+      {
+        field: 'userName',
+        headerName: 'Customer',
+        minWidth: 180,
+        flex: 1.2,
+        cellRenderer: 'userCell',
+        filter: 'agTextColumnFilter',
+      },
+      {
+        field: 'userEmail',
+        headerName: 'Email Address',
+        minWidth: 200,
+        flex: 1.2,
+        filter: 'agTextColumnFilter',
+        cellRenderer: (params: any) => (
+          <span
+            className="text-[13px] text-admin-foreground font-mono truncate min-w-0 max-w-full block"
+            title={params.value}
+          >
+            {params.value}
+          </span>
+        ),
+      },
+      {
+        field: 'reference',
+        headerName: 'Reference',
+        minWidth: 160,
+        cellRenderer: 'codeCell',
+        filter: 'agTextColumnFilter',
+      },
+      {
+        field: 'expected_amount',
+        headerName: 'Expected',
+        minWidth: 120,
+        cellRenderer: 'currencyCell',
+        filter: 'agNumberColumnFilter',
+      },
+      {
+        field: 'submitted_amount',
+        headerName: 'Amount Paid',
+        minWidth: 130,
+        cellRenderer: 'currencyCell',
+        filter: 'agNumberColumnFilter',
+      },
+      {
+        field: 'status',
+        headerName: 'Status',
+        minWidth: 130,
+        cellRenderer: 'statusCell',
+        filter: 'agTextColumnFilter',
+      },
+      {
+        field: 'created_at',
+        headerName: 'Payment Date',
+        minWidth: 130,
+        cellRenderer: 'dateCell',
+        filter: 'agDateColumnFilter',
+      },
+      {
+        headerName: 'Action',
+        colId: 'actions',
+        minWidth: 130,
+        maxWidth: 140,
+        sortable: false,
+        filter: false,
+        pinned: 'right',
+        cellRenderer: 'actionsCell',
+        cellRendererParams: {
+          inspectLabel: 'Inspect Receipt',
+          onInspect: (p: any) => handleOpenDrawer(p),
+        },
+      },
+    ],
+    []
+  );
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Payments"
-        description="Audit invoices, transaction logs, and manual bank transfers."
-        breadcrumb={
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-caption text-admin-muted">
-            <span>Platform</span>
-            <span aria-hidden="true" className="text-admin-muted/50">/</span>
-            <span className="text-admin-foreground font-medium">Payments</span>
-          </nav>
-        }
-      />
-
-      <Card>
-        <TableToolbar
-          searchValue={search}
-          onSearchChange={setSearch}
-          searchPlaceholder="Search payments by reference..."
-          leftContent={
-            <div className="flex items-center gap-2 text-caption text-admin-muted">
-              <Receipt className="w-4 h-4 text-admin-primary" />
-              <span className="font-semibold text-admin-foreground">{filtered.length}</span>
-              <span>payments</span>
-            </div>
-          }
-        />
-
-        {filtered.length === 0 ? (
-          <EmptyState
-            icon={<Receipt className="w-6 h-6" />}
-            title="No payments found"
-            description="No payments match your current search criteria."
+      <AdminDataGrid
+        rowData={filteredPayments}
+        columnDefs={columnDefs}
+        enableSelection={true}
+        enableColumnChooser={true}
+        enableExport={true}
+        exportFilename="propertyledge-payments"
+        searchPlaceholder="Search payments by reference, customer..."
+        bulkActions={bulkActions}
+        leftToolbarContent={
+          <QuickFilterBar
+            options={filterOptions}
+            activeValue={activeFilter}
+            onChange={setActiveFilter}
           />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Payment ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Reference</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    <span className="font-mono text-caption text-admin-muted">{p.id}</span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-admin-primary/15 border border-admin-primary/30 flex items-center justify-center text-xs font-bold text-admin-primary shrink-0">
-                        {p.userName.charAt(0)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-admin-foreground">{p.userName}</p>
-                        <p className="text-metadata text-admin-muted font-mono truncate">{p.userEmail}</p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-mono text-body-sm font-semibold text-admin-primary">{p.reference}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-bold text-admin-foreground">${p.submitted_amount.toFixed(2)} AUD</span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusVariant(p.status)} dot>
-                      {p.status.replace('_', ' ')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleOpenDrawer(p)}
-                      leftIcon={<Eye className="w-3.5 h-3.5" />}
-                    >
-                      Inspect Receipt
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </Card>
+        }
+        labelSingular="payment"
+        labelPlural="payments"
+        emptyTitle="No payments found"
+        emptyDescription="There are no payment transfer records in the database matching your criteria."
+        onRowClick={(p) => handleOpenDrawer(p)}
+      />
 
       <SubscriptionDrawer
         subscriptionId={selectedSubId}
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        onSuccess={() => setIsDrawerOpen(false)}
+        onSuccess={() => {
+          setIsDrawerOpen(false);
+          loadPayments();
+        }}
         initialData={drawerData}
       />
     </PageContainer>

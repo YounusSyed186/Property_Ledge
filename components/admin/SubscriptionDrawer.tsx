@@ -3,18 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import {
   X,
-  Shield,
   User,
   CreditCard,
   FileText,
-  Check,
   AlertCircle,
-  Clock,
-  ArrowLeft,
   CheckCircle,
-  Building2,
+  ExternalLink,
+  Loader2,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { handleApprovePayment, handleRejectPayment } from '@/app/actions/billing';
+import { fetchPaymentProof } from '@/app/actions/admin';
+import { DiceBearAvatar } from '@/components/admin/ui';
 
 interface SubscriptionDrawerProps {
   subscriptionId: string | null;
@@ -45,34 +45,92 @@ export function SubscriptionDrawer({
   const [mounted, setMounted] = useState(isOpen);
   const [animateIn, setAnimateIn] = useState(false);
   const [actionMode, setActionMode] = useState<'none' | 'approve' | 'reject'>('none');
-  const [rejectionReason, setRejectionReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Payment proof state
+  const [proof, setProof] = useState<{
+    file_preview_url?: string | null;
+    file_name?: string;
+    mime_type?: string;
+    storage_path?: string;
+  } | null>(null);
+  const [isLoadingProof, setIsLoadingProof] = useState(false);
+
   useEffect(() => {
     let timer: NodeJS.Timeout;
+    let animFrame: number;
+
     if (isOpen) {
       setMounted(true);
-      setAnimateIn(true);
+      setAnimateIn(false);
+      animFrame = requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setAnimateIn(true);
+        });
+      });
     } else {
       setAnimateIn(false);
       timer = setTimeout(() => {
         setMounted(false);
       }, 280);
     }
-    return () => clearTimeout(timer);
+
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(animFrame);
+    };
   }, [isOpen]);
+
+  // Fetch payment proof when paymentId changes
+  useEffect(() => {
+    const paymentId = initialData?.paymentId;
+    if (!paymentId || paymentId.startsWith('pay-000')) {
+      setProof(null);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingProof(true);
+
+    fetchPaymentProof(paymentId)
+      .then((res) => {
+        if (isMounted) {
+          setProof(res);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to load payment proof for drawer:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingProof(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [initialData?.paymentId]);
 
   if (!mounted || !subscriptionId) return null;
 
   const paymentId = initialData?.paymentId || `pay-${subscriptionId}`;
-  const userName = initialData?.userName || 'Sarah Williams';
-  const userEmail = initialData?.userEmail || 'sarah.williams@propertyledge.com.au';
+  const userName = initialData?.userName || 'Customer Account';
+  const userEmail = initialData?.userEmail || 'customer@propertyledge.com.au';
   const planName = initialData?.planName || 'Landlord';
   const billingInterval = initialData?.billingInterval || 'monthly';
   const amount = initialData?.amount || 29;
   const reference = initialData?.reference || 'PL-2026-10482';
   const status = initialData?.status || 'under_review';
+
+  const fileUrl = proof?.file_preview_url || initialData?.fileUrl;
+  const fileName = proof?.file_name || initialData?.fileName || 'bank_transfer_receipt.png';
+  const isImage = proof?.mime_type?.startsWith('image/') || fileUrl?.match(/\.(png|jpg|jpeg|webp|gif)/i);
+
+  const isPendingReview =
+    status === 'under_review' ||
+    status === 'pending_payment' ||
+    status === 'pending' ||
+    status === 'submitted';
 
   const onConfirmApprove = async () => {
     setIsProcessing(true);
@@ -107,18 +165,18 @@ export function SubscriptionDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden font-sans">
+    <div className="absolute inset-0 z-40 overflow-hidden font-sans rounded-xl lg:rounded-2xl">
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-black/70 backdrop-blur-xs transition-opacity duration-300 ${
+        className={`absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ease-out ${
           animateIn ? 'opacity-100' : 'opacity-0'
         }`}
         onClick={onClose}
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+      <div className="absolute inset-y-0 right-0 max-w-full flex pl-10 z-10">
         <div
-          className={`w-screen max-w-xl bg-admin-surface border-l border-admin-border text-admin-foreground flex flex-col justify-between shadow-2xl transition-transform duration-300 ease-out ${
+          className={`w-full sm:w-[500px] md:w-[540px] max-w-full bg-admin-surface border-l border-admin-border text-admin-foreground flex flex-col justify-between shadow-2xl transition-transform duration-300 ease-out ${
             animateIn ? 'translate-x-0' : 'translate-x-full'
           }`}
         >
@@ -162,14 +220,11 @@ export function SubscriptionDrawer({
                 <User className="w-3.5 h-3.5 text-admin-primary" />
                 <span>Customer Information</span>
               </div>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div>
-                  <span className="text-admin-muted">Full Name</span>
-                  <p className="font-bold text-white mt-0.5">{userName}</p>
-                </div>
-                <div>
-                  <span className="text-admin-muted">Email Address</span>
-                  <p className="font-mono text-white truncate mt-0.5">{userEmail}</p>
+              <div className="flex items-center gap-3 pt-1">
+                <DiceBearAvatar seed={userName} size={36} />
+                <div className="min-w-0">
+                  <p className="font-bold text-white text-sm truncate">{userName}</p>
+                  <p className="font-mono text-admin-muted text-xs truncate">{userEmail}</p>
                 </div>
               </div>
             </div>
@@ -220,31 +275,55 @@ export function SubscriptionDrawer({
                   <FileText className="w-3.5 h-3.5 text-admin-primary" />
                   <span>Submitted Payment Proof</span>
                 </span>
+                {isLoadingProof && (
+                  <span className="text-[11px] text-admin-muted flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin text-admin-primary" />
+                    <span>Loading proof...</span>
+                  </span>
+                )}
               </div>
 
-              {initialData?.fileUrl ? (
-                <div className="p-3 rounded-lg bg-admin-surface border border-admin-border flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-admin-primary" />
-                    <div>
-                      <p className="text-xs font-bold text-white truncate max-w-[220px]">
-                        {initialData.fileName || 'bank_transfer_receipt.pdf'}
-                      </p>
-                      <span className="text-[10px] text-admin-muted">Uploaded to Supabase Bucket</span>
+              {fileUrl ? (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-lg bg-admin-surface border border-admin-border flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {isImage ? (
+                        <ImageIcon className="w-5 h-5 text-admin-primary shrink-0" />
+                      ) : (
+                        <FileText className="w-5 h-5 text-admin-primary shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-white truncate max-w-[220px]">
+                          {fileName}
+                        </p>
+                        <span className="text-[10px] text-admin-muted block">Uploaded to Supabase Bucket</span>
+                      </div>
                     </div>
+                    <a
+                      href={fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1 rounded-md bg-admin-primary-soft text-admin-primary hover:bg-admin-primary hover:text-black font-semibold text-[11px] flex items-center gap-1 transition-all"
+                    >
+                      <span>View Full File</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
                   </div>
-                  <a
-                    href={initialData.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1 rounded-md bg-admin-primary-soft text-admin-primary hover:bg-admin-primary hover:text-black font-semibold text-[11px] transition-all"
-                  >
-                    View File
-                  </a>
+
+                  {/* Image Thumbnail Preview */}
+                  {isImage && (
+                    <div className="rounded-lg border border-admin-border overflow-hidden bg-black/40 p-2 max-h-60 flex items-center justify-center">
+                      <img
+                        src={fileUrl}
+                        alt="Payment Receipt"
+                        className="max-h-56 w-auto object-contain rounded"
+                      />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="p-4 rounded-lg bg-admin-surface border border-admin-border text-center text-xs text-admin-muted">
-                  No payment proof uploaded yet or pending verification.
+                  {isLoadingProof ? 'Fetching receipt file...' : 'No payment proof uploaded yet or pending verification.'}
                 </div>
               )}
             </div>
@@ -320,22 +399,38 @@ export function SubscriptionDrawer({
             </button>
 
             {actionMode === 'none' && (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActionMode('reject')}
-                  className="px-4 py-2 rounded-lg border border-admin-danger/40 bg-admin-danger/10 text-admin-danger hover:bg-admin-danger hover:text-white text-xs font-semibold transition-all"
-                >
-                  Reject Payment
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActionMode('approve')}
-                  className="px-5 py-2 rounded-lg bg-admin-success text-black hover:bg-admin-success/90 text-xs font-bold transition-all shadow-xs"
-                >
-                  Approve Payment
-                </button>
-              </div>
+              isPendingReview ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActionMode('reject')}
+                    className="px-4 py-2 rounded-lg border border-admin-danger/40 bg-admin-danger/10 text-admin-danger hover:bg-admin-danger hover:text-white text-xs font-semibold transition-all"
+                  >
+                    Reject Payment
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActionMode('approve')}
+                    className="px-5 py-2 rounded-lg bg-admin-success text-black hover:bg-admin-success/90 text-xs font-bold transition-all shadow-xs"
+                  >
+                    Approve Payment
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {status === 'active' || status === 'verified' ? (
+                    <span className="px-3 py-1.5 rounded-lg bg-admin-success-soft text-admin-success border border-admin-success/30 font-bold text-xs flex items-center gap-1.5">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Verified & Active</span>
+                    </span>
+                  ) : status === 'rejected' ? (
+                    <span className="px-3 py-1.5 rounded-lg bg-admin-danger/10 text-admin-danger border border-admin-danger/30 font-bold text-xs flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>Payment Rejected</span>
+                    </span>
+                  ) : null}
+                </div>
+              )
             )}
           </div>
         </div>
