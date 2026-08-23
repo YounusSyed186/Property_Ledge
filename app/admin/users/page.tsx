@@ -1,7 +1,21 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Users, ShieldCheck, Mail, Phone, Building2 } from 'lucide-react';
+import {
+  PageContainer,
+  PageHeader,
+  Card,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableToolbar,
+  Badge,
+  EmptyState,
+} from '@/components/admin/ui';
+import { Users, Mail, Phone, Building2, UserCircle2 } from 'lucide-react';
 
 export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
@@ -45,71 +59,99 @@ export default function AdminUsersPage() {
   );
 
   return (
-    <div className="space-y-6 text-left pb-8 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-admin-surface border border-admin-border rounded-xl p-4 shadow-xs">
-        <div>
-          <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-admin-primary">
-            Customer Directory
-          </span>
-          <h2 className="text-base font-bold font-heading text-white">Registered Users & Accounts</h2>
-        </div>
+    <PageContainer>
+      <PageHeader
+        title="Users"
+        description="Inspect property managers, landlord accounts, and customer details across the platform."
+        breadcrumb={
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-caption text-admin-muted">
+            <span>Platform</span>
+            <span aria-hidden="true" className="text-admin-muted/50">/</span>
+            <span className="text-admin-foreground font-medium">Users</span>
+          </nav>
+        }
+      />
 
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-admin-muted absolute left-3 top-2.5" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search users..."
-            className="w-full pl-9 pr-3 py-2 rounded-lg bg-admin-sidebar-surface border border-admin-border text-xs text-admin-foreground focus:outline-none focus:border-admin-primary"
+      <Card>
+        <TableToolbar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search users..."
+          leftContent={
+            <div className="flex items-center gap-2 text-caption text-admin-muted">
+              <Users className="w-4 h-4 text-admin-primary" />
+              <span className="font-semibold text-admin-foreground">{filtered.length}</span>
+              <span>users</span>
+            </div>
+          }
+        />
+
+        {filtered.length === 0 ? (
+          <EmptyState
+            icon={<UserCircle2 className="w-6 h-6" />}
+            title="No users found"
+            description="No users match your current search criteria."
           />
-        </div>
-      </div>
-
-      <div className="bg-admin-surface border border-admin-border rounded-xl shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-admin-border/60 bg-admin-sidebar-surface/40 text-admin-muted uppercase font-mono text-[10px]">
-                <th className="p-3.5 font-semibold">User</th>
-                <th className="p-3.5 font-semibold">Contact Info</th>
-                <th className="p-3.5 font-semibold">Account Type</th>
-                <th className="p-3.5 font-semibold">Role</th>
-                <th className="p-3.5 font-semibold">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-admin-border/40 text-admin-foreground">
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Contact Info</TableHead>
+                <TableHead>Account Type</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filtered.map((u) => (
-                <tr key={u.id} className="hover:bg-admin-sidebar-surface/40 transition-colors">
-                  <td className="p-3.5">
-                    <p className="font-bold text-white">{u.name}</p>
-                    <p className="text-[10px] text-admin-muted font-mono">{u.id}</p>
-                  </td>
-                  <td className="p-3.5 space-y-0.5">
-                    <p className="text-white font-mono text-[11px] flex items-center gap-1.5">
-                      <Mail className="w-3 h-3 text-admin-primary" />
-                      <span>{u.email}</span>
-                    </p>
-                    <p className="text-admin-muted text-[11px] flex items-center gap-1.5">
-                      <Phone className="w-3 h-3 text-admin-muted" />
-                      <span>{u.phone}</span>
-                    </p>
-                  </td>
-                  <td className="p-3.5 capitalize font-medium">
-                    {u.accountType} {u.businessName ? `(${u.businessName})` : ''}
-                  </td>
-                  <td className="p-3.5 font-bold text-admin-primary">{u.role}</td>
-                  <td className="p-3.5">
-                    <span className="px-2.5 py-0.5 rounded-full bg-admin-success-soft text-admin-success border border-admin-success/30 font-mono text-[9px] font-bold uppercase">
+                <TableRow key={u.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-admin-primary/15 border border-admin-primary/30 flex items-center justify-center text-xs font-bold text-admin-primary shrink-0">
+                        {u.name.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-admin-foreground">{u.name}</p>
+                        <p className="text-metadata text-admin-muted font-mono truncate">{u.id}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-0.5">
+                      <p className="text-body-sm text-admin-foreground flex items-center gap-1.5">
+                        <Mail className="w-3.5 h-3.5 text-admin-primary" />
+                        <span className="truncate">{u.email}</span>
+                      </p>
+                      <p className="text-caption text-admin-muted flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>{u.phone}</span>
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-admin-muted" />
+                      <span className="text-body-sm capitalize text-admin-foreground">
+                        {u.accountType}
+                        {u.businessName ? ` (${u.businessName})` : ''}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="primary">{u.role}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={u.status === 'Active Admin' ? 'info' : 'success'} dot>
                       {u.status}
-                    </span>
-                  </td>
-                </tr>
+                    </Badge>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+            </TableBody>
+          </Table>
+        )}
+      </Card>
+    </PageContainer>
   );
 }

@@ -1,7 +1,22 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Receipt, CreditCard, FileText, CheckCircle, Clock } from 'lucide-react';
+import {
+  PageContainer,
+  PageHeader,
+  Card,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableToolbar,
+  Badge,
+  Button,
+  EmptyState,
+} from '@/components/admin/ui';
+import { Receipt, Eye } from 'lucide-react';
 import { SubscriptionDrawer } from '@/components/admin/SubscriptionDrawer';
 
 export default function AdminPaymentsPage() {
@@ -71,77 +86,101 @@ export default function AdminPaymentsPage() {
     setIsDrawerOpen(true);
   };
 
+  const getStatusVariant = (status: string) => {
+    if (status === 'verified') return 'success' as const;
+    return 'warning' as const;
+  };
+
   return (
-    <div className="space-y-6 text-left pb-8 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-admin-surface border border-admin-border rounded-xl p-4 shadow-xs">
-        <div>
-          <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-admin-primary">
-            Manual Payments Ledger
-          </span>
-          <h2 className="text-base font-bold font-heading text-white">Bank Transfer Receipts & Verification</h2>
-        </div>
+    <PageContainer>
+      <PageHeader
+        title="Payments"
+        description="Audit invoices, transaction logs, and manual bank transfers."
+        breadcrumb={
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-caption text-admin-muted">
+            <span>Platform</span>
+            <span aria-hidden="true" className="text-admin-muted/50">/</span>
+            <span className="text-admin-foreground font-medium">Payments</span>
+          </nav>
+        }
+      />
 
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-admin-muted absolute left-3 top-2.5" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search payments by reference..."
-            className="w-full pl-9 pr-3 py-2 rounded-lg bg-admin-sidebar-surface border border-admin-border text-xs text-admin-foreground focus:outline-none focus:border-admin-primary"
+      <Card>
+        <TableToolbar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search payments by reference..."
+          leftContent={
+            <div className="flex items-center gap-2 text-caption text-admin-muted">
+              <Receipt className="w-4 h-4 text-admin-primary" />
+              <span className="font-semibold text-admin-foreground">{filtered.length}</span>
+              <span>payments</span>
+            </div>
+          }
+        />
+
+        {filtered.length === 0 ? (
+          <EmptyState
+            icon={<Receipt className="w-6 h-6" />}
+            title="No payments found"
+            description="No payments match your current search criteria."
           />
-        </div>
-      </div>
-
-      <div className="bg-admin-surface border border-admin-border rounded-xl shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-admin-border/60 bg-admin-sidebar-surface/40 text-admin-muted uppercase font-mono text-[10px]">
-                <th className="p-3.5 font-semibold">Payment ID</th>
-                <th className="p-3.5 font-semibold">Customer</th>
-                <th className="p-3.5 font-semibold">Reference</th>
-                <th className="p-3.5 font-semibold">Amount</th>
-                <th className="p-3.5 font-semibold">Status</th>
-                <th className="p-3.5 font-semibold text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-admin-border/40 text-admin-foreground">
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Payment ID</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Reference</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filtered.map((p) => (
-                <tr key={p.id} className="hover:bg-admin-sidebar-surface/40 transition-colors">
-                  <td className="p-3.5 font-mono text-admin-muted">{p.id}</td>
-                  <td className="p-3.5">
-                    <p className="font-bold text-white">{p.userName}</p>
-                    <p className="text-[10px] text-admin-muted font-mono">{p.userEmail}</p>
-                  </td>
-                  <td className="p-3.5 font-mono font-bold text-admin-primary">{p.reference}</td>
-                  <td className="p-3.5 font-extrabold text-white">${p.submitted_amount.toFixed(2)} AUD</td>
-                  <td className="p-3.5">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase border ${
-                        p.status === 'verified'
-                          ? 'bg-admin-success-soft text-admin-success border-admin-success/30'
-                          : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                      }`}
-                    >
+                <TableRow key={p.id}>
+                  <TableCell>
+                    <span className="font-mono text-caption text-admin-muted">{p.id}</span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-admin-primary/15 border border-admin-primary/30 flex items-center justify-center text-xs font-bold text-admin-primary shrink-0">
+                        {p.userName.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-admin-foreground">{p.userName}</p>
+                        <p className="text-metadata text-admin-muted font-mono truncate">{p.userEmail}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-mono text-body-sm font-semibold text-admin-primary">{p.reference}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-bold text-admin-foreground">${p.submitted_amount.toFixed(2)} AUD</span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={getStatusVariant(p.status)} dot>
                       {p.status.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="p-3.5 text-right">
-                    <button
-                      type="button"
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => handleOpenDrawer(p)}
-                      className="px-3 py-1.5 rounded-lg bg-admin-primary-soft text-admin-primary hover:bg-admin-primary hover:text-black font-semibold text-[11px] transition-all"
+                      leftIcon={<Eye className="w-3.5 h-3.5" />}
                     >
                       Inspect Receipt
-                    </button>
-                  </td>
-                </tr>
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </TableBody>
+          </Table>
+        )}
+      </Card>
 
       <SubscriptionDrawer
         subscriptionId={selectedSubId}
@@ -150,6 +189,6 @@ export default function AdminPaymentsPage() {
         onSuccess={() => setIsDrawerOpen(false)}
         initialData={drawerData}
       />
-    </div>
+    </PageContainer>
   );
 }

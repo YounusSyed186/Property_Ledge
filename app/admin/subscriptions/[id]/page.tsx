@@ -7,6 +7,16 @@ import { SubscriptionStatusBadge } from '@/components/subscription/subscription-
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Shield, CheckCircle, XCircle, FileText, Download } from 'lucide-react';
+import {
+  PageContainer,
+  PageHeader,
+  Card,
+  CardHeader,
+  CardContent,
+  Badge,
+  Button,
+  Select,
+} from '@/components/admin/ui';
 
 export const revalidate = 0;
 
@@ -61,181 +71,170 @@ export default async function AdminSubscriptionDetailPage({ params }: PageProps)
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center gap-4">
-        <Link
-          href="/admin/subscriptions"
-          className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">Subscription Details</h1>
-          <p className="text-xs text-slate-400 font-mono mt-0.5">{sub.id}</p>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Subscription Details"
+        description={sub.id}
+        breadcrumb={
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-caption text-admin-muted">
+            <Link href="/admin/subscriptions" className="hover:text-admin-primary transition-colors">
+              Subscriptions
+            </Link>
+            <span aria-hidden="true" className="text-admin-muted/50">/</span>
+            <span className="text-admin-foreground font-medium">Details</span>
+          </nav>
+        }
+        actions={
+          <Link href="/admin/subscriptions">
+            <Button variant="secondary" size="sm" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}>
+              Back
+            </Button>
+          </Link>
+        }
+      />
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Info Cards */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Account Information</h3>
-                <p className="text-sm text-slate-500">{profile?.full_name || 'No Name Provided'}</p>
+          <Card>
+            <CardHeader
+              title="Account Information"
+              description={profile?.full_name || 'No Name Provided'}
+              icon={<Shield className="w-5 h-5" />}
+              action={<SubscriptionStatusBadge status={sub.status} />}
+            />
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-caption text-admin-muted">Account ID</span>
+                  <p className="font-mono text-body-sm text-admin-foreground font-medium mt-0.5">{sub.account_id}</p>
+                </div>
+                <div>
+                  <span className="text-caption text-admin-muted">Current Plan</span>
+                  <p className="font-bold text-admin-primary mt-0.5">{sub.subscription_plans?.name}</p>
+                </div>
+                <div>
+                  <span className="text-caption text-admin-muted">Provider</span>
+                  <p className="font-mono text-body-sm text-admin-foreground uppercase mt-0.5">{sub.provider || 'stripe'}</p>
+                </div>
+                <div>
+                  <span className="text-caption text-admin-muted">Cancel at Period End</span>
+                  <p className="font-semibold text-admin-foreground mt-0.5">
+                    {sub.cancel_at_period_end ? 'Yes' : 'No'}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-caption text-admin-muted">Current Period Start</span>
+                  <p className="text-body-sm text-admin-foreground mt-0.5">
+                    {sub.current_period_start ? new Date(sub.current_period_start).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-caption text-admin-muted">Current Period End</span>
+                  <p className="text-body-sm text-admin-foreground mt-0.5">
+                    {sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
               </div>
-              <SubscriptionStatusBadge status={sub.status} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-xs text-slate-400">Account ID</span>
-                <p className="font-mono text-slate-800 dark:text-slate-200 font-medium">{sub.account_id}</p>
-              </div>
-              <div>
-                <span className="text-xs text-slate-400">Current Plan</span>
-                <p className="font-bold text-indigo-600 dark:text-indigo-400">{sub.subscription_plans?.name}</p>
-              </div>
-              <div>
-                <span className="text-xs text-slate-400">Provider</span>
-                <p className="font-mono text-slate-800 dark:text-slate-200 uppercase">{sub.provider || 'stripe'}</p>
-              </div>
-              <div>
-                <span className="text-xs text-slate-400">Cancel at Period End</span>
-                <p className="font-semibold text-slate-800 dark:text-slate-200">
-                  {sub.cancel_at_period_end ? 'Yes' : 'No'}
-                </p>
-              </div>
-              <div>
-                <span className="text-xs text-slate-400">Current Period Start</span>
-                <p className="text-slate-800 dark:text-slate-200">
-                  {sub.current_period_start ? new Date(sub.current_period_start).toLocaleDateString() : 'N/A'}
-                </p>
-              </div>
-              <div>
-                <span className="text-xs text-slate-400">Current Period End</span>
-                <p className="text-slate-800 dark:text-slate-200">
-                  {sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString() : 'N/A'}
-                </p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Manual Payment Verification Card */}
           {payment && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Bank Transfer Verification</h3>
-                <span className="font-mono text-xs font-semibold px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
-                  Ref: {payment.reference}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-xs text-slate-400">Payment Status</span>
-                  <p className="font-bold uppercase text-slate-900 dark:text-white mt-0.5">{payment.status}</p>
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400">Expected / Submitted</span>
-                  <p className="font-bold text-slate-900 dark:text-white mt-0.5">
-                    ${payment.expected_amount} / ${payment.submitted_amount || 0} AUD
-                  </p>
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400">Transaction ID</span>
-                  <p className="font-mono text-slate-800 dark:text-slate-200 mt-0.5">{payment.transaction_id || 'N/A'}</p>
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400">Payment Date</span>
-                  <p className="text-slate-800 dark:text-slate-200 mt-0.5">
-                    {payment.payment_date ? new Date(payment.payment_date).toLocaleDateString() : 'N/A'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Uploaded Proof */}
-              {proof && (
-                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
-                    <div>
-                      <p className="text-xs font-bold text-slate-900 dark:text-white">{proof.file_name}</p>
-                      <p className="text-[10px] text-slate-400">{(proof.file_size / 1024).toFixed(1)} KB • {proof.mime_type}</p>
-                    </div>
+            <Card>
+              <CardHeader
+                title="Bank Transfer Verification"
+                description={`Ref: ${payment.reference}`}
+                icon={<FileText className="w-5 h-5" />}
+              />
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-caption text-admin-muted">Payment Status</span>
+                    <p className="font-bold uppercase text-admin-foreground mt-0.5">{payment.status}</p>
                   </div>
-
-                  {proof.file_preview_url && (
-                    <a
-                      href={proof.file_preview_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
-                    >
-                      <Download className="h-3.5 w-3.5" /> View Receipt
-                    </a>
-                  )}
+                  <div>
+                    <span className="text-caption text-admin-muted">Expected / Submitted</span>
+                    <p className="font-bold text-admin-foreground mt-0.5">
+                      ${payment.expected_amount} / ${payment.submitted_amount || 0} AUD
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-caption text-admin-muted">Transaction ID</span>
+                    <p className="font-mono text-body-sm text-admin-foreground mt-0.5">{payment.transaction_id || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-caption text-admin-muted">Payment Date</span>
+                    <p className="text-body-sm text-admin-foreground mt-0.5">
+                      {payment.payment_date ? new Date(payment.payment_date).toLocaleDateString() : 'N/A'}
+                    </p>
+                  </div>
                 </div>
-              )}
 
-              {/* Approval Actions */}
-              <div className="flex items-center gap-3 pt-2">
-                <form action={handleApprovePaymentAction} className="flex-1">
-                  <input type="hidden" name="paymentId" value={payment.id} />
-                  <button
-                    type="submit"
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700 transition-colors shadow-sm"
-                  >
-                    <CheckCircle className="h-4 w-4" /> Approve Payment & Activate Sub
-                  </button>
-                </form>
+                {/* Uploaded Proof */}
+                {proof && (
+                  <div className="p-4 rounded-lg bg-admin-surface-subtle border border-admin-border flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-admin-primary" />
+                      <div>
+                        <p className="text-body-sm font-semibold text-admin-foreground">{proof.file_name}</p>
+                        <p className="text-metadata text-admin-muted">{(proof.file_size / 1024).toFixed(1)} KB • {proof.mime_type}</p>
+                      </div>
+                    </div>
 
-                <form action={handleRejectPaymentAction} className="flex-1">
-                  <input type="hidden" name="paymentId" value={payment.id} />
-                  <button
-                    type="submit"
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-400 transition-colors"
-                  >
-                    <XCircle className="h-4 w-4" /> Reject Payment
-                  </button>
-                </form>
-              </div>
-            </div>
+                    {proof.file_preview_url && (
+                      <a
+                        href={proof.file_preview_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-caption font-semibold text-admin-primary hover:text-admin-primary-hover"
+                      >
+                        <Download className="w-3.5 h-3.5" /> View Receipt
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                {/* Approval Actions */}
+                <div className="flex items-center gap-3 pt-2">
+                  <form action={handleApprovePaymentAction} className="flex-1">
+                    <input type="hidden" name="paymentId" value={payment.id} />
+                    <Button type="submit" className="w-full" leftIcon={<CheckCircle className="w-4 h-4" />}>
+                      Approve Payment & Activate
+                    </Button>
+                  </form>
+
+                  <form action={handleRejectPaymentAction} className="flex-1">
+                    <input type="hidden" name="paymentId" value={payment.id} />
+                    <Button type="submit" variant="destructive" className="w-full" leftIcon={<XCircle className="w-4 h-4" />}>
+                      Reject Payment
+                    </Button>
+                  </form>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
 
         {/* Actions Sidebar Form */}
         <div className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Admin Actions</h3>
-
-            <form action={handleUpdateSubscriptionAction} className="space-y-4 text-sm">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Change Plan
-                </label>
-                <select
-                  name="planId"
-                  defaultValue={sub.plan_id}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-950 text-slate-900 dark:text-white"
-                >
+          <Card className="h-fit">
+            <CardHeader
+              title="Admin Actions"
+              description="Modify subscription state"
+              icon={<Shield className="w-5 h-5" />}
+            />
+            <CardContent>
+              <form action={handleUpdateSubscriptionAction} className="space-y-4">
+                <Select name="planId" label="Change Plan" defaultValue={sub.plan_id}>
                   {plans.map((p: any) => (
                     <option key={p.id} value={p.id}>
                       {p.name} ({p.slug})
                     </option>
                   ))}
-                </select>
-              </div>
+                </Select>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Change Status
-                </label>
-                <select
-                  name="status"
-                  defaultValue={sub.status}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-950 text-slate-900 dark:text-white"
-                >
+                <Select name="status" label="Change Status" defaultValue={sub.status}>
                   <option value="active">Active</option>
                   <option value="under_review">Under Review</option>
                   <option value="pending_payment">Pending Payment</option>
@@ -244,33 +243,21 @@ export default async function AdminSubscriptionDetailPage({ params }: PageProps)
                   <option value="paused">Paused</option>
                   <option value="canceled">Canceled</option>
                   <option value="expired">Expired</option>
-                </select>
-              </div>
+                </Select>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Cancellation Rule
-                </label>
-                <select
-                  name="cancelAtPeriodEnd"
-                  defaultValue={sub.cancel_at_period_end ? 'true' : 'false'}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-950 text-slate-900 dark:text-white"
-                >
+                <Select name="cancelAtPeriodEnd" label="Cancellation Rule" defaultValue={sub.cancel_at_period_end ? 'true' : 'false'}>
                   <option value="false">Immediate / Active</option>
                   <option value="true">Cancel at Period End</option>
-                </select>
-              </div>
+                </Select>
 
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white shadow-sm hover:bg-indigo-700 transition-colors"
-              >
-                Update Subscription
-              </button>
-            </form>
-          </div>
+                <Button type="submit" className="w-full" size="lg">
+                  Update Subscription
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }

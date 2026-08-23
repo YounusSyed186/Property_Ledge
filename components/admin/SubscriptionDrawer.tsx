@@ -185,7 +185,7 @@ export function SubscriptionDrawer({
                     status === 'verified' || status === 'active'
                       ? 'bg-admin-success-soft text-admin-success border-admin-success/30'
                       : status === 'under_review' || status === 'submitted'
-                      ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                      ? 'bg-admin-warning-soft text-admin-warning border-admin-warning/30'
                       : 'bg-admin-danger/10 text-admin-danger border-admin-danger/30'
                   }`}
                 >

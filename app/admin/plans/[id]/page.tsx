@@ -4,6 +4,18 @@ import { updateAdminPlan, setPlanEntitlement, removePlanEntitlement } from '@/li
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Key, Plus, Trash2, Save } from 'lucide-react';
+import {
+  PageContainer,
+  PageHeader,
+  Card,
+  CardHeader,
+  CardContent,
+  Badge,
+  Button,
+  Input,
+  Select,
+  EmptyState,
+} from '@/components/admin/ui';
 
 export const revalidate = 0;
 
@@ -48,106 +60,112 @@ export default async function AdminPlanDetailPage({ params }: PageProps) {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center gap-4">
-        <Link
-          href="/admin/plans"
-          className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">Plan: {plan.name}</h1>
-          <p className="text-xs text-slate-400 font-mono mt-0.5">slug: {plan.slug}</p>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title={`Plan: ${plan.name}`}
+        description={`slug: ${plan.slug}`}
+        breadcrumb={
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-caption text-admin-muted">
+            <Link href="/admin/plans" className="hover:text-admin-primary transition-colors">
+              Plans
+            </Link>
+            <span aria-hidden="true" className="text-admin-muted/50">/</span>
+            <span className="text-admin-foreground font-medium">{plan.name}</span>
+          </nav>
+        }
+        actions={
+          <Link href="/admin/plans">
+            <Button variant="secondary" size="sm" leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}>
+              Back
+            </Button>
+          </Link>
+        }
+      />
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Entitlements assigned to this plan */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Assigned Entitlements</h3>
-
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+          <Card>
+            <CardHeader
+              title="Assigned Entitlements"
+              description="Capabilities and limits for this plan"
+              icon={<Key className="w-5 h-5" />}
+            />
+            <CardContent>
               {currentPlanEntitlements.length === 0 ? (
-                <p className="py-4 text-sm text-slate-500">No entitlements assigned to this plan yet.</p>
+                <EmptyState
+                  icon={<Key className="w-6 h-6" />}
+                  title="No entitlements assigned"
+                  description="Assign entitlements to this plan to define its capabilities."
+                />
               ) : (
-                currentPlanEntitlements.map((pe: any) => {
-                  const ent = pe.entitlements;
-                  return (
-                    <div key={pe.id} className="py-4 flex items-center justify-between gap-4">
-                      <div>
-                        <span className="font-semibold text-slate-900 dark:text-white">{ent?.name}</span>
-                        <div className="text-xs font-mono text-slate-400">{ent?.key}</div>
-                      </div>
+                <div className="divide-y divide-admin-divider/60">
+                  {currentPlanEntitlements.map((pe: any) => {
+                    const ent = pe.entitlements;
+                    return (
+                      <div key={pe.id} className="py-4 flex items-center justify-between gap-4">
+                        <div>
+                          <span className="font-semibold text-admin-foreground">{ent?.name}</span>
+                          <div className="text-metadata font-mono text-admin-muted">{ent?.key}</div>
+                        </div>
 
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono text-sm font-bold bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg text-slate-900 dark:text-white">
-                          {String(pe.value)}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <Badge variant="primary">{String(pe.value)}</Badge>
 
-                        <form action={handleRemoveEntitlementAction}>
-                          <input type="hidden" name="entitlementId" value={ent?.id} />
-                          <button
-                            type="submit"
-                            className="text-rose-600 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </form>
+                          <form action={handleRemoveEntitlementAction}>
+                            <input type="hidden" name="entitlementId" value={ent?.id} />
+                            <Button
+                              type="submit"
+                              variant="ghost"
+                              size="sm"
+                              className="text-admin-danger hover:text-admin-danger hover:bg-admin-danger-soft"
+                              aria-label={`Remove ${ent?.name}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </form>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                </div>
               )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Add/Update Entitlement Form */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 h-fit">
-          <div className="flex items-center gap-2 mb-4">
-            <Key className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Set Entitlement Value</h3>
-          </div>
-
-          <form action={handleSetEntitlementAction} className="space-y-4 text-sm">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Select Entitlement</label>
-              <select
-                name="entitlementId"
-                required
-                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-950 text-slate-900 dark:text-white"
-              >
+        <Card className="h-fit">
+          <CardHeader
+            title="Set Entitlement Value"
+            description="Assign a capability to this plan"
+            icon={<Plus className="w-5 h-5" />}
+          />
+          <CardContent>
+            <form action={handleSetEntitlementAction} className="space-y-4">
+              <Select name="entitlementId" label="Select Entitlement" required>
                 {allEntitlements.map((e: any) => (
                   <option key={e.id} value={e.id}>
                     {e.name} ({e.key})
                   </option>
                 ))}
-              </select>
-            </div>
+              </Select>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Value</label>
-              <input
-                type="text"
+              <Input
                 name="value"
+                label="Value"
                 required
                 placeholder="e.g. 10 or true or standard"
-                className="w-full rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-950 text-slate-900 dark:text-white"
+                helpText="Enter number (10), boolean (true/false), or text string."
               />
-              <p className="text-xs text-slate-400 mt-1">Enter number (10), boolean (true/false), or text string.</p>
-            </div>
 
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white shadow-sm hover:bg-indigo-700 transition-colors"
-            >
-              Set Entitlement
-            </button>
-          </form>
-        </div>
+              <Button type="submit" className="w-full" size="lg">
+                Set Entitlement
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </PageContainer>
   );
 }
