@@ -140,6 +140,11 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
         <DashboardHeader
           greeting={`${greeting}, ${userName.split(' ')[0]}`}
           subtitle="Here's what needs your attention across your portfolio."
+            actions={
+              <Button href="/dashboard/properties/new" size="md" leftIcon={<Plus className="h-3.5 w-3.5" />}>
+                Add property
+              </Button>
+            }
         />
       </div>
       <PageContent>
@@ -168,18 +173,38 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
           </Card>
         ) : stats ? (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-metadata font-semibold uppercase tracking-[0.16em] text-admin-muted">Portfolio overview</p>
+                  <p className="mt-1 text-caption text-admin-muted">A clear view of your selected property and portfolio activity.</p>
+                </div>
+                <Link href="/dashboard/properties" className="hidden text-caption font-semibold text-admin-primary hover:underline sm:block">
+                  View properties
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <CompactKpiCard label="Properties" value={availableProperties.length} href="/dashboard/properties" icon={Building2} accent="blue" />
               <CompactKpiCard label="Units" value={totalUnits} href="/dashboard/properties" icon={Home} accent="indigo" />
               <CompactKpiCard label="Occupancy" value={`${occupancyPct}%`} hint={`${occupied} of ${totalUnits} units`} icon={Percent} accent="teal" />
-              <CompactKpiCard label="Monthly Rent" value={`₹${(reports?.monthlyRent ?? 0).toLocaleString()}`} href="/dashboard/money" icon={Wallet} accent="blue" />
+              <CompactKpiCard label="Rent collected" value={`₹${collected.toLocaleString()}`} href="/dashboard/money" icon={Wallet} accent="blue" />
+              </div>
             </div>
 
-            {attentionItems.length > 0 && (
-              <SectionPanel title="Needs attention">
+            <SectionPanel
+              title="Needs attention"
+              action={
+                attentionItems.length > 0 ? (
+                  <span className="rounded-full bg-admin-warning-soft px-2 py-1 text-metadata font-semibold text-admin-warning">
+                    {attentionItems.length} {attentionItems.length === 1 ? 'item' : 'items'}
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-admin-success-soft px-2 py-1 text-metadata font-semibold text-admin-success">All clear</span>
+                )
+              }
+            >
                 <NeedsAttentionSection items={attentionItems} />
-              </SectionPanel>
-            )}
+            </SectionPanel>
 
             {upcomingItems.length > 0 && (
               <SectionPanel title="Upcoming">

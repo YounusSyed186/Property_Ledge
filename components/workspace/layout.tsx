@@ -86,14 +86,18 @@ export function ListPageHeader({ title, description, breadcrumb, actions, classN
 interface DashboardHeaderProps {
   greeting: string;
   subtitle: string;
+  actions?: React.ReactNode;
   className?: string;
 }
 
-export function DashboardHeader({ greeting, subtitle, className }: DashboardHeaderProps) {
+export function DashboardHeader({ greeting, subtitle, actions, className }: DashboardHeaderProps) {
   return (
-    <header className={cn('shrink-0 space-y-1', className)}>
-      <h1 className="font-heading text-page-title font-semibold tracking-tight text-admin-foreground">{greeting}</h1>
-      <p className="text-caption text-admin-muted">{subtitle}</p>
+    <header className={cn('flex shrink-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between', className)}>
+      <div className="min-w-0 space-y-1">
+        <h1 className="font-heading text-page-title font-semibold tracking-tight text-admin-foreground">{greeting}</h1>
+        <p className="text-caption text-admin-muted">{subtitle}</p>
+      </div>
+      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
     </header>
   );
 }

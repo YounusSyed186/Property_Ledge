@@ -20,7 +20,7 @@ export function ThemeSelector({
   className?: string;
   variant?: 'default' | 'navbar';
 }) {
-  const [themeMode, setThemeModeState] = useState<ThemeMode>("dark");
+  const [themeMode, setThemeModeState] = useState<ThemeMode>("light");
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -29,7 +29,7 @@ export function ThemeSelector({
   useEffect(() => {
     if (typeof document !== "undefined") {
       const stored = localStorage.getItem("propertyledge_theme") as ThemeMode;
-      const currentMode = stored || (document.documentElement.getAttribute("data-theme-mode") as ThemeMode) || "dark";
+      const currentMode = stored || (document.documentElement.getAttribute("data-theme-mode") as ThemeMode) || "light";
       setThemeModeState(currentMode);
     }
 
