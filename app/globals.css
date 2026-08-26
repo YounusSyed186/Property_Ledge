@@ -27,39 +27,50 @@
   --info: #2563EB;
   --shadow-color: rgba(0, 0, 0, 0.05);
 
-  /* ---------- ADMIN SHELL (Default: Mixed Theme) ---------- */
-  --admin-background: #F2F4F3;
-  --admin-shell: #07090C;
-  --admin-sidebar: transparent;
-  --admin-sidebar-surface: #10151B;
-  --admin-sidebar-border: rgba(255, 255, 255, 0.08);
-  --admin-sidebar-border-subtle: rgba(255, 255, 255, 0.04);
-  --admin-sidebar-foreground: #F3F4F6;
-  --admin-sidebar-muted: #9CA3AF;
-  --admin-sidebar-hover: rgba(255, 255, 255, 0.06);
-  --admin-sidebar-active-pill: #161D26;
-  --admin-sidebar-active-pill-border: rgba(255, 255, 255, 0.12);
+  /* ---------- ADMIN SHELL (PropertyLedge Navy + Blue) ---------- */
+  --admin-background: #F4F7FB;
+  --admin-shell: #071426;
+  --shell-navbar-height: 48px;
+  --admin-sidebar: #061324;
+  --admin-sidebar-surface: #0A1B30;
+  --admin-sidebar-border: #1A2B42;
+  --admin-sidebar-border-subtle: #152338;
+  --admin-sidebar-foreground: #A8B5C7;
+  --admin-sidebar-muted: #718096;
+  --admin-sidebar-hover: #0A1B30;
+  --admin-sidebar-active-pill: #173B6D;
+  --admin-sidebar-active-pill-border: #1E4A7A;
   --admin-sidebar-active-text: #FFFFFF;
+  --admin-sidebar-active-icon: #60A5FA;
+  --admin-shell-search-bg: #0D1F35;
+  --admin-shell-search-border: #20334D;
   --admin-surface: #FFFFFF;
-  --admin-surface-elevated: #F9FAF9;
-  --admin-surface-subtle: #EDF1EE;
-  --admin-border: #DDE2DF;
-  --admin-border-subtle: #E8ECE9;
-  --admin-divider: #E2E7E4;
-  --admin-primary: #A9927D;
-  --admin-primary-hover: #967E6A;
-  --admin-primary-soft: rgba(169, 146, 125, 0.12);
-  --admin-success: #36B86B;
-  --admin-success-soft: rgba(54, 184, 107, 0.12);
+  --admin-surface-elevated: #F8FAFC;
+  --admin-surface-subtle: #E8EEF6;
+  --admin-border: #E2E8F0;
+  --admin-border-subtle: #EDF2F7;
+  --admin-border-strong: #CBD5E1;
+  --admin-divider: #E2E8F0;
+  --admin-primary: #2563EB;
+  --admin-primary-hover: #1D4ED8;
+  --admin-primary-soft: #EFF6FF;
+  --admin-primary-border: #BFDBFE;
+  --admin-indigo: #6366F1;
+  --admin-indigo-soft: #EEF2FF;
+  --admin-teal: #0F9F9A;
+  --admin-teal-soft: #ECFDFB;
+  --admin-success: #16A34A;
+  --admin-success-soft: #ECFDF3;
   --admin-warning: #D97706;
-  --admin-warning-soft: rgba(245, 158, 11, 0.12);
-  --admin-danger: #EF4444;
-  --admin-danger-soft: rgba(239, 68, 68, 0.12);
-  --admin-info: #3B82F6;
-  --admin-info-soft: rgba(59, 130, 246, 0.12);
-  --admin-foreground: #071014;
-  --admin-muted: #66726B;
-  --admin-muted-foreground: #8E9993;
+  --admin-warning-soft: #FFF7ED;
+  --admin-danger: #DC2626;
+  --admin-danger-soft: #FEF2F2;
+  --admin-info: #2563EB;
+  --admin-info-soft: #EFF6FF;
+  --admin-foreground: #172033;
+  --admin-muted: #8491A5;
+  --admin-muted-foreground: #536176;
+  --admin-text-secondary: #536176;
 }
 
 /* ---------- DARK THEME (Obsidian Layered) ---------- */
@@ -85,8 +96,9 @@
 
   /* ---------- ADMIN SHELL (Default: Full Dark) ---------- */
   --admin-background: #071014;
-  --admin-shell: #07090C;
-  --admin-sidebar: transparent;
+  --admin-shell: #10151B;
+  --shell-navbar-height: 48px;
+  --admin-sidebar: #10151B;
   --admin-sidebar-surface: #10151B;
   --admin-sidebar-border: rgba(255, 255, 255, 0.08);
   --admin-sidebar-border-subtle: rgba(255, 255, 255, 0.04);
@@ -140,39 +152,50 @@ html[data-theme-mode="light"] {
   --info: #2563EB;
   --shadow-color: rgba(0, 0, 0, 0.05);
 
-  /* ---------- ADMIN PANEL DESIGN SYSTEM (Mixed Mode: Dark Sidebar, Light Workspace) ---------- */
-  --admin-background: #F2F4F3;
-  --admin-shell: #07090C;
-  --admin-sidebar: transparent;
-  --admin-sidebar-surface: #10151B;
-  --admin-sidebar-border: rgba(255, 255, 255, 0.08);
-  --admin-sidebar-border-subtle: rgba(255, 255, 255, 0.04);
-  --admin-sidebar-foreground: #F3F4F6;
-  --admin-sidebar-muted: #9CA3AF;
-  --admin-sidebar-hover: rgba(255, 255, 255, 0.06);
-  --admin-sidebar-active-pill: #161D26;
-  --admin-sidebar-active-pill-border: rgba(255, 255, 255, 0.12);
+  /* ---------- ADMIN PANEL (Mixed Mode: Navy Sidebar, Light Workspace) ---------- */
+  --admin-background: #F4F7FB;
+  --admin-shell: #071426;
+  --shell-navbar-height: 48px;
+  --admin-sidebar: #061324;
+  --admin-sidebar-surface: #0A1B30;
+  --admin-sidebar-border: #1A2B42;
+  --admin-sidebar-border-subtle: #152338;
+  --admin-sidebar-foreground: #A8B5C7;
+  --admin-sidebar-muted: #718096;
+  --admin-sidebar-hover: #0A1B30;
+  --admin-sidebar-active-pill: #173B6D;
+  --admin-sidebar-active-pill-border: #1E4A7A;
   --admin-sidebar-active-text: #FFFFFF;
+  --admin-sidebar-active-icon: #60A5FA;
+  --admin-shell-search-bg: #0D1F35;
+  --admin-shell-search-border: #20334D;
   --admin-surface: #FFFFFF;
-  --admin-surface-elevated: #F9FAF9;
-  --admin-surface-subtle: #EDF1EE;
-  --admin-border: #DDE2DF;
-  --admin-border-subtle: #E8ECE9;
-  --admin-divider: #E2E7E4;
-  --admin-primary: #A9927D;
-  --admin-primary-hover: #967E6A;
-  --admin-primary-soft: rgba(169, 146, 125, 0.12);
-  --admin-success: #36B86B;
-  --admin-success-soft: rgba(54, 184, 107, 0.12);
+  --admin-surface-elevated: #F8FAFC;
+  --admin-surface-subtle: #E8EEF6;
+  --admin-border: #E2E8F0;
+  --admin-border-subtle: #EDF2F7;
+  --admin-border-strong: #CBD5E1;
+  --admin-divider: #E2E8F0;
+  --admin-primary: #2563EB;
+  --admin-primary-hover: #1D4ED8;
+  --admin-primary-soft: #EFF6FF;
+  --admin-primary-border: #BFDBFE;
+  --admin-indigo: #6366F1;
+  --admin-indigo-soft: #EEF2FF;
+  --admin-teal: #0F9F9A;
+  --admin-teal-soft: #ECFDFB;
+  --admin-success: #16A34A;
+  --admin-success-soft: #ECFDF3;
   --admin-warning: #D97706;
-  --admin-warning-soft: rgba(245, 158, 11, 0.12);
-  --admin-danger: #EF4444;
-  --admin-danger-soft: rgba(239, 68, 68, 0.12);
-  --admin-info: #3B82F6;
-  --admin-info-soft: rgba(59, 130, 246, 0.12);
-  --admin-foreground: #071014;
-  --admin-muted: #66726B;
-  --admin-muted-foreground: #8E9993;
+  --admin-warning-soft: #FFF7ED;
+  --admin-danger: #DC2626;
+  --admin-danger-soft: #FEF2F2;
+  --admin-info: #2563EB;
+  --admin-info-soft: #EFF6FF;
+  --admin-foreground: #172033;
+  --admin-muted: #8491A5;
+  --admin-muted-foreground: #536176;
+  --admin-text-secondary: #536176;
 }
 
 html[data-theme-mode="full-light"] {
@@ -197,38 +220,48 @@ html[data-theme-mode="full-light"] {
   --shadow-color: rgba(0, 0, 0, 0.05);
 
   /* ---------- ADMIN PANEL DESIGN SYSTEM (Full Light: Light Sidebar, Light Workspace) ---------- */
-  --admin-background: #F2F4F3;
-  --admin-shell: #F1F3F5;
-  --admin-sidebar: transparent;
-  --admin-sidebar-surface: #FFFFFF;
-  --admin-sidebar-border: rgba(0, 0, 0, 0.08);
-  --admin-sidebar-border-subtle: rgba(0, 0, 0, 0.04);
-  --admin-sidebar-foreground: #0F172A;
-  --admin-sidebar-muted: #64748B;
-  --admin-sidebar-hover: rgba(0, 0, 0, 0.05);
-  --admin-sidebar-active-pill: #FFFFFF;
-  --admin-sidebar-active-pill-border: rgba(0, 0, 0, 0.1);
-  --admin-sidebar-active-text: #0F172A;
+  --admin-background: #F4F7FB;
+  --admin-shell: #071426;
+  --admin-sidebar: #061324;
+  --admin-sidebar-surface: #0A1B30;
+  --admin-sidebar-border: #1A2B42;
+  --admin-sidebar-border-subtle: #152338;
+  --admin-sidebar-foreground: #A8B5C7;
+  --admin-sidebar-muted: #718096;
+  --admin-sidebar-hover: #0A1B30;
+  --admin-sidebar-active-pill: #173B6D;
+  --admin-sidebar-active-pill-border: #1E4A7A;
+  --admin-sidebar-active-text: #FFFFFF;
+  --admin-sidebar-active-icon: #60A5FA;
+  --admin-shell-search-bg: #0D1F35;
+  --admin-shell-search-border: #20334D;
   --admin-surface: #FFFFFF;
-  --admin-surface-elevated: #F9FAF9;
-  --admin-surface-subtle: #EDF1EE;
-  --admin-border: #DDE2DF;
-  --admin-border-subtle: #E8ECE9;
-  --admin-divider: #E2E7E4;
-  --admin-primary: #A9927D;
-  --admin-primary-hover: #967E6A;
-  --admin-primary-soft: rgba(169, 146, 125, 0.12);
-  --admin-success: #36B86B;
-  --admin-success-soft: rgba(54, 184, 107, 0.12);
+  --admin-surface-elevated: #F8FAFC;
+  --admin-surface-subtle: #E8EEF6;
+  --admin-border: #E2E8F0;
+  --admin-border-subtle: #EDF2F7;
+  --admin-border-strong: #CBD5E1;
+  --admin-divider: #E2E8F0;
+  --admin-primary: #2563EB;
+  --admin-primary-hover: #1D4ED8;
+  --admin-primary-soft: #EFF6FF;
+  --admin-primary-border: #BFDBFE;
+  --admin-indigo: #6366F1;
+  --admin-indigo-soft: #EEF2FF;
+  --admin-teal: #0F9F9A;
+  --admin-teal-soft: #ECFDFB;
+  --admin-success: #16A34A;
+  --admin-success-soft: #ECFDF3;
   --admin-warning: #D97706;
-  --admin-warning-soft: rgba(245, 158, 11, 0.12);
-  --admin-danger: #EF4444;
-  --admin-danger-soft: rgba(239, 68, 68, 0.12);
-  --admin-info: #3B82F6;
-  --admin-info-soft: rgba(59, 130, 246, 0.12);
-  --admin-foreground: #071014;
-  --admin-muted: #66726B;
-  --admin-muted-foreground: #8E9993;
+  --admin-warning-soft: #FFF7ED;
+  --admin-danger: #DC2626;
+  --admin-danger-soft: #FEF2F2;
+  --admin-info: #2563EB;
+  --admin-info-soft: #EFF6FF;
+  --admin-foreground: #172033;
+  --admin-muted: #8491A5;
+  --admin-muted-foreground: #536176;
+  --admin-text-secondary: #536176;
 }
 
 html[data-theme-mode="full-dark"],
@@ -255,8 +288,9 @@ html[data-theme-mode="dark"] {
 
   /* ---------- ADMIN PANEL DESIGN SYSTEM (Full Dark: Dark Sidebar, Dark Workspace) ---------- */
   --admin-background: #071014;
-  --admin-shell: #07090C;
-  --admin-sidebar: transparent;
+  --admin-shell: #10151B;
+  --shell-navbar-height: 48px;
+  --admin-sidebar: #10151B;
   --admin-sidebar-surface: #10151B;
   --admin-sidebar-border: rgba(255, 255, 255, 0.08);
   --admin-sidebar-border-subtle: rgba(255, 255, 255, 0.04);
@@ -350,6 +384,70 @@ body {
 
 .admin-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--admin-muted);
+}
+
+/* Hide scrollbars but keep scroll behavior */
+.app-workspace,
+.app-workspace .overflow-y-auto,
+.app-workspace .overflow-auto,
+.app-workspace .overflow-x-auto,
+.app-workspace .admin-scrollbar,
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.app-workspace::-webkit-scrollbar,
+.app-workspace .overflow-y-auto::-webkit-scrollbar,
+.app-workspace .overflow-auto::-webkit-scrollbar,
+.app-workspace .overflow-x-auto::-webkit-scrollbar,
+.app-workspace .admin-scrollbar::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Legacy sidebar class — hidden scrollbar */
+.shell-sidebar-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.shell-sidebar-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Workspace typography — readable scale aligned with design tokens */
+.app-workspace {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.app-workspace .workspace-page-title {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--admin-foreground);
+  font-family: var(--font-space-grotesk), sans-serif;
+}
+
+.app-workspace .workspace-entity-title {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--admin-foreground);
+  font-family: var(--font-space-grotesk), sans-serif;
+}
+
+.app-workspace .workspace-page-subtitle {
+  font-size: 12px;
+  color: var(--admin-muted);
+  margin-top: 2px;
 }
 
 /* ============================================================
@@ -457,4 +555,20 @@ body {
 
 .animate-slide-up {
   animation: slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Collapsible data workspace ───────────────────────────── */
+.collapsible-workspace {
+  --workspace-collapse-progress: 0;
+}
+
+.collapsible-workspace[data-workspace-phase='compact'] {
+  --workspace-collapse-progress: 1;
+}
+
+.collapsible-workspace .admin-data-grid-toolbar--compact {
+  transition:
+    max-height 250ms ease,
+    opacity 200ms ease,
+    padding 250ms ease;
 }

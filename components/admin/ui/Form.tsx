@@ -32,11 +32,11 @@ export function Input({ label, error, helpText, leftIcon, className, id, ...prop
         <input
           id={inputId}
           className={cn(
-            'w-full h-10 px-3.5 rounded-lg bg-admin-sidebar-surface border text-body-sm text-admin-foreground placeholder:text-admin-muted/60 transition-all duration-200',
-            'focus:outline-none focus:ring-2 focus:ring-admin-primary/40 focus:border-admin-primary',
+            'w-full h-9 px-3 rounded-lg bg-admin-surface border text-body-sm text-admin-foreground placeholder:text-admin-muted/60 transition-all duration-200',
+            'focus:outline-none focus:ring-2 focus:ring-admin-primary-soft focus:border-admin-primary',
             'disabled:opacity-50 disabled:pointer-events-none',
             leftIcon && 'pl-10',
-            error ? 'border-admin-danger' : 'border-admin-border hover:border-admin-border-subtle',
+            error ? 'border-admin-danger ring-1 ring-admin-danger-soft' : 'border-admin-border-strong hover:border-admin-muted',
             className
           )}
           aria-invalid={!!error}
@@ -80,10 +80,10 @@ export function Select({ label, error, helpText, className, id, children, ...pro
       <select
         id={selectId}
         className={cn(
-          'w-full h-10 px-3.5 rounded-lg bg-admin-sidebar-surface border text-body-sm text-admin-foreground transition-all duration-200 appearance-none cursor-pointer',
-          'focus:outline-none focus:ring-2 focus:ring-admin-primary/40 focus:border-admin-primary',
+          'w-full h-9 px-3 rounded-lg bg-admin-surface border text-body-sm text-admin-foreground transition-all duration-200 appearance-none cursor-pointer',
+          'focus:outline-none focus:ring-2 focus:ring-admin-primary-soft focus:border-admin-primary',
           'disabled:opacity-50 disabled:pointer-events-none',
-          error ? 'border-admin-danger' : 'border-admin-border hover:border-admin-border-subtle',
+          error ? 'border-admin-danger ring-1 ring-admin-danger-soft' : 'border-admin-border-strong hover:border-admin-muted',
           className
         )}
         aria-invalid={!!error}
@@ -123,10 +123,10 @@ export function Textarea({ label, error, helpText, className, id, ...props }: Te
       <textarea
         id={textareaId}
         className={cn(
-          'w-full px-3.5 py-2.5 rounded-lg bg-admin-sidebar-surface border text-body-sm text-admin-foreground placeholder:text-admin-muted/60 transition-all duration-200 resize-y min-h-[80px]',
-          'focus:outline-none focus:ring-2 focus:ring-admin-primary/40 focus:border-admin-primary',
+          'w-full px-3 py-2 rounded-lg bg-admin-surface border text-body-sm text-admin-foreground placeholder:text-admin-muted/60 transition-all duration-200 resize-y min-h-[80px]',
+          'focus:outline-none focus:ring-2 focus:ring-admin-primary-soft focus:border-admin-primary',
           'disabled:opacity-50 disabled:pointer-events-none',
-          error ? 'border-admin-danger' : 'border-admin-border hover:border-admin-border-subtle',
+          error ? 'border-admin-danger ring-1 ring-admin-danger-soft' : 'border-admin-border-strong hover:border-admin-muted',
           className
         )}
         aria-invalid={!!error}

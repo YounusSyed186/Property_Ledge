@@ -9,6 +9,7 @@ import {
   GridApi,
   FilterChangedEvent,
   SelectionColumnDef,
+  BodyScrollEvent,
 } from 'ag-grid-community';
 
 import '@/components/admin/data-grid/theme/gridTheme.css';
@@ -17,6 +18,8 @@ import { AdminDataGridToolbar, BulkAction } from './AdminDataGridToolbar';
 import { AdminDataGridPagination } from './AdminDataGridPagination';
 import { AdminDataGridEmpty } from './AdminDataGridEmpty';
 import { AdminDataGridLoading } from './AdminDataGridLoading';
+import { useCollapsibleWorkspaceOptional, useCollapsibleWorkspaceSnapshot } from '@/components/workspace/useCollapsibleDataWorkspace';
+import type { AdminDataGridToolbarProps } from './AdminDataGridToolbar';
 
 // Standard Cell Components
 import { UserCell } from './cells/UserCell';
@@ -56,6 +59,8 @@ export interface AdminDataGridProps<TData = any> {
   totalPages?: number;
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
+  onViewportScroll?: (detail: { scrollTop: number; direction: 'horizontal' | 'vertical' }) => void;
+  compactToolbar?: boolean;
 }
 
 export function AdminDataGrid<TData = any>({
@@ -85,6 +90,8 @@ export function AdminDataGrid<TData = any>({
   totalPages,
   onPageChange,
   onPageSizeChange,
+  onViewportScroll,
+  compactToolbar,
 }: AdminDataGridProps<TData>) {
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
   const [searchValue, setSearchValue] = useState('');
@@ -93,6 +100,46 @@ export function AdminDataGrid<TData = any>({
   const [clientPage, setClientPage] = useState(1);
   const [clientPageSize, setClientPageSize] = useState(defaultPageSize);
   const gridContainerRef = useRef<HTMLDivElement>(null);
+  const workspaceStore = useCollapsibleWorkspaceOptional();
+  const viewportScrollRef = useRef(onViewportScroll);
+
+  useEffect(() => {
+    viewportScrollRef.current =
+      onViewportScroll ??
+      (workspaceStore
+        ? (detail: { scrollTop: number; direction: 'horizontal' | 'vertical' }) => {
+            if (detail.direction === 'vertical') {
+              workspaceStore.reportBodyScroll(detail.scrollTop);
+            }
+          }
+        : undefined);
+  }, [onViewportScroll, workspaceStore]);
+
+  const onBodyScroll = useCallback((event: BodyScrollEvent) => {
+    if (event.direction !== 'vertical') return;
+    viewportScrollRef.current?.({ scrollTop: event.top, direction: 'vertical' });
+  }, []);
+
+  useEffect(() => {
+    if (!workspaceStore) return;
+    const el = gridContainerRef.current;
+    if (!el) return;
+
+    let rafId = 0;
+    const onWheel = (event: WheelEvent) => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        workspaceStore.reportWheelDelta(event.deltaY);
+      });
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: true });
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [workspaceStore]);
 
   // Register cell renderers mapping
   const components = useMemo(
@@ -131,10 +178,32 @@ export function AdminDataGrid<TData = any>({
     }
   }, [gridApi]);
 
-  const onGridReady = useCallback((params: GridReadyEvent) => {
-    setGridApi(params.api);
-    params.api.sizeColumnsToFit();
-  }, []);
+  const syncPaginationFromGrid = useCallback(
+    (api: GridApi) => {
+      if (isServerSide) return;
+      setClientPageSize(api.paginationGetPageSize());
+      setClientPage(api.paginationGetCurrentPage() + 1);
+    },
+    [isServerSide]
+  );
+
+  const onGridReady = useCallback(
+    (params: GridReadyEvent) => {
+      setGridApi(params.api);
+      params.api.sizeColumnsToFit();
+      requestAnimationFrame(() => {
+        syncPaginationFromGrid(params.api);
+        params.api.sizeColumnsToFit();
+      });
+    },
+    [syncPaginationFromGrid]
+  );
+
+  const onPaginationChanged = useCallback(() => {
+    if (gridApi && !isServerSide) {
+      syncPaginationFromGrid(gridApi);
+    }
+  }, [gridApi, isServerSide, syncPaginationFromGrid]);
 
   const onSelectionChanged = useCallback(
     (event: SelectionChangedEvent) => {
@@ -162,16 +231,32 @@ export function AdminDataGrid<TData = any>({
     }
   }, [gridApi]);
 
-  // Adjust column sizes on window resize
+  // Adjust column sizes and pagination on window resize
   useEffect(() => {
     const handleResize = () => {
       if (gridApi) {
         gridApi.sizeColumnsToFit();
+        syncPaginationFromGrid(gridApi);
       }
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [gridApi]);
+  }, [gridApi, syncPaginationFromGrid]);
+
+  // Recalculate auto page size when grid container resizes (sidebar collapse, etc.)
+  useEffect(() => {
+    const el = gridContainerRef.current;
+    if (!el || !gridApi || isServerSide) return;
+
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(() => {
+        gridApi.sizeColumnsToFit();
+        syncPaginationFromGrid(gridApi);
+      });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [gridApi, isServerSide, syncPaginationFromGrid]);
 
   // Client-side pagination calculations
   const effectiveTotalItems = isServerSide ? totalItems || 0 : rowData?.length || 0;
@@ -242,29 +327,32 @@ export function AdminDataGrid<TData = any>({
 
   const isEmpty = !loading && (!rowData || rowData.length === 0);
 
+  const toolbarProps: AdminDataGridToolbarProps = {
+    gridApi,
+    searchValue,
+    onSearchChange: handleSearchChange,
+    searchPlaceholder,
+    selectedRows,
+    onClearSelection: handleClearSelection,
+    bulkActions,
+    leftContent: leftToolbarContent,
+    rightContent: rightToolbarContent,
+    enableColumnChooser,
+    enableExport,
+    exportFilename,
+    totalCount: effectiveTotalItems,
+    labelSingular,
+    labelPlural,
+    compactOverride: compactToolbar,
+  };
+
   return (
     <div className="flex-1 flex flex-col w-full h-full min-h-0 rounded-2xl bg-admin-surface border border-admin-border shadow-xs overflow-hidden">
-      {/* Toolbar */}
-      <AdminDataGridToolbar
-        gridApi={gridApi}
-        searchValue={searchValue}
-        onSearchChange={handleSearchChange}
-        searchPlaceholder={searchPlaceholder}
-        selectedRows={selectedRows}
-        onClearSelection={handleClearSelection}
-        bulkActions={bulkActions}
-        leftContent={leftToolbarContent}
-        rightContent={rightToolbarContent}
-        enableColumnChooser={enableColumnChooser}
-        enableExport={enableExport}
-        exportFilename={exportFilename}
-        totalCount={effectiveTotalItems}
-        labelSingular={labelSingular}
-        labelPlural={labelPlural}
-      />
+      {/* Toolbar — isolated subscriber so grid body does not rerender on collapse */}
+      <AdminDataGridToolbarBridge {...toolbarProps} />
 
       {/* Grid Container */}
-      <div ref={gridContainerRef} className="relative w-full flex-1 min-h-0 h-full overflow-hidden">
+      <div ref={gridContainerRef} className="relative h-full min-h-[200px] w-full flex-1 overflow-hidden">
         {loading && (
           <div className="absolute inset-0 z-10 bg-admin-surface/85 backdrop-blur-xs flex items-center justify-center">
             <AdminDataGridLoading />
@@ -288,11 +376,14 @@ export function AdminDataGrid<TData = any>({
               gridOptions={defaultGridOptions}
               components={components}
               pagination={!isServerSide}
-              paginationPageSize={effectivePageSize}
+              paginationAutoPageSize={!isServerSide}
+              paginationPageSize={isServerSide ? effectivePageSize : undefined}
               suppressPaginationPanel={true}
               onGridReady={onGridReady}
+              onPaginationChanged={onPaginationChanged}
               onSelectionChanged={onSelectionChanged}
               onFilterChanged={onFilterChanged}
+              onBodyScroll={onBodyScroll}
               onRowClicked={(params) => {
                 if (onRowClick && params.data) {
                   onRowClick(params.data);
@@ -322,11 +413,17 @@ export function AdminDataGrid<TData = any>({
           totalItems={effectiveTotalItems}
           pageSize={effectivePageSize}
           onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
+          onPageSizeChange={isServerSide ? handlePageSizeChange : undefined}
           labelSingular={labelSingular}
           labelPlural={labelPlural}
         />
       )}
     </div>
   );
+}
+
+function AdminDataGridToolbarBridge(props: AdminDataGridToolbarProps) {
+  const snapshot = useCollapsibleWorkspaceSnapshot();
+  const compact = props.compactOverride ?? snapshot?.isCompact ?? false;
+  return <AdminDataGridToolbar {...props} compact={compact} />;
 }

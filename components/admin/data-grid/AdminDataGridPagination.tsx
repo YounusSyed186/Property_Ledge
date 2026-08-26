@@ -32,7 +32,7 @@ export function AdminDataGridPagination({
   const safeTotalPages = Math.max(1, totalPages);
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 border-t border-admin-divider bg-admin-surface text-caption text-admin-muted">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-2 py-1.5 border-t border-admin-divider bg-admin-surface text-[11px] text-admin-muted">
       {/* Showing counter & page size selector */}
       <div className="flex items-center gap-4">
         <span>

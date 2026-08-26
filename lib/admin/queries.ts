@@ -245,6 +245,17 @@ export async function getAdminUsers({
     console.warn('getAdminUsers context error:', ctxErr);
   }
 
+  const adminIds = new Set<string>();
+  try {
+    const { data: admins } = await (supabase as any)
+      .from('platform_admins')
+      .select('user_id')
+      .eq('status', 'active');
+    (admins || []).forEach((row: { user_id: string }) => adminIds.add(row.user_id));
+  } catch (adminErr) {
+    console.warn('getAdminUsers platform_admins error:', adminErr);
+  }
+
   const combined = authUsers.map((u: any) => {
     const profile = profileMap.get(u.id);
     const ctx = contextMap.get(u.id);
@@ -254,7 +265,7 @@ export async function getAdminUsers({
       email: u.email || '—',
       full_name: profile?.full_name || u.user_metadata?.full_name || u.email?.split('@')[0] || 'User',
       phone: profile?.phone || u.phone || u.user_metadata?.phone || '—',
-      role: u.app_metadata?.role || (u.user_metadata?.is_admin ? 'admin' : undefined),
+      role: adminIds.has(u.id) ? 'admin' : undefined,
       user_metadata: u.user_metadata,
       app_metadata: u.app_metadata,
       created_at: profile?.created_at || u.created_at,
@@ -286,7 +297,7 @@ export async function getAdminPayments({
 
   let query = (supabase as any)
     .from('subscription_payments')
-    .select('*, subscriptions(*, subscription_plans(*))', { count: 'exact' });
+    .select('*, subscriptions!fk_subscription_payments_sub_account(*, subscription_plans(*))', { count: 'exact' });
 
   if (status !== 'all') {
     query = query.eq('status', status);
@@ -346,6 +357,71 @@ export async function getAdminPayments({
     limit,
     totalPages: Math.ceil((count || formattedData.length) / limit),
   };
+}
+
+export async function getAdminWorkspaces() {
+  await requireAdmin();
+  const supabase = await createAdminClient();
+
+  const { data: workspaces, error } = await (supabase as any)
+    .from('workspaces')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error || !workspaces) {
+    console.error('getAdminWorkspaces error:', error?.message ?? error);
+    return [];
+  }
+
+  const ownerIds = Array.from(new Set(workspaces.map((w: { owner_id: string }) => w.owner_id).filter(Boolean)));
+  const profileMap = new Map<string, { full_name: string | null }>();
+  if (ownerIds.length > 0) {
+    const { data: profiles } = await (supabase as any)
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', ownerIds);
+    (profiles || []).forEach((profile: { id: string; full_name: string | null }) => {
+      profileMap.set(profile.id, profile);
+    });
+  }
+
+  const memberCountMap = new Map<string, number>();
+  const { data: members } = await (supabase as any)
+    .from('workspace_members')
+    .select('workspace_id');
+  (members || []).forEach((member: { workspace_id: string }) => {
+    memberCountMap.set(member.workspace_id, (memberCountMap.get(member.workspace_id) || 0) + 1);
+  });
+
+  const authUsersMap = new Map<string, { email?: string; user_metadata?: { full_name?: string } }>();
+  const { data: authUsersRes } = await supabase.auth.admin.listUsers();
+  (authUsersRes?.users || []).forEach((user) => authUsersMap.set(user.id, user));
+
+  return workspaces.map((workspace: {
+    id: string;
+    name: string;
+    slug: string;
+    owner_id: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+  }) => {
+    const profile = profileMap.get(workspace.owner_id);
+    const authUser = authUsersMap.get(workspace.owner_id);
+
+    return {
+      ...workspace,
+      owner: {
+        full_name:
+          profile?.full_name ||
+          authUser?.user_metadata?.full_name ||
+          authUser?.email?.split('@')[0] ||
+          'Unknown',
+        email: authUser?.email || '',
+      },
+      member_count: memberCountMap.get(workspace.id) || 0,
+    };
+  });
 }
 
 export async function getAdminAuditLogs({ page = 1, limit = 50 }: { page?: number; limit?: number } = {}) {

@@ -37,7 +37,7 @@ export async function handleSubmitManualPayment(
     const supabase = await createAdminClient();
     const { data: payRecord } = await (supabase as any)
       .from('subscription_payments')
-      .select('*, subscriptions(*, subscription_plans(*))')
+      .select('*, subscriptions!fk_subscription_payments_sub_account(*, subscription_plans(*))')
       .eq('id', paymentId)
       .maybeSingle();
 
@@ -93,7 +93,7 @@ export async function handleApprovePayment(paymentId: string) {
     const supabase = await createAdminClient();
     const { data: payRecord } = await (supabase as any)
       .from('subscription_payments')
-      .select('*, subscriptions(*, subscription_plans(*))')
+      .select('*, subscriptions!fk_subscription_payments_sub_account(*, subscription_plans(*))')
       .eq('id', paymentId)
       .maybeSingle();
 

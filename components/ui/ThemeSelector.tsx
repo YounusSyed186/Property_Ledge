@@ -13,7 +13,13 @@ interface ThemeOption {
   preview: React.ReactNode;
 }
 
-export function ThemeSelector({ className = "" }: { className?: string }) {
+export function ThemeSelector({
+  className = '',
+  variant = 'default',
+}: {
+  className?: string;
+  variant?: 'default' | 'navbar';
+}) {
   const [themeMode, setThemeModeState] = useState<ThemeMode>("dark");
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -107,6 +113,8 @@ export function ThemeSelector({ className = "" }: { className?: string }) {
   const activeOption = themeOptions.find((opt) => opt.id === themeMode) || themeOptions[0];
   const ActiveIcon = activeOption.icon;
 
+  const isNavbar = variant === 'navbar';
+
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       {/* Popover Trigger Button */}
@@ -114,12 +122,16 @@ export function ThemeSelector({ className = "" }: { className?: string }) {
         ref={triggerRef}
         onClick={() => setIsOpen((prev) => !prev)}
         type="button"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
         aria-label="Select appearance mode"
-        className="w-9 h-9 rounded-lg border border-admin-border bg-admin-surface flex items-center justify-center text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-elevated transition-colors shadow-xs cursor-pointer focus:outline-none"
+        className={
+          isNavbar
+            ? 'flex h-7 w-7 items-center justify-center rounded-md border border-admin-sidebar-border bg-admin-sidebar-surface text-admin-sidebar-muted transition-colors hover:bg-admin-sidebar-hover hover:text-admin-sidebar-foreground focus:outline-none'
+            : 'flex h-9 w-9 items-center justify-center rounded-lg border border-admin-border bg-admin-surface text-admin-muted shadow-xs transition-colors hover:bg-admin-surface-elevated hover:text-admin-foreground focus:outline-none'
+        }
       >
-        <ActiveIcon className="w-4 h-4 text-admin-foreground" />
+        <ActiveIcon className={isNavbar ? 'h-3.5 w-3.5 text-admin-sidebar-foreground' : 'h-4 w-4 text-admin-foreground'} />
       </motion.button>
 
       {/* Popover Menu */}

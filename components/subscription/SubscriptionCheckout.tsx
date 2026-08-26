@@ -219,7 +219,7 @@ export function SubscriptionCheckout({
         fileName: uploadedFile.name,
         fileSize: uploadedFile.size,
         mimeType: uploadedFile.type,
-        storagePath: `payment-receipts/${checkoutSession.paymentId}/${uploadedFile.name}`,
+        storagePath: `${checkoutSession.paymentId}/${uploadedFile.name}`,
         filePreviewUrl: uploadedFile.dataUrl,
       });
 

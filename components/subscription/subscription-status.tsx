@@ -31,14 +31,14 @@ export function SubscriptionStatusBadge({ status }: { status: string }) {
 export function SubscriptionStatusCard({ subscription }: SubscriptionStatusProps) {
   if (!subscription) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="rounded-2xl border border-admin-border bg-admin-surface p-6 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-amber-50 p-3 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400">
+          <div className="rounded-xl bg-admin-warning-soft p-3 text-admin-warning">
             <AlertTriangle className="h-6 w-6" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">No Active Subscription</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Choose a subscription plan to unlock features.</p>
+            <h3 className="text-section-title font-semibold text-admin-foreground">No Active Subscription</h3>
+            <p className="text-body-sm text-admin-muted">Choose a subscription plan to unlock features.</p>
           </div>
         </div>
       </div>
@@ -51,28 +51,28 @@ export function SubscriptionStatusCard({ subscription }: SubscriptionStatusProps
     : 'N/A';
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="rounded-2xl border border-admin-border bg-admin-surface p-6 shadow-sm">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="rounded-xl bg-indigo-50 p-3.5 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+          <div className="rounded-xl bg-admin-indigo-soft p-3.5 text-admin-indigo">
             <ShieldCheck className="h-7 w-7" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">{plan.name} Plan</h3>
+              <h3 className="text-entity-title font-semibold text-admin-foreground">{plan.name} Plan</h3>
               <SubscriptionStatusBadge status={subscription.status} />
             </div>
-            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{plan.description}</p>
+            <p className="mt-0.5 text-body-sm text-admin-muted">{plan.description}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-6 border-t border-slate-100 pt-4 sm:border-t-0 sm:pt-0 dark:border-slate-800 text-sm">
+        <div className="flex items-center gap-6 border-t border-admin-border pt-4 sm:border-t-0 sm:pt-0 text-body-sm">
           <div>
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <div className="flex items-center gap-1.5 text-caption text-admin-muted">
               <Calendar className="h-3.5 w-3.5" />
               <span>Next Renewal / Period End</span>
             </div>
-            <p className="mt-1 font-semibold text-slate-900 dark:text-white">{renewalDate}</p>
+            <p className="mt-1 font-semibold text-admin-foreground">{renewalDate}</p>
           </div>
         </div>
       </div>

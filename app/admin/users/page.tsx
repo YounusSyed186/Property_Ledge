@@ -30,11 +30,7 @@ export default function AdminUsersPage() {
           const accountCtx = Array.isArray(p.account_context) ? p.account_context[0] : p.account_context;
           const sub = Array.isArray(accountCtx?.subscriptions) ? accountCtx?.subscriptions[0] : accountCtx?.subscriptions;
 
-          const isUserAdmin =
-            p.email?.toLowerCase().includes('admin@') ||
-            p.full_name?.includes('[Admin]') ||
-            p.role === 'admin' ||
-            p.user_metadata?.is_admin === true;
+          const isUserAdmin = p.role === 'admin';
 
           const planSlug = sub?.subscription_plans?.slug;
           const planName = sub?.subscription_plans?.name || 'Free Plan';

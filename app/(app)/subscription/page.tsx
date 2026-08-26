@@ -7,6 +7,7 @@ import { EntitlementListCard } from '@/components/subscription/entitlement-list'
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, CreditCard } from 'lucide-react';
+import { PageContainer } from '@/components/admin/ui';
 
 export const revalidate = 0;
 
@@ -20,30 +21,27 @@ export default async function SubscriptionDashboardPage() {
   const entitlements = await getEntitlements(user.id);
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4 dark:bg-slate-950 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl space-y-8">
+    <PageContainer>
+      <div className="max-w-5xl space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">Account Subscription</h1>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            <h2 className="text-xl font-bold text-admin-foreground">Account Subscription</h2>
+            <p className="mt-1 text-sm text-admin-muted">
               Manage your subscription plan, features, and usage limits.
             </p>
           </div>
 
           <Link
             href="/pricing"
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl bg-admin-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-colors"
           >
             <CreditCard className="h-4 w-4" /> Change / Upgrade Plan <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 
-        {/* Subscription Status Card */}
         <SubscriptionStatusCard subscription={subscription} />
-
-        {/* Entitlements & Features Grid */}
         <EntitlementListCard entitlements={entitlements} />
       </div>
-    </div>
+    </PageContainer>
   );
 }

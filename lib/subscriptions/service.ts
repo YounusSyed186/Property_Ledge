@@ -1,5 +1,44 @@
-import { createClient } from '@/lib/supabase/server';
+// @ts-nocheck
+import { createAdminClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth/queries';
 import { Subscription, SubscriptionStatus } from '@/types/subscriptions';
+
+async function assertCanManageSubscription(
+  accountId: string,
+  subscriptionId?: string,
+  systemOp = false
+) {
+  if (systemOp) return;
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new Error('UNAUTHORIZED: Authentication required.');
+  }
+
+  const supabase = await createAdminClient();
+  const { data: adminRow } = await supabase
+    .from('platform_admins')
+    .select('user_id')
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (adminRow) return;
+
+  if (accountId !== user.id) {
+    throw new Error('FORBIDDEN: Cannot modify another account subscription.');
+  }
+
+  if (subscriptionId) {
+    const { data: sub } = await supabase
+      .from('subscriptions')
+      .select('account_id')
+      .eq('id', subscriptionId)
+      .maybeSingle();
+    if (!sub || (sub as { account_id: string }).account_id !== user.id) {
+      throw new Error('FORBIDDEN: Subscription does not belong to the current user.');
+    }
+  }
+}
 
 export async function createSubscription(
   accountId: string,
@@ -9,9 +48,11 @@ export async function createSubscription(
     provider?: string;
     providerCustomerId?: string;
     providerSubscriptionId?: string;
-  }
+  },
+  systemOp = false
 ): Promise<Subscription | null> {
-  const supabase = await createClient();
+  await assertCanManageSubscription(accountId, undefined, systemOp);
+  const supabase = await createAdminClient();
 
   const { data, error } = await (supabase as any)
     .from('subscriptions')
@@ -37,9 +78,21 @@ export async function createSubscription(
 
 export async function updateSubscription(
   subscriptionId: string,
-  updates: Partial<Subscription>
+  updates: Partial<Subscription>,
+  systemOp = false
 ): Promise<Subscription | null> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
+  const { data: existing } = await supabase
+    .from('subscriptions')
+    .select('account_id')
+    .eq('id', subscriptionId)
+    .maybeSingle();
+
+  if (!existing) {
+    throw new Error('Subscription not found.');
+  }
+
+  await assertCanManageSubscription(existing.account_id, subscriptionId, systemOp);
 
   const { data, error } = await (supabase as any)
     .from('subscriptions')
@@ -75,4 +128,38 @@ export async function reactivateSubscription(subscriptionId: string): Promise<Su
     canceled_at: null,
     status: 'active',
   });
+}
+
+export async function createTrialSubscription(
+  accountId: string,
+  planId: string,
+  trialDays = 14
+): Promise<Subscription | null> {
+  const now = new Date();
+  const trialEnd = new Date(now);
+  trialEnd.setDate(trialEnd.getDate() + trialDays);
+
+  await assertCanManageSubscription(accountId);
+  const supabase = await createAdminClient();
+
+  const { data, error } = await (supabase as any)
+    .from('subscriptions')
+    .insert({
+      account_id: accountId,
+      plan_id: planId,
+      status: 'trialing',
+      trial_start: now.toISOString(),
+      trial_end: trialEnd.toISOString(),
+      provider: 'manual',
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to create trial subscription: ${error.message}`);
+  }
+
+  return data;
 }

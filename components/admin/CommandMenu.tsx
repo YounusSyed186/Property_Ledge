@@ -4,12 +4,28 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Users, CreditCard, Receipt, CornerDownLeft, X, Shield, ArrowRight } from 'lucide-react';
 
+interface CommandMenuLink {
+  label: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
 interface CommandMenuProps {
   isOpen: boolean;
   onClose: () => void;
+  links?: CommandMenuLink[];
+  footerLabel?: string;
 }
 
-export function CommandMenu({ isOpen, onClose }: CommandMenuProps) {
+const defaultLinks: CommandMenuLink[] = [
+  { label: 'Admin Dashboard Overview', href: '/admin', icon: Shield },
+  { label: 'Subscriptions Management', href: '/admin/subscriptions', icon: CreditCard },
+  { label: 'User Directory', href: '/admin/users', icon: Users },
+  { label: 'Payments & Receipts', href: '/admin/payments', icon: Receipt },
+  { label: 'Plans & Pricing', href: '/admin/plans', icon: CreditCard },
+];
+
+export function CommandMenu({ isOpen, onClose, links, footerLabel = 'PropertyLedge V3 Admin' }: CommandMenuProps) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -23,13 +39,10 @@ export function CommandMenu({ isOpen, onClose }: CommandMenuProps) {
 
   if (!isOpen) return null;
 
-  const quickLinks = [
-    { label: 'Admin Dashboard Overview', href: '/admin', icon: Shield },
-    { label: 'Subscriptions Management', href: '/admin/subscriptions', icon: CreditCard },
-    { label: 'User Directory', href: '/admin/users', icon: Users },
-    { label: 'Payments & Receipts', href: '/admin/payments', icon: Receipt },
-    { label: 'Plans & Pricing', href: '/admin/plans', icon: CreditCard },
-  ];
+  const quickLinks = links || defaultLinks;
+  const filteredLinks = query
+    ? quickLinks.filter((link) => link.label.toLowerCase().includes(query.toLowerCase()))
+    : quickLinks;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4">
@@ -66,7 +79,7 @@ export function CommandMenu({ isOpen, onClose }: CommandMenuProps) {
               Quick Navigation
             </p>
             <div className="space-y-0.5">
-              {quickLinks.map((link) => (
+              {filteredLinks.map((link) => (
                 <button
                   key={link.href}
                   type="button"
@@ -95,7 +108,7 @@ export function CommandMenu({ isOpen, onClose }: CommandMenuProps) {
               <span>to close</span>
             </span>
           </div>
-          <span className="text-[10px] font-mono text-admin-primary">PropertyLedge V3 Admin</span>
+          <span className="text-[10px] font-mono text-admin-primary">{footerLabel}</span>
         </div>
       </div>
     </div>

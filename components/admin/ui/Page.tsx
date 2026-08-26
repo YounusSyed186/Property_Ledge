@@ -13,11 +13,34 @@ export function PageContainer({ fullWidth = true, className, ...props }: PageCon
   return (
     <div
       className={cn(
-        'w-full flex-1 flex flex-col min-h-0 h-full p-1',
+        'w-full flex-1 flex flex-col min-h-0 h-full p-0.5',
         className
       )}
       {...props}
     />
+  );
+}
+
+/* ============================================================
+   WORKSPACE PAGE HEADER (compact — matches sidebar scale)
+   ============================================================ */
+
+interface WorkspacePageHeaderProps {
+  title: string;
+  description?: string;
+  actions?: React.ReactNode;
+  className?: string;
+}
+
+export function WorkspacePageHeader({ title, description, actions, className }: WorkspacePageHeaderProps) {
+  return (
+    <div className={cn('flex items-center justify-between gap-2 mb-2 shrink-0', className)}>
+      <div className="min-w-0">
+        <h2 className="workspace-page-title truncate">{title}</h2>
+        {description && <p className="workspace-page-subtitle truncate">{description}</p>}
+      </div>
+      {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
+    </div>
   );
 }
 
@@ -37,8 +60,8 @@ export function PageHeader({ title, description, breadcrumb, actions, className,
     <div className={cn('flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6', className)} {...props}>
       <div className="min-w-0">
         {breadcrumb && <div className="mb-2">{breadcrumb}</div>}
-        <h1 className="text-page-title font-heading text-admin-foreground tracking-tight">{title}</h1>
-        {description && <p className="text-body-sm text-admin-muted mt-1.5 max-w-2xl">{description}</p>}
+        <h1 className="text-page-title font-heading font-semibold text-admin-foreground tracking-tight">{title}</h1>
+        {description && <p className="text-caption text-admin-muted mt-1 max-w-2xl">{description}</p>}
       </div>
       {actions && <div className="flex items-center gap-2.5 shrink-0">{actions}</div>}
     </div>

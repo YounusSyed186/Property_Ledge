@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive' | 'outline' | 'icon';
+type ButtonVariant = 'primary' | 'secondary' | 'soft' | 'ghost' | 'destructive' | 'outline' | 'icon';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -21,16 +21,18 @@ const baseStyles =
   'inline-flex items-center justify-center font-medium transition-colors select-none disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-primary focus-visible:ring-offset-2 focus-visible:ring-offset-admin-background cursor-pointer';
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-xs gap-1.5 rounded-lg font-semibold',
-  md: 'h-9 px-4 text-xs sm:text-sm gap-2 rounded-xl font-semibold',
-  lg: 'h-11 px-5 text-sm gap-2.5 rounded-xl font-semibold',
+  sm: 'h-7 px-2.5 text-xs gap-1 rounded-md font-semibold',
+  md: 'h-8 px-3 text-xs gap-1.5 rounded-md font-semibold',
+  lg: 'h-9 px-4 text-xs gap-2 rounded-md font-semibold',
 };
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-admin-primary text-black hover:bg-admin-primary-hover shadow-xs active:shadow-none font-bold',
+    'bg-admin-primary text-white hover:bg-admin-primary-hover shadow-xs active:shadow-none font-semibold',
   secondary:
-    'bg-admin-surface text-admin-foreground border border-admin-border hover:bg-admin-surface-elevated hover:border-admin-border-subtle shadow-2xs',
+    'bg-admin-surface text-admin-foreground border border-admin-border-strong hover:bg-admin-surface-elevated shadow-2xs',
+  soft:
+    'bg-admin-primary-soft text-admin-primary-hover hover:bg-admin-primary-soft/80 font-semibold',
   ghost:
     'text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-subtle',
   destructive:

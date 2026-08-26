@@ -9,8 +9,7 @@ CREATE POLICY "Admins can view all profiles"
   FOR SELECT
   TO authenticated
   USING (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   );
 
 -- account_context admin view policy
@@ -20,8 +19,7 @@ CREATE POLICY "Admins can view all account contexts"
   FOR SELECT
   TO authenticated
   USING (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   );
 
 -- subscription_plans admin write policy
@@ -31,12 +29,10 @@ CREATE POLICY "Admins can manage subscription plans"
   FOR ALL
   TO authenticated
   USING (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   )
   WITH CHECK (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   );
 
 -- entitlements admin write policy
@@ -46,12 +42,10 @@ CREATE POLICY "Admins can manage entitlements"
   FOR ALL
   TO authenticated
   USING (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   )
   WITH CHECK (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   );
 
 -- plan_entitlements admin write policy
@@ -61,12 +55,10 @@ CREATE POLICY "Admins can manage plan entitlements"
   FOR ALL
   TO authenticated
   USING (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   )
   WITH CHECK (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   );
 
 -- subscriptions admin access policy
@@ -76,12 +68,10 @@ CREATE POLICY "Admins can view and manage all subscriptions"
   FOR ALL
   TO authenticated
   USING (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   )
   WITH CHECK (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   );
 
 -- subscription_payments admin access policy
@@ -91,12 +81,10 @@ CREATE POLICY "Admins can view and manage all subscription payments"
   FOR ALL
   TO authenticated
   USING (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   )
   WITH CHECK (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   );
 
 -- payment_proofs admin access policy
@@ -106,8 +94,7 @@ CREATE POLICY "Admins can view all payment proofs"
   FOR SELECT
   TO authenticated
   USING (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   );
 
 -- admin_audit_logs admin access policy
@@ -117,12 +104,10 @@ CREATE POLICY "Admins can view and insert audit logs"
   FOR ALL
   TO authenticated
   USING (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   )
   WITH CHECK (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   );
 
 -- subscription_events admin access policy
@@ -132,6 +117,5 @@ CREATE POLICY "Admins can view subscription events"
   FOR SELECT
   TO authenticated
   USING (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   );

@@ -27,8 +27,7 @@ CREATE POLICY "Admins can view all email events"
   FOR SELECT
   TO authenticated
   USING (
-    (auth.jwt() -> 'app_metadata' ->> 'role' = 'admin') OR
-    (auth.jwt() -> 'user_metadata' ->> 'is_admin')::boolean = true
+    public.is_platform_admin()
   );
 
 DROP POLICY IF EXISTS "Users can view own email events" ON public.email_events;

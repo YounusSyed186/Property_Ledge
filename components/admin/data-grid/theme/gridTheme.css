@@ -5,11 +5,11 @@
 
 .ag-theme-propertyledge {
   --ag-font-family: var(--font-outfit), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --ag-font-size: 13.5px;
-  --ag-grid-size: 6px;
-  --ag-row-height: 52px;
+  --ag-font-size: 13px;
+  --ag-grid-size: 4px;
+  --ag-row-height: 54px;
   --ag-header-height: 44px;
-  --ag-list-item-height: 32px;
+  --ag-list-item-height: 44px;
 
   /* Colors */
   --ag-background-color: var(--admin-surface);
@@ -23,7 +23,7 @@
 
   /* Borders & Dividers */
   --ag-border-color: var(--admin-border);
-  --ag-border-radius: 12px;
+  --ag-border-radius: 6px;
   --ag-row-border-color: var(--admin-divider);
   --ag-cell-horizontal-border: solid transparent;
   --ag-header-column-separator-color: var(--admin-border-subtle);
@@ -52,18 +52,18 @@
 
   width: 100%;
   height: 100%;
-  border-radius: 12px;
+  border-radius: 6px;
 }
 
 /* Custom Header Typography & Styling */
 .ag-theme-propertyledge .ag-header-cell {
   font-weight: 600;
-  font-size: 11.5px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   color: var(--admin-muted);
-  padding-left: 14px;
-  padding-right: 14px;
+  padding-left: 8px;
+  padding-right: 8px;
   overflow: hidden;
 }
 
@@ -89,9 +89,10 @@
 .ag-theme-propertyledge .ag-cell {
   display: flex;
   align-items: center;
-  padding-left: 14px;
-  padding-right: 14px;
-  line-height: 1.5;
+  padding-left: 8px;
+  padding-right: 8px;
+  line-height: 1.35;
+  font-size: 11px;
   outline: none !important;
   font-feature-settings: "tnum";
   min-width: 0;
@@ -206,20 +207,16 @@
   opacity: 0.8;
 }
 
-/* Scrollbars */
+/* Scrollbars hidden — scroll still works */
+.ag-theme-propertyledge .ag-body-horizontal-scroll-viewport,
+.ag-theme-propertyledge .ag-body-vertical-scroll-viewport {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
 .ag-theme-propertyledge .ag-body-horizontal-scroll-viewport::-webkit-scrollbar,
 .ag-theme-propertyledge .ag-body-vertical-scroll-viewport::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.ag-theme-propertyledge .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb,
-.ag-theme-propertyledge .ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb {
-  background: var(--admin-border-subtle);
-  border-radius: 9999px;
-}
-
-.ag-theme-propertyledge .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb:hover,
-.ag-theme-propertyledge .ag-body-vertical-scroll-viewport::-webkit-scrollbar-thumb:hover {
-  background: var(--admin-muted);
+  display: none;
+  width: 0;
+  height: 0;
 }

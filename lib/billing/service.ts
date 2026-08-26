@@ -93,11 +93,13 @@ export async function createManualCheckoutSession(
   const reference = `${BANK_DETAILS.referencePrefix}${randomRef}`;
 
   // 5. Check if existing pending or draft subscription exists for account
+  const CURRENT_STATUSES = ['draft', 'pending_payment', 'under_review', 'trialing', 'active', 'past_due', 'paused'];
+
   const { data: existingSub } = await (supabase as any)
     .from('subscriptions')
     .select('id, status')
     .eq('account_id', accountId)
-    .in('status', ['draft', 'pending_payment', 'under_review'])
+    .in('status', CURRENT_STATUSES)
     .maybeSingle();
 
   let subscriptionId: string;
@@ -197,8 +199,12 @@ export async function submitManualPayment(
     throw new Error(`Failed to update payment: ${payErr?.message}`);
   }
 
-  let finalPreviewUrl = details.filePreviewUrl || null;
-  const storagePath = `receipts/${paymentId}/${details.fileName}`;
+  const extension = details.fileName.includes('.')
+    ? details.fileName.split('.').pop()
+    : details.mimeType === 'application/pdf'
+      ? 'pdf'
+      : 'jpg';
+  const storagePath = `${paymentId}/${crypto.randomUUID()}.${extension}`;
 
   if (details.filePreviewUrl && details.filePreviewUrl.startsWith('data:')) {
     try {
@@ -209,17 +215,11 @@ export async function submitManualPayment(
         .from('payment-receipts')
         .upload(storagePath, buffer, {
           contentType: details.mimeType,
-          upsert: true,
+          upsert: false,
         });
 
-      if (!uploadErr) {
-        const { data: publicUrlData } = (supabase as any).storage
-          .from('payment-receipts')
-          .getPublicUrl(storagePath);
-
-        if (publicUrlData?.publicUrl) {
-          finalPreviewUrl = publicUrlData.publicUrl;
-        }
+      if (uploadErr) {
+        console.warn('Supabase storage bucket upload failed:', uploadErr);
       }
     } catch (stErr) {
       console.warn('Supabase storage bucket upload exception:', stErr);
@@ -235,7 +235,7 @@ export async function submitManualPayment(
       file_name: details.fileName,
       mime_type: details.mimeType,
       file_size: details.fileSize,
-      file_preview_url: finalPreviewUrl,
+      file_preview_url: null,
       uploaded_at: new Date().toISOString(),
     });
 
@@ -341,15 +341,15 @@ export async function getPaymentProofByPaymentId(paymentId: string): Promise<Pay
 
   if (!proof) return null;
 
-  if (!proof.file_preview_url && proof.storage_path) {
-    const { data: publicUrlData } = (supabase as any).storage
+  if (proof.storage_path) {
+    const { data: signed } = await (supabase as any).storage
       .from('payment-receipts')
-      .getPublicUrl(proof.storage_path);
+      .createSignedUrl(proof.storage_path, 3600);
 
-    if (publicUrlData?.publicUrl) {
+    if (signed?.signedUrl) {
       return {
         ...proof,
-        file_preview_url: publicUrlData.publicUrl,
+        file_preview_url: signed.signedUrl,
       };
     }
   }
@@ -413,12 +413,12 @@ export async function processWebhookEvent(rawBody: string, signature: string, se
           status: 'active',
           provider_customer_id: event.providerCustomerId || existingSub.provider_customer_id,
           provider_subscription_id: event.providerSubscriptionId || existingSub.provider_subscription_id,
-        });
+        }, true);
       } else {
         await createSubscription(event.accountId, plan.id, 'active', {
           providerCustomerId: event.providerCustomerId,
           providerSubscriptionId: event.providerSubscriptionId,
-        });
+        }, true);
       }
     }
   }

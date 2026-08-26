@@ -178,3 +178,45 @@ export async function adminUpdateSubscription(
   await recordAdminAudit(adminId, 'ADMIN_SUBSCRIPTION_UPDATED', 'subscription', subscriptionId, updates);
   return data;
 }
+
+export async function adminApproveSubscription(subscriptionId: string) {
+  const adminId = await requireAdmin();
+  const supabase = await createClient();
+
+  const { data, error } = await (supabase as any)
+    .from('subscriptions')
+    .update({
+      status: 'active',
+      current_period_start: new Date().toISOString(),
+      current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', subscriptionId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  await recordAdminAudit(adminId, 'ADMIN_SUBSCRIPTION_APPROVED', 'subscription', subscriptionId, { status: 'active' });
+  return { success: true, data };
+}
+
+export async function adminRejectSubscription(subscriptionId: string) {
+  const adminId = await requireAdmin();
+  const supabase = await createClient();
+
+  const { data, error } = await (supabase as any)
+    .from('subscriptions')
+    .update({
+      status: 'rejected',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', subscriptionId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  await recordAdminAudit(adminId, 'ADMIN_SUBSCRIPTION_REJECTED', 'subscription', subscriptionId, { status: 'rejected' });
+  return { success: true, data };
+}

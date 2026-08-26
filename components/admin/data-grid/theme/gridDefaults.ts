@@ -11,7 +11,7 @@ export const defaultGridColDef: ColDef = {
   resizable: true,
   suppressMovable: false,
   minWidth: 120,
-  headerClass: 'font-semibold text-caption tracking-wider',
+  headerClass: 'font-semibold text-body-sm tracking-wider',
   tooltipValueGetter: (params) => {
     if (params.valueFormatted) return params.valueFormatted;
     if (typeof params.value === 'string' || typeof params.value === 'number') {

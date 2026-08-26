@@ -5,14 +5,15 @@ import Link from 'next/link';
 import { ColDef } from 'ag-grid-community';
 import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
 import { Button } from '@/components/admin/ui';
-import { Layers, Edit3 } from 'lucide-react';
+import { Layers, Edit3, Plus } from 'lucide-react';
 
 interface AdminPlansGridViewProps {
   plans: any[];
   onToggleStatus: (planId: string, currentStatus: string) => Promise<void>;
+  onCreateClick?: () => void;
 }
 
-export function AdminPlansGridView({ plans, onToggleStatus }: AdminPlansGridViewProps) {
+export function AdminPlansGridView({ plans, onToggleStatus, onCreateClick }: AdminPlansGridViewProps) {
   const [activeFilter, setActiveFilter] = useState('all');
 
   const filterOptions: QuickFilterOption[] = useMemo(
@@ -144,6 +145,18 @@ export function AdminPlansGridView({ plans, onToggleStatus }: AdminPlansGridView
           activeValue={activeFilter}
           onChange={setActiveFilter}
         />
+      }
+      rightToolbarContent={
+        onCreateClick ? (
+          <Button
+            variant="primary"
+            size="sm"
+            leftIcon={<Plus className="w-3.5 h-3.5" />}
+            onClick={onCreateClick}
+          >
+            Create Plan
+          </Button>
+        ) : undefined
       }
       labelSingular="plan"
       labelPlural="plans"

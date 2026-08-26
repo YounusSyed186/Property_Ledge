@@ -7,6 +7,7 @@ export interface SendEmailOptions {
     | 'subscription_requested'
     | 'subscription_requested_user'
     | 'subscription_accepted'
+    | 'subscription_rejected'
     | 'tenant-invite'
     | 'team-invite'
     | 'invoice'
@@ -140,6 +141,33 @@ export function buildEmailHtml(templateType: string, variables: Record<string, a
       <table width="100%" border="0" cellspacing="0" cellpadding="0" style="text-align:center;margin-bottom:24px;">
         <tr><td>
           <a href="${appUrl || 'http://localhost:3000'}" target="_blank" style="background:#a9927d;color:#141419;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:bold;text-decoration:none;display:inline-block;letter-spacing:0.5px;">Go to Workspace</a>
+        </td></tr>
+      </table>
+    `);
+  }
+
+  // Template for User when Subscription is Rejected
+  if (templateType === 'subscription_rejected') {
+    const { userName, planName, reason, supportUrl } = variables;
+    return wrapLayout('Subscription Request Not Approved', `
+      <div style="background:#3d1e1e;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px;">
+        <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#ffffff;">Subscription Request Not Approved</h1>
+        <p style="margin:0;font-size:14px;color:#fecaca;opacity:0.9;">We were unable to activate your subscription at this time.</p>
+      </div>
+      <p style="font-size:15px;line-height:1.6;color:#d1d5db;margin-bottom:20px;">
+        Hello <strong>${userName || 'Customer'}</strong>,<br/><br/>
+        Thank you for your interest in PropertyLedge <strong>${planName || 'Landlord'}</strong>. After review, we were unable to approve your subscription request.
+      </p>
+      <div style="background:#1e1e2a;border:1px solid #2a2a35;border-radius:12px;padding:20px;margin-bottom:24px;">
+        <p style="margin:0 0 12px;font-size:14px;color:#a9927d;font-weight:bold;">Reason:</p>
+        <p style="margin:0;font-size:14px;color:#fecaca;">${reason || 'The administration team was unable to verify your payment.'}</p>
+      </div>
+      <p style="font-size:14px;line-height:1.6;color:#9ca3af;margin-bottom:24px;">
+        If you believe this is an error or would like to try again, please contact our support team.
+      </p>
+      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="text-align:center;margin-bottom:24px;">
+        <tr><td>
+          <a href="${supportUrl || 'http://localhost:3000/support'}" target="_blank" style="background:#a9927d;color:#141419;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:bold;text-decoration:none;display:inline-block;letter-spacing:0.5px;">Contact Support</a>
         </td></tr>
       </table>
     `);

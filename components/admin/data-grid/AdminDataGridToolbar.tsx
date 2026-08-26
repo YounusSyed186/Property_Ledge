@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, Columns, Download, CheckSquare, SlidersHorizontal, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/admin/ui';
 import { GridApi } from 'ag-grid-community';
+import { cn } from '@/lib/utils';
 
 export interface ColumnItem {
   colId: string;
@@ -34,7 +35,11 @@ interface AdminDataGridToolbarProps {
   totalCount?: number;
   labelSingular?: string;
   labelPlural?: string;
+  compact?: boolean;
+  compactOverride?: boolean;
 }
+
+export type { AdminDataGridToolbarProps };
 
 export function AdminDataGridToolbar({
   gridApi,
@@ -52,6 +57,7 @@ export function AdminDataGridToolbar({
   totalCount,
   labelSingular = 'item',
   labelPlural = 'items',
+  compact = false,
 }: AdminDataGridToolbarProps) {
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
   const [columns, setColumns] = useState<ColumnItem[]>([]);
@@ -115,7 +121,12 @@ export function AdminDataGridToolbar({
   const selectedCount = selectedRows.length;
 
   return (
-    <div className="relative border-b border-admin-divider bg-admin-surface px-3 py-2">
+    <div
+      className={cn(
+        'admin-data-grid-toolbar relative border-b border-admin-divider bg-admin-surface transition-[padding] duration-250 ease-out',
+        compact ? 'admin-data-grid-toolbar--compact px-2 py-1' : 'px-2 py-1.5'
+      )}
+    >
       {/* Contextual Bulk Action Bar when items are selected */}
       {selectedCount > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-2.5 animate-slide-up bg-admin-surface-elevated p-1.5 rounded-lg border border-admin-primary/30 shadow-xs">
@@ -153,20 +164,20 @@ export function AdminDataGridToolbar({
         </div>
       ) : (
         /* Normal Toolbar */
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
+        <div className={cn('flex flex-col lg:flex-row lg:items-center justify-between', compact ? 'gap-1' : 'gap-2')}>
           {/* Left: Quick Filters & Search */}
           <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
             {leftContent}
 
             {/* Global Search Bar */}
-            <div className="relative flex-1 min-w-[180px] max-w-xs">
-              <Search className="w-3.5 h-3.5 text-admin-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <div className={cn('relative flex-1 min-w-[180px]', compact ? 'max-w-[220px]' : 'max-w-xs')}>
+              <Search className="w-3 h-3 text-admin-muted absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchValue}
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder={searchPlaceholder}
-                className="w-full h-8 pl-8 pr-7 rounded-lg bg-admin-surface-subtle border border-admin-border text-[12px] text-admin-foreground placeholder:text-admin-muted/60 focus:outline-none focus:ring-2 focus:ring-admin-primary/30 focus:border-admin-primary transition-all"
+                className="w-full h-7 pl-7 pr-6 rounded-md bg-admin-surface-subtle border border-admin-border text-[11px] text-admin-foreground placeholder:text-admin-muted/60 focus:outline-none focus:ring-1 focus:ring-admin-primary/30 focus:border-admin-primary transition-all"
                 aria-label={searchPlaceholder}
               />
               {searchValue && (
@@ -197,8 +208,9 @@ export function AdminDataGridToolbar({
                     setIsColumnMenuOpen(!isColumnMenuOpen);
                   }}
                   leftIcon={<Columns className="w-3.5 h-3.5" />}
+                  title="Columns"
                 >
-                  Columns
+                  {!compact && 'Columns'}
                 </Button>
 
                 {isColumnMenuOpen && (
@@ -245,13 +257,13 @@ export function AdminDataGridToolbar({
                 leftIcon={<Download className="w-3.5 h-3.5" />}
                 title="Export CSV"
               >
-                Export
+                {!compact && 'Export'}
               </Button>
             )}
 
             {/* Total Count Badge */}
-            {totalCount !== undefined && (
-              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-admin-surface-subtle text-caption text-admin-muted border border-admin-border-subtle">
+            {totalCount !== undefined && !compact && (
+              <div className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-md bg-admin-surface-subtle text-[11px] text-admin-muted border border-admin-border-subtle">
                 <span className="font-bold text-admin-foreground">{totalCount}</span>
                 <span>{totalCount === 1 ? labelSingular : labelPlural}</span>
               </div>
