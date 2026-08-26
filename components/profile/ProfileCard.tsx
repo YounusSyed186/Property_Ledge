@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Loader2,
   LogOut,
-  Camera,
   ExternalLink,
   ShieldCheck,
   User as UserIcon,
@@ -16,7 +15,6 @@ import {
   Calendar,
   Activity,
   Key,
-  Globe,
   Clock,
   CheckCircle,
   AlertCircle,
@@ -49,11 +47,8 @@ export function ProfileCard({ user, accountContext }: ProfileCardProps) {
   const router = useRouter();
 
   // Form State
-  const [fullName, setFullName] = useState(user.fullName || "Henry Sullivan");
+  const [fullName, setFullName] = useState(user.fullName || "");
   const [phone, setPhone] = useState(user.phone || "");
-  const [username, setUsername] = useState(
-    (user.fullName || "henrysullivan").toLowerCase().replace(/\s+/g, "")
-  );
   const [supportAccess, setSupportAccess] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -139,13 +134,6 @@ export function ProfileCard({ user, accountContext }: ProfileCardProps) {
                   </div>
                 )}
               </div>
-              <button
-                type="button"
-                className="absolute bottom-1 right-1 p-2 rounded-full bg-surface dark:bg-[#1C262C] border border-border shadow-md text-foreground hover:scale-105 transition-transform"
-                title="Update Avatar"
-              >
-                <Camera className="w-4 h-4" />
-              </button>
             </div>
 
             {/* Name & Subtitles */}
@@ -246,26 +234,6 @@ export function ProfileCard({ user, accountContext }: ProfileCardProps) {
                   placeholder="e.g. Henry Sullivan"
                   className="w-full h-11 px-4 rounded-xl bg-surface-subtle dark:bg-[#172025] border border-border/80 dark:border-[#253036] text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
                 />
-              </div>
-
-              {/* Field: Username / Public Slug URL */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-muted" />
-                  Public Profile URL
-                </label>
-                <div className="flex items-center rounded-xl bg-surface-subtle dark:bg-[#172025] border border-border/80 dark:border-[#253036] overflow-hidden focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 transition-all">
-                  <span className="px-3.5 text-xs text-muted font-mono select-none bg-border/20 dark:bg-black/20 h-11 flex items-center border-r border-border/50 dark:border-[#253036]">
-                    propertyledge.com.au/
-                  </span>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="henrysullivan"
-                    className="flex-1 h-11 px-3 bg-transparent text-sm text-foreground focus:outline-none font-mono"
-                  />
-                </div>
               </div>
 
               {/* Field: Phone Number */}

@@ -1,13 +1,47 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus } from 'lucide-react';
+import { Eye, MoreHorizontal, Pencil, Plus } from 'lucide-react';
 import { ColDef } from 'ag-grid-community';
 import { Button, useToast } from '@/components/admin/ui';
 import { AdminDataGrid } from '@/components/admin/data-grid';
 import { PropertyRequired } from '@/components/dashboard/PropertyRequired';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import { ListPage, ListPageGrid } from '@/components/workspace';
+import { Dropdown, DropdownItem } from '@/components/admin/ui/Dropdown';
+
+function EntityRowActions<T extends { id: string }>({
+  data,
+  entityLabel,
+  onOpen,
+  onEdit,
+  hasDetail,
+}: {
+  data: T;
+  entityLabel: string;
+  onOpen: (data: T) => void;
+  onEdit: (data: T) => void;
+  hasDetail: boolean;
+}) {
+  return (
+    <Dropdown
+      label={`${entityLabel} actions`}
+      className="row-actions-dropdown"
+      trigger={
+        <button
+          type="button"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-admin-muted transition-colors hover:bg-admin-surface-subtle hover:text-admin-foreground focus-visible:ring-2 focus-visible:ring-admin-primary/40"
+          aria-label={`Open actions for ${entityLabel}`}
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+      }
+    >
+      <DropdownItem label={hasDetail ? 'View record' : 'Open record'} icon={<Eye className="h-3.5 w-3.5" />} onClick={() => onOpen(data)} />
+      {hasDetail && <DropdownItem label="Edit record" icon={<Pencil className="h-3.5 w-3.5" />} onClick={() => onEdit(data)} />}
+    </Dropdown>
+  );
+}
 
 interface EntityListPageProps<T = Record<string, unknown>> {
   title: string;
@@ -109,24 +143,22 @@ export function EntityListPage<T extends { id: string }>({
       {
         headerName: '',
         field: 'actions',
-        width: 80,
+        width: 64,
+        minWidth: 64,
         sortable: false,
         filter: false,
         cellRenderer: (params: { data: T }) => (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleOpenEdit(params.data);
-            }}
-            className="text-[11px] text-admin-primary hover:underline"
-          >
-            Edit
-          </button>
+          <EntityRowActions
+            data={params.data}
+            entityLabel={entityLabel}
+            hasDetail={Boolean(onRowClick)}
+            onOpen={(data) => (onRowClick ? onRowClick(data) : handleOpenEdit(data))}
+            onEdit={handleOpenEdit}
+          />
         ),
       },
     ],
-    [columnDefs]
+    [columnDefs, entityLabel, onRowClick]
   );
 
   return (

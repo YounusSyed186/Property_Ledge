@@ -57,6 +57,7 @@ export function EntityDrawer<T extends { id: string }>({
 }: EntityDrawerProps<T>) {
   const { success, error: showError } = useToast();
   const [formData, setFormData] = useState<Record<string, unknown>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -73,13 +74,34 @@ export function EntityDrawer<T extends { id: string }>({
       });
     }
     setFormData(initial);
+    setErrors({});
   }, [isOpen, entity, fields, defaultValues]);
 
   const handleChange = (name: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
   };
 
   const handleSave = async () => {
+    const nextErrors: Record<string, string> = {};
+    fields.forEach((field) => {
+      const value = formData[field.name];
+      if (field.required && (value === undefined || value === null || String(value).trim() === '')) {
+        nextErrors[field.name] = `${field.label} is required.`;
+      }
+    });
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      const firstInvalid = document.getElementById(`entity-field-${Object.keys(nextErrors)[0]}`);
+      firstInvalid?.focus();
+      return;
+    }
+
     setIsSaving(true);
     try {
       const payload: Record<string, unknown> = {};
@@ -92,15 +114,17 @@ export function EntityDrawer<T extends { id: string }>({
       });
 
       if (isCreate) {
-        await onCreate(propertyId, payload);
+        const result = await onCreate(propertyId, payload);
+        if (!result.success) throw new Error(`We couldn't create this ${title.toLowerCase()}.`);
         success('Created', `${title} created successfully.`);
       } else if (entity) {
-        await onUpdate(propertyId, entity.id, payload);
+        const result = await onUpdate(propertyId, entity.id, payload);
+        if (!result.success) throw new Error(`We couldn't update this ${title.toLowerCase()}.`);
         success('Updated', `${title} updated successfully.`);
       }
       onSuccess();
     } catch (err) {
-      showError('Save failed', err instanceof Error ? err.message : 'An error occurred.');
+      showError("Couldn't save changes", err instanceof Error ? err.message : 'Your existing information has not been changed.');
     } finally {
       setIsSaving(false);
     }
@@ -110,11 +134,12 @@ export function EntityDrawer<T extends { id: string }>({
     if (!entity || !onDelete) return;
     setIsSaving(true);
     try {
-      await onDelete(propertyId, entity.id);
+      const result = await onDelete(propertyId, entity.id);
+      if (!result.success) throw new Error(`We couldn't delete this ${title.toLowerCase()}.`);
       success('Deleted', `${title} deleted successfully.`);
       onSuccess();
     } catch (err) {
-      showError('Delete failed', err instanceof Error ? err.message : 'An error occurred.');
+      showError("Couldn't delete record", err instanceof Error ? err.message : 'The record was not deleted.');
     } finally {
       setIsSaving(false);
       setShowDeleteConfirm(false);
@@ -122,7 +147,9 @@ export function EntityDrawer<T extends { id: string }>({
   };
 
   const drawerTitle = isCreate ? `Add ${title}` : `Edit ${title}`;
-  const drawerDescription = isCreate ? `Add a new ${title.toLowerCase()} to your portfolio.` : undefined;
+  const drawerDescription = isCreate
+    ? `Add a new ${title.toLowerCase()} to your portfolio.`
+    : `Review the details and save your changes.`;
 
   return (
     <>
@@ -131,6 +158,7 @@ export function EntityDrawer<T extends { id: string }>({
         onClose={onClose}
         title={drawerTitle}
         description={drawerDescription}
+        width="lg"
         footer={
           <div className="flex items-center justify-between">
             <div>
@@ -179,14 +207,17 @@ export function EntityDrawer<T extends { id: string }>({
         <div className="space-y-3">
           {fields.map((field) => (
             <div key={field.name}>
-              <label className="mb-1 block text-[11px] font-medium text-admin-muted">
+              <label htmlFor={`entity-field-${field.name}`} className="mb-1 block text-[11px] font-semibold text-admin-foreground">
                 {field.label}
                 {field.required && <span className="ml-0.5 text-admin-danger">*</span>}
               </label>
               {field.type === 'select' ? (
                 <Select
+                  id={`entity-field-${field.name}`}
                   value={String(formData[field.name] ?? '')}
                   onChange={(e) => handleChange(field.name, e.target.value)}
+                  aria-describedby={errors[field.name] ? `entity-error-${field.name}` : undefined}
+                  error={errors[field.name]}
                 >
                   <option value="">Select...</option>
                   {field.options?.map((opt) => (
@@ -197,18 +228,22 @@ export function EntityDrawer<T extends { id: string }>({
                 </Select>
               ) : field.type === 'textarea' ? (
                 <Textarea
+                  id={`entity-field-${field.name}`}
                   value={String(formData[field.name] ?? '')}
                   onChange={(e) => handleChange(field.name, e.target.value)}
                   placeholder={field.placeholder}
                   rows={3}
+                  error={errors[field.name]}
                 />
               ) : (
                 <Input
+                  id={`entity-field-${field.name}`}
                   type={field.type}
                   value={String(formData[field.name] ?? '')}
                   onChange={(e) => handleChange(field.name, e.target.value)}
                   placeholder={field.placeholder}
                   required={field.required}
+                  error={errors[field.name]}
                 />
               )}
             </div>

@@ -101,6 +101,12 @@
   white-space: nowrap;
 }
 
+/* Keep contextual row menus visible above the grid viewport. */
+.ag-theme-propertyledge .ag-cell:has(.row-actions-dropdown),
+.ag-theme-propertyledge .ag-row:has(.row-actions-dropdown) {
+  overflow: visible;
+}
+
 .ag-theme-propertyledge .ag-cell-value,
 .ag-theme-propertyledge .ag-cell-wrapper {
   min-width: 0;

@@ -1,0 +1,2715 @@
+# PROPERTYLEDGE — COMPLETE DASHBOARD, APPLICATION SHELL, CRUD & UX REBUILD
+
+## ROLE
+
+You are a senior product designer, UX engineer, frontend architect, and full-stack engineer working directly inside the existing PropertyLedge codebase.
+
+Your job is to redesign the authenticated PropertyLedge application so it feels like a **premium, modern, Apple-quality professional application**, while retaining the actual purpose of PropertyLedge:
+
+> A powerful property-management workspace where users can manage properties, tenants, leases, payments, invoices, expenses, maintenance, inspections, documents, tasks, and related operational data.
+
+This is NOT a request to create a static visual concept.
+
+This is a request to **rebuild the actual working application UI/UX around the existing backend, data model, authentication, CRUD operations, AG Grid implementation, and routes.**
+
+Every important workflow must remain functional.
+
+---
+
+# 1. PRIMARY DESIGN GOAL
+
+The new PropertyLedge experience should feel:
+
+* premium
+* calm
+* precise
+* responsive
+* modern
+* highly polished
+* fast
+* information-dense without feeling cluttered
+* professional enough for serious property managers
+* simple enough that a new user understands what to do immediately
+
+The interaction quality should be inspired by the principles of Apple's software:
+
+* excellent spacing
+* clear hierarchy
+* subtle animations
+* smooth transitions
+* contextual actions
+* progressive disclosure
+* minimal visual noise
+* excellent forms
+* immediate feedback
+* strong typography
+* carefully controlled color
+* predictable navigation
+* responsive interaction
+* polished empty/loading/error states
+
+DO NOT simply copy Apple's visual design.
+
+PropertyLedge must still look like PropertyLedge.
+
+The design language should be:
+
+> **Apple-quality interaction design + professional property-management information density.**
+
+---
+
+# 2. USE THE PROVIDED REFERENCE
+
+Use the supplied design/reference material and existing PropertyLedge implementation as the source of truth for:
+
+* existing layout requirements
+* existing application structure
+* existing AG Grid behavior
+* existing PropertyLedge color palette
+* existing CRUD flows
+* existing entities
+* existing terminology
+* existing navigation
+* existing business rules
+
+The existing specification explicitly requires the AG Grid to remain the existing implementation and become the primary workspace. Do not replace it with another table library.
+
+The existing design direction also requires:
+
+* stable global navbar
+* stable sidebar
+* collapsible page header
+* compact toolbar
+* expanding AG Grid
+* no unnecessary page-level vertical scrolling
+* AG Grid as the primary vertical scroll owner.
+
+Treat these requirements as foundational.
+
+---
+
+# 3. FIRST STEP — AUDIT THE EXISTING APPLICATION
+
+BEFORE WRITING NEW UI CODE:
+
+Inspect the existing codebase.
+
+Understand:
+
+### Application shell
+
+Find:
+
+* root layout
+* authenticated layout
+* navbar
+* sidebar
+* main content wrapper
+* mobile navigation
+* responsive breakpoints
+* theme variables
+* typography
+* existing component library
+
+### Data pages
+
+Find all existing data-driven pages such as:
+
+* Properties
+* Tenants
+* Leases
+* Invoices
+* Payments
+* Expenses
+* Maintenance
+* Inspections
+* Documents
+* Tasks
+* Team
+* any additional existing management pages
+
+### CRUD
+
+For every entity determine:
+
+* create flow
+* read/list flow
+* detail flow
+* edit flow
+* delete flow
+* bulk operations
+* search
+* filtering
+* sorting
+* pagination
+* row selection
+* navigation
+* validation
+* loading states
+* errors
+* server actions
+* database queries
+* permissions
+
+### Backend
+
+Do NOT rewrite:
+
+* database schema
+* Supabase queries
+* server actions
+* authentication
+* authorization
+* RLS
+* existing API behavior
+* business logic
+
+unless absolutely necessary to support an existing broken workflow.
+
+The redesign is primarily a UX/frontend architecture rebuild.
+
+---
+
+# 4. CRITICAL RULE — FUNCTIONALITY FIRST
+
+Do not sacrifice working functionality for visual design.
+
+Every redesign must preserve existing functionality.
+
+If an existing button currently creates a property, the redesigned button must still create a property.
+
+If an existing row opens a detail page, the redesigned row must still open the detail page.
+
+If an existing edit action opens an edit form, the redesigned edit action must still edit the actual database record.
+
+If delete currently works, delete must continue to work.
+
+If filtering works, filtering must continue to work.
+
+If sorting works, sorting must continue to work.
+
+If permissions exist, permissions must remain enforced.
+
+DO NOT replace working CRUD with:
+
+* mock data
+* fake dialogs
+* placeholder handlers
+* console.log
+* temporary arrays
+* frontend-only state
+* hardcoded success messages
+
+The UI must connect to the actual application logic.
+
+---
+
+# 5. CORE PRODUCT JOURNEY
+
+The complete authenticated user journey should feel like this:
+
+```text
+LOGIN
+  ↓
+AUTHENTICATED APPLICATION SHELL
+  ↓
+DASHBOARD
+  ↓
+CHOOSE WORKSPACE
+  ↓
+VIEW DATA
+  ↓
+SEARCH / FILTER / SORT
+  ↓
+OPEN RECORD
+  ↓
+VIEW DETAIL
+  ↓
+CREATE / EDIT / DELETE
+  ↓
+RETURN TO WORKSPACE
+  ↓
+CONTINUE WORKING
+```
+
+The application should always preserve context.
+
+The user should never feel lost.
+
+---
+
+# 6. APPLICATION SHELL
+
+Build a premium global shell.
+
+Structure:
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ GLOBAL NAVBAR                                                │
+├──────────────────┬───────────────────────────────────────────┤
+│                  │                                           │
+│                  │ MAIN APPLICATION WORKSPACE                │
+│                  │                                           │
+│    SIDEBAR       │                                           │
+│                  │                                           │
+│                  │                                           │
+└──────────────────┴───────────────────────────────────────────┘
+```
+
+The navbar remains stable.
+
+The sidebar remains stable.
+
+The main workspace is where page-specific interaction occurs.
+
+---
+
+# 7. GLOBAL NAVBAR
+
+Design a premium global navbar.
+
+It should contain the appropriate existing PropertyLedge functionality such as:
+
+* PropertyLedge branding
+* global search if currently available
+* quick create/add
+* notifications
+* user profile
+* account/workspace controls
+* mobile menu
+
+Do not invent functionality that does not exist unless it is clearly a UI-only enhancement.
+
+The navbar should feel:
+
+* compact
+* high quality
+* intentional
+* stable
+* visually quiet
+
+Do not make it excessively tall.
+
+The navbar must NOT disappear when the AG Grid scrolls.
+
+The existing specification explicitly requires the navbar to remain visible.
+
+---
+
+# 8. SIDEBAR
+
+Redesign the sidebar as an integrated part of the PropertyLedge shell.
+
+It should contain the existing application navigation.
+
+Possible structure:
+
+```text
+PROPERTYLEDGE
+
+Overview
+
+MANAGEMENT
+Properties
+Tenants
+Leases
+
+FINANCIAL
+Invoices
+Payments
+Expenses
+
+OPERATIONS
+Maintenance
+Inspections
+Documents
+Tasks
+
+ADMIN
+Team
+Settings
+```
+
+Only include routes that actually exist.
+
+Use:
+
+* icons
+* labels
+* active state
+* subtle hover state
+* clear grouping
+* compact spacing
+* excellent alignment
+
+Active navigation should be immediately understandable.
+
+The sidebar remains stable while the table scrolls.
+
+---
+
+# 9. PROPERTYLEDGE COLOR SYSTEM
+
+Preserve the established PropertyLedge palette.
+
+Use:
+
+```text
+Navbar:
+#071426
+
+Sidebar:
+#061324
+
+Sidebar active:
+#173B6D
+
+Primary:
+#2563EB
+
+Primary hover:
+#1D4ED8
+
+Primary soft:
+#EFF6FF
+
+Application background:
+#F4F7FB
+
+Surface:
+#FFFFFF
+
+Border:
+#E2E8F0
+
+Primary text:
+#172033
+
+Secondary text:
+#536176
+```
+
+Do not flood the application with blue.
+
+Blue should communicate:
+
+* action
+* selection
+* focus
+* navigation
+* important state
+
+Most surfaces should remain neutral.
+
+The existing specification establishes this palette.
+
+---
+
+# 10. DASHBOARD REDESIGN
+
+Create a new premium dashboard as the default authenticated landing experience.
+
+The dashboard should answer four questions immediately:
+
+1. Where am I?
+2. What needs my attention?
+3. How is my portfolio performing?
+4. What can I do next?
+
+Do not build a generic SaaS dashboard full of meaningless cards.
+
+Use real PropertyLedge data.
+
+---
+
+# 11. DASHBOARD STRUCTURE
+
+Suggested hierarchy:
+
+```text
+Good morning, [User]
+
+Here's what's happening across your portfolio.
+
+[ + Add Property ] [ Quick Action ]
+
+------------------------------------------------
+
+PORTFOLIO OVERVIEW
+
+Properties     Occupancy      Rent Collected
+42             94.2%          ₹8.4L
+
+------------------------------------------------
+
+ATTENTION REQUIRED
+
+Overdue Payments
+Maintenance Issues
+Lease Expirations
+Vacant Units
+
+------------------------------------------------
+
+PORTFOLIO ACTIVITY
+
+Recent properties
+Recent tenants
+Recent payments
+Recent maintenance
+
+------------------------------------------------
+
+QUICK ACCESS
+
+Properties
+Tenants
+Leases
+Payments
+Maintenance
+```
+
+Use real values from the existing application.
+
+If a metric does not currently exist, do not invent fake data.
+
+---
+
+# 12. DASHBOARD CARDS
+
+Avoid the typical:
+
+```text
+┌───────────────┐
+│ Huge number   │
+│ random icon   │
+│ random text   │
+└───────────────┘
+```
+
+Instead use refined information hierarchy.
+
+Example:
+
+```text
+Properties
+
+42
+
+Across 8 locations
+
+View properties →
+```
+
+Use subtle separators and typography rather than excessive shadows.
+
+---
+
+# 13. DASHBOARD ANIMATION
+
+Dashboard should load progressively.
+
+Example:
+
+```text
+Page enters
+↓
+Header fades/slides in
+↓
+Metrics settle into place
+↓
+Attention section appears
+↓
+Recent activity appears
+```
+
+Animation must be:
+
+* 180–300ms
+* subtle
+* smooth
+* purposeful
+
+Do NOT use:
+
+* bouncing cards
+* excessive scaling
+* dramatic spring physics
+* unnecessary parallax
+* constant movement
+
+Respect `prefers-reduced-motion`.
+
+---
+
+# 14. DATA WORKSPACE ARCHITECTURE
+
+Every AG Grid management page should use a shared architecture:
+
+```text
+Workspace
+│
+├── Page Header
+│
+├── Toolbar
+│
+└── AG Grid
+```
+
+The page should occupy the available viewport.
+
+Use flexbox.
+
+Conceptually:
+
+```text
+shell
+  ↓
+main
+  ↓
+workspace
+  ↓
+header
+  ↓
+toolbar
+  ↓
+grid
+```
+
+All relevant flex children must support:
+
+```css
+min-height: 0;
+```
+
+The existing PropertyLedge specification identifies this as critical to preventing the grid from forcing page-level scrolling.
+
+---
+
+# 15. AG GRID MUST REMAIN
+
+DO NOT:
+
+* replace AG Grid
+* create a second grid
+* convert it to an HTML table
+* rewrite the data layer
+* destroy/recreate the grid during scrolling
+
+Keep the existing AG Grid.
+
+The redesign happens around it.
+
+---
+
+# 16. AG GRID VISUAL REDESIGN
+
+Make the existing grid feel premium.
+
+Improve:
+
+### Header
+
+* subtle background
+* clear typography
+* clean separators
+* refined column spacing
+* strong but not excessive contrast
+
+### Rows
+
+* comfortable height
+* clean alignment
+* subtle row separators
+* refined hover state
+* clear selected state
+
+### Status
+
+Use polished status badges.
+
+Example:
+
+```text
+Active
+Occupied
+Vacant
+Overdue
+Paid
+Pending
+Maintenance
+```
+
+Keep them compact.
+
+Do not use loud colors everywhere.
+
+### Actions
+
+Avoid five visible action buttons per row.
+
+Prefer:
+
+```text
+⋯
+```
+
+with a contextual menu containing:
+
+* View
+* Edit
+* Duplicate if existing
+* Archive/Delete if existing
+
+---
+
+# 17. TABLE SCROLL EXPERIENCE
+
+The existing specification's scroll architecture must remain.
+
+At the top:
+
+```text
+Breadcrumb
+Title
+Description
+Primary action
+Toolbar
+Grid
+```
+
+While scrolling:
+
+```text
+Title                         + Add
+Compact toolbar
+──────────────────────────────
+AG Grid
+```
+
+The header progressively collapses.
+
+The grid receives the freed height.
+
+This is not simply "make the table taller."
+
+It is a dynamic workspace transformation:
+
+```text
+FULL CONTEXT
+     ↓
+USER WORKS
+     ↓
+PAGE CHROME COLLAPSES
+     ↓
+GRID EXPANDS
+     ↓
+MAXIMUM WORKSPACE
+```
+
+This behavior is explicitly defined in the current PropertyLedge specification.
+
+---
+
+# 18. HEADER COLLAPSE
+
+Implement reusable behavior.
+
+Create a reusable abstraction such as:
+
+```text
+<CollapsibleDataWorkspace>
+```
+
+or an equivalent architecture appropriate to the existing project.
+
+It should support:
+
+```text
+title
+description
+breadcrumbs
+primaryAction
+toolbar
+children
+```
+
+Use it across:
+
+* Properties
+* Tenants
+* Leases
+* Invoices
+* Payments
+* Expenses
+* Maintenance
+* Inspections
+* Documents
+* Tasks
+* Team
+
+````
+
+Only apply this pattern to AG Grid-driven list pages.
+
+The existing specification explicitly identifies this as reusable across those workflows.
+
+---
+
+# 19. HEADER STATES
+
+Implement:
+
+```text
+expanded
+collapsing
+compact
+restoring
+````
+
+At `scrollTop === 0`:
+
+```text
+FULL HEADER
+```
+
+After scrolling:
+
+```text
+COMPACT HEADER
+```
+
+Use hysteresis.
+
+Example:
+
+```text
+Collapse:
+80px
+
+Restore:
+30px
+```
+
+This prevents flickering.
+
+The existing specification specifically calls for collapse/restore thresholds and hysteresis.
+
+---
+
+# 20. FORMS — MAJOR REDESIGN
+
+Forms should feel significantly more premium than the current enterprise forms.
+
+Do not simply put labels over inputs.
+
+Build a coherent PropertyLedge form system.
+
+Every form should have:
+
+```text
+Title
+Description
+Form sections
+Fields
+Validation
+Actions
+Loading state
+Success state
+Error state
+```
+
+---
+
+# 21. FORM DESIGN LANGUAGE
+
+Example:
+
+```text
+Add property
+
+Create a property and add it to your portfolio.
+
+PROPERTY DETAILS
+
+Property name
+[ Sunset Apartments                         ]
+
+Property type
+[ Multifamily                            ▼ ]
+
+Address
+[ 120 Main Street                           ]
+
+City
+[ Hyderabad                                 ]
+
+State
+[ Telangana                              ▼ ]
+
+ZIP / Postal code
+[ 500001                                    ]
+
+
+                     Cancel    Add property
+```
+
+Use:
+
+* generous spacing
+* 14–16px body text
+* clear labels
+* subtle borders
+* refined focus rings
+* excellent error messages
+* consistent button hierarchy
+
+---
+
+# 22. FORM FOCUS ANIMATION
+
+When the user focuses an input:
+
+```text
+Idle
+ ↓
+Focus
+ ↓
+Border becomes emphasized
+ ↓
+Soft blue focus ring
+ ↓
+Label becomes slightly stronger
+```
+
+No aggressive animation.
+
+No giant glow.
+
+No bouncing.
+
+---
+
+# 23. FORM VALIDATION
+
+Validation must be contextual.
+
+Bad:
+
+```text
+ERROR ERROR ERROR
+```
+
+Good:
+
+```text
+Property name
+
+[ ]
+
+Property name is required.
+```
+
+For invalid values:
+
+```text
+Monthly rent
+
+[ -500 ]
+
+Enter a valid amount greater than 0.
+```
+
+Validation must use the actual existing business rules.
+
+Do not invent validation rules that conflict with the backend.
+
+---
+
+# 24. CREATE FLOW
+
+Every create flow should follow:
+
+```text
+User clicks + Add
+       ↓
+Contextual form opens
+       ↓
+User enters data
+       ↓
+Validation
+       ↓
+Submit
+       ↓
+Loading state
+       ↓
+Server action / existing mutation
+       ↓
+Success
+       ↓
+Form closes
+       ↓
+Grid updates
+       ↓
+New record visible
+```
+
+Do NOT force a complete page reload unless the existing architecture requires it.
+
+Prefer preserving the user's context.
+
+---
+
+# 25. EDIT FLOW
+
+Editing should work like:
+
+```text
+User selects row
+       ↓
+View/Edit
+       ↓
+Existing data populated
+       ↓
+User changes fields
+       ↓
+Save
+       ↓
+Loading
+       ↓
+Existing mutation
+       ↓
+Success
+       ↓
+Drawer/form closes
+       ↓
+Updated row visible
+```
+
+Do not clear filters or sorting.
+
+Do not reset grid position.
+
+Do not recreate AG Grid.
+
+---
+
+# 26. DELETE FLOW
+
+Deletion must never happen immediately from a dangerous button.
+
+Use:
+
+```text
+Delete property?
+
+This will permanently remove the property
+and associated information according to the
+existing application rules.
+
+Cancel
+Delete property
+```
+
+Use the actual existing deletion semantics.
+
+Do not invent cascading deletion behavior.
+
+The confirmation UI should clearly communicate the actual consequences.
+
+---
+
+# 27. DRAWERS
+
+Where appropriate, use a large contextual side sheet/drawer for:
+
+* create
+* edit
+* quick detail
+* record actions
+
+The underlying workspace should remain visible.
+
+This is important.
+
+The user should feel:
+
+> "I'm editing this record while remaining inside my workspace."
+
+Not:
+
+> "The application sent me somewhere else."
+
+---
+
+# 28. DETAIL PAGES
+
+Detail pages are different from AG Grid pages.
+
+Do NOT force the collapsing-grid pattern onto detail pages.
+
+The current specification explicitly separates detail pages from AG Grid-driven list pages.
+
+Detail pages should have:
+
+```text
+Breadcrumb
+Back
+Entity name
+Status
+Primary actions
+
+Overview
+Financial
+People
+Documents
+Activity
+History
+```
+
+Use tabs/sections only where they improve navigation.
+
+---
+
+# 29. DETAIL PAGE JOURNEY
+
+Example:
+
+```text
+Properties
+    ↓
+Select Sunset Apartments
+    ↓
+Property Detail
+    ↓
+Overview
+    ↓
+Units
+    ↓
+Tenants
+    ↓
+Leases
+    ↓
+Payments
+    ↓
+Maintenance
+    ↓
+Documents
+```
+
+Actions remain available.
+
+The user should always know where they are.
+
+---
+
+# 30. EMPTY STATES
+
+Every data page must have a beautiful empty state.
+
+Example:
+
+```text
+No properties yet
+
+Add your first property to start managing
+your portfolio.
+
++ Add property
+```
+
+Do not show:
+
+```text
+No data found.
+```
+
+unless that is genuinely the appropriate state.
+
+Differentiate:
+
+* truly empty
+* filtered empty
+* search empty
+* permission empty
+* loading
+* error
+
+---
+
+# 31. SEARCH EMPTY STATE
+
+If a search returns nothing:
+
+```text
+No properties match "Sunrise"
+
+Try:
+• a different name
+• a different address
+• clearing filters
+
+Clear search
+```
+
+Do not tell the user to add a property if properties already exist.
+
+---
+
+# 32. LOADING STATES
+
+Do not rely on a full-screen spinner.
+
+Use contextual loading.
+
+For dashboard:
+
+```text
+skeleton
+```
+
+For table:
+
+```text
+existing AG Grid loading behavior
+```
+
+For form submission:
+
+```text
+Saving...
+```
+
+For delete:
+
+```text
+Deleting...
+```
+
+For detail:
+
+```text
+content skeleton
+```
+
+---
+
+# 33. SUCCESS FEEDBACK
+
+After successful actions:
+
+```text
+Property added
+```
+
+or:
+
+```text
+Changes saved
+```
+
+Use subtle toast/notification feedback.
+
+Do not interrupt the user's workflow with unnecessary modal confirmations.
+
+---
+
+# 34. ERROR HANDLING
+
+Errors should be useful.
+
+Example:
+
+```text
+Couldn't save changes
+
+We couldn't update this property.
+Your existing information has not been changed.
+
+Try again
+```
+
+If the server returns a meaningful error, surface an understandable version.
+
+Never expose raw stack traces to users.
+
+---
+
+# 35. QUICK ACTION SYSTEM
+
+The application should make common workflows extremely fast.
+
+Where existing functionality supports it, provide:
+
+```text
++ Add
+```
+
+with actions such as:
+
+```text
+Add property
+Add tenant
+Create lease
+Record payment
+Create invoice
+Add maintenance request
+```
+
+Only expose actions the authenticated user is actually authorized to perform.
+
+---
+
+# 36. GLOBAL SEARCH
+
+If a global search already exists, redesign it rather than replacing it.
+
+It should feel like a premium command/search interface.
+
+Example:
+
+```text
+Search PropertyLedge
+
+Search properties, tenants, leases...
+
+Recent
+Properties
+Tenants
+Leases
+```
+
+Keyboard support:
+
+```text
+⌘ / Ctrl + K
+```
+
+only if appropriate for the existing product.
+
+Do not introduce keyboard shortcuts that conflict with existing behavior.
+
+---
+
+# 37. MICROINTERACTIONS
+
+Use subtle microinteractions everywhere.
+
+Examples:
+
+### Button
+
+```text
+idle
+↓
+hover
+↓
+press
+↓
+loading
+↓
+success
+```
+
+### Navigation
+
+```text
+inactive
+↓
+hover
+↓
+active
+```
+
+### Row
+
+```text
+normal
+↓
+hover
+↓
+selected
+```
+
+### Form
+
+```text
+idle
+↓
+focus
+↓
+valid
+↓
+saved
+```
+
+Keep all animations subtle.
+
+---
+
+# 38. APPLE-LIKE MOTION PRINCIPLES
+
+Use animation to communicate:
+
+* hierarchy
+* continuity
+* cause and effect
+* state changes
+
+Do NOT animate:
+
+* everything
+* every card
+* every number
+* every hover
+* every scroll pixel
+
+The application should feel calm.
+
+Use:
+
+```text
+opacity
+transform
+height/max-height
+padding
+color
+border
+```
+
+where appropriate.
+
+Avoid layout thrashing.
+
+Prefer CSS transitions.
+
+---
+
+# 39. REDUCED MOTION
+
+Respect:
+
+```text
+prefers-reduced-motion
+```
+
+When enabled:
+
+* remove unnecessary transitions
+* remove entrance animation
+* retain functional state changes
+* preserve usability
+
+---
+
+# 40. RESPONSIVE DESIGN
+
+Desktop should be the primary professional workspace.
+
+Tablet should compress gracefully.
+
+Mobile should become a focused operational interface.
+
+Desktop:
+
+```text
+Navbar
+Sidebar
+Large workspace
+Dense AG Grid
+```
+
+Tablet:
+
+```text
+Navbar
+Reduced sidebar
+Compact workspace
+```
+
+Mobile:
+
+```text
+Navbar
+Drawer navigation
+Compact page header
+Mobile-friendly toolbar
+Horizontally scrollable grid where required
+```
+
+Never create page-level horizontal overflow.
+
+The existing specification requires mobile/tablet support while preserving the core workspace behavior.
+
+---
+
+# 41. MOBILE CRUD
+
+Mobile create/edit forms must be excellent.
+
+Use:
+
+```text
+full-width inputs
+large touch targets
+sticky action area where appropriate
+simple sections
+clear validation
+```
+
+Do not simply shrink desktop forms.
+
+---
+
+# 42. ACCESSIBILITY
+
+Ensure:
+
+* keyboard navigation
+* visible focus
+* semantic buttons
+* proper labels
+* aria labels where necessary
+* accessible dialogs
+* accessible form errors
+* adequate contrast
+* touch-friendly targets
+
+Do not use clickable `div`s where a button or link is appropriate.
+
+---
+
+# 43. PERFORMANCE
+
+The new UI must not introduce performance problems.
+
+Especially for AG Grid.
+
+DO NOT:
+
+* rerender the grid on scroll
+* destroy/recreate the grid
+* refetch data on scroll
+* reset filters
+* reset sorting
+* reset row selection
+* calculate expensive layouts on every scroll event
+* create unnecessary global state
+
+The existing specification explicitly requires scroll behavior to avoid AG Grid recreation, data refetching, and unnecessary rerenders.
+
+---
+
+# 44. SCROLL IMPLEMENTATION
+
+Use the actual AG Grid scrolling mechanism.
+
+Do not rely on:
+
+```javascript
+window.addEventListener('scroll')
+```
+
+because the grid should own the primary vertical scrolling.
+
+Detect:
+
+* scrollTop
+* direction
+* top-of-grid state
+
+Use:
+
+```text
+requestAnimationFrame
+```
+
+or equivalent throttling when necessary.
+
+---
+
+# 45. PRESERVE GRID STATE
+
+When the header collapses:
+
+DO NOT:
+
+* reset scroll position
+* recreate grid
+* reload rows
+* reset filters
+* reset sorting
+* reset selected rows
+
+Example:
+
+```text
+User at row 250
+       ↓
+Header collapses
+       ↓
+Grid becomes taller
+       ↓
+User remains at row 250
+```
+
+The experience must be seamless.
+
+---
+
+# 46. TABLE TOOLBAR
+
+Expanded:
+
+```text
+Search properties...
+
+Status
+Filters
+Export
+Columns
+```
+
+Compact:
+
+```text
+Search
+Status
+Filters
+⋯
+```
+
+The toolbar should become smaller as the page header collapses.
+
+Preserve all existing functionality.
+
+If there are too many controls, move lower-priority controls into a menu.
+
+---
+
+# 47. TABLE ROW ACTIONS
+
+Every row should provide a clear action pathway.
+
+Preferred:
+
+```text
+Click row
+→ detail
+```
+
+and:
+
+```text
+⋯
+→ View
+→ Edit
+→ Delete
+```
+
+Do not make row actions impossible to discover.
+
+Do not require hover-only interactions.
+
+---
+
+# 48. DASHBOARD → DATA PAGE TRANSITION
+
+When the user clicks:
+
+```text
+View properties
+```
+
+navigate to:
+
+```text
+Properties
+```
+
+with the polished data workspace.
+
+When the user clicks:
+
+```text
+Add property
+```
+
+open the actual create workflow.
+
+When the user completes the action:
+
+```text
+success
+↓
+return to properties workspace
+↓
+record visible
+```
+
+The user should feel continuous application flow.
+
+---
+
+# 49. PROPERTY WORKFLOW
+
+Implement the complete experience:
+
+```text
+Dashboard
+ ↓
+Properties
+ ↓
+Search/filter
+ ↓
+Property row
+ ↓
+Property detail
+ ↓
+Edit property
+ ↓
+Save
+ ↓
+Return to detail
+ ↓
+Back to properties
+```
+
+Also:
+
+```text
+Properties
+ ↓
+Add property
+ ↓
+Form
+ ↓
+Validation
+ ↓
+Save
+ ↓
+New property appears
+```
+
+And:
+
+```text
+Properties
+ ↓
+Row menu
+ ↓
+Delete
+ ↓
+Confirmation
+ ↓
+Delete
+ ↓
+Grid updates
+```
+
+All using the existing backend.
+
+---
+
+# 50. TENANT WORKFLOW
+
+Same quality standard:
+
+```text
+Dashboard
+ ↓
+Tenants
+ ↓
+Search/filter
+ ↓
+Tenant detail
+ ↓
+Edit
+ ↓
+Save
+```
+
+Create:
+
+```text
++ Add tenant
+ ↓
+Tenant form
+ ↓
+Validation
+ ↓
+Save
+ ↓
+Tenant visible
+```
+
+Preserve all existing tenant business rules.
+
+---
+
+# 51. LEASE WORKFLOW
+
+Create a polished lease workflow around the existing implementation:
+
+```text
+Leases
+ ↓
+View leases
+ ↓
+Search/filter
+ ↓
+Open lease
+ ↓
+View lease details
+ ↓
+Edit
+ ↓
+Save
+```
+
+Where existing functionality supports creation:
+
+```text
++ Create lease
+ ↓
+Lease form
+ ↓
+Tenant/property selection
+ ↓
+Dates
+ ↓
+Financial terms
+ ↓
+Validation
+ ↓
+Create
+```
+
+Do not invent fields that don't exist in the application.
+
+---
+
+# 52. FINANCIAL WORKFLOWS
+
+Apply the same interaction quality to:
+
+* invoices
+* payments
+* expenses
+
+Use appropriate status treatments:
+
+```text
+Paid
+Pending
+Overdue
+Draft
+Cancelled
+```
+
+Only use states that exist in the actual system.
+
+---
+
+# 53. OPERATIONS WORKFLOWS
+
+Apply the same pattern to:
+
+* maintenance
+* inspections
+* documents
+* tasks
+
+The user should be able to:
+
+```text
+List
+Search
+Filter
+View
+Create
+Edit
+Delete
+```
+
+where those operations already exist.
+
+---
+
+# 54. USER / TEAM WORKFLOW
+
+If Team management exists:
+
+```text
+Team
+ ↓
+Members
+ ↓
+Invite/add
+ ↓
+Role
+ ↓
+Permissions
+ ↓
+Save
+```
+
+Do not expose permission controls to users who are not authorized.
+
+---
+
+# 55. AUTHENTICATION JOURNEY
+
+Do not break the existing authentication system.
+
+After authentication:
+
+```text
+Login
+ ↓
+Authenticated shell
+ ↓
+Dashboard
+```
+
+Preserve:
+
+* session handling
+* redirects
+* authorization
+* role behavior
+* RLS
+* protected routes
+
+---
+
+# 56. SUBSCRIPTION / ONBOARDING
+
+Preserve the existing onboarding and subscription journey.
+
+The application should distinguish:
+
+```text
+Unauthenticated
+ ↓
+Authentication
+ ↓
+Onboarding
+ ↓
+Subscription / plan decision
+ ↓
+Workspace
+ ↓
+Dashboard
+```
+
+Do not bypass existing onboarding requirements.
+
+Do not silently remove plan/trial logic.
+
+The new UI should make this flow visually consistent with the redesigned application.
+
+---
+
+# 57. FIRST-TIME USER EXPERIENCE
+
+For a new user:
+
+```text
+Welcome
+ ↓
+Understand PropertyLedge
+ ↓
+Choose trial/plan according to existing flow
+ ↓
+Complete onboarding
+ ↓
+Create first property
+ ↓
+Arrive at dashboard
+```
+
+The first dashboard should not feel empty or broken.
+
+If there is no data, use intentional onboarding/empty states.
+
+Example:
+
+```text
+Your portfolio starts here
+
+Add your first property to begin managing
+your portfolio in PropertyLedge.
+
++ Add property
+```
+
+---
+
+# 58. EXISTING DATA MUST BE REAL
+
+Do not populate the redesigned dashboard with fake:
+
+* revenue
+* properties
+* tenants
+* payments
+* occupancy
+* expenses
+
+Use actual application data.
+
+If an existing API/query does not provide a metric, do not fabricate one.
+
+---
+
+# 59. DO NOT CREATE VISUAL DEAD ENDS
+
+Every visible control must either:
+
+1. work,
+2. connect to existing functionality,
+3. navigate to an existing workflow,
+4. or be intentionally disabled with a clear explanation.
+
+Never leave:
+
+```text
+Coming soon
+```
+
+buttons scattered around the UI.
+
+Never create fake charts.
+
+Never create fake dashboard metrics.
+
+---
+
+# 60. DESIGN SYSTEM
+
+Create/reuse shared components where appropriate:
+
+```text
+AppShell
+Navbar
+Sidebar
+PageHeader
+CollapsibleDataWorkspace
+PageToolbar
+DataTable
+StatusBadge
+Button
+IconButton
+Input
+Select
+Textarea
+FormField
+FormSection
+Drawer
+Dialog
+Toast
+EmptyState
+ErrorState
+LoadingState
+Skeleton
+Tabs
+DropdownMenu
+CommandSearch
+```
+
+Do not create multiple inconsistent versions of the same UI primitive.
+
+---
+
+# 61. TYPOGRAPHY
+
+Use a clean modern sans-serif system appropriate to the existing project.
+
+Hierarchy:
+
+```text
+Page title
+24–32px
+
+Section heading
+16–20px
+
+Body
+14–16px
+
+Secondary
+13–14px
+
+Table
+13–14px
+```
+
+Do not make every heading huge.
+
+PropertyLedge is a professional workspace.
+
+Information density matters.
+
+---
+
+# 62. BORDERS AND SURFACES
+
+Prefer:
+
+```text
+subtle border
++
+clean spacing
++
+typography
+```
+
+over:
+
+```text
+huge shadows
++
+floating cards everywhere
+```
+
+Use shadows only when they communicate layering:
+
+* drawer
+* dialog
+* dropdown
+* floating command menu
+
+Do not give every card a shadow.
+
+---
+
+# 63. ICONOGRAPHY
+
+Use the existing icon system if available.
+
+Icons should:
+
+* be consistent
+* have consistent sizing
+* align optically
+* communicate meaning
+
+Do not put decorative icons everywhere.
+
+---
+
+# 64. DASHBOARD VISUAL HIERARCHY
+
+The dashboard should prioritize:
+
+```text
+1. Greeting / context
+2. Critical actions
+3. Portfolio overview
+4. Attention required
+5. Recent activity
+6. Navigation shortcuts
+```
+
+The most important information should be visually strongest.
+
+---
+
+# 65. ATTENTION REQUIRED
+
+Build an intelligent section based on actual data.
+
+For example:
+
+```text
+Needs attention
+
+12 overdue payments
+4 maintenance requests
+3 leases expiring soon
+7 vacant units
+```
+
+Only show categories supported by actual application data.
+
+Each item should be clickable.
+
+Example:
+
+```text
+12 overdue payments
+View payments →
+```
+
+---
+
+# 66. RECENT ACTIVITY
+
+Use real application activity if available.
+
+Example:
+
+```text
+Recent activity
+
+Payment received
+Sunset Apartments
+₹48,000
+2h ago
+
+Maintenance request created
+Oak Residency
+AC repair
+5h ago
+```
+
+If there is no activity system, use existing recent records rather than inventing an activity feed.
+
+---
+
+# 67. RESPONSIVE DASHBOARD
+
+Desktop:
+
+```text
+2–4 column information layout
+```
+
+Tablet:
+
+```text
+2 column
+```
+
+Mobile:
+
+```text
+single column
+```
+
+Do not make the dashboard horizontally scroll.
+
+---
+
+# 68. ANIMATION SYSTEM
+
+Establish consistent timing.
+
+Suggested:
+
+```text
+micro interaction:
+120–180ms
+
+normal transition:
+180–250ms
+
+workspace transition:
+250–300ms
+```
+
+Use calm easing.
+
+Do not use animation simply because animation is possible.
+
+---
+
+# 69. IMPORTANT — DO NOT OVERDESIGN
+
+Avoid:
+
+* glassmorphism everywhere
+* gradients everywhere
+* neon colors
+* giant rounded cards
+* excessive blur
+* excessive shadows
+* animated backgrounds
+* giant numbers
+* unnecessary charts
+* decorative illustrations on every page
+
+PropertyLedge should feel:
+
+> Premium, not flashy.
+
+---
+
+# 70. IMPLEMENTATION ORDER
+
+Do NOT attempt to redesign everything randomly.
+
+Follow this sequence.
+
+### Phase 1 — Audit
+
+Understand:
+
+* routes
+* components
+* shell
+* CRUD
+* data
+* AG Grid
+* forms
+
+### Phase 2 — Design system
+
+Establish:
+
+* colors
+* typography
+* spacing
+* buttons
+* inputs
+* badges
+* dialogs
+* drawers
+* toasts
+
+### Phase 3 — Application shell
+
+Rebuild:
+
+* navbar
+* sidebar
+* authenticated workspace
+* responsive shell
+
+### Phase 4 — Dashboard
+
+Implement:
+
+* real metrics
+* real activity
+* attention
+* quick actions
+* empty states
+
+### Phase 5 — Data workspace
+
+Implement:
+
+* collapsible page header
+* compact toolbar
+* AG Grid full-height architecture
+* scroll behavior
+
+### Phase 6 — Forms
+
+Rebuild:
+
+* create
+* edit
+* validation
+* loading
+* success
+* error
+
+### Phase 7 — Detail pages
+
+Polish existing detail pages.
+
+### Phase 8 — CRUD verification
+
+Test:
+
+* create
+* read
+* edit
+* delete
+* search
+* filtering
+* sorting
+* pagination
+* selection
+* navigation
+
+### Phase 9 — Responsive
+
+Test:
+
+* desktop
+* tablet
+* mobile
+
+### Phase 10 — Performance
+
+Verify:
+
+* no grid recreation
+* no scroll rerender storm
+* no unnecessary refetch
+* no layout thrashing
+
+---
+
+# 71. CRUD AUDIT REQUIREMENT
+
+After implementation, create an internal checklist for every entity.
+
+For each entity verify:
+
+```text
+ENTITY: Properties
+
+[ ] List works
+[ ] Search works
+[ ] Filter works
+[ ] Sort works
+[ ] Row selection works
+[ ] View works
+[ ] Create works
+[ ] Edit works
+[ ] Delete works
+[ ] Validation works
+[ ] Loading works
+[ ] Error works
+[ ] Success works
+[ ] Permissions work
+[ ] Navigation works
+[ ] Grid state preserved
+```
+
+Repeat for every existing entity.
+
+Do not claim the redesign is complete until these workflows have been tested.
+
+---
+
+# 72. VISUAL QA
+
+After implementation inspect every major screen.
+
+Check:
+
+### Dashboard
+
+* hierarchy
+* spacing
+* responsiveness
+* empty state
+* loading
+* data accuracy
+
+### Data pages
+
+* grid height
+* toolbar
+* header collapse
+* row density
+* filters
+* actions
+
+### Forms
+
+* labels
+* focus
+* validation
+* buttons
+* keyboard navigation
+* mobile
+
+### Detail pages
+
+* hierarchy
+* actions
+* navigation
+* data presentation
+
+---
+
+# 73. SCROLL QA
+
+Specifically verify:
+
+```text
+Initial:
+full header
+
+↓ scroll
+
+header collapses
+
+↓ continue
+
+toolbar compacts
+
+↓ continue
+
+maximum grid workspace
+
+↑ scroll
+
+header begins restoring
+
+↑ reach top
+
+full header restored
+```
+
+There must be:
+
+* no flicker
+* no page-level scrollbar
+* no nested vertical scrollbar problem
+* no grid reset
+* no data reload
+* no lost selection
+
+The current PropertyLedge acceptance criteria explicitly require these behaviors.
+
+---
+
+# 74. CRUD QA
+
+Actually perform the workflows.
+
+Do not only inspect code.
+
+Test:
+
+```text
+Create record
+↓
+Verify database
+↓
+Verify UI
+
+Edit record
+↓
+Verify database
+↓
+Verify UI
+
+Delete record
+↓
+Verify database
+↓
+Verify UI
+```
+
+Use the application's actual backend.
+
+---
+
+# 75. DO NOT STOP AT THE FIRST SCREEN
+
+A common failure mode is creating a beautiful dashboard while leaving:
+
+* forms ugly
+* tables inconsistent
+* dialogs unfinished
+* CRUD broken
+* mobile broken
+* loading states missing
+
+Do not do this.
+
+The redesign must cover the **entire authenticated product experience**.
+
+---
+
+# 76. FINAL USER EXPERIENCE
+
+The final application should feel like this:
+
+```text
+LOGIN
+  ↓
+WELCOME / ONBOARDING
+  ↓
+PLAN / TRIAL
+  ↓
+PROPERTYLEDGE DASHBOARD
+  ↓
+SEE WHAT MATTERS
+  ↓
+OPEN WORKSPACE
+  ↓
+WORK WITH DATA
+  ↓
+HEADER GETS OUT OF THE WAY
+  ↓
+GRID BECOMES THE WORKSPACE
+  ↓
+CREATE / EDIT / REVIEW
+  ↓
+SAVE
+  ↓
+IMMEDIATE FEEDBACK
+  ↓
+CONTINUE WORKING
+```
+
+The user should rarely need to leave their current context.
+
+---
+
+# 77. CORE UX PHILOSOPHY
+
+Build every screen around these principles:
+
+### 1. Context when needed.
+
+Show:
+
+* breadcrumb
+* title
+* description
+* explanation
+
+when the user arrives.
+
+### 2. Workspace when working.
+
+As the user works:
+
+* reduce chrome
+* reduce spacing
+* maximize data
+
+### 3. Preserve context.
+
+Forms and drawers should not unnecessarily eject users from their workspace.
+
+### 4. Make actions obvious.
+
+Primary action should always be clear.
+
+### 5. Make destructive actions deliberate.
+
+Never make deletion accidental.
+
+### 6. Give immediate feedback.
+
+Every meaningful action should communicate its state.
+
+### 7. Don't invent data.
+
+Everything important should be based on the actual PropertyLedge backend.
+
+### 8. Don't break functionality for aesthetics.
+
+Working CRUD always wins.
+
+---
+
+# 78. FINAL ACCEPTANCE CRITERIA
+
+The redesign is complete ONLY when:
+
+## SHELL
+
+* [ ] Navbar is polished
+* [ ] Navbar remains stable
+* [ ] Sidebar is polished
+* [ ] Sidebar remains stable
+* [ ] Responsive navigation works
+* [ ] Authenticated layout works
+
+## DASHBOARD
+
+* [ ] Dashboard is visually premium
+* [ ] Dashboard uses real data
+* [ ] Dashboard has useful hierarchy
+* [ ] Quick actions work
+* [ ] Attention items work
+* [ ] Empty state works
+* [ ] Loading state works
+* [ ] Responsive dashboard works
+
+## DATA WORKSPACES
+
+* [ ] Existing AG Grid remains
+* [ ] Grid fills available height
+* [ ] Browser does not unnecessarily scroll
+* [ ] Grid owns vertical scrolling
+* [ ] Header collapses
+* [ ] Toolbar compacts
+* [ ] Grid expands
+* [ ] Header restores
+* [ ] No flickering
+* [ ] Grid state remains intact
+
+## CRUD
+
+* [ ] Create works
+* [ ] Read works
+* [ ] Edit works
+* [ ] Delete works
+* [ ] Search works
+* [ ] Filters work
+* [ ] Sorting works
+* [ ] Pagination works
+* [ ] Selection works
+* [ ] Existing business rules remain intact
+* [ ] Existing permissions remain intact
+
+## FORMS
+
+* [ ] Forms look premium
+* [ ] Form sections are clear
+* [ ] Validation works
+* [ ] Focus states work
+* [ ] Loading states work
+* [ ] Success states work
+* [ ] Error states work
+* [ ] Mobile forms work
+* [ ] Keyboard navigation works
+
+## DETAIL
+
+* [ ] Detail pages remain functional
+* [ ] Navigation remains clear
+* [ ] Actions remain available
+* [ ] Existing data remains intact
+
+## PERFORMANCE
+
+* [ ] No unnecessary grid recreation
+* [ ] No unnecessary data fetching
+* [ ] No scroll-induced data mutation
+* [ ] No excessive React rerenders
+* [ ] No layout thrashing
+* [ ] Large datasets remain usable
+
+## RESPONSIVE
+
+* [ ] Desktop
+* [ ] Tablet
+* [ ] Mobile
+* [ ] No unnecessary horizontal page overflow
+* [ ] Grid horizontal scrolling remains usable
+
+---
+
+# 79. MOST IMPORTANT INSTRUCTION
+
+Do not interpret this task as:
+
+> "Make PropertyLedge prettier."
+
+Interpret it as:
+
+> **Rebuild the PropertyLedge authenticated experience into a cohesive, premium, highly polished property-management operating system while preserving the existing backend and making every existing workflow feel significantly better.**
+
+The target feeling is:
+
+```text
+Simple enough to understand.
+Powerful enough to operate a portfolio.
+Fast enough to use all day.
+Polished enough to feel premium.
+Dense enough for professional work.
+```
+
+The final principle is:
+
+> **Context when needed. Workspace when working.**
+
+Do not sacrifice working CRUD, real data, permissions, or business logic for visual polish.
+
+Build the new interface around the existing PropertyLedge product rather than building a disconnected demo.
