@@ -196,11 +196,19 @@ export async function saveOnboardingWorkspaceSetup(input: {
     if (error || !workspace) throw new Error(error?.message ?? 'Failed to create workspace');
     workspaceId = (workspace as { id: string }).id;
 
+    const { data: ownerRole } = await supabase
+      .from('team_roles')
+      .select('id')
+      .is('workspace_id', null)
+      .ilike('name', 'owner')
+      .maybeSingle();
+
     await supabase.from('workspace_members').upsert(
       {
         workspace_id: workspaceId,
         user_id: user.id,
         role: 'owner',
+        role_id: (ownerRole as { id?: string } | null)?.id ?? null,
         status: 'active',
         joined_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

@@ -17,6 +17,7 @@ import { Card, CardContent } from '@/components/admin/ui';
 import { Button } from '@/components/admin/ui/Button';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import { useAppContext } from '@/components/context/AppContextProvider';
+import { formatCurrency } from '@/lib/format/currency';
 import { fetchDashboardOverview, fetchNeedsAttention, fetchDashboardReports, fetchDashboardLeases } from '@/app/actions/dashboard';
 import { ManagerDashboard } from '@/components/dashboard/overview/ManagerDashboard';
 import { StaffDashboard } from '@/components/dashboard/overview/StaffDashboard';
@@ -187,7 +188,7 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
               <CompactKpiCard label="Properties" value={availableProperties.length} href="/dashboard/properties" icon={Building2} accent="blue" />
               <CompactKpiCard label="Units" value={totalUnits} href="/dashboard/properties" icon={Home} accent="indigo" />
               <CompactKpiCard label="Occupancy" value={`${occupancyPct}%`} hint={`${occupied} of ${totalUnits} units`} icon={Percent} accent="teal" />
-              <CompactKpiCard label="Rent collected" value={`₹${collected.toLocaleString()}`} href="/dashboard/money" icon={Wallet} accent="blue" />
+              <CompactKpiCard label="Rent collected" value={formatCurrency(collected)} href="/dashboard/money" icon={Wallet} accent="blue" />
               </div>
             </div>
 
@@ -215,7 +216,7 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
             <div className="grid gap-4 lg:grid-cols-2">
               <SectionPanel title="Rent collection" action={<Button variant="soft" size="sm" href="/dashboard/money">View Payments</Button>}>
                 <p className="mb-2 text-body-sm text-admin-muted">
-                  ₹{collected.toLocaleString()} collected · ₹{outstanding.toLocaleString()} outstanding
+                  {formatCurrency(collected)} collected · {formatCurrency(outstanding)} outstanding
                 </p>
                 <ProgressBar value={collectionPct} />
                 <p className="mt-2 text-caption font-medium">{collectionPct}% collected</p>

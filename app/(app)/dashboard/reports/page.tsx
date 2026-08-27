@@ -6,6 +6,7 @@ import { PageContainer, Card, CardContent } from '@/components/admin/ui';
 import { PropertyRequired } from '@/components/dashboard/PropertyRequired';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import { fetchDashboardReports } from '@/app/actions/dashboard';
+import { formatCurrency } from '@/lib/format/currency';
 
 interface ReportSummary {
   totalRevenue: number;
@@ -64,14 +65,14 @@ export default function ReportsPage() {
           </div>
         ) : summary ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <StatBox label="Total Revenue" value={`$${summary.totalRevenue.toLocaleString()}`} icon={DollarSign} />
-            <StatBox label="Outstanding Balance" value={`$${summary.outstandingBalance.toLocaleString()}`} icon={AlertTriangle} />
-            <StatBox label="Total Expenses" value={`$${summary.totalExpenses.toLocaleString()}`} icon={TrendingUp} />
+            <StatBox label="Total Revenue" value={formatCurrency(summary.totalRevenue)} icon={DollarSign} />
+            <StatBox label="Outstanding Balance" value={formatCurrency(summary.outstandingBalance)} icon={AlertTriangle} />
+            <StatBox label="Total Expenses" value={formatCurrency(summary.totalExpenses)} icon={TrendingUp} />
             <StatBox label="Occupied Units" value={summary.occupiedUnits} icon={Home} />
             <StatBox label="Vacant Units" value={summary.vacantUnits} icon={Home} />
             <StatBox label="Active Tenants" value={summary.activeTenants} icon={Users} />
             <StatBox label="Active Leases" value={summary.activeLeases} icon={FileText} />
-            <StatBox label="Monthly Rent" value={`$${summary.monthlyRent.toLocaleString()}`} icon={DollarSign} />
+            <StatBox label="Monthly Rent" value={formatCurrency(summary.monthlyRent)} icon={DollarSign} />
             <StatBox label="Overdue Invoices" value={summary.overdueInvoices} icon={AlertTriangle} />
           </div>
         ) : null}

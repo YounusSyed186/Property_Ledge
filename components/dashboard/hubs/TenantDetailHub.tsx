@@ -9,6 +9,7 @@ import { fetchDashboardTenant } from '@/app/actions/dashboard';
 import { CreateLeaseWizard } from '@/components/dashboard/workflows/CreateLeaseWizard';
 import { NotFoundState, StatusBadge, Button } from '@/components/admin/ui';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/format/currency';
 import {
   PageLayout,
   PageContent,
@@ -147,7 +148,7 @@ export function TenantDetailHub({ tenantId }: TenantDetailPageProps) {
                 <CompactKpiCard label="Leases" value={leases.length} />
                 <CompactKpiCard
                   label="Monthly Rent"
-                  value={activeLease ? `₹${Number(activeLease.rent_amount).toLocaleString()}` : '—'}
+                  value={activeLease ? formatCurrency(Number(activeLease.rent_amount)) : '—'}
                 />
                 <CompactKpiCard label="Unit" value={activeLease?.unit?.name || '—'} />
               </div>
@@ -187,7 +188,7 @@ export function TenantDetailHub({ tenantId }: TenantDetailPageProps) {
                       <span>
                         {lease.unit?.name} · Unit {lease.unit?.unit_number}
                         <span className="block text-[12px] text-admin-muted">
-                          {lease.start_date} → {lease.end_date} · ₹{lease.rent_amount}/mo
+                          {lease.start_date} → {lease.end_date} · {formatCurrency(Number(lease.rent_amount))}/mo
                         </span>
                       </span>
                       <StatusBadge domain="lease" status={lease.status} />

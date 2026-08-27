@@ -3,12 +3,9 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/queries';
 import { getTenantRecordForUser, getTenantInvoices, getTenantPayments } from '@/lib/tenant/queries';
 import { PageContainer, Card, CardContent } from '@/components/admin/ui';
+import { formatCurrency } from '@/lib/format/currency';
 
 export const revalidate = 0;
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-}
 
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('en-AU', { year: 'numeric', month: 'short', day: 'numeric' });

@@ -94,10 +94,10 @@ export async function getUserProperties(userId: string): Promise<UserPropertyAcc
 
   const orgMap = new Map(((workspaces || []) as Array<{ id: string; name: string }>).map(o => [o.id, o.name]));
 
-  const properties: UserPropertyAccess[] = [];
+  const propertyMap = new Map<string, UserPropertyAccess>();
 
   for (const prop of typedOwnedProperties) {
-    properties.push({
+    propertyMap.set(prop.id, {
       propertyId: prop.id,
       propertyName: prop.name,
       role: 'owner',
@@ -109,8 +109,8 @@ export async function getUserProperties(userId: string): Promise<UserPropertyAcc
 
   for (const mem of typedMemberProperties) {
     const prop = mem.properties;
-    if (prop) {
-      properties.push({
+    if (prop && !propertyMap.has(prop.id)) {
+      propertyMap.set(prop.id, {
         propertyId: prop.id,
         propertyName: prop.name,
         role: mem.role,
@@ -121,7 +121,7 @@ export async function getUserProperties(userId: string): Promise<UserPropertyAcc
     }
   }
 
-  return properties;
+  return Array.from(propertyMap.values());
 }
 
 export async function getUserOrganizations(userId: string): Promise<(Workspace & { membership?: WorkspaceMember })[]> {

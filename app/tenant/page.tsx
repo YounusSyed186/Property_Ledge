@@ -5,12 +5,9 @@ import { AlertCircle, CreditCard, Wrench, FileText } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth/queries';
 import { getTenantPortalSummary } from '@/lib/tenant/queries';
 import { PageContainer, Card, CardContent, StatCard } from '@/components/admin/ui';
+import { formatCurrency } from '@/lib/format/currency';
 
 export const revalidate = 0;
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
-}
 
 export default async function TenantHomePage() {
   const user = await getCurrentUser();

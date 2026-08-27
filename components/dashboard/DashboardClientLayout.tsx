@@ -18,10 +18,12 @@ import {
   BarChart3,
   Settings,
   UserPlus,
+  Shield,
   MoreHorizontal,
 } from 'lucide-react';
 import { AppShell } from '@/components/shell/AppShell';
 import { AppContextProvider } from '@/components/context/AppContextProvider';
+import { WorkspaceCookieSync } from '@/components/workspace/WorkspaceCookieSync';
 import { QuickActionsMenu } from '@/components/shell/QuickActionsMenu';
 import { MobileBottomNav } from '@/components/shell/MobileBottomNav';
 import { MobileContextMenu, ShellContextBreadcrumb } from '@/components/shell/ShellContextBreadcrumb';
@@ -77,7 +79,7 @@ const NAV_GROUPS: { label: string; items: NavItemConfig[] }[] = [
   },
 ];
 
-function buildNavSections(persona: Persona): NavSection[] {
+function buildNavSections(persona: Persona, permissions: string[] = []): NavSection[] {
   const sections: NavSection[] = NAV_GROUPS.map((group) => ({
     label: group.label,
     items: group.items
@@ -86,9 +88,13 @@ function buildNavSections(persona: Persona): NavSection[] {
   })).filter((s) => s.items.length > 0);
 
   if (canAccessNavItem(persona, 'team')) {
+    const teamItems = [{ label: 'Team', href: '/dashboard/team', icon: UserPlus }];
+    if (permissions.includes('team.role.view')) {
+      teamItems.push({ label: 'Team roles', href: '/dashboard/settings/team/roles', icon: Shield });
+    }
     sections.push({
       label: 'Team',
-      items: [{ label: 'Team', href: '/dashboard/team', icon: UserPlus }],
+      items: teamItems,
     });
   }
 
@@ -115,11 +121,21 @@ interface DashboardClientLayoutProps {
   userName?: string;
   persona?: Persona;
   workspaceId?: string | null;
+  workspaceName?: string | null;
+  roleName?: string | null;
+  permissions?: string[];
+  entitlements?: import('@/types/subscriptions').EntitlementMap;
 }
 
-function DashboardShellInner({ children, userEmail, userName, persona = 'owner' }: DashboardClientLayoutProps) {
+function DashboardShellInner({
+  children,
+  userEmail,
+  userName,
+  persona = 'owner',
+  permissions = [],
+}: DashboardClientLayoutProps) {
   const router = useRouter();
-  const navSections = buildNavSections(persona);
+  const navSections = buildNavSections(persona, permissions);
   const commandMenuLinks: CommandMenuLink[] = navSections.flatMap((s) =>
     s.items.map((item) => ({ label: item.label, href: item.href, icon: item.icon }))
   );
@@ -154,10 +170,27 @@ export function DashboardClientLayout({
   userName,
   persona = 'owner',
   workspaceId = null,
+  workspaceName = null,
+  roleName = null,
+  permissions = [],
+  entitlements = {},
 }: DashboardClientLayoutProps) {
   return (
-    <AppContextProvider persona={persona} workspaceId={workspaceId}>
-      <DashboardShellInner userEmail={userEmail} userName={userName} persona={persona}>
+    <AppContextProvider
+      persona={persona}
+      workspaceId={workspaceId}
+      workspaceName={workspaceName}
+      roleName={roleName}
+      permissions={permissions}
+      entitlements={entitlements}
+    >
+      <DashboardShellInner
+        userEmail={userEmail}
+        userName={userName}
+        persona={persona}
+        permissions={permissions}
+      >
+        <WorkspaceCookieSync workspaceId={workspaceId} />
         {children}
       </DashboardShellInner>
     </AppContextProvider>

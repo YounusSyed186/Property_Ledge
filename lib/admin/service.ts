@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { requireAdmin } from './authorization';
+import { mapAdminError } from './errors';
 
 export async function recordAdminAudit(
   adminUserId: string,
@@ -133,6 +134,16 @@ export async function createAdminEntitlement(entitlementData: {
   const adminId = await requireAdmin();
   const supabase = await createClient();
 
+  const { data: existing } = await (supabase as any)
+    .from('entitlements')
+    .select('id')
+    .eq('key', entitlementData.key)
+    .maybeSingle();
+
+  if (existing) {
+    throw new Error('An entitlement with this capability already exists.');
+  }
+
   const { data, error } = await (supabase as any)
     .from('entitlements')
     .insert({
@@ -146,10 +157,165 @@ export async function createAdminEntitlement(entitlementData: {
     .select()
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(mapAdminError(error.message));
 
   await recordAdminAudit(adminId, 'ADMIN_ENTITLEMENT_CREATED', 'entitlement', data.id, { key: data.key });
   return data;
+}
+
+export async function updateAdminEntitlement(
+  entitlementId: string,
+  updates: {
+    name?: string;
+    description?: string;
+    key?: string;
+    value_type?: 'boolean' | 'number' | 'string';
+  }
+) {
+  const adminId = await requireAdmin();
+  const supabase = await createClient();
+
+  const { data: existing } = await (supabase as any)
+    .from('plan_entitlements')
+    .select('id')
+    .eq('entitlement_id', entitlementId)
+    .limit(1);
+
+  if (existing?.length > 0) {
+    if (updates.key !== undefined || updates.value_type !== undefined) {
+      throw new Error('PLAN_LINKED: Machine key and value type cannot be changed while assigned to plans.');
+    }
+  }
+
+  const { data, error } = await (supabase as any)
+    .from('entitlements')
+    .update({
+      ...(updates.name !== undefined && { name: updates.name }),
+      ...(updates.description !== undefined && { description: updates.description }),
+      ...(updates.key !== undefined && { key: updates.key }),
+      ...(updates.value_type !== undefined && { value_type: updates.value_type }),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', entitlementId)
+    .select()
+    .single();
+
+  if (error) throw new Error(mapAdminError(error.message));
+
+  await recordAdminAudit(adminId, 'ADMIN_ENTITLEMENT_UPDATED', 'entitlement', entitlementId, updates);
+  return data;
+}
+
+export async function deleteAdminEntitlement(entitlementId: string) {
+  const adminId = await requireAdmin();
+  const supabase = await createClient();
+
+  const { data: linked } = await (supabase as any)
+    .from('plan_entitlements')
+    .select('id')
+    .eq('entitlement_id', entitlementId)
+    .limit(1);
+
+  if (linked?.length > 0) {
+    throw new Error('This entitlement cannot be deleted while it is assigned to plans. Remove it from all plans first.');
+  }
+
+  const { error } = await (supabase as any)
+    .from('entitlements')
+    .delete()
+    .eq('id', entitlementId);
+
+  if (error) throw new Error(mapAdminError(error.message));
+
+  await recordAdminAudit(adminId, 'ADMIN_ENTITLEMENT_DELETED', 'entitlement', entitlementId, {});
+  return true;
+}
+
+export async function createPlatformRole(
+  name: string,
+  description: string,
+  permissionKeys: string[]
+) {
+  const adminId = await requireAdmin();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc(
+    'admin_upsert_platform_role' as never,
+    {
+      p_role_id: null,
+      p_name: name,
+      p_description: description,
+      p_permission_keys: permissionKeys,
+    } as never
+  );
+
+  if (error) throw new Error(mapAdminError(error.message));
+
+  await recordAdminAudit(adminId, 'ADMIN_PLATFORM_ROLE_CREATED', 'platform_role', data as string, { name });
+  return data as string;
+}
+
+export async function updatePlatformRole(
+  roleId: string,
+  name: string,
+  description: string,
+  permissionKeys: string[]
+) {
+  const adminId = await requireAdmin();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc(
+    'admin_upsert_platform_role' as never,
+    {
+      p_role_id: roleId,
+      p_name: name,
+      p_description: description,
+      p_permission_keys: permissionKeys,
+    } as never
+  );
+
+  if (error) throw new Error(mapAdminError(error.message));
+
+  await recordAdminAudit(adminId, 'ADMIN_PLATFORM_ROLE_UPDATED', 'platform_role', roleId, { name });
+  return data as string;
+}
+
+export async function deletePlatformRole(roleId: string) {
+  const adminId = await requireAdmin();
+  const supabase = await createClient();
+
+  const { error } = await supabase.rpc(
+    'admin_delete_platform_role' as never,
+    { p_role_id: roleId } as never
+  );
+
+  if (error) throw new Error(mapAdminError(error.message));
+
+  await recordAdminAudit(adminId, 'ADMIN_PLATFORM_ROLE_DELETED', 'platform_role', roleId, {});
+  return true;
+}
+
+export async function updateSystemTeamRole(
+  roleId: string,
+  description: string,
+  permissionKeys: string[]
+) {
+  const adminId = await requireAdmin();
+  const supabase = await createClient();
+
+  const { error } = await supabase.rpc(
+    'admin_update_system_team_role' as never,
+    {
+      p_role_id: roleId,
+      p_description: description,
+      p_permission_keys: permissionKeys,
+    } as never
+  );
+
+  if (error) throw new Error(mapAdminError(error.message));
+
+  await recordAdminAudit(adminId, 'ADMIN_SYSTEM_TEAM_ROLE_UPDATED', 'team_role', roleId, {});
+  return true;
 }
 
 export async function adminUpdateSubscription(

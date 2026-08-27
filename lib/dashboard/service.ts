@@ -60,15 +60,27 @@ export async function createProperty(input: Tables['properties']['Insert']) {
   const user = await requireAuthenticatedUser();
   const supabase = await createClient();
 
+  const workspaceId = (input as { workspace_id?: string }).workspace_id;
+  if (!workspaceId) throw new Error('workspace_id is required');
+
+  const { authorizeOrThrow } = await import('@/lib/auth/authorize');
+  const { ENTITLEMENT_KEYS } = await import('@/lib/entitlements/types');
+
   const { count } = await supabase
     .from('properties')
     .select('id', { count: 'exact', head: true })
-    .eq('owner_id', user.id)
+    .eq('workspace_id', workspaceId)
     .neq('status', 'archived');
 
-  const { assertWithinLimit } = await import('@/lib/entitlements/guards');
-  const { ENTITLEMENT_KEYS } = await import('@/lib/entitlements/types');
-  await assertWithinLimit(user.id, ENTITLEMENT_KEYS.PROPERTIES_MAX, count || 0, 1);
+  await authorizeOrThrow({
+    workspaceId,
+    permission: 'property.create',
+    limit: {
+      key: ENTITLEMENT_KEYS.PROPERTIES_MAX,
+      currentUsage: count || 0,
+      delta: 1,
+    },
+  });
 
   const { data, error } = await supabase
     .from('properties')

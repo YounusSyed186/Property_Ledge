@@ -292,12 +292,9 @@ export async function getTasks(propertyId: string) {
 
 export async function getActivityLogs(propertyId: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data: logs, error } = await supabase
     .from('activity_logs')
-    .select(`
-      *,
-      user:profiles!activity_logs_user_id_fkey(full_name, email)
-    `)
+    .select('*')
     .eq('property_id', propertyId)
     .order('created_at', { ascending: false })
     .limit(500);
@@ -307,10 +304,25 @@ export async function getActivityLogs(propertyId: string) {
     return [];
   }
 
-  return (data || []).map((log: Record<string, unknown>) => ({
-    ...log,
-    user: (log.user as { full_name: string; email: string }) || { full_name: 'System', email: '' },
-  }));
+  if (!logs?.length) return [];
+
+  const userIds = [...new Set(logs.map((l) => l.user_id).filter(Boolean))] as string[];
+  const { data: profiles } = userIds.length
+    ? await supabase.from('profiles').select('id, full_name, public_id').in('id', userIds)
+    : { data: [] };
+
+  const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
+
+  return logs.map((log) => {
+    const profile = log.user_id ? profileMap.get(log.user_id) : undefined;
+    return {
+      ...log,
+      user: {
+        full_name: profile?.full_name || 'System',
+        email: profile?.public_id || '',
+      },
+    };
+  });
 }
 
 export async function getReportsSummary(propertyId: string) {

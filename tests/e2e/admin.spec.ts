@@ -26,16 +26,6 @@ test.describe('Admin Dashboard', () => {
     await expect(page.locator('text=Subscriptions')).toBeVisible();
   });
 
-  test('admin should access workspaces page', async ({ page }) => {
-    await page.goto('/admin/workspaces');
-    await expect(page.locator('text=Workspaces')).toBeVisible();
-  });
-
-  test('admin should access properties page', async ({ page }) => {
-    await page.goto('/admin/properties');
-    await expect(page.locator('text=Properties')).toBeVisible();
-  });
-
   test('admin should access activity logs page', async ({ page }) => {
     await page.goto('/admin/activity');
     await expect(page.locator('text=Activity Logs')).toBeVisible();

@@ -1,5 +1,6 @@
 import { getEntitlementValue } from './queries';
 import { LimitCheckResult } from '@/types/subscriptions';
+import { AuthorizationError } from '@/lib/auth/errors';
 
 export async function hasEntitlement(accountId: string, key: string): Promise<boolean> {
   const val = await getEntitlementValue(accountId, key);
@@ -43,7 +44,11 @@ export async function assertWithinLimit(
 ): Promise<LimitCheckResult> {
   const result = await canCreateWithinLimit(accountId, key, currentUsage, delta);
   if (!result.allowed) {
-    throw new Error(`LIMIT_EXCEEDED: Maximum limit of ${result.limit} reached for '${key}'.`);
+    throw new AuthorizationError(
+      'LIMIT_REACHED',
+      `You've reached your plan limit (${result.currentUsage} of ${result.limit}).`,
+      { key, limit: result.limit, current: result.currentUsage }
+    );
   }
   return result;
 }
@@ -51,6 +56,10 @@ export async function assertWithinLimit(
 export async function requireEntitlement(accountId: string, key: string): Promise<void> {
   const entitled = await hasEntitlement(accountId, key);
   if (!entitled) {
-    throw new Error(`FEATURE_NOT_AVAILABLE: Feature '${key}' is not available on your plan.`);
+    throw new AuthorizationError(
+      'FEATURE_NOT_INCLUDED',
+      `Feature '${key}' is not available on your workspace plan.`,
+      { entitlement: key }
+    );
   }
 }

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, Building2, Plus, Search } from 'lucide-react';
 import { usePropertyContext } from '@/components/property/PropertyContext';
+import type { UserPropertyAccess } from '@/lib/properties/queries';
 import { cn } from '@/lib/utils';
 
 interface PropertySelectorProps {
@@ -226,13 +227,4 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
       )}
     </div>
   );
-}
-
-interface UserPropertyAccess {
-  propertyId: string;
-  propertyName: string;
-  role: 'owner' | 'manager' | 'agent' | 'staff' | 'viewer';
-  status: 'invited' | 'active' | 'suspended' | 'removed';
-  organizationId: string;
-  organizationName: string;
 }

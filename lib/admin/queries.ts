@@ -1,5 +1,18 @@
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { requireAdmin } from './authorization';
+import type {
+  AdminActivityLogRow,
+  AdminEntitlementRow,
+  AdminPlatformRoleRow,
+  AdminSystemTeamRoleRow,
+} from './types';
+
+export type {
+  AdminActivityLogRow,
+  AdminEntitlementRow,
+  AdminPlatformRoleRow,
+  AdminSystemTeamRoleRow,
+} from './types';
 
 export async function getAdminOverviewMetrics() {
   await requireAdmin();
@@ -446,4 +459,270 @@ export async function getAdminAuditLogs({ page = 1, limit = 50 }: { page?: numbe
     limit,
     totalPages: Math.ceil((count || 0) / limit),
   };
+}
+
+export async function getAdminActivityLogs(limit = 500): Promise<AdminActivityLogRow[]> {
+  await requireAdmin();
+  const supabase = await createAdminClient();
+
+  const { data: logs, error } = await supabase
+    .from('activity_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(error.message);
+  if (!logs?.length) return [];
+
+  const userIds = [...new Set(logs.map((l) => l.user_id).filter(Boolean))] as string[];
+  const workspaceIds = [...new Set(logs.map((l) => l.workspace_id).filter(Boolean))] as string[];
+  const propertyIds = [...new Set(logs.map((l) => l.property_id).filter(Boolean))] as string[];
+
+  const [{ data: profiles }, { data: workspaces }, { data: properties }, { data: authUsersRes }] =
+    await Promise.all([
+      userIds.length
+        ? supabase.from('profiles').select('id, full_name, public_id').in('id', userIds)
+        : Promise.resolve({ data: [] as { id: string; full_name: string | null; public_id: string | null }[] }),
+      workspaceIds.length
+        ? supabase.from('workspaces').select('id, name').in('id', workspaceIds)
+        : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+      propertyIds.length
+        ? supabase.from('properties').select('id, name').in('id', propertyIds)
+        : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+      supabase.auth.admin.listUsers({ perPage: 1000 }),
+    ]);
+
+  const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
+  const workspaceMap = new Map((workspaces || []).map((w) => [w.id, w]));
+  const propertyMap = new Map((properties || []).map((p) => [p.id, p]));
+  const authUserMap = new Map((authUsersRes?.users || []).map((u) => [u.id, u]));
+
+  return logs.map((log) => {
+    const profile = log.user_id ? profileMap.get(log.user_id) : undefined;
+    const authUser = log.user_id ? authUserMap.get(log.user_id) : undefined;
+    return {
+      ...log,
+      metadata: (log.metadata as Record<string, unknown>) || {},
+      user: {
+        full_name:
+          profile?.full_name ||
+          (authUser?.user_metadata?.full_name as string | undefined) ||
+          'System',
+        email: authUser?.email || profile?.public_id || '',
+      },
+      property: { name: (log.property_id && propertyMap.get(log.property_id)?.name) || 'N/A' },
+      workspace: { name: (log.workspace_id && workspaceMap.get(log.workspace_id)?.name) || 'N/A' },
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Admin configuration queries (entitlements, platform roles, team roles)
+// ---------------------------------------------------------------------------
+
+export async function getAdminEntitlementsWithUsage(): Promise<AdminEntitlementRow[]> {
+  await requireAdmin();
+  const supabase = await createAdminClient();
+
+  const { data: entitlements, error } = await (supabase as any)
+    .from('entitlements')
+    .select('*')
+    .order('name', { ascending: true });
+
+  if (error || !entitlements) return [];
+
+  const { data: planLinks } = await (supabase as any)
+    .from('plan_entitlements')
+    .select('entitlement_id, subscription_plans(name)');
+
+  const usageMap = new Map<string, string[]>();
+  (planLinks || []).forEach((link: { entitlement_id: string; subscription_plans?: { name: string } }) => {
+    const names = usageMap.get(link.entitlement_id) || [];
+    if (link.subscription_plans?.name) names.push(link.subscription_plans.name);
+    usageMap.set(link.entitlement_id, names);
+  });
+
+  return entitlements.map((e: AdminEntitlementRow) => {
+    const planNames = usageMap.get(e.id) || [];
+    return {
+      ...e,
+      planCount: planNames.length,
+      planNames,
+    };
+  });
+}
+
+export async function getAdminEntitlementDetail(entitlementId: string) {
+  await requireAdmin();
+  const supabase = await createAdminClient();
+
+  const { data: entitlement, error } = await (supabase as any)
+    .from('entitlements')
+    .select('*')
+    .eq('id', entitlementId)
+    .single();
+
+  if (error || !entitlement) return null;
+
+  const { data: planLinks } = await (supabase as any)
+    .from('plan_entitlements')
+    .select('value, subscription_plans(id, name, slug)')
+    .eq('entitlement_id', entitlementId);
+
+  return {
+    ...entitlement,
+    plans: (planLinks || []).map((pl: { value: unknown; subscription_plans: { id: string; name: string; slug: string } }) => ({
+      id: pl.subscription_plans.id,
+      name: pl.subscription_plans.name,
+      slug: pl.subscription_plans.slug,
+      value: pl.value,
+      displayValue: formatEntitlementValueForQuery(entitlement.value_type, pl.value),
+    })),
+    planCount: (planLinks || []).length,
+  };
+}
+
+function formatEntitlementValueForQuery(valueType: string, rawValue: unknown): string {
+  if (rawValue === null || rawValue === undefined) return '—';
+  let parsed = rawValue;
+  if (typeof rawValue === 'string') {
+    try { parsed = JSON.parse(rawValue); } catch { parsed = rawValue; }
+  }
+  if (valueType === 'boolean') {
+    return parsed === true || parsed === 'true' || parsed === 1 ? 'Enabled' : 'Disabled';
+  }
+  return String(parsed);
+}
+
+export async function getAdminPlatformRolesWithStats(): Promise<AdminPlatformRoleRow[]> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('admin_get_platform_roles_with_stats' as never);
+  if (error) {
+    const admin = await createAdminClient();
+    const { data: roles } = await (admin as any).from('platform_roles').select('*').order('name');
+    return (roles || []).map((r: AdminPlatformRoleRow) => ({
+      ...r,
+      permission_count: 0,
+      user_count: 0,
+    }));
+  }
+  return (data as AdminPlatformRoleRow[]).map((r) => ({
+    ...r,
+    permission_count: Number(r.permission_count),
+    user_count: Number(r.user_count),
+  }));
+}
+
+export async function getAdminPlatformRoleDetail(roleId: string) {
+  await requireAdmin();
+  const supabase = await createAdminClient();
+
+  const { data: role } = await (supabase as any)
+    .from('platform_roles')
+    .select('*')
+    .eq('id', roleId)
+    .single();
+
+  if (!role) return null;
+
+  const { data: perms } = await (supabase as any)
+    .from('platform_role_permissions')
+    .select('permissions(key, name, resource, action, description)')
+    .eq('role_id', roleId);
+
+  const { count: userCount } = await (supabase as any)
+    .from('platform_user_roles')
+    .select('*', { count: 'exact', head: true })
+    .eq('role_id', roleId);
+
+  return {
+    ...role,
+    permissions: (perms || []).map((p: { permissions: { key: string; name: string; resource: string; action: string; description: string | null } }) => p.permissions),
+    userCount: userCount || 0,
+  };
+}
+
+export async function getAdminSystemTeamRolesWithStats(): Promise<AdminSystemTeamRoleRow[]> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('admin_get_system_team_roles_with_stats' as never);
+  if (error) {
+    const admin = await createAdminClient();
+    const { data: roles } = await (admin as any)
+      .from('team_roles')
+      .select('*')
+      .is('workspace_id', null)
+      .eq('is_system_role', true)
+      .order('name');
+    return (roles || []).map((r: AdminSystemTeamRoleRow) => ({
+      ...r,
+      permission_count: 0,
+      member_count: 0,
+      workspace_count: 0,
+    }));
+  }
+  return (data as AdminSystemTeamRoleRow[]).map((r) => ({
+    ...r,
+    permission_count: Number(r.permission_count),
+    member_count: Number(r.member_count),
+    workspace_count: Number(r.workspace_count),
+  }));
+}
+
+export async function getAdminSystemTeamRoleDetail(roleId: string) {
+  await requireAdmin();
+  const supabase = await createAdminClient();
+
+  const { data: role } = await (supabase as any)
+    .from('team_roles')
+    .select('*')
+    .eq('id', roleId)
+    .is('workspace_id', null)
+    .single();
+
+  if (!role) return null;
+
+  const { data: perms } = await (supabase as any)
+    .from('team_role_permissions')
+    .select('permissions(key, name, resource, action, description)')
+    .eq('role_id', roleId);
+
+  const { count: memberCount } = await (supabase as any)
+    .from('workspace_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('role_id', roleId)
+    .eq('status', 'active');
+
+  return {
+    ...role,
+    permissions: (perms || []).map((p: { permissions: { key: string; name: string; resource: string; action: string } }) => p.permissions),
+    memberCount: memberCount || 0,
+  };
+}
+
+export async function getPlatformPermissionsCatalog() {
+  await requireAdmin();
+  const supabase = await createAdminClient();
+  const { data, error } = await (supabase as any)
+    .from('permissions')
+    .select('key, name, resource, action, description')
+    .eq('scope', 'PLATFORM')
+    .order('resource')
+    .order('action');
+  if (error) return [];
+  return data as Array<{ key: string; name: string; resource: string; action: string; description: string | null }>;
+}
+
+export async function getTeamPermissionsCatalog() {
+  await requireAdmin();
+  const supabase = await createAdminClient();
+  const { data, error } = await (supabase as any)
+    .from('permissions')
+    .select('key, name, resource, action, description')
+    .eq('scope', 'TEAM')
+    .order('resource')
+    .order('action');
+  if (error) return [];
+  return data as Array<{ key: string; name: string; resource: string; action: string; description: string | null }>;
 }

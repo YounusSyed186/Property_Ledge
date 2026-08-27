@@ -13,6 +13,8 @@ interface PropertyContextType {
   hasPropertyAccess: (propertyId: string) => boolean;
 }
 
+const ALL_PROPERTIES_ID = 'all';
+
 const PropertyContext = createContext<PropertyContextType | undefined>(undefined);
 
 export function PropertyProvider({ children }: { children: ReactNode }) {
@@ -36,7 +38,9 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       
       // Restore selected property from localStorage if available
       const storedPropertyId = localStorage.getItem('selectedPropertyId');
-      if (storedPropertyId && data.properties) {
+      if (storedPropertyId === ALL_PROPERTIES_ID) {
+        setSelectedPropertyState(null);
+      } else if (storedPropertyId && data.properties) {
         const storedProperty = data.properties.find((p: UserPropertyAccess) => p.propertyId === storedPropertyId);
         if (storedProperty) {
           setSelectedPropertyState(storedProperty);
@@ -61,7 +65,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     if (property) {
       localStorage.setItem('selectedPropertyId', property.propertyId);
     } else {
-      localStorage.removeItem('selectedPropertyId');
+      localStorage.setItem('selectedPropertyId', ALL_PROPERTIES_ID);
     }
   }, []);
 
@@ -76,10 +80,14 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Listen for property changes from other tabs/windows
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'selectedPropertyId' && e.newValue) {
-        const property = availableProperties.find(p => p.propertyId === e.newValue);
-        if (property) {
-          setSelectedPropertyState(property);
+      if (e.key === 'selectedPropertyId') {
+        if (e.newValue === ALL_PROPERTIES_ID) {
+          setSelectedPropertyState(null);
+        } else if (e.newValue) {
+          const property = availableProperties.find(p => p.propertyId === e.newValue);
+          if (property) {
+            setSelectedPropertyState(property);
+          }
         }
       }
     };

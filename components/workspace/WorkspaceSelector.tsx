@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, Plus, Search, Briefcase } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/components/context/AppContextProvider';
+import { switchWorkspace } from '@/app/actions/workspace-team';
 import { cn } from '@/lib/utils';
 
 interface AccessibleWorkspace {
@@ -80,10 +81,16 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
     w.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleSelect = (workspace: AccessibleWorkspace) => {
+  const handleSelect = async (workspace: AccessibleWorkspace) => {
     setWorkspaceId(workspace.id);
     setIsOpen(false);
     setSearchQuery('');
+    try {
+      await switchWorkspace(workspace.id);
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to switch workspace:', err);
+    }
   };
 
   const isNavbar = variant === 'navbar';

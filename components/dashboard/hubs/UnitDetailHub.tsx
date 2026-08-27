@@ -8,6 +8,7 @@ import { fetchDashboardUnit } from '@/app/actions/dashboard';
 import { CreateLeaseWizard } from '@/components/dashboard/workflows/CreateLeaseWizard';
 import { UnitDrawer } from '@/components/dashboard/units/UnitDrawer';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/format/currency';
 import {
   PageLayout,
   PageContent,
@@ -149,7 +150,7 @@ export function UnitDetailHub({ propertyId, unitId }: UnitDetailHubProps) {
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <CompactKpiCard label="Status" value={unit.status} />
             <CompactKpiCard label="Current Tenant" value={tenantName} />
-            <CompactKpiCard label="Rent" value={unit.rent_amount ? `₹${unit.rent_amount.toLocaleString()}` : '—'} />
+            <CompactKpiCard label="Rent" value={unit.rent_amount ? formatCurrency(unit.rent_amount) : '—'} />
             <CompactKpiCard label="Open Maintenance" value={openMaintenance} />
           </div>
         )}
@@ -168,7 +169,7 @@ export function UnitDetailHub({ propertyId, unitId }: UnitDetailHubProps) {
                 <div className="space-y-1 text-[13px]">
                   <p className="font-medium">{tenantName}</p>
                   <p className="text-admin-muted">
-                    {activeLease.start_date} → {activeLease.end_date} · ₹{activeLease.rent_amount}/mo
+                    {activeLease.start_date} → {activeLease.end_date} · {formatCurrency(Number(activeLease.rent_amount))}/mo
                   </p>
                   <Button variant="soft" size="sm" onClick={() => router.push(`/dashboard/leases/${activeLease.id}`)}>
                     View lease

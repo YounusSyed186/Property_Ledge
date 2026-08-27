@@ -9,30 +9,34 @@ export interface PersonaContext {
   workspaceRole?: string | null;
 }
 
+function mapTeamRoleNameToPersona(roleName: string | null | undefined): Persona | null {
+  if (!roleName) return null;
+  const normalized = roleName.toLowerCase();
+  switch (normalized) {
+    case 'owner':
+      return 'owner';
+    case 'admin':
+      return 'admin';
+    case 'manager':
+      return 'manager';
+    case 'leasing agent':
+      return 'agent';
+    case 'staff':
+      return 'staff';
+    case 'viewer':
+    case 'landlord':
+      return 'viewer';
+    default:
+      return 'viewer';
+  }
+}
+
 export async function getPersonaForUser(userId: string): Promise<PersonaContext> {
   if (await isAdmin(userId)) {
     return { persona: 'platform_admin' };
   }
 
   const supabase = await createClient();
-
-  const { data: workspaceMembership } = await supabase
-    .from('workspace_members')
-    .select('role')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  const typedMembership = workspaceMembership as { role: string } | null;
-
-  if (typedMembership?.role) {
-    const role = typedMembership.role as Persona;
-    if (['owner', 'admin', 'manager', 'agent', 'staff', 'viewer'].includes(role)) {
-      return { persona: role, workspaceRole: role };
-    }
-  }
 
   const { data: ownedWorkspace } = await supabase
     .from('workspaces')
@@ -44,6 +48,26 @@ export async function getPersonaForUser(userId: string): Promise<PersonaContext>
 
   if (ownedWorkspace) {
     return { persona: 'owner', workspaceRole: 'owner' };
+  }
+
+  const { data: workspaceMembership } = await supabase
+    .from('workspace_members')
+    .select('role_id, team_roles(name)')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const membership = workspaceMembership as {
+    role_id?: string | null;
+    team_roles?: { name?: string } | null;
+  } | null;
+
+  const roleName = membership?.team_roles?.name ?? null;
+  const persona = mapTeamRoleNameToPersona(roleName);
+  if (persona) {
+    return { persona, workspaceRole: roleName?.toLowerCase() ?? null };
   }
 
   const { data: propertyMembership } = await supabase

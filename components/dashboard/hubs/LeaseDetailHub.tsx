@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { NotFoundState, StatusBadge, Button } from '@/components/admin/ui';
 import { fetchDashboardLease } from '@/app/actions/dashboard';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/format/currency';
 import {
   PageLayout,
   PageContent,
@@ -108,7 +109,7 @@ export function LeaseDetailHub({ propertyId, leaseId }: LeaseDetailHubProps) {
           status={<StatusBadge domain="lease" status={lease.status} />}
           meta={
             <p className="text-[13px] font-medium text-admin-foreground">
-              ₹{Number(lease.rent_amount).toLocaleString()} / {lease.rent_frequency}
+              {formatCurrency(Number(lease.rent_amount))} / {lease.rent_frequency}
             </p>
           }
           actions={
@@ -160,7 +161,7 @@ export function LeaseDetailHub({ propertyId, leaseId }: LeaseDetailHubProps) {
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <CompactKpiCard label="Status" value={lease.status} />
             <CompactKpiCard label="Tenant" value={tenantName} />
-            <CompactKpiCard label="Monthly Rent" value={`₹${Number(lease.rent_amount).toLocaleString()}`} />
+            <CompactKpiCard label="Monthly Rent" value={formatCurrency(Number(lease.rent_amount))} />
             <CompactKpiCard
               label="Term"
               value={lease.end_date ? `${lease.start_date} → ${lease.end_date}` : lease.start_date}

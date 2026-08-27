@@ -2,6 +2,8 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { PropertyProvider } from '@/components/property/PropertyContext';
+import { PermissionContext } from '@/lib/auth/client-permissions';
+import type { EntitlementMap } from '@/types/subscriptions';
 import type { Persona } from '@/lib/auth/permissions';
 
 const WORKSPACE_STORAGE_KEY = 'selectedWorkspaceId';
@@ -10,6 +12,9 @@ interface AppContextValue {
   persona: Persona;
   workspaceId: string | null;
   setWorkspaceId: (workspaceId: string | null) => void;
+  permissions: string[];
+  workspaceName: string | null;
+  roleName: string | null;
 }
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
@@ -18,12 +23,20 @@ interface AppContextProviderProps {
   children: ReactNode;
   persona: Persona;
   workspaceId?: string | null;
+  workspaceName?: string | null;
+  roleName?: string | null;
+  permissions?: string[];
+  entitlements?: EntitlementMap;
 }
 
 export function AppContextProvider({
   children,
   persona,
   workspaceId: initialWorkspaceId = null,
+  workspaceName = null,
+  roleName = null,
+  permissions = [],
+  entitlements = {},
 }: AppContextProviderProps) {
   const [workspaceId, setWorkspaceIdState] = useState<string | null>(initialWorkspaceId);
 
@@ -57,8 +70,12 @@ export function AppContextProvider({
   }, []);
 
   return (
-    <AppContext.Provider value={{ persona, workspaceId, setWorkspaceId }}>
-      <PropertyProvider>{children}</PropertyProvider>
+    <AppContext.Provider
+      value={{ persona, workspaceId, setWorkspaceId, permissions, workspaceName, roleName }}
+    >
+      <PermissionContext.Provider value={{ permissions, platformPermissions: [], entitlements }}>
+        <PropertyProvider>{children}</PropertyProvider>
+      </PermissionContext.Provider>
     </AppContext.Provider>
   );
 }

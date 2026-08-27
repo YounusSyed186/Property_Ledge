@@ -95,10 +95,10 @@ export async function GET() {
 
     const orgMap = new Map(((workspaces || []) as OrganizationRow[]).map(o => [o.id, o.name]));
 
-    const properties: UserPropertyAccess[] = [];
+    const propertyMap = new Map<string, UserPropertyAccess>();
 
     for (const prop of typedOwnedProperties) {
-      properties.push({
+      propertyMap.set(prop.id, {
         propertyId: prop.id,
         propertyName: prop.name,
         role: 'owner',
@@ -110,8 +110,8 @@ export async function GET() {
 
     for (const mem of typedMemberProperties) {
       const prop = mem.properties;
-      if (prop) {
-        properties.push({
+      if (prop && !propertyMap.has(prop.id)) {
+        propertyMap.set(prop.id, {
           propertyId: prop.id,
           propertyName: prop.name,
           role: mem.role,
@@ -122,7 +122,7 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ properties });
+    return NextResponse.json({ properties: Array.from(propertyMap.values()) });
   } catch (error) {
     console.error('Error in accessible properties API:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

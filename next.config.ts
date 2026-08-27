@@ -7,8 +7,12 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      { source: '/admin/organizations', destination: '/admin/workspaces', permanent: false },
-      { source: '/admin/organizations/:path*', destination: '/admin/workspaces/:path*', permanent: false },
+      { source: '/admin/organizations', destination: '/admin', permanent: false },
+      { source: '/admin/organizations/:path*', destination: '/admin', permanent: false },
+      { source: '/admin/workspaces', destination: '/admin', permanent: false },
+      { source: '/admin/workspaces/:path*', destination: '/admin', permanent: false },
+      { source: '/admin/properties', destination: '/admin', permanent: false },
+      { source: '/admin/properties/:path*', destination: '/admin', permanent: false },
       { source: '/dashboard/tenants', destination: '/dashboard/people', permanent: false },
       { source: '/dashboard/tenants/:path*', destination: '/dashboard/people/:path*', permanent: false },
       { source: '/dashboard/invoices', destination: '/dashboard/money?tab=invoices', permanent: false },

@@ -25,6 +25,7 @@ import {
   fetchDashboardReports,
   fetchNeedsAttention,
 } from '@/app/actions/dashboard';
+import { formatCurrency } from '@/lib/format/currency';
 import {
   PageLayout,
   PageContent,
@@ -39,6 +40,7 @@ import {
   ListPageGrid,
 } from '@/components/workspace';
 import { NeedsAttentionSection, buildAttentionItems } from '@/components/dashboard/overview/NeedsAttentionSection';
+import { usePropertyContext } from '@/components/property/PropertyContext';
 import { cn } from '@/lib/utils';
 import type { ColDef } from 'ag-grid-community';
 
@@ -60,6 +62,7 @@ type PropertyDetail = {
 
 export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
   const router = useRouter();
+  const { availableProperties, setSelectedProperty } = usePropertyContext();
   const [property, setProperty] = useState<PropertyDetail | null>(null);
   const [units, setUnits] = useState<Array<{ id: string }>>([]);
   const [tenants, setTenants] = useState<Array<{ id: string }>>([]);
@@ -74,6 +77,12 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCreate, setIsCreate] = useState(false);
   const [selectedUnit, setSelectedUnit] = useState<{ id: string } | null>(null);
+
+  const openFinances = () => {
+    const property = availableProperties.find((p) => p.propertyId === propertyId);
+    if (property) setSelectedProperty(property);
+    router.push('/dashboard/money');
+  };
 
   const loadAll = () => {
     setIsLoading(true);
@@ -192,8 +201,8 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <CompactKpiCard label="Units" value={totalUnits} icon={Home} accent="blue" />
               <CompactKpiCard label="Occupancy" value={`${occupancyPct}%`} hint={`${occupied} of ${totalUnits} occupied`} icon={Users} accent="teal" />
-              <CompactKpiCard label="Monthly Rent" value={`₹${(reports?.monthlyRent ?? 0).toLocaleString()}`} icon={Wallet} accent="indigo" />
-              <CompactKpiCard label="Outstanding" value={`₹${(reports?.outstandingBalance ?? 0).toLocaleString()}`} icon={AlertTriangle} accent="amber" />
+              <CompactKpiCard label="Monthly Rent" value={formatCurrency(reports?.monthlyRent ?? 0)} icon={Wallet} accent="indigo" />
+              <CompactKpiCard label="Outstanding" value={formatCurrency(reports?.outstandingBalance ?? 0)} icon={AlertTriangle} accent="amber" />
             </div>
             {attentionItems.length > 0 && (
               <SectionPanel title="Needs attention">
@@ -263,11 +272,15 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
 
         {activeTab === 'finances' && (
           <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar">
-          <SectionPanel title="Finances" action={<Link href="/dashboard/money" className="text-[12px] text-admin-primary hover:underline">Open Finances</Link>}>
+          <SectionPanel title="Finances" action={
+            <button type="button" onClick={openFinances} className="text-[12px] text-admin-primary hover:underline">
+              Open Finances
+            </button>
+          }>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <CompactKpiCard label="Collected" value={`₹${(reports?.totalRevenue ?? 0).toLocaleString()}`} accent="teal" />
-              <CompactKpiCard label="Outstanding" value={`₹${(reports?.outstandingBalance ?? 0).toLocaleString()}`} accent="blue" />
-              <CompactKpiCard label="Expenses" value={`₹${(reports?.totalExpenses ?? 0).toLocaleString()}`} accent="neutral" />
+              <CompactKpiCard label="Collected" value={formatCurrency(reports?.totalRevenue ?? 0)} accent="teal" />
+              <CompactKpiCard label="Outstanding" value={formatCurrency(reports?.outstandingBalance ?? 0)} accent="blue" />
+              <CompactKpiCard label="Expenses" value={formatCurrency(reports?.totalExpenses ?? 0)} accent="neutral" />
             </div>
           </SectionPanel>
           </div>

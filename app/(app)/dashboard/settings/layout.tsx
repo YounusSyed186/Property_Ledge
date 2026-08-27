@@ -2,13 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { User, Building2, CreditCard, Bell, Shield } from 'lucide-react';
+import { User, Building2, CreditCard, Bell, Shield, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WORKSPACE_PAGE_X } from '@/components/workspace';
 
 const SETTINGS_NAV = [
   { href: '/dashboard/settings', label: 'Account', icon: User, exact: true },
   { href: '/dashboard/settings/workspace', label: 'Workspace', icon: Building2 },
+  { href: '/dashboard/settings/team', label: 'Team', icon: Users },
+  { href: '/dashboard/settings/team/roles', label: 'Team Roles', icon: Shield },
   { href: '/dashboard/settings/subscription', label: 'Subscription', icon: CreditCard },
   { href: '/dashboard/settings/notifications', label: 'Notifications', icon: Bell },
   { href: '/dashboard/settings/security', label: 'Security', icon: Shield },

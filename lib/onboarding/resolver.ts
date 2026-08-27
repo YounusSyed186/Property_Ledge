@@ -53,10 +53,12 @@ export async function resolveOnboardingStage(userId: string): Promise<Onboarding
   const supabase = await createClient();
   const progress = await readProgressMetadata(userId);
 
-  const [{ data: profile }, { data: workspaces }, { data: properties }] = await Promise.all([
+  const [{ data: profile }, { data: workspaces }, { data: properties }, { data: memberWorkspaces }] = await Promise.all([
     supabase.from('profiles').select('full_name').eq('id', userId).maybeSingle(),
     supabase.from('workspaces').select('id, name').eq('owner_id', userId).eq('status', 'active').limit(1),
     supabase.from('properties').select('id, name').eq('owner_id', userId).eq('status', 'active').limit(1),
+    supabase.from('workspace_members').select('workspace_id, team_roles(name), workspaces(name)')
+      .eq('user_id', userId).eq('status', 'active').limit(1),
   ]);
 
   const subscription = await getSubscription(userId);
@@ -98,6 +100,29 @@ export async function resolveOnboardingStage(userId: string): Promise<Onboarding
       route: '/dashboard',
       completed: true,
       context,
+      progress,
+    };
+  }
+
+  const isMemberOnly =
+    (workspaces || []).length === 0 &&
+    (memberWorkspaces || []).length > 0 &&
+    (properties || []).length === 0;
+
+  if (isMemberOnly && !progress.completedStages.includes('ready')) {
+    const memberWs = memberWorkspaces?.[0] as {
+      workspaces?: { name?: string };
+      team_roles?: { name?: string };
+    } | undefined;
+    return {
+      stage: 'welcome',
+      route: '/onboarding/member',
+      completed: false,
+      context: {
+        ...context,
+        workspaceName: memberWs?.workspaces?.name,
+        hasWorkspace: true,
+      },
       progress,
     };
   }

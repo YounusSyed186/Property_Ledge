@@ -9,7 +9,7 @@ import { Button, useToast } from '@/components/admin/ui';
 import { AdminDataGrid } from '@/components/admin/data-grid';
 import { PropertyRequired } from '@/components/dashboard/PropertyRequired';
 import { usePropertyContext } from '@/components/property/PropertyContext';
-import { ListPage, ListPageGrid, CompactKpiCard, SectionPanel, ProgressBar, HubTabs } from '@/components/workspace';
+import { ListPage, ListPageGrid, CompactKpiCard, SectionPanel, ProgressBar, HubTabs, PageSkeleton } from '@/components/workspace';
 import { createEntityDrawer } from '@/components/dashboard/entities/createEntityDrawer';
 import {
   invoiceFields,
@@ -19,6 +19,7 @@ import {
   expenseFields,
   expenseColumns,
 } from '@/components/dashboard/entities/config';
+import { formatCurrency } from '@/lib/format/currency';
 import {
   fetchDashboardInvoices,
   fetchDashboardPayments,
@@ -58,11 +59,31 @@ type MoneyTab = 'overview' | 'invoices' | 'payments' | 'expenses';
 function FinanceOverview() {
   const { selectedProperty } = usePropertyContext();
   const [reports, setReports] = useState<Awaited<ReturnType<typeof fetchDashboardReports>> | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedProperty) return;
-    fetchDashboardReports(selectedProperty.propertyId).then(setReports);
+    setReports(null);
+    setIsLoading(true);
+    setError(null);
+    fetchDashboardReports(selectedProperty.propertyId)
+      .then(setReports)
+      .catch(() => setError('Could not load financial summary.'))
+      .finally(() => setIsLoading(false));
   }, [selectedProperty?.propertyId]);
+
+  if (isLoading) {
+    return <PageSkeleton rows={4} />;
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-admin-border bg-admin-surface p-6 text-center">
+        <p className="text-[13px] text-admin-muted">{error}</p>
+      </div>
+    );
+  }
 
   if (!reports) return null;
 
@@ -74,14 +95,14 @@ function FinanceOverview() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <CompactKpiCard label="Expected Rent" value={`₹${expected.toLocaleString()}`} icon={TrendingUp} accent="blue" />
-        <CompactKpiCard label="Collected" value={`₹${collected.toLocaleString()}`} icon={Wallet} accent="teal" />
-        <CompactKpiCard label="Outstanding" value={`₹${outstanding.toLocaleString()}`} icon={AlertCircle} accent="amber" />
-        <CompactKpiCard label="Expenses" value={`₹${reports.totalExpenses.toLocaleString()}`} icon={Receipt} accent="neutral" />
-        <CompactKpiCard label="Net Income" value={`₹${(collected - reports.totalExpenses).toLocaleString()}`} icon={DollarSign} accent="indigo" />
+        <CompactKpiCard label="Expected Rent" value={formatCurrency(expected)} icon={TrendingUp} accent="blue" />
+        <CompactKpiCard label="Collected" value={formatCurrency(collected)} icon={Wallet} accent="teal" />
+        <CompactKpiCard label="Outstanding" value={formatCurrency(outstanding)} icon={AlertCircle} accent="amber" />
+        <CompactKpiCard label="Expenses" value={formatCurrency(reports.totalExpenses)} icon={Receipt} accent="neutral" />
+        <CompactKpiCard label="Net Income" value={formatCurrency(collected - reports.totalExpenses)} icon={DollarSign} accent="indigo" />
       </div>
       <SectionPanel title="Rent collection">
-        <p className="text-[13px] text-admin-muted mb-2">₹{collected.toLocaleString()} collected · ₹{outstanding.toLocaleString()} outstanding</p>
+        <p className="text-[13px] text-admin-muted mb-2">{formatCurrency(collected)} collected · {formatCurrency(outstanding)} outstanding</p>
         <ProgressBar value={pct} />
         <p className="mt-2 text-[12px] font-medium text-admin-foreground">{pct}% collected</p>
       </SectionPanel>
@@ -123,8 +144,9 @@ const TAB_CONFIG: Record<Exclude<MoneyTab, 'overview'>, {
   },
 };
 
-function MoneyTabContent({ tab }: { tab: Exclude<MoneyTab, 'overview'> }) {
+function MoneyTabContent({ tab, openCreate }: { tab: Exclude<MoneyTab, 'overview'>; openCreate?: boolean }) {
   const { selectedProperty } = usePropertyContext();
+  const router = useRouter();
   const { error: showError } = useToast();
   const config = TAB_CONFIG[tab];
   const [rows, setRows] = useState<Array<{ id: string }>>([]);
@@ -148,8 +170,19 @@ function MoneyTabContent({ tab }: { tab: Exclude<MoneyTab, 'overview'> }) {
   };
 
   useEffect(() => {
+    if (!selectedProperty) return;
+    setRows([]);
     loadData();
   }, [selectedProperty?.propertyId, tab]);
+
+  useEffect(() => {
+    if (openCreate) {
+      setSelectedEntity(null);
+      setIsCreate(true);
+      setIsDrawerOpen(true);
+      router.replace(`/dashboard/money?tab=${tab}`, { scroll: false });
+    }
+  }, [openCreate, tab, router]);
 
   const columns = useMemo<ColDef[]>(
     () => [
@@ -240,6 +273,7 @@ export default function MoneyPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tabParam = searchParams.get('tab');
+  const openCreate = searchParams.get('create') === '1';
   const activeTab: MoneyTab =
     tabParam === 'invoices' || tabParam === 'payments' || tabParam === 'expenses'
       ? tabParam
@@ -261,7 +295,7 @@ export default function MoneyPage() {
         fill={activeTab !== 'overview'}
         actions={
           activeTab === 'invoices' ? (
-            <Button size="sm" onClick={() => router.push('/dashboard/money?tab=invoices')}>
+            <Button size="sm" onClick={() => router.push('/dashboard/money?tab=invoices&create=1')}>
               <Plus className="mr-1 h-3 w-3" /> Create Invoice
             </Button>
           ) : undefined
@@ -284,7 +318,7 @@ export default function MoneyPage() {
           </div>
         ) : (
           <ListPageGrid>
-            <MoneyTabContent tab={activeTab} />
+            <MoneyTabContent tab={activeTab} openCreate={openCreate && activeTab === 'invoices'} />
           </ListPageGrid>
         )}
       </ListPage>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LogOut,
@@ -24,11 +24,29 @@ import type { AppShellProps, NavSection } from './types';
 export const SHELL_SIDEBAR_WIDTH_EXPANDED = 248;
 export const SHELL_SIDEBAR_WIDTH_COLLAPSED = 52;
 
-function isNavActive(pathname: string, href: string, homeHref: string) {
-  const path = href.split('?')[0];
-  if (pathname === path) return true;
-  if (path === homeHref) return false;
-  return pathname.startsWith(path);
+export function isNavActive(pathname: string, search: string, href: string, homeHref: string) {
+  const [path, hrefQuery = ''] = href.split('?');
+  const hrefParams = new URLSearchParams(hrefQuery);
+  const currentParams = new URLSearchParams(search);
+
+  if (pathname !== path) {
+    if (path === homeHref) return false;
+    return pathname.startsWith(path);
+  }
+
+  if (hrefQuery) {
+    for (const [key, value] of hrefParams.entries()) {
+      if (currentParams.get(key) !== value) return false;
+    }
+    return true;
+  }
+
+  // Same path without query — only active when no tab sub-route is selected (e.g. Finances overview).
+  if (path === '/dashboard/money' && currentParams.get('tab')) {
+    return false;
+  }
+
+  return true;
 }
 
 interface SidebarItemProps {
@@ -121,6 +139,7 @@ interface SidebarProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   pathname: string;
+  search: string;
   userName: string;
   userEmail: string;
   onLogout: () => void;
@@ -139,6 +158,7 @@ function Sidebar({
   isCollapsed,
   onToggleCollapse,
   pathname,
+  search,
   userName,
   userEmail,
   onLogout,
@@ -192,7 +212,7 @@ function Sidebar({
                           label={item.label}
                           href={item.href}
                           icon={item.icon}
-                          isActive={isNavActive(pathname, item.href, homeHref)}
+                          isActive={isNavActive(pathname, search, item.href, homeHref)}
                           isCollapsed={isCollapsed}
                           onNavigate={onNavigate}
                           layoutId={activeNavLayoutId}
@@ -273,6 +293,7 @@ interface MobileDrawerProps {
   sidebarExtras?: React.ReactNode;
   settingsHref?: string;
   pathname: string;
+  search: string;
   userName: string;
   userEmail: string;
   onLogout: () => void;
@@ -289,6 +310,7 @@ function MobileDrawer({
   sidebarExtras,
   settingsHref,
   pathname,
+  search,
   userName,
   userEmail,
   onLogout,
@@ -350,7 +372,7 @@ function MobileDrawer({
                       label={item.label}
                       href={item.href}
                       icon={item.icon}
-                      isActive={isNavActive(pathname, item.href, homeHref)}
+                      isActive={isNavActive(pathname, search, item.href, homeHref)}
                       isCollapsed={false}
                       onNavigate={onClose}
                       layoutId={activeNavLayoutId}
@@ -445,6 +467,8 @@ export function AppShell({
 }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams.toString();
   const [themeMode, setThemeMode] = useState<'light' | 'full-light' | 'full-dark' | 'dark'>('light');
   const [mounted, setMounted] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -511,6 +535,7 @@ export function AppShell({
     sidebarExtras,
     settingsHref,
     pathname,
+    search,
     userName,
     userEmail,
     onLogout: handleLogout,

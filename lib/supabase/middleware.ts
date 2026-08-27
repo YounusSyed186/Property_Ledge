@@ -149,6 +149,8 @@ export async function updateSession(request: NextRequest) {
   const isOnboardingExempt =
     pathname.startsWith('/onboarding') ||
     pathname.startsWith('/invite') ||
+    pathname.startsWith('/join') ||
+    pathname.startsWith('/join') ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup');
 

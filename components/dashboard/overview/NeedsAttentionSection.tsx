@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { AttentionPanel, type AttentionItem } from '@/components/workspace/AttentionPanel';
+import { formatCurrency } from '@/lib/format/currency';
 
 export type { AttentionItem };
 
@@ -30,7 +31,7 @@ export function buildAttentionItems(
     items.push({
       id: `overdue-${invoice.id}`,
       label: `Overdue invoice ${invoice.invoice_number}`,
-      sublabel: `Balance: ₹${invoice.balance_due} · Due ${invoice.due_date}`,
+      sublabel: `Balance: ${formatCurrency(invoice.balance_due)} · Due ${invoice.due_date}`,
       href: '/dashboard/money?tab=invoices',
       variant: 'danger',
     });
@@ -51,7 +52,7 @@ export function buildAttentionItems(
     items.push({
       id: `outstanding-${invoice.id}`,
       label: `Outstanding invoice ${invoice.invoice_number}`,
-      sublabel: `Balance: ₹${invoice.balance_due}`,
+      sublabel: `Balance: ${formatCurrency(invoice.balance_due)}`,
       href: '/dashboard/money?tab=invoices',
       variant: 'warning',
     });
