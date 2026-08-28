@@ -1,6 +1,5 @@
-import React from 'react';
-import { TeamRolesPageClient } from '@/components/team/TeamRolesPageClient';
+import { redirect } from 'next/navigation';
 
-export default function SettingsTeamRolesPage() {
-  return <TeamRolesPageClient />;
+export default function SettingsTeamRolesRedirectPage() {
+  redirect('/dashboard/team/roles');
 }

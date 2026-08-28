@@ -1,12 +1,20 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { assertWorkspaceSeatAvailable } from '@/lib/entitlements/workspace-seats';
 import { authorizeOrThrow } from '@/lib/auth/authorize';
 import { requireAuthenticatedUser } from '@/lib/auth/authorization';
 import { ENTITLEMENT_KEYS } from '@/lib/entitlements/types';
 import { setActiveWorkspaceCookie } from '@/lib/auth/authorization';
+
+async function requireTeamManagement(workspaceId: string) {
+  await authorizeOrThrow({
+    workspaceId,
+    permission: 'team.member.invite',
+    entitlement: ENTITLEMENT_KEYS.TEAM_MANAGEMENT_ENABLED,
+  });
+}
 
 async function requireTeamInviteAuth(workspaceId: string) {
   await authorizeOrThrow({
@@ -19,6 +27,42 @@ async function requireTeamInviteAuth(workspaceId: string) {
 
 async function requireTeamPermission(workspaceId: string, permission: Parameters<typeof authorizeOrThrow>[0]['permission']) {
   await authorizeOrThrow({ workspaceId, permission });
+}
+
+async function logWorkspaceMemberActivity(
+  workspaceId: string,
+  userId: string,
+  action: string,
+  entityId: string,
+  metadata: Record<string, unknown> = {}
+) {
+  const admin = await createAdminClient();
+  await admin.from('activity_logs').insert({
+    workspace_id: workspaceId,
+    property_id: null,
+    user_id: userId,
+    action,
+    entity_type: 'workspace_member',
+    entity_id: entityId,
+    metadata,
+  } as never);
+}
+
+function legacyWorkspaceRole(roleName: string): 'owner' | 'admin' | 'manager' | 'agent' | 'staff' | 'viewer' {
+  switch (roleName.toLowerCase()) {
+    case 'owner':
+      return 'owner';
+    case 'admin':
+      return 'admin';
+    case 'manager':
+      return 'manager';
+    case 'leasing agent':
+      return 'agent';
+    case 'staff':
+      return 'staff';
+    default:
+      return 'viewer';
+  }
 }
 
 export interface TeamRoleOption {
@@ -60,7 +104,7 @@ export interface PermissionRow {
 }
 
 export async function fetchAssignableRoles(workspaceId: string): Promise<TeamRoleOption[]> {
-  await requireTeamInviteAuth(workspaceId);
+  await requireTeamManagement(workspaceId);
   const supabase = await createClient();
   const { data, error } = await supabase.rpc(
     'get_assignable_team_roles' as never,
@@ -119,7 +163,7 @@ export async function createInviteLink(workspaceId: string, roleId: string) {
 }
 
 export async function revokeInvitation(workspaceId: string, invitationId: string) {
-  await requireTeamInviteAuth(workspaceId);
+  await requireTeamManagement(workspaceId);
   const supabase = await createClient();
   const { error } = await supabase.rpc(
     'revoke_workspace_invitation' as never,
@@ -149,19 +193,78 @@ export async function lookupProfile(publicId: string) {
 
 export async function addMemberByProfileId(workspaceId: string, publicId: string, roleId: string) {
   await requireTeamInviteAuth(workspaceId);
-
+  const user = await requireAuthenticatedUser();
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc(
-    'add_workspace_member_by_profile_id' as never,
-    {
-      p_workspace_id: workspaceId,
-      p_public_id: publicId.trim(),
-      p_role_id: roleId,
-    } as never
+  const admin = await createAdminClient();
+
+  const profile = await lookupProfile(publicId);
+  if (!profile) throw new Error('PROFILE_NOT_FOUND');
+
+  const { data: existing } = await supabase
+    .from('workspace_members')
+    .select('id')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', profile.id)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (existing) throw new Error('ALREADY_MEMBER');
+
+  const { data: role, error: roleError } = await supabase
+    .from('team_roles')
+    .select('id, name, workspace_id')
+    .eq('id', roleId)
+    .maybeSingle();
+
+  if (roleError || !role) throw new Error('INVALID_ROLE');
+
+  const roleRow = role as { id: string; name: string; workspace_id: string | null };
+  if (roleRow.workspace_id && roleRow.workspace_id !== workspaceId) {
+    throw new Error('INVALID_ROLE');
+  }
+
+  const assignable = await fetchAssignableRoles(workspaceId);
+  if (!assignable.some((r) => r.roleId === roleId)) {
+    throw new Error('FORBIDDEN: cannot assign role');
+  }
+
+  const { data: member, error: insertError } = await admin
+    .from('workspace_members')
+    .upsert(
+      {
+        workspace_id: workspaceId,
+        user_id: profile.id,
+        role_id: roleId,
+        role: legacyWorkspaceRole(roleRow.name),
+        status: 'active',
+        invited_by: user.id,
+        joined_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as never,
+      { onConflict: 'workspace_id,user_id' }
+    )
+    .select('id')
+    .single();
+
+  if (insertError) throw new Error(insertError.message);
+
+  const { error: syncError } = await admin.rpc(
+    'sync_workspace_member_property_access' as never,
+    { p_workspace_id: workspaceId, p_user_id: profile.id } as never
   );
-  if (error) throw new Error(error.message);
+  if (syncError) throw new Error(syncError.message);
+
+  await logWorkspaceMemberActivity(workspaceId, user.id, 'member.added', (member as { id: string }).id, {
+    target_user_id: profile.id,
+    role_id: roleId,
+  });
+
   revalidatePath('/dashboard/team');
-  return data;
+  return {
+    member_id: (member as { id: string }).id,
+    user_id: profile.id,
+    role_name: roleRow.name,
+  };
 }
 
 export async function changeMemberRole(workspaceId: string, memberId: string, roleId: string) {
@@ -177,29 +280,90 @@ export async function changeMemberRole(workspaceId: string, memberId: string, ro
 
 export async function removeMember(workspaceId: string, memberId: string) {
   await requireTeamPermission(workspaceId, 'team.member.remove');
+  const user = await requireAuthenticatedUser();
   const supabase = await createClient();
-  const { error } = await supabase.rpc(
-    'remove_workspace_member' as never,
-    { p_member_id: memberId } as never
-  );
+  const admin = await createAdminClient();
+
+  const { data: member, error: fetchError } = await supabase
+    .from('workspace_members')
+    .select('id, user_id, workspace_id')
+    .eq('id', memberId)
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+
+  if (fetchError || !member) throw new Error('NOT_FOUND');
+
+  const { data: workspace } = await supabase
+    .from('workspaces')
+    .select('owner_id')
+    .eq('id', workspaceId)
+    .single();
+
+  if ((workspace as { owner_id?: string } | null)?.owner_id === (member as { user_id: string }).user_id) {
+    throw new Error('CANNOT_REMOVE_OWNER');
+  }
+
+  const { error } = await admin
+    .from('workspace_members')
+    .update({ status: 'removed', updated_at: new Date().toISOString() })
+    .eq('id', memberId)
+    .eq('workspace_id', workspaceId);
+
   if (error) throw new Error(error.message);
+
+  await admin.rpc(
+    'revoke_workspace_member_property_access' as never,
+    {
+      p_workspace_id: workspaceId,
+      p_user_id: (member as { user_id: string }).user_id,
+      p_status: 'removed',
+    } as never
+  );
+
+  await logWorkspaceMemberActivity(workspaceId, user.id, 'member.removed', memberId);
   revalidatePath('/dashboard/team');
 }
 
 export async function suspendMember(workspaceId: string, memberId: string) {
   await requireTeamPermission(workspaceId, 'team.member.update');
+  const user = await requireAuthenticatedUser();
   const supabase = await createClient();
-  const { error } = await supabase.rpc(
-    'suspend_workspace_member' as never,
-    { p_member_id: memberId } as never
-  );
+  const admin = await createAdminClient();
+
+  const { data: member, error: fetchError } = await supabase
+    .from('workspace_members')
+    .select('id, workspace_id, user_id')
+    .eq('id', memberId)
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+
+  if (fetchError || !member) throw new Error('NOT_FOUND');
+
+  const { error } = await admin
+    .from('workspace_members')
+    .update({ status: 'suspended', updated_at: new Date().toISOString() })
+    .eq('id', memberId)
+    .eq('workspace_id', workspaceId);
+
   if (error) throw new Error(error.message);
+
+  await admin.rpc(
+    'revoke_workspace_member_property_access' as never,
+    {
+      p_workspace_id: workspaceId,
+      p_user_id: (member as { user_id: string }).user_id,
+      p_status: 'suspended',
+    } as never
+  );
+
+  await logWorkspaceMemberActivity(workspaceId, user.id, 'member.suspended', memberId);
   revalidatePath('/dashboard/team');
 }
 
 export async function fetchWorkspaceTeam(workspaceId: string) {
   await requireTeamPermission(workspaceId, 'team.member.view');
   const supabase = await createClient();
+  const admin = await createAdminClient();
 
   const { data: members, error } = await supabase
     .from('workspace_members')
@@ -212,7 +376,7 @@ export async function fetchWorkspaceTeam(workspaceId: string) {
 
   const userIds = (members || []).map((m) => (m as { user_id: string }).user_id);
   const { data: profiles } = userIds.length
-    ? await supabase.from('profiles').select('id, full_name, avatar_url, public_id').in('id', userIds)
+    ? await admin.from('profiles').select('id, full_name, avatar_url, public_id').in('id', userIds)
     : { data: [] };
 
   const profileMap = new Map(
@@ -361,5 +525,6 @@ export async function switchWorkspace(workspaceId: string) {
   }
 
   await setActiveWorkspaceCookie(workspaceId);
+  revalidatePath('/dashboard', 'layout');
   return { success: true };
 }

@@ -27,6 +27,7 @@ export default async function SettingsPage() {
     createdAt: (profile as { created_at?: string })?.created_at || user.created_at,
     emailVerified: Boolean(user.email_confirmed_at),
     provider: user.app_metadata?.provider || 'email',
+    publicId: (profile as { public_id?: string })?.public_id || '',
   };
 
   return (

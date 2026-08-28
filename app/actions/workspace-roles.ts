@@ -77,7 +77,7 @@ export async function createWorkspaceRole(
     } as never
   );
   if (error) throw new Error(error.message);
-  revalidatePath('/dashboard/settings/team/roles');
+  revalidatePath('/dashboard/team/roles');
   return data as string;
 }
 
@@ -100,7 +100,7 @@ export async function updateWorkspaceRole(
     } as never
   );
   if (error) throw new Error(error.message);
-  revalidatePath('/dashboard/settings/team/roles');
+  revalidatePath('/dashboard/team/roles');
 }
 
 export async function deleteWorkspaceRole(roleId: string, workspaceId: string) {
@@ -111,5 +111,5 @@ export async function deleteWorkspaceRole(roleId: string, workspaceId: string) {
     { p_role_id: roleId } as never
   );
   if (error) throw new Error(error.message);
-  revalidatePath('/dashboard/settings/team/roles');
+  revalidatePath('/dashboard/team/roles');
 }

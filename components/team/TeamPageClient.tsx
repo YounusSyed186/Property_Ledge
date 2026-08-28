@@ -13,9 +13,11 @@ import {
   fetchWorkspaceTeam,
   fetchPendingInvitations,
   fetchSeatUsage,
+  revokeInvitation,
   type WorkspaceMemberRow,
   type PendingInvitationRow,
 } from '@/app/actions/workspace-team';
+import { toastAuthorizationError } from '@/lib/auth/toast-errors';
 import { AddMemberModal } from './AddMemberModal';
 import { MemberDetailDrawer } from './MemberDetailDrawer';
 
@@ -24,6 +26,7 @@ export function TeamPageClient() {
   const canInvite = useCan('team.member.invite');
   const canView = useCan('team.member.view');
   const canManageRoles = useCan('team.role.view');
+  const canRevoke = useCan('team.member.invite');
   const { toast, error: toastError, success: toastSuccess } = useToast();
 
   const [members, setMembers] = useState<WorkspaceMemberRow[]>([]);
@@ -47,7 +50,7 @@ export function TeamPageClient() {
       setInvitations(inviteData);
       setSeats(seatData);
     } catch (e) {
-      toastError('Error', (e as Error).message);
+      toastAuthorizationError(e, toastError);
     } finally {
       setLoading(false);
     }
@@ -110,6 +113,37 @@ export function TeamPageClient() {
       valueFormatter: (p) => new Date(p.value as string).toLocaleDateString(),
     },
     { field: 'invitedByName', headerName: 'Invited by', width: 160 },
+    ...(canRevoke
+      ? [
+          {
+            headerName: '',
+            width: 100,
+            cellRenderer: (params: { data?: PendingInvitationRow }) => {
+              if (!params.data) return null;
+              const invite = params.data;
+              return (
+                <button
+                  type="button"
+                  className="text-xs text-admin-danger hover:underline"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (!workspaceId || !invite.id) return;
+                    try {
+                      await revokeInvitation(workspaceId, invite.id);
+                      toastSuccess('Revoked', 'Invitation has been revoked.');
+                      load();
+                    } catch (err) {
+                      toastAuthorizationError(err, toastError);
+                    }
+                  }}
+                >
+                  Revoke
+                </button>
+              );
+            },
+          } as ColDef<PendingInvitationRow>,
+        ]
+      : []),
   ];
 
   return (
@@ -136,7 +170,7 @@ export function TeamPageClient() {
         actions={
           <div className="flex items-center gap-2">
             {canManageRoles && (
-              <Link href="/dashboard/settings/team/roles">
+              <Link href="/dashboard/team/roles">
                 <Button variant="secondary" size="sm">
                   <Shield className="mr-1.5 h-4 w-4" />
                   Manage roles

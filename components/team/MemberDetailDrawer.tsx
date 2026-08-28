@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Drawer, Button, Select, ConfirmDialog } from '@/components/admin/ui';
+import { Drawer, Button, Select, ConfirmDialog, useToast } from '@/components/admin/ui';
 import { useCan } from '@/lib/auth/client-permissions';
+import { toastAuthorizationError } from '@/lib/auth/toast-errors';
 import {
   fetchAssignableRoles,
   fetchRolePermissions,
@@ -22,6 +23,7 @@ interface MemberDetailDrawerProps {
 }
 
 export function MemberDetailDrawer({ workspaceId, member, onClose, onUpdated }: MemberDetailDrawerProps) {
+  const { error: toastError } = useToast();
   const canUpdate = useCan('team.member.update');
   const canRemove = useCan('team.member.remove');
   const [roles, setRoles] = useState<TeamRoleOption[]>([]);
@@ -47,7 +49,7 @@ export function MemberDetailDrawer({ workspaceId, member, onClose, onUpdated }: 
       await changeMemberRole(workspaceId, member.id, newRoleId);
       onUpdated();
     } catch (e) {
-      alert((e as Error).message);
+      toastAuthorizationError(e, toastError);
     } finally {
       setLoading(false);
     }
@@ -59,7 +61,7 @@ export function MemberDetailDrawer({ workspaceId, member, onClose, onUpdated }: 
       await removeMember(workspaceId, member.id);
       onUpdated();
     } catch (e) {
-      alert((e as Error).message);
+      toastAuthorizationError(e, toastError);
     } finally {
       setLoading(false);
       setConfirmRemove(false);
@@ -72,7 +74,7 @@ export function MemberDetailDrawer({ workspaceId, member, onClose, onUpdated }: 
       await suspendMember(workspaceId, member.id);
       onUpdated();
     } catch (e) {
-      alert((e as Error).message);
+      toastAuthorizationError(e, toastError);
     } finally {
       setLoading(false);
     }
@@ -84,11 +86,16 @@ export function MemberDetailDrawer({ workspaceId, member, onClose, onUpdated }: 
         <div className="space-y-6">
           <div className="flex items-center gap-4">
             <div className="h-14 w-14 rounded-full bg-admin-primary/10 flex items-center justify-center text-lg font-semibold text-admin-primary">
-              {(member.fullName || '?')[0]}
+              {(member.fullName || member.publicId || '?')[0]}
             </div>
             <div>
-              <p className="font-semibold text-admin-foreground">{member.fullName || 'Unknown'}</p>
-              <p className="text-sm text-admin-muted">{member.publicId}</p>
+              <p className="font-semibold text-admin-foreground">{member.fullName || member.publicId || 'Unknown'}</p>
+              {member.publicId && member.fullName && (
+                <p className="text-sm text-admin-muted">{member.publicId}</p>
+              )}
+              {!member.fullName && member.publicId && (
+                <p className="text-xs text-admin-muted">No display name set</p>
+              )}
               <p className="text-sm capitalize text-admin-muted">{member.status}</p>
             </div>
           </div>

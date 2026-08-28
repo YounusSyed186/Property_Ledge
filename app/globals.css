@@ -29,7 +29,7 @@
 
   /* ---------- ADMIN SHELL (PropertyLedge Navy + Blue) ---------- */
   --admin-background: #F4F7FB;
-  --admin-shell: #071426;
+  --admin-shell: #061324;
   --shell-navbar-height: 48px;
   --admin-sidebar: #061324;
   --admin-sidebar-surface: #0A1B30;
@@ -154,7 +154,7 @@ html[data-theme-mode="light"] {
 
   /* ---------- ADMIN PANEL (Mixed Mode: Navy Sidebar, Light Workspace) ---------- */
   --admin-background: #F4F7FB;
-  --admin-shell: #071426;
+  --admin-shell: #061324;
   --shell-navbar-height: 48px;
   --admin-sidebar: #061324;
   --admin-sidebar-surface: #0A1B30;
@@ -221,7 +221,7 @@ html[data-theme-mode="full-light"] {
 
   /* ---------- ADMIN PANEL DESIGN SYSTEM (Full Light: Light Sidebar, Light Workspace) ---------- */
   --admin-background: #F4F7FB;
-  --admin-shell: #071426;
+  --admin-shell: #061324;
   --admin-sidebar: #061324;
   --admin-sidebar-surface: #0A1B30;
   --admin-sidebar-border: #1A2B42;

@@ -9,7 +9,7 @@ import { Button, useToast } from '@/components/admin/ui';
 import { AdminDataGrid } from '@/components/admin/data-grid';
 import { PropertyRequired } from '@/components/dashboard/PropertyRequired';
 import { usePropertyContext } from '@/components/property/PropertyContext';
-import { ListPage, ListPageGrid, CompactKpiCard, SectionPanel, ProgressBar, HubTabs, PageSkeleton } from '@/components/workspace';
+import { ListPage, ListPageGrid, CompactKpiCard, SectionPanel, ProgressBar, PageSkeleton } from '@/components/workspace';
 import { createEntityDrawer } from '@/components/dashboard/entities/createEntityDrawer';
 import {
   invoiceFields,
@@ -269,6 +269,25 @@ function MoneyTabContent({ tab, openCreate }: { tab: Exclude<MoneyTab, 'overview
   );
 }
 
+const TAB_META: Record<MoneyTab, { title: string; description: string }> = {
+  overview: {
+    title: 'Finances',
+    description: 'Track rent collection, invoices, payments, and expenses.',
+  },
+  invoices: {
+    title: 'Invoices',
+    description: 'Create and manage property invoices.',
+  },
+  payments: {
+    title: 'Payments',
+    description: 'Record and review rent payments.',
+  },
+  expenses: {
+    title: 'Expenses',
+    description: 'Track property operating expenses.',
+  },
+};
+
 export default function MoneyPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -279,19 +298,13 @@ export default function MoneyPage() {
       ? tabParam
       : 'overview';
 
-  const handleTabChange = (value: string) => {
-    if (value === 'overview') {
-      router.replace('/dashboard/money', { scroll: false });
-    } else {
-      router.replace(`/dashboard/money?tab=${value}`, { scroll: false });
-    }
-  };
+  const { title, description } = TAB_META[activeTab];
 
   return (
     <PropertyRequired>
       <ListPage
-        title="Finances"
-        description="Track rent collection, invoices, payments, and expenses."
+        title={title}
+        description={description}
         fill={activeTab !== 'overview'}
         actions={
           activeTab === 'invoices' ? (
@@ -301,17 +314,6 @@ export default function MoneyPage() {
           ) : undefined
         }
       >
-        <HubTabs
-          tabs={[
-            { value: 'overview', label: 'Overview' },
-            { value: 'invoices', label: 'Invoices' },
-            { value: 'payments', label: 'Payments' },
-            { value: 'expenses', label: 'Expenses' },
-          ]}
-          value={activeTab}
-          onChange={handleTabChange}
-          className="shrink-0"
-        />
         {activeTab === 'overview' ? (
           <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar">
             <FinanceOverview />

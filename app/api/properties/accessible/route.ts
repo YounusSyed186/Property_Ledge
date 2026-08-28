@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 
 interface UserPropertyAccess {
@@ -33,8 +33,9 @@ interface OrganizationRow {
   name: string;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const workspaceId = request.nextUrl.searchParams.get('workspaceId');
     const authClient = await createClient();
     const { data: { user } } = await authClient.auth.getUser();
 
@@ -122,7 +123,12 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ properties: Array.from(propertyMap.values()) });
+    const properties = Array.from(propertyMap.values());
+    const filtered = workspaceId
+      ? properties.filter((p) => p.organizationId === workspaceId)
+      : properties;
+
+    return NextResponse.json({ properties: filtered });
   } catch (error) {
     console.error('Error in accessible properties API:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -1305,8 +1305,8 @@ export interface Database {
           p_action: string
           p_entity_type: string
           p_entity_id?: string
-          p_property_id?: string
           p_workspace_id?: string
+          p_property_id?: string
           p_metadata?: Json
         }
         Returns: string

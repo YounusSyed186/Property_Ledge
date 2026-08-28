@@ -510,3 +510,129 @@ export async function getNeedsAttention(propertyId: string) {
     vacantUnits: vacantUnits.data || [],
   };
 }
+
+export async function getTenantPayments(propertyId: string, tenantId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('payments')
+    .select(`
+      id, amount, payment_date, status, payment_method, reference,
+      invoice:invoices!fk_payments_invoice_prop(invoice_number)
+    `)
+    .eq('property_id', propertyId)
+    .eq('tenant_id', tenantId)
+    .order('payment_date', { ascending: false })
+    .limit(12);
+
+  if (error) {
+    console.error('Error fetching tenant payments:', error);
+    return [];
+  }
+  return data || [];
+}
+
+export async function getTenantInvoices(propertyId: string, tenantId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('id, invoice_number, issue_date, due_date, total_amount, balance_due, status')
+    .eq('property_id', propertyId)
+    .eq('tenant_id', tenantId)
+    .order('due_date', { ascending: false })
+    .limit(12);
+
+  if (error) {
+    console.error('Error fetching tenant invoices:', error);
+    return [];
+  }
+  return data || [];
+}
+
+export async function getTenantMaintenance(propertyId: string, tenantId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('maintenance_requests')
+    .select('id, title, status, priority, created_at, updated_at')
+    .eq('property_id', propertyId)
+    .eq('tenant_id', tenantId)
+    .order('created_at', { ascending: false })
+    .limit(12);
+
+  if (error) {
+    console.error('Error fetching tenant maintenance:', error);
+    return [];
+  }
+  return data || [];
+}
+
+export async function getTenantDocuments(propertyId: string, tenantId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('documents')
+    .select('id, name, document_type, file_url, created_at, status')
+    .eq('property_id', propertyId)
+    .or(`tenant_id.eq.${tenantId},document_type.eq.tenant_document`)
+    .order('created_at', { ascending: false })
+    .limit(12);
+
+  if (error) {
+    console.error('Error fetching tenant documents:', error);
+    return [];
+  }
+  return data || [];
+}
+
+export async function getTenantActivity(propertyId: string, tenantId: string) {
+  const supabase = await createClient();
+
+  const [payments, invoices, maintenance, logs] = await Promise.all([
+    supabase.from('payments').select('id').eq('property_id', propertyId).eq('tenant_id', tenantId),
+    supabase.from('invoices').select('id').eq('property_id', propertyId).eq('tenant_id', tenantId),
+    supabase.from('maintenance_requests').select('id').eq('property_id', propertyId).eq('tenant_id', tenantId),
+    supabase
+      .from('activity_logs')
+      .select('*')
+      .eq('property_id', propertyId)
+      .order('created_at', { ascending: false })
+      .limit(200),
+  ]);
+
+  const paymentIds = new Set((payments.data || []).map((p) => (p as { id: string }).id));
+  const invoiceIds = new Set((invoices.data || []).map((i) => (i as { id: string }).id));
+  const maintenanceIds = new Set((maintenance.data || []).map((m) => (m as { id: string }).id));
+
+  const filtered = (logs.data || []).filter((log) => {
+    const row = log as {
+      entity_type: string;
+      entity_id: string | null;
+      metadata?: { tenant_id?: string } | null;
+    };
+    if (row.entity_type === 'tenant' && row.entity_id === tenantId) return true;
+    if (row.metadata?.tenant_id === tenantId) return true;
+    if (row.entity_type === 'payment' && row.entity_id && paymentIds.has(row.entity_id)) return true;
+    if (row.entity_type === 'invoice' && row.entity_id && invoiceIds.has(row.entity_id)) return true;
+    if (row.entity_type === 'maintenance_request' && row.entity_id && maintenanceIds.has(row.entity_id)) return true;
+    return false;
+  }).slice(0, 15);
+
+  if (!filtered.length) return [];
+
+  const userIds = [...new Set(filtered.map((l) => (l as { user_id?: string }).user_id).filter(Boolean))] as string[];
+  const { data: profiles } = userIds.length
+    ? await supabase.from('profiles').select('id, full_name, public_id').in('id', userIds)
+    : { data: [] };
+
+  const profileMap = new Map((profiles || []).map((p) => [(p as { id: string }).id, p]));
+
+  return filtered.map((log) => {
+    const row = log as { user_id?: string };
+    const profile = row.user_id ? profileMap.get(row.user_id) : undefined;
+    return {
+      ...log,
+      user: {
+        full_name: (profile as { full_name?: string } | undefined)?.full_name || 'System',
+        email: (profile as { public_id?: string } | undefined)?.public_id || '',
+      },
+    };
+  });
+}

@@ -13,50 +13,15 @@ import {
   acceptJoinInvitation,
   resolveJoinInvitation,
 } from '@/app/actions/workspace-team';
-import { getInvitationByToken, acceptInvitation } from '@/app/actions/team';
 import { PageContainer, Button, Card, CardContent, Badge } from '@/components/admin/ui';
 
 interface JoinPageProps {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ redirectTo?: string }>;
-}
-
-function isLegacyToken(token: string) {
-  return token.startsWith('ws_') || token.startsWith('prop_');
 }
 
 export default async function JoinPage({ params }: JoinPageProps) {
   const { token } = await params;
   const user = await getCurrentUser();
-
-  if (isLegacyToken(token)) {
-    const legacy = await getInvitationByToken(token);
-    if (!legacy) {
-      return <JoinState icon={XCircle} title="Invitation not found" message="This link may have expired or already been used." />;
-    }
-    if (!user) {
-      redirect(`/login?redirectTo=${encodeURIComponent(`/join/${token}`)}`);
-    }
-    if (legacy.status === 'active') {
-      return <JoinState icon={CheckCircle2} title="Already accepted" message="You already have access." actionHref="/dashboard" actionLabel="Open workspace" />;
-    }
-    async function handleLegacyAccept() {
-      'use server';
-      await acceptInvitation(token);
-      redirect('/dashboard');
-    }
-    return (
-      <JoinLayout>
-        <InviteCard
-          workspaceName={legacy.workspaceName || legacy.propertyName || 'workspace'}
-          inviterName="A team member"
-          roleName={legacy.role}
-          onAccept={handleLegacyAccept}
-          userEmail={user?.email}
-        />
-      </JoinLayout>
-    );
-  }
 
   const invitation = await resolveJoinInvitation(token);
 

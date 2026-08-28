@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/queries';
 import { createClient } from '@/lib/supabase/server';
+import { setActiveWorkspaceCookie } from '@/lib/auth/authorization';
 import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
 import { Button, Card, CardContent } from '@/components/admin/ui';
 
@@ -13,11 +14,13 @@ export default async function MemberOnboardingPage() {
   const supabase = await createClient();
   const { data: membership } = await supabase
     .from('workspace_members')
-    .select('team_roles(name), workspaces(name)')
+    .select('workspace_id, team_roles(name), workspaces(name)')
     .eq('user_id', user.id)
     .eq('status', 'active')
     .limit(1)
     .maybeSingle();
+
+  const workspaceId = (membership as { workspace_id?: string } | null)?.workspace_id;
 
   const wsName = (membership as { workspaces?: { name?: string } } | null)?.workspaces?.name || 'your workspace';
   const roleName = (membership as { team_roles?: { name?: string } } | null)?.team_roles?.name || 'Member';
@@ -29,6 +32,9 @@ export default async function MemberOnboardingPage() {
       user_id: user!.id,
       onboarding_status: 'completed',
     } as never);
+    if (workspaceId) {
+      await setActiveWorkspaceCookie(workspaceId);
+    }
     redirect('/dashboard');
   }
 

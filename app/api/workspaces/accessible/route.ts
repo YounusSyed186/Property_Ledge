@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getUserOrganizations } from '@/lib/properties/queries';
+import { getUserWorkspaces } from '@/lib/workspace/context';
 
 export async function GET() {
   try {
@@ -13,7 +13,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const workspaces = await getUserOrganizations(user.id);
+    const workspaces = await getUserWorkspaces(user.id);
 
     return NextResponse.json({
       workspaces: workspaces.map((workspace) => ({
@@ -21,7 +21,7 @@ export async function GET() {
         name: workspace.name,
         slug: workspace.slug,
         status: workspace.status,
-        role: workspace.membership?.role ?? 'owner',
+        role: workspace.roleName ?? 'Owner',
       })),
     });
   } catch (error) {

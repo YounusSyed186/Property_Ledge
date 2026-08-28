@@ -1,6 +1,5 @@
-import React from 'react';
-import { TeamPageClient } from '@/components/team/TeamPageClient';
+import { redirect } from 'next/navigation';
 
-export default function SettingsTeamPage() {
-  return <TeamPageClient />;
+export default function SettingsTeamRedirectPage() {
+  redirect('/dashboard/team');
 }

@@ -4,6 +4,8 @@ export interface NavItem {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  /** When true, only highlight on exact path match (not child routes). */
+  exact?: boolean;
 }
 
 export interface NavSection {

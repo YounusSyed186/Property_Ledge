@@ -36,6 +36,7 @@ interface NavItemConfig {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  exact?: boolean;
 }
 
 const NAV_GROUPS: { label: string; items: NavItemConfig[] }[] = [
@@ -83,14 +84,14 @@ function buildNavSections(persona: Persona, permissions: string[] = []): NavSect
   const sections: NavSection[] = NAV_GROUPS.map((group) => ({
     label: group.label,
     items: group.items
-      .filter((item) => canAccessNavItem(persona, item.id))
-      .map(({ label, href, icon }) => ({ label, href, icon })),
+      .filter((item) => canAccessNavItem(persona, item.id, permissions))
+      .map(({ label, href, icon, exact }) => ({ label, href, icon, exact })),
   })).filter((s) => s.items.length > 0);
 
-  if (canAccessNavItem(persona, 'team')) {
-    const teamItems = [{ label: 'Team', href: '/dashboard/team', icon: UserPlus }];
+  if (canAccessNavItem(persona, 'team', permissions)) {
+    const teamItems = [{ label: 'Team', href: '/dashboard/team', icon: UserPlus, exact: true }];
     if (permissions.includes('team.role.view')) {
-      teamItems.push({ label: 'Team roles', href: '/dashboard/settings/team/roles', icon: Shield });
+      teamItems.push({ label: 'Team roles', href: '/dashboard/team/roles', icon: Shield, exact: true });
     }
     sections.push({
       label: 'Team',
@@ -98,7 +99,7 @@ function buildNavSections(persona: Persona, permissions: string[] = []): NavSect
     });
   }
 
-  if (canAccessNavItem(persona, 'settings')) {
+  if (canAccessNavItem(persona, 'settings', permissions)) {
     sections.push({
       label: 'System',
       items: [{ label: 'Settings', href: '/dashboard/settings', icon: Settings }],
@@ -115,6 +116,8 @@ const MOBILE_NAV_ITEMS = [
   { label: 'More', href: '/dashboard/leases', icon: MoreHorizontal },
 ];
 
+import type { AccessibleWorkspace } from '@/lib/stores/useWorkspaceStore';
+
 interface DashboardClientLayoutProps {
   children: React.ReactNode;
   userEmail?: string;
@@ -125,6 +128,7 @@ interface DashboardClientLayoutProps {
   roleName?: string | null;
   permissions?: string[];
   entitlements?: import('@/types/subscriptions').EntitlementMap;
+  workspaces?: AccessibleWorkspace[];
 }
 
 function DashboardShellInner({
@@ -174,6 +178,7 @@ export function DashboardClientLayout({
   roleName = null,
   permissions = [],
   entitlements = {},
+  workspaces = [],
 }: DashboardClientLayoutProps) {
   return (
     <AppContextProvider
@@ -183,6 +188,7 @@ export function DashboardClientLayout({
       roleName={roleName}
       permissions={permissions}
       entitlements={entitlements}
+      workspaces={workspaces}
     >
       <DashboardShellInner
         userEmail={userEmail}

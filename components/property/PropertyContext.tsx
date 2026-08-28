@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import type { UserPropertyAccess } from '@/lib/properties/queries';
+import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
 
 interface PropertyContextType {
   availableProperties: UserPropertyAccess[];
@@ -15,42 +16,77 @@ interface PropertyContextType {
 
 const ALL_PROPERTIES_ID = 'all';
 
+function storageKey(workspaceId: string) {
+  return `selectedPropertyId:${workspaceId}`;
+}
+
+function resolveSelection(
+  properties: UserPropertyAccess[],
+  workspaceId: string
+): UserPropertyAccess | null {
+  const storedPropertyId = localStorage.getItem(storageKey(workspaceId));
+  if (storedPropertyId === ALL_PROPERTIES_ID) {
+    return null;
+  }
+  if (storedPropertyId) {
+    const storedProperty = properties.find((p) => p.propertyId === storedPropertyId);
+    if (storedProperty) return storedProperty;
+  }
+  return properties.length > 0 ? properties[0] : null;
+}
+
 const PropertyContext = createContext<PropertyContextType | undefined>(undefined);
 
 export function PropertyProvider({ children }: { children: ReactNode }) {
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const [availableProperties, setAvailableProperties] = useState<UserPropertyAccess[]>([]);
   const [selectedProperty, setSelectedPropertyState] = useState<UserPropertyAccess | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const prevWorkspaceIdRef = useRef<string | null>(null);
+
+  const setSelectedProperty = useCallback(
+    (property: UserPropertyAccess | null) => {
+      setSelectedPropertyState(property);
+      if (!activeWorkspaceId) return;
+      if (property) {
+        localStorage.setItem(storageKey(activeWorkspaceId), property.propertyId);
+      } else {
+        localStorage.setItem(storageKey(activeWorkspaceId), ALL_PROPERTIES_ID);
+      }
+    },
+    [activeWorkspaceId]
+  );
 
   const fetchProperties = useCallback(async () => {
+    if (!activeWorkspaceId) {
+      setAvailableProperties([]);
+      setSelectedPropertyState(null);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
-      
-      const response = await fetch('/api/properties/accessible');
+
+      const response = await fetch(
+        `/api/properties/accessible?workspaceId=${encodeURIComponent(activeWorkspaceId)}`
+      );
       if (!response.ok) {
         throw new Error('Failed to fetch properties');
       }
-      
+
       const data = await response.json();
-      setAvailableProperties(data.properties || []);
-      
-      // Restore selected property from localStorage if available
-      const storedPropertyId = localStorage.getItem('selectedPropertyId');
-      if (storedPropertyId === ALL_PROPERTIES_ID) {
-        setSelectedPropertyState(null);
-      } else if (storedPropertyId && data.properties) {
-        const storedProperty = data.properties.find((p: UserPropertyAccess) => p.propertyId === storedPropertyId);
-        if (storedProperty) {
-          setSelectedPropertyState(storedProperty);
-        } else if (data.properties.length > 0) {
-          setSelectedPropertyState(data.properties[0]);
-          localStorage.setItem('selectedPropertyId', data.properties[0].propertyId);
-        }
-      } else if (data.properties && data.properties.length > 0) {
-        setSelectedPropertyState(data.properties[0]);
-        localStorage.setItem('selectedPropertyId', data.properties[0].propertyId);
+      const properties: UserPropertyAccess[] = data.properties || [];
+      setAvailableProperties(properties);
+
+      const selection = resolveSelection(properties, activeWorkspaceId);
+      setSelectedPropertyState(selection);
+      if (selection) {
+        localStorage.setItem(storageKey(activeWorkspaceId), selection.propertyId);
+      } else if (properties.length === 0) {
+        localStorage.setItem(storageKey(activeWorkspaceId), ALL_PROPERTIES_ID);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load properties');
@@ -58,54 +94,51 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [activeWorkspaceId]);
 
-  const setSelectedProperty = useCallback((property: UserPropertyAccess | null) => {
-    setSelectedPropertyState(property);
-    if (property) {
-      localStorage.setItem('selectedPropertyId', property.propertyId);
-    } else {
-      localStorage.setItem('selectedPropertyId', ALL_PROPERTIES_ID);
+  const hasPropertyAccess = useCallback(
+    (propertyId: string) => availableProperties.some((p) => p.propertyId === propertyId),
+    [availableProperties]
+  );
+
+  useEffect(() => {
+    if (prevWorkspaceIdRef.current !== activeWorkspaceId) {
+      setSelectedPropertyState(null);
+      setAvailableProperties([]);
+      prevWorkspaceIdRef.current = activeWorkspaceId;
     }
-  }, []);
-
-  const hasPropertyAccess = useCallback((propertyId: string) => {
-    return availableProperties.some(p => p.propertyId === propertyId);
-  }, [availableProperties]);
-
-  useEffect(() => {
     fetchProperties();
-  }, [fetchProperties]);
+  }, [activeWorkspaceId, fetchProperties]);
 
   useEffect(() => {
-    // Listen for property changes from other tabs/windows
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'selectedPropertyId') {
-        if (e.newValue === ALL_PROPERTIES_ID) {
-          setSelectedPropertyState(null);
-        } else if (e.newValue) {
-          const property = availableProperties.find(p => p.propertyId === e.newValue);
-          if (property) {
-            setSelectedPropertyState(property);
-          }
+      if (!activeWorkspaceId || e.key !== storageKey(activeWorkspaceId)) return;
+      if (e.newValue === ALL_PROPERTIES_ID) {
+        setSelectedPropertyState(null);
+      } else if (e.newValue) {
+        const property = availableProperties.find((p) => p.propertyId === e.newValue);
+        if (property) {
+          setSelectedPropertyState(property);
         }
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [availableProperties]);
+  }, [activeWorkspaceId, availableProperties]);
 
   return (
-    <PropertyContext.Provider value={{
-      availableProperties,
-      selectedProperty,
-      isLoading,
-      error,
-      setSelectedProperty,
-      refreshProperties: fetchProperties,
-      hasPropertyAccess,
-    }}>
+    <PropertyContext.Provider
+      value={{
+        availableProperties,
+        selectedProperty,
+        isLoading,
+        error,
+        setSelectedProperty,
+        refreshProperties: fetchProperties,
+        hasPropertyAccess,
+      }}
+    >
       {children}
     </PropertyContext.Provider>
   );

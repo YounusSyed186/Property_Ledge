@@ -1055,10 +1055,14 @@ BEGIN
   SET status = 'accepted', accepted_at = NOW(), accepted_by = v_user, updated_at = NOW()
   WHERE id = v_inv.id;
 
+  PERFORM public.sync_workspace_member_property_access(v_inv.workspace_id, v_user);
+
   PERFORM public.log_activity(
-    'member.invite_accepted', 'workspace_member', v_member_id,
-    v_inv.workspace_id, NULL,
-    jsonb_build_object('invitation_id', v_inv.id, 'role_id', v_inv.role_id)
+    p_action := 'member.invite_accepted',
+    p_entity_type := 'workspace_member',
+    p_entity_id := v_member_id,
+    p_workspace_id := v_inv.workspace_id,
+    p_metadata := jsonb_build_object('invitation_id', v_inv.id, 'role_id', v_inv.role_id)
   );
 
   v_role_name := v_inv.role_name_text;
@@ -1093,19 +1097,19 @@ BEGIN
     RAISE EXCEPTION 'FORBIDDEN: missing team.member.invite';
   END IF;
 
-  SELECT id INTO v_target_user FROM public.profiles WHERE public_id = p_public_id;
+  SELECT p.id INTO v_target_user FROM public.profiles p WHERE p.public_id = p_public_id;
   IF v_target_user IS NULL THEN
     RAISE EXCEPTION 'PROFILE_NOT_FOUND';
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM public.workspace_members
-    WHERE workspace_id = p_workspace_id AND user_id = v_target_user AND status = 'active'
+    SELECT 1 FROM public.workspace_members wm
+    WHERE wm.workspace_id = p_workspace_id AND wm.user_id = v_target_user AND wm.status = 'active'
   ) THEN
     RAISE EXCEPTION 'ALREADY_MEMBER';
   END IF;
 
-  SELECT workspace_id, name INTO v_role_workspace, v_role_name FROM public.team_roles WHERE id = p_role_id;
+  SELECT tr.workspace_id, tr.name INTO v_role_workspace, v_role_name FROM public.team_roles tr WHERE tr.id = p_role_id;
   IF v_role_workspace IS NOT NULL AND v_role_workspace != p_workspace_id THEN
     RAISE EXCEPTION 'INVALID_ROLE';
   END IF;
@@ -1119,20 +1123,24 @@ BEGIN
   INSERT INTO public.workspace_members (workspace_id, user_id, role_id, role, status, invited_by, joined_at)
   VALUES (
     p_workspace_id, v_target_user, p_role_id,
-    (SELECT CASE lower(name)
+    (SELECT CASE lower(tr.name)
       WHEN 'owner' THEN 'owner' WHEN 'admin' THEN 'admin' WHEN 'manager' THEN 'manager'
       WHEN 'leasing agent' THEN 'agent' WHEN 'staff' THEN 'staff' ELSE 'viewer' END
-     FROM public.team_roles WHERE id = p_role_id),
+     FROM public.team_roles tr WHERE tr.id = p_role_id),
     'active', v_caller, NOW()
   )
   ON CONFLICT (workspace_id, user_id) DO UPDATE
   SET role_id = EXCLUDED.role_id, role = EXCLUDED.role, status = 'active', joined_at = NOW(), updated_at = NOW()
   RETURNING id INTO v_member_id;
 
+  PERFORM public.sync_workspace_member_property_access(p_workspace_id, v_target_user);
+
   PERFORM public.log_activity(
-    'member.added', 'workspace_member', v_member_id,
-    p_workspace_id, NULL,
-    jsonb_build_object('target_user_id', v_target_user, 'role_id', p_role_id)
+    p_action := 'member.added',
+    p_entity_type := 'workspace_member',
+    p_entity_id := v_member_id,
+    p_workspace_id := p_workspace_id,
+    p_metadata := jsonb_build_object('target_user_id', v_target_user, 'role_id', p_role_id)
   );
 
   RETURN QUERY SELECT v_member_id, v_target_user, v_role_name;
@@ -1180,11 +1188,13 @@ AS $$
 DECLARE
   v_user UUID;
   v_ws UUID;
+  v_target_user UUID;
   v_old_role_id UUID;
 BEGIN
   v_user := auth.uid();
-  SELECT workspace_id, role_id INTO v_ws, v_old_role_id
-  FROM public.workspace_members WHERE id = p_member_id;
+  SELECT wm.workspace_id, wm.user_id, wm.role_id
+  INTO v_ws, v_target_user, v_old_role_id
+  FROM public.workspace_members wm WHERE wm.id = p_member_id;
 
   IF v_ws IS NULL THEN RAISE EXCEPTION 'NOT_FOUND'; END IF;
   IF NOT public.has_workspace_permission(v_ws, 'team.member.update', v_user) THEN
@@ -1203,8 +1213,15 @@ BEGIN
       updated_at = NOW()
   WHERE id = p_member_id;
 
-  PERFORM public.log_activity('member.role_changed', 'workspace_member', p_member_id, v_ws, NULL,
-    jsonb_build_object('previous_role_id', v_old_role_id, 'new_role_id', p_role_id));
+  PERFORM public.sync_workspace_member_property_access(v_ws, v_target_user);
+
+  PERFORM public.log_activity(
+    p_action := 'member.role_changed',
+    p_entity_type := 'workspace_member',
+    p_entity_id := p_member_id,
+    p_workspace_id := v_ws,
+    p_metadata := jsonb_build_object('previous_role_id', v_old_role_id, 'new_role_id', p_role_id)
+  );
 END;
 $$;
 
@@ -1235,7 +1252,14 @@ BEGIN
   END IF;
 
   UPDATE public.workspace_members SET status = 'removed', updated_at = NOW() WHERE id = p_member_id;
-  PERFORM public.log_activity('member.removed', 'workspace_member', p_member_id, v_ws, NULL, '{}'::jsonb);
+  PERFORM public.revoke_workspace_member_property_access(v_ws, v_target_user, 'removed');
+  PERFORM public.log_activity(
+    p_action := 'member.removed',
+    p_entity_type := 'workspace_member',
+    p_entity_id := p_member_id,
+    p_workspace_id := v_ws,
+    p_metadata := '{}'::jsonb
+  );
 END;
 $$;
 
@@ -1251,15 +1275,24 @@ AS $$
 DECLARE
   v_user UUID;
   v_ws UUID;
+  v_target_user UUID;
 BEGIN
   v_user := auth.uid();
-  SELECT workspace_id INTO v_ws FROM public.workspace_members WHERE id = p_member_id;
+  SELECT wm.workspace_id, wm.user_id INTO v_ws, v_target_user
+  FROM public.workspace_members wm WHERE wm.id = p_member_id;
   IF v_ws IS NULL THEN RAISE EXCEPTION 'NOT_FOUND'; END IF;
   IF NOT public.has_workspace_permission(v_ws, 'team.member.update', v_user) THEN
     RAISE EXCEPTION 'FORBIDDEN';
   END IF;
   UPDATE public.workspace_members SET status = 'suspended', updated_at = NOW() WHERE id = p_member_id;
-  PERFORM public.log_activity('member.suspended', 'workspace_member', p_member_id, v_ws, NULL, '{}'::jsonb);
+  PERFORM public.revoke_workspace_member_property_access(v_ws, v_target_user, 'suspended');
+  PERFORM public.log_activity(
+    p_action := 'member.suspended',
+    p_entity_type := 'workspace_member',
+    p_entity_id := p_member_id,
+    p_workspace_id := v_ws,
+    p_metadata := '{}'::jsonb
+  );
 END;
 $$;
 
@@ -1764,6 +1797,9 @@ GRANT EXECUTE ON FUNCTION public.can_assign_team_role(UUID, UUID, UUID) TO authe
 GRANT EXECUTE ON FUNCTION public.count_workspace_seats(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_workspace_seat_limit(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.assert_workspace_seat_available(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.map_team_role_to_property_role(TEXT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.sync_workspace_member_property_access(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.revoke_workspace_member_property_access(UUID, UUID, TEXT) TO authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.current_user_id()
 RETURNS UUID
@@ -2143,6 +2179,112 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.map_team_role_to_property_role(p_team_role_name TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path = public
+AS $$
+BEGIN
+  CASE lower(COALESCE(p_team_role_name, ''))
+    WHEN 'owner' THEN RETURN 'manager';
+    WHEN 'admin' THEN RETURN 'manager';
+    WHEN 'manager' THEN RETURN 'manager';
+    WHEN 'leasing agent' THEN RETURN 'agent';
+    WHEN 'staff' THEN RETURN 'staff';
+    WHEN 'landlord' THEN RETURN 'viewer';
+    ELSE RETURN 'viewer';
+  END CASE;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.sync_workspace_member_property_access(
+  p_workspace_id UUID,
+  p_user_id UUID
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_member RECORD;
+  v_property_role TEXT;
+BEGIN
+  SELECT wm.role_id, tr.name AS role_name
+  INTO v_member
+  FROM public.workspace_members wm
+  LEFT JOIN public.team_roles tr ON tr.id = wm.role_id
+  WHERE wm.workspace_id = p_workspace_id
+    AND wm.user_id = p_user_id
+    AND wm.status = 'active';
+
+  IF v_member IS NULL THEN
+    RETURN;
+  END IF;
+
+  IF NOT public.has_workspace_permission(p_workspace_id, 'property.view', p_user_id) THEN
+    RETURN;
+  END IF;
+
+  v_property_role := public.map_team_role_to_property_role(v_member.role_name);
+
+  INSERT INTO public.property_members (property_id, user_id, role, status, joined_at)
+  SELECT p.id, p_user_id, v_property_role, 'active', NOW()
+  FROM public.properties p
+  WHERE p.workspace_id = p_workspace_id
+    AND p.status = 'active'
+    AND p.owner_id IS DISTINCT FROM p_user_id
+  ON CONFLICT (property_id, user_id) DO UPDATE
+  SET role = EXCLUDED.role,
+      status = 'active',
+      updated_at = NOW();
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.revoke_workspace_member_property_access(
+  p_workspace_id UUID,
+  p_user_id UUID,
+  p_status TEXT DEFAULT 'removed'
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE public.property_members pm
+  SET status = p_status,
+      updated_at = NOW()
+  FROM public.properties p
+  WHERE pm.property_id = p.id
+    AND p.workspace_id = p_workspace_id
+    AND pm.user_id = p_user_id
+    AND p.owner_id IS DISTINCT FROM p_user_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.sync_property_workspace_team_access()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_member RECORD;
+BEGIN
+  FOR v_member IN
+    SELECT wm.user_id
+    FROM public.workspace_members wm
+    WHERE wm.workspace_id = NEW.workspace_id
+      AND wm.status = 'active'
+  LOOP
+    PERFORM public.sync_workspace_member_property_access(NEW.workspace_id, v_member.user_id);
+  END LOOP;
+  RETURN NEW;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.protect_property_id()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -2270,6 +2412,11 @@ DROP TRIGGER IF EXISTS trg_ensure_property_owner_membership ON public.properties
 CREATE TRIGGER trg_ensure_property_owner_membership
   AFTER INSERT ON public.properties
   FOR EACH ROW EXECUTE FUNCTION public.ensure_property_owner_membership();
+
+DROP TRIGGER IF EXISTS trg_sync_property_workspace_team_access ON public.properties;
+CREATE TRIGGER trg_sync_property_workspace_team_access
+  AFTER INSERT ON public.properties
+  FOR EACH ROW EXECUTE FUNCTION public.sync_property_workspace_team_access();
 
 DROP TRIGGER IF EXISTS trg_protect_units_property ON public.units;
 CREATE TRIGGER trg_protect_units_property BEFORE UPDATE ON public.units

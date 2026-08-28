@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { PageContainer, useToast } from '@/components/admin/ui';
+import { PageHeader } from '@/components/ui/PageHeader';
 import {
   AdminDataGrid,
   QuickFilterBar,
@@ -227,6 +228,11 @@ export default function AdminUsersPage() {
 
   return (
     <PageContainer>
+      <PageHeader
+        title="Users"
+        description="Manage platform user accounts, roles, and subscription status."
+        className="mb-4"
+      />
       <AdminDataGrid
         rowData={filteredUsers}
         columnDefs={columnDefs}

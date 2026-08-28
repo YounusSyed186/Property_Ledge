@@ -34,6 +34,7 @@ export default async function ProfilePage() {
     createdAt: (profile as any)?.created_at || user.created_at,
     emailVerified: Boolean(user.email_confirmed_at),
     provider: user.app_metadata?.provider || "email",
+    publicId: (profile as { public_id?: string })?.public_id || "",
   };
 
   const accountContextPayload = accountContext

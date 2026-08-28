@@ -1,7 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { resolveUserDestination } from '@/lib/routing/resolveUserDestination';
 
-type Persona = 'platform_admin' | 'tenant' | 'owner' | 'manager' | 'staff' | 'agent' | 'viewer';
+type Persona = 'platform_admin' | 'tenant' | 'owner' | 'manager' | 'staff' | 'agent' | 'viewer' | 'admin';
 
 const STAGE_ROUTES: Record<string, string> = {
   welcome: '/onboarding',
@@ -10,6 +11,28 @@ const STAGE_ROUTES: Record<string, string> = {
   property: '/onboarding/property',
   ready: '/onboarding/complete',
 };
+
+function mapTeamRoleNameToPersona(roleName: string | null | undefined): Persona | null {
+  if (!roleName) return null;
+  const normalized = roleName.toLowerCase();
+  switch (normalized) {
+    case 'owner':
+      return 'owner';
+    case 'admin':
+      return 'admin';
+    case 'manager':
+      return 'manager';
+    case 'leasing agent':
+      return 'agent';
+    case 'staff':
+      return 'staff';
+    case 'viewer':
+    case 'landlord':
+      return 'viewer';
+    default:
+      return 'viewer';
+  }
+}
 
 async function resolvePersona(
   supabase: ReturnType<typeof createServerClient>,
@@ -26,29 +49,33 @@ async function resolvePersona(
     supabase.from('tenants').select('id').eq('user_id', userId).eq('status', 'active').maybeSingle(),
     supabase.from('workspaces').select('id').eq('owner_id', userId).eq('status', 'active'),
     supabase.from('property_members').select('role').eq('user_id', userId).eq('status', 'active'),
-    supabase.from('workspace_members').select('role').eq('user_id', userId).eq('status', 'active'),
+    supabase
+      .from('workspace_members')
+      .select('role_id, team_roles(name)')
+      .eq('user_id', userId)
+      .eq('status', 'active'),
   ]);
 
   if (adminRow) return 'platform_admin';
   if (tenantRow) return 'tenant';
 
-  const propertyRoles = (propertyMembers || []).map((m) => m.role as string);
-  const workspaceRoles = (workspaceMembers || []).map((m) => m.role as string);
-  const isWorkspaceOwner = (ownedWorkspaces || []).length > 0;
+  if ((ownedWorkspaces || []).length > 0) return 'owner';
 
-  if (isWorkspaceOwner || propertyRoles.includes('owner')) return 'owner';
-  if (propertyRoles.includes('manager') || workspaceRoles.includes('manager') || workspaceRoles.includes('admin')) {
-    return 'manager';
+  const propertyRoles = (propertyMembers || []).map((m) => m.role as string);
+  if (propertyRoles.includes('owner')) return 'owner';
+
+  for (const m of workspaceMembers || []) {
+    const row = m as { team_roles?: { name?: string } | null };
+    const persona = mapTeamRoleNameToPersona(row.team_roles?.name);
+    if (persona) return persona;
   }
+
+  if (propertyRoles.includes('manager')) return 'manager';
   if (propertyRoles.includes('staff')) return 'staff';
   if (propertyRoles.includes('agent')) return 'agent';
   if (propertyRoles.includes('viewer')) return 'viewer';
 
   return 'owner';
-}
-
-function needsOnboarding(status: string | null | undefined) {
-  return status === 'not_started' || status === 'in_progress';
 }
 
 async function resolveOnboardingRoute(
@@ -112,7 +139,7 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet: any[]) {
+        setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           supabaseResponse = NextResponse.next({
             request,
@@ -131,35 +158,14 @@ export async function updateSession(request: NextRequest) {
 
   const url = request.nextUrl.clone();
   const pathname = url.pathname;
+  const redirectTo = request.nextUrl.searchParams.get('redirectTo');
+  const planParam = request.nextUrl.searchParams.get('plan');
+  const joinMatch = redirectTo?.match(/^\/join\/([^/?]+)/);
+  const pendingInvitationToken = joinMatch?.[1] ?? null;
 
-  const isProtectedRoute =
-    pathname.startsWith('/dashboard') ||
-    pathname.startsWith('/subscription') ||
-    pathname.startsWith('/admin') ||
-    pathname.startsWith('/checkout') ||
-    pathname.startsWith('/onboarding') ||
-    pathname.startsWith('/tenant');
-
-  const isAuthPage =
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/signup') ||
-    pathname.startsWith('/forgot-password') ||
-    pathname.startsWith('/reset-password');
-
-  const isOnboardingExempt =
-    pathname.startsWith('/onboarding') ||
-    pathname.startsWith('/invite') ||
-    pathname.startsWith('/join') ||
-    pathname.startsWith('/join') ||
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/signup');
-
-  if (isProtectedRoute && !user) {
-    const redirectTarget = pathname + url.search;
-    url.pathname = '/login';
-    url.search = `?redirectTo=${encodeURIComponent(redirectTarget)}`;
-    return NextResponse.redirect(url);
-  }
+  let onboardingStatus: string | null = null;
+  let onboardingRoute: string | null = null;
+  let persona: Persona | null = null;
 
   if (user) {
     const { data: accountContext } = await supabase
@@ -168,56 +174,24 @@ export async function updateSession(request: NextRequest) {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    const onboardingStatus = (accountContext as { onboarding_status?: string } | null)?.onboarding_status;
-
-    if (
-      needsOnboarding(onboardingStatus) &&
-      !isOnboardingExempt &&
-      !pathname.startsWith('/admin')
-    ) {
-      const targetRoute = await resolveOnboardingRoute(supabase, user.id);
-
-      // All setup steps done — allow dashboard even if status wasn't persisted yet
-      if (pathname.startsWith('/dashboard') && targetRoute === '/onboarding/complete') {
-        return supabaseResponse;
-      }
-
-      if (!pathname.startsWith(targetRoute) && targetRoute !== '/dashboard') {
-        url.pathname = targetRoute;
-        url.search = '';
-        return NextResponse.redirect(url);
-      }
-    }
-
-    if (
-      onboardingStatus === 'completed' &&
-      pathname.startsWith('/onboarding')
-    ) {
-      url.pathname = '/dashboard';
-      url.search = '';
-      return NextResponse.redirect(url);
-    }
-
-    const persona = await resolvePersona(supabase, user.id);
-
-    if (persona === 'tenant' && pathname.startsWith('/dashboard')) {
-      url.pathname = '/tenant';
-      url.search = '';
-      return NextResponse.redirect(url);
-    }
-
-    if (persona === 'staff' && (pathname === '/dashboard' || pathname === '/dashboard/')) {
-      url.pathname = '/dashboard/tasks';
-      url.search = '';
-      return NextResponse.redirect(url);
-    }
+    onboardingStatus = (accountContext as { onboarding_status?: string } | null)?.onboarding_status ?? null;
+    onboardingRoute = await resolveOnboardingRoute(supabase, user.id);
+    persona = await resolvePersona(supabase, user.id);
   }
 
-  if (isAuthPage && user) {
-    const planParam = request.nextUrl.searchParams.get('plan');
-    const defaultTarget = planParam ? `/checkout?plan=${planParam}` : '/dashboard';
-    const redirectTo = request.nextUrl.searchParams.get('redirectTo') || defaultTarget;
-    return NextResponse.redirect(new URL(redirectTo, request.url));
+  const resolution = resolveUserDestination({
+    isAuthenticated: !!user,
+    pathname,
+    onboardingStatus,
+    onboardingRoute,
+    persona,
+    pendingInvitationToken,
+    redirectTo,
+    planParam,
+  });
+
+  if (resolution) {
+    return NextResponse.redirect(new URL(resolution.path, request.url));
   }
 
   return supabaseResponse;

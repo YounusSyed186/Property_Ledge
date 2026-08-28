@@ -24,12 +24,19 @@ import type { AppShellProps, NavSection } from './types';
 export const SHELL_SIDEBAR_WIDTH_EXPANDED = 248;
 export const SHELL_SIDEBAR_WIDTH_COLLAPSED = 52;
 
-export function isNavActive(pathname: string, search: string, href: string, homeHref: string) {
+export function isNavActive(
+  pathname: string,
+  search: string,
+  href: string,
+  homeHref: string,
+  exact = false
+) {
   const [path, hrefQuery = ''] = href.split('?');
   const hrefParams = new URLSearchParams(hrefQuery);
   const currentParams = new URLSearchParams(search);
 
   if (pathname !== path) {
+    if (exact) return false;
     if (path === homeHref) return false;
     return pathname.startsWith(path);
   }
@@ -212,7 +219,7 @@ function Sidebar({
                           label={item.label}
                           href={item.href}
                           icon={item.icon}
-                          isActive={isNavActive(pathname, search, item.href, homeHref)}
+                          isActive={isNavActive(pathname, search, item.href, homeHref, item.exact)}
                           isCollapsed={isCollapsed}
                           onNavigate={onNavigate}
                           layoutId={activeNavLayoutId}
@@ -372,7 +379,7 @@ function MobileDrawer({
                       label={item.label}
                       href={item.href}
                       icon={item.icon}
-                      isActive={isNavActive(pathname, search, item.href, homeHref)}
+                      isActive={isNavActive(pathname, search, item.href, homeHref, item.exact)}
                       isCollapsed={false}
                       onNavigate={onClose}
                       layoutId={activeNavLayoutId}
@@ -516,17 +523,6 @@ export function AppShell({
 
   const mobileTitle = variant === 'admin' ? 'PropertyLedge Admin' : 'PropertyLedge';
 
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-admin-sidebar flex items-center justify-center text-admin-sidebar-foreground font-sans text-xs">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-admin-sidebar-foreground border-t-transparent animate-spin" />
-          <span className="text-admin-sidebar-muted font-medium">{loadingMessage}</span>
-        </div>
-      </div>
-    );
-  }
-
   const sidebarProps = {
     navSections,
     homeHref,
@@ -583,10 +579,21 @@ export function AppShell({
             )}
           </AnimatePresence>
 
-          <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden p-0.5 pl-0 md:pl-0.5 bg-admin-background">
-            <div className="app-workspace relative flex flex-1 flex-col min-h-0 overflow-hidden bg-admin-surface text-admin-foreground rounded-lg border border-admin-border text-body mb-14 md:mb-0">
+          <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden bg-admin-sidebar">
+            <div className="app-workspace relative flex flex-1 flex-col min-h-0 overflow-hidden bg-admin-surface text-admin-foreground rounded-lg text-body mb-14 md:mb-0 md:mt-0 md:mr-0 md:ml-0 md:rounded-tl-xl">
               <main className="flex h-full w-full flex-1 flex-col min-w-0 min-h-0 overflow-hidden p-0.5">
-                <div className="flex h-full min-h-0 w-full flex-1 flex-col">{children}</div>
+                <div className="flex h-full min-h-0 w-full flex-1 flex-col">
+                  {!mounted ? (
+                    <div className="flex flex-1 items-center justify-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-6 h-6 rounded-full border-2 border-admin-primary border-t-transparent animate-spin" />
+                        <span className="text-xs text-admin-muted font-medium">{loadingMessage}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    children
+                  )}
+                </div>
               </main>
               <div id="workspace-drawer-root" className="absolute inset-0 z-40 pointer-events-none [&>*]:pointer-events-auto" />
             </div>

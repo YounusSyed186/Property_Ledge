@@ -113,6 +113,27 @@ export async function fetchDashboardTenant(propertyId: string, tenantId: string)
   return queries.getTenantDetail(propertyId, tenantId);
 }
 
+export async function fetchDashboardTenantTabData(
+  propertyId: string,
+  tenantId: string,
+  tab: 'payments' | 'maintenance' | 'documents' | 'activity'
+) {
+  await requirePropertyAccess(propertyId);
+  switch (tab) {
+    case 'payments':
+      return Promise.all([
+        queries.getTenantPayments(propertyId, tenantId),
+        queries.getTenantInvoices(propertyId, tenantId),
+      ]).then(([payments, invoices]) => ({ payments, invoices }));
+    case 'maintenance':
+      return queries.getTenantMaintenance(propertyId, tenantId).then((maintenance) => ({ maintenance }));
+    case 'documents':
+      return queries.getTenantDocuments(propertyId, tenantId).then((documents) => ({ documents }));
+    case 'activity':
+      return queries.getTenantActivity(propertyId, tenantId).then((activity) => ({ activity }));
+  }
+}
+
 export async function fetchDashboardUnit(propertyId: string, unitId: string) {
   await requirePropertyAccess(propertyId);
   return queries.getUnitDetail(propertyId, unitId);

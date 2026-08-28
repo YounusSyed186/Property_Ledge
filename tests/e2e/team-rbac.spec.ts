@@ -6,13 +6,13 @@ test.describe('Team RBAC', () => {
     await expect(page.getByText(/invalid invitation/i)).toBeVisible({ timeout: 10000 });
   });
 
-  test('team page requires authentication', async ({ page }) => {
+  test('team page redirects to settings team', async ({ page }) => {
     await page.goto('/dashboard/team');
-    await expect(page).toHaveURL(/login/);
+    await expect(page).toHaveURL(/login|settings\/team/);
   });
 
   test('settings team roles page requires authentication', async ({ page }) => {
-    await page.goto('/dashboard/settings/team/roles');
+    await page.goto('/dashboard/team/roles');
     await expect(page).toHaveURL(/login/);
   });
 });

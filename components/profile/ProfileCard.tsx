@@ -18,7 +18,10 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Building2
+  Building2,
+  Copy,
+  Check,
+  Fingerprint,
 } from "lucide-react";
 import { logoutAction, updateProfileAction } from "@/lib/auth/actions";
 
@@ -32,6 +35,7 @@ interface ProfileCardProps {
     createdAt?: string;
     emailVerified?: boolean;
     provider?: string;
+    publicId?: string;
   };
   accountContext?: {
     status?: string;
@@ -52,6 +56,7 @@ export function ProfileCard({ user, accountContext }: ProfileCardProps) {
   const [supportAccess, setSupportAccess] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [copiedPublicId, setCopiedPublicId] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Formatting helpers
@@ -94,6 +99,13 @@ export function ProfileCard({ user, accountContext }: ProfileCardProps) {
     await logoutAction();
     router.push("/login");
     router.refresh();
+  };
+
+  const handleCopyPublicId = async () => {
+    if (!user.publicId) return;
+    await navigator.clipboard.writeText(user.publicId);
+    setCopiedPublicId(true);
+    setTimeout(() => setCopiedPublicId(false), 2000);
   };
 
   return (
@@ -221,6 +233,36 @@ export function ProfileCard({ user, accountContext }: ProfileCardProps) {
             </div>
 
             <div className="space-y-4">
+              {/* Field: Profile ID */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Fingerprint className="w-3.5 h-3.5 text-muted" />
+                  Profile ID
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={user.publicId || "Not available"}
+                    className="flex-1 h-11 px-4 rounded-xl bg-surface-subtle dark:bg-[#172025] border border-border/80 dark:border-[#253036] text-sm font-mono text-foreground focus:outline-none"
+                  />
+                  {user.publicId && (
+                    <button
+                      type="button"
+                      onClick={handleCopyPublicId}
+                      className="h-11 px-4 rounded-xl bg-surface-subtle dark:bg-[#172025] border border-border/80 dark:border-[#253036] text-foreground hover:bg-surface-subtle/80 transition-colors flex items-center gap-2 text-xs font-semibold shrink-0"
+                      aria-label="Copy profile ID"
+                    >
+                      {copiedPublicId ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                      {copiedPublicId ? "Copied" : "Copy"}
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-muted">
+                  Share this ID so teammates can add you via Team → Add member → Profile ID.
+                </p>
+              </div>
+
               {/* Field: Full Name */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">

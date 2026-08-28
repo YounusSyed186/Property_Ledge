@@ -27,6 +27,26 @@ export type NavItemId =
   | 'team'
   | 'settings';
 
+/** Permission keys required to see each nav item (any one of the listed permissions). */
+export const NAV_PERMISSIONS: Partial<Record<NavItemId, string[]>> = {
+  home: ['property.view'],
+  portfolio: ['property.view'],
+  people: ['tenant.view'],
+  leases: ['lease.view'],
+  money: ['invoice.view', 'payment.view', 'expense.view'],
+  finances: ['invoice.view', 'payment.view', 'expense.view'],
+  invoices: ['invoice.view'],
+  payments: ['payment.view'],
+  expenses: ['expense.view'],
+  maintenance: ['maintenance.view'],
+  inspections: ['inspection.view'],
+  tasks: ['task.view'],
+  documents: ['document.view'],
+  reports: ['insights.view'],
+  team: ['team.member.view'],
+  settings: ['team.settings.view'],
+};
+
 export type QuickActionId =
   | 'property'
   | 'unit'
@@ -68,7 +88,16 @@ const QUICK_ACTION_ACCESS: Record<QuickActionId, Persona[]> = {
   task: ['owner', 'admin', 'manager', 'agent', 'staff'],
 };
 
-export function canAccessNavItem(persona: Persona, itemId: NavItemId): boolean {
+export function canAccessNavItem(persona: Persona, itemId: NavItemId, permissions?: string[]): boolean {
+  if (persona === 'platform_admin' || persona === 'tenant') {
+    return NAV_ACCESS[itemId]?.includes(persona) ?? false;
+  }
+
+  const required = NAV_PERMISSIONS[itemId];
+  if (required && permissions && permissions.length > 0) {
+    return required.some((p) => permissions.includes(p));
+  }
+
   return NAV_ACCESS[itemId]?.includes(persona) ?? false;
 }
 
