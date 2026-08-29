@@ -26,7 +26,6 @@ function monthBounds(offsetMonths = 0): { start: string; end: string } {
 interface InvoiceRow { status: string; total_amount: number; balance_due: number; due_date: string; }
 interface PaymentRow { amount: number; status: string; payment_date: string; }
 interface ExpenseRow { amount: number; status: string; expense_date: string; }
-interface UnitRow { status: string; }
 interface LeaseRow { status: string; rent_amount: number; rent_frequency: string; end_date: string; }
 interface MaintenanceRow { status: string; scheduled_at: string | null; created_at: string; priority: string; }
 interface InspectionRow { status: string; scheduled_date: string | null; }
@@ -47,6 +46,7 @@ export function emptyOperationalHealth(): OperationalHealth {
     totalUnits: 0, occupiedUnits: 0, occupancyRate: null, vacantUnits: 0,
   };
 }
+
 /**
  * Aggregate current-month + previous-month financial health for a scope of
  * property ids.
@@ -106,13 +106,15 @@ export async function aggregateFinancialHealth(propertyIds: string[]): Promise<F
     collected,
     collectedPrevious,
     outstanding,
-    expenses,
+    expenses: expensesThis,
     expensesPrevious,
     expectedMonthlyRent,
     collectionRate,
     outstandingRatio,
     overdueInvoiceCount,
   };
+}
+
 /** Aggregate the operational snapshot for a scope of property ids. */
 export async function aggregateOperationalHealth(propertyIds: string[]): Promise<OperationalHealth> {
   if (propertyIds.length === 0) return emptyOperationalHealth();
@@ -171,5 +173,4 @@ export async function aggregateOperationalHealth(propertyIds: string[]): Promise
     occupancyRate,
     vacantUnits,
   };
-}
 }

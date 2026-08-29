@@ -472,11 +472,12 @@ export async function getAdminActivityLogs(limit = 500): Promise<AdminActivityLo
     .limit(limit);
 
   if (error) throw new Error(error.message);
-  if (!logs?.length) return [];
+  const logItems = (logs || []) as any[];
+  if (!logItems.length) return [];
 
-  const userIds = [...new Set(logs.map((l) => l.user_id).filter(Boolean))] as string[];
-  const workspaceIds = [...new Set(logs.map((l) => l.workspace_id).filter(Boolean))] as string[];
-  const propertyIds = [...new Set(logs.map((l) => l.property_id).filter(Boolean))] as string[];
+  const userIds = [...new Set(logItems.map((l) => l.user_id).filter(Boolean))] as string[];
+  const workspaceIds = [...new Set(logItems.map((l) => l.workspace_id).filter(Boolean))] as string[];
+  const propertyIds = [...new Set(logItems.map((l) => l.property_id).filter(Boolean))] as string[];
 
   const [{ data: profiles }, { data: workspaces }, { data: properties }, { data: authUsersRes }] =
     await Promise.all([
@@ -497,7 +498,7 @@ export async function getAdminActivityLogs(limit = 500): Promise<AdminActivityLo
   const propertyMap = new Map((properties || []).map((p) => [p.id, p]));
   const authUserMap = new Map((authUsersRes?.users || []).map((u) => [u.id, u]));
 
-  return logs.map((log) => {
+  return logItems.map((log: any) => {
     const profile = log.user_id ? profileMap.get(log.user_id) : undefined;
     const authUser = log.user_id ? authUserMap.get(log.user_id) : undefined;
     return {

@@ -303,7 +303,7 @@ export async function removeMember(workspaceId: string, memberId: string) {
     throw new Error('CANNOT_REMOVE_OWNER');
   }
 
-  const { error } = await admin
+  const { error } = await (admin as any)
     .from('workspace_members')
     .update({ status: 'removed', updated_at: new Date().toISOString() })
     .eq('id', memberId)
@@ -339,7 +339,7 @@ export async function suspendMember(workspaceId: string, memberId: string) {
 
   if (fetchError || !member) throw new Error('NOT_FOUND');
 
-  const { error } = await admin
+  const { error } = await (admin as any)
     .from('workspace_members')
     .update({ status: 'suspended', updated_at: new Date().toISOString() })
     .eq('id', memberId)

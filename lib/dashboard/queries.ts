@@ -284,16 +284,17 @@ export async function getActivityLogs(propertyId: string) {
     return [];
   }
 
-  if (!logs?.length) return [];
+  const logItems = (logs || []) as any[];
+  if (!logItems.length) return [];
 
-  const userIds = [...new Set(logs.map((l) => l.user_id).filter(Boolean))] as string[];
+  const userIds = [...new Set(logItems.map((l) => l.user_id).filter(Boolean))] as string[];
   const { data: profiles } = userIds.length
     ? await supabase.from('profiles').select('id, full_name, public_id').in('id', userIds)
     : { data: [] };
 
-  const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
+  const profileMap = new Map(((profiles || []) as any[]).map((p) => [p.id, p]));
 
-  return logs.map((log) => {
+  return logItems.map((log: any) => {
     const profile = log.user_id ? profileMap.get(log.user_id) : undefined;
     return {
       ...log,

@@ -15,6 +15,7 @@ interface CreateLeaseWizardProps {
   onClose: () => void;
   onSuccess?: () => void;
   preselectedTenantId?: string;
+  preselectedUnitId?: string;
 }
 
 type TenantRow = { id: string; first_name: string; last_name: string; email: string };

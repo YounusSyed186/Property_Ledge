@@ -67,8 +67,6 @@ export async function buildAttentionItems(propertyIds: string[], limit = 8): Pro
   const openMaintenance = (maintenanceRes.data || []) as MaintenanceRow[];
   const vacantUnits = (vacantRes.data || []) as UnitRow[];
   const activeLeases = (leasesRes.data || []) as LeaseRow[];
-  const inspections = (inspectionsRes.data || []) as InspectionRow[];
-  const tasks = (tasksRes.data || []) as TaskRow[];
 
   const items: AttentionItem[] = [];
 
