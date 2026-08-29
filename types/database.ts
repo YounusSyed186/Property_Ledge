@@ -155,12 +155,15 @@ export interface Database {
           owner_id: string
           name: string
           property_type: string | null
+          property_category: 'Residential' | 'Commercial' | null
           status: 'active' | 'archived' | 'maintenance'
           address_line_1: string
           address_line_2: string | null
           city: string
+          suburb: string | null
           state: string
           postal_code: string
+          postcode: string | null
           country: string
           latitude: number | null
           longitude: number | null
@@ -169,6 +172,14 @@ export interface Database {
           bedrooms: number | null
           bathrooms: number | null
           parking_spaces: number | null
+          car_spaces: number | null
+          rent_amount: number | null
+          payment_frequency: string | null
+          property_id: string | null
+          tenant_name: string | null
+          tenant_email: string | null
+          lease_start: string | null
+          lease_duration: string | null
           square_feet: number | null
           purchase_price: number | null
           purchase_date: string | null
@@ -182,12 +193,15 @@ export interface Database {
           owner_id: string
           name: string
           property_type?: string | null
+          property_category?: 'Residential' | 'Commercial' | null
           status?: 'active' | 'archived' | 'maintenance'
           address_line_1: string
           address_line_2?: string | null
           city: string
+          suburb?: string | null
           state: string
           postal_code: string
+          postcode?: string | null
           country?: string
           latitude?: number | null
           longitude?: number | null
@@ -196,6 +210,14 @@ export interface Database {
           bedrooms?: number | null
           bathrooms?: number | null
           parking_spaces?: number | null
+          car_spaces?: number | null
+          rent_amount?: number | null
+          payment_frequency?: string | null
+          property_id?: string | null
+          tenant_name?: string | null
+          tenant_email?: string | null
+          lease_start?: string | null
+          lease_duration?: string | null
           square_feet?: number | null
           purchase_price?: number | null
           purchase_date?: string | null
@@ -209,12 +231,15 @@ export interface Database {
           owner_id?: string
           name?: string
           property_type?: string | null
+          property_category?: 'Residential' | 'Commercial' | null
           status?: 'active' | 'archived' | 'maintenance'
           address_line_1?: string
           address_line_2?: string | null
           city?: string
+          suburb?: string | null
           state?: string
           postal_code?: string
+          postcode?: string | null
           country?: string
           latitude?: number | null
           longitude?: number | null
@@ -223,6 +248,14 @@ export interface Database {
           bedrooms?: number | null
           bathrooms?: number | null
           parking_spaces?: number | null
+          car_spaces?: number | null
+          rent_amount?: number | null
+          payment_frequency?: string | null
+          property_id?: string | null
+          tenant_name?: string | null
+          tenant_email?: string | null
+          lease_start?: string | null
+          lease_duration?: string | null
           square_feet?: number | null
           purchase_price?: number | null
           purchase_date?: string | null

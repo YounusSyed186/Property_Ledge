@@ -185,10 +185,10 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
                 </Link>
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <CompactKpiCard label="Properties" value={availableProperties.length} href="/dashboard/properties" icon={Building2} accent="blue" />
-              <CompactKpiCard label="Units" value={totalUnits} href="/dashboard/properties" icon={Home} accent="indigo" />
-              <CompactKpiCard label="Occupancy" value={`${occupancyPct}%`} hint={`${occupied} of ${totalUnits} units`} icon={Percent} accent="teal" />
-              <CompactKpiCard label="Rent collected" value={formatCurrency(collected)} href="/dashboard/money" icon={Wallet} accent="blue" />
+                <CompactKpiCard label="Properties" value={availableProperties.length} href="/dashboard/properties" icon={Building2} accent="blue" />
+                <CompactKpiCard label="Tenants" value={stats?.activeTenants ?? 0} href="/dashboard/people" icon={Users} accent="indigo" />
+                <CompactKpiCard label="Active Leases" value={stats?.activeLeases ?? 0} href="/dashboard/leases" icon={Percent} accent="teal" />
+                <CompactKpiCard label="Rent collected" value={formatCurrency(collected)} href="/dashboard/money" icon={Wallet} accent="blue" />
               </div>
             </div>
 
@@ -221,10 +221,10 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
                 <ProgressBar value={collectionPct} />
                 <p className="mt-2 text-caption font-medium">{collectionPct}% collected</p>
               </SectionPanel>
-              <SectionPanel title="Occupancy" action={<Button variant="soft" size="sm" href="/dashboard/properties">View Properties</Button>}>
-                <p className="text-display font-heading font-semibold tabular-nums">{occupancyPct}%</p>
-                <p className="mt-1 text-body-sm text-admin-muted">{occupied} of {totalUnits} units occupied</p>
-                <ProgressBar value={occupancyPct} accent="teal" className="mt-3" />
+              <SectionPanel title="Lease Status" action={<Button variant="soft" size="sm" href="/dashboard/properties">View Properties</Button>}>
+                <p className="text-display font-heading font-semibold tabular-nums">{stats?.activeLeases ?? 0} Active</p>
+                <p className="mt-1 text-body-sm text-admin-muted">Active leases across {availableProperties.length} standalone properties</p>
+                <ProgressBar value={availableProperties.length > 0 ? Math.round(((stats?.activeLeases ?? 0) / availableProperties.length) * 100) : 0} accent="teal" className="mt-3" />
               </SectionPanel>
             </div>
 
@@ -239,7 +239,7 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
         <section className="mt-6 space-y-3">
           <h2 className="text-section-title font-semibold text-admin-foreground">Quick actions</h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <QuickAction label="Add Property" href="/dashboard/properties/new" icon={Building2} description="Create a new property" />
+            <QuickAction label="Add Property" href="/dashboard/properties?new=true" icon={Building2} description="Create a new property" />
             <QuickAction label="Add Tenant" href="/dashboard/people" icon={Users} description="Register a tenant" />
             <QuickAction label="Create Lease" icon={FileText} description="Start a lease" onClick={() => setLeaseWizardOpen(true)} />
             <QuickAction label="Record Payment" href="/dashboard/money?tab=payments" icon={DollarSign} description="Log a payment" />

@@ -286,10 +286,17 @@ export async function createOnboardingProperty(input: {
   workspaceId: string;
   name: string;
   propertyType?: string;
+  propertyCategory?: 'Residential' | 'Commercial';
   addressLine1: string;
   city: string;
   state: string;
   postalCode: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  carSpaces?: number;
+  rentAmount?: number;
+  paymentFrequency?: string;
+  image?: string | null;
 }): Promise<{ propertyId: string }> {
   const { user, supabase } = await getSupabaseForUser();
 
@@ -307,6 +314,7 @@ export async function createOnboardingProperty(input: {
   }
 
   const workspaceId = (workspace as { id: string }).id;
+  const customPropId = 'PL-' + Math.floor(1000 + Math.random() * 9000).toString();
 
   const admin = await createAdminClient();
   const { data: property, error } = await admin
@@ -314,13 +322,24 @@ export async function createOnboardingProperty(input: {
     .insert({
       workspace_id: workspaceId,
       owner_id: user.id,
-      name: input.name,
+      name: input.name || input.addressLine1,
+      property_category: input.propertyCategory ?? 'Residential',
       property_type: input.propertyType ?? null,
       address_line_1: input.addressLine1,
       city: input.city,
+      suburb: input.city,
       state: input.state,
       postal_code: input.postalCode,
+      postcode: input.postalCode,
       country: 'Australia',
+      bedrooms: input.bedrooms ?? 0,
+      bathrooms: input.bathrooms ?? 0,
+      parking_spaces: input.carSpaces ?? 0,
+      car_spaces: input.carSpaces ?? 0,
+      rent_amount: input.rentAmount ?? 0,
+      payment_frequency: input.paymentFrequency ?? 'Weekly',
+      image_url: input.image ?? null,
+      property_id: customPropId,
       status: 'active',
     } as never)
     .select('id')

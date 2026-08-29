@@ -30,7 +30,6 @@ export async function getPropertiesList() {
     .select(`
       *,
       workspace:workspaces(name),
-      units:units(count),
       tenants:tenants(count)
     `)
     .order('created_at', { ascending: false });
@@ -43,7 +42,6 @@ export async function getPropertiesList() {
   return (data || []).map((prop: Record<string, unknown>) => ({
     ...prop,
     workspace: (prop.workspace as { name: string }) || { name: 'Unknown' },
-    units_count: (prop.units as { count: number }[])?.[0]?.count || 0,
     tenants_count: (prop.tenants as { count: number }[])?.[0]?.count || 0,
   }));
 }
@@ -61,18 +59,7 @@ export async function getPropertyDetail(propertyId: string) {
 }
 
 export async function getUnits(propertyId: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('units')
-    .select('*')
-    .eq('property_id', propertyId)
-    .order('unit_number', { ascending: true });
-
-  if (error) {
-    console.error('Error fetching units:', error);
-    return [];
-  }
-  return data || [];
+  return [];
 }
 
 export async function getTenants(propertyId: string) {
@@ -96,7 +83,6 @@ export async function getLeases(propertyId: string) {
     .from('leases')
     .select(`
       *,
-      unit:units!fk_leases_unit_prop(name, unit_number),
       lease_tenants!fk_lease_tenants_lease_prop(
         tenant_id, role, is_primary,
         tenant:tenants!fk_lease_tenants_tenant_prop(first_name, last_name)
@@ -118,7 +104,6 @@ export async function getLeaseDetail(propertyId: string, leaseId: string) {
     .from('leases')
     .select(`
       *,
-      unit:units!fk_leases_unit_prop(id, name, unit_number),
       lease_tenants!fk_lease_tenants_lease_prop(
         tenant_id, role, is_primary,
         tenant:tenants!fk_lease_tenants_tenant_prop(id, first_name, last_name, email, phone)
@@ -141,7 +126,6 @@ export async function getMaintenanceDetail(propertyId: string, requestId: string
     .from('maintenance_requests')
     .select(`
       *,
-      unit:units!fk_maintenance_lease_prop(name, unit_number),
       tenant:tenants!fk_maintenance_tenant_prop(first_name, last_name)
     `)
     .eq('property_id', propertyId)
@@ -158,7 +142,6 @@ export async function getInspectionDetail(propertyId: string, inspectionId: stri
     .from('inspections')
     .select(`
       *,
-      unit:units!fk_inspections_unit_prop(name, unit_number),
       inspection_items(*)
     `)
     .eq('property_id', propertyId)
@@ -175,8 +158,7 @@ export async function getInvoices(propertyId: string) {
     .from('invoices')
     .select(`
       *,
-      tenant:tenants!fk_invoices_tenant_prop(first_name, last_name),
-      unit:units!fk_invoices_unit_prop(name, unit_number)
+      tenant:tenants!fk_invoices_tenant_prop(first_name, last_name)
     `)
     .eq('property_id', propertyId)
     .order('issue_date', { ascending: false });
@@ -228,7 +210,6 @@ export async function getMaintenanceRequests(propertyId: string) {
     .from('maintenance_requests')
     .select(`
       *,
-      unit:units!fk_maintenance_lease_prop(name, unit_number),
       tenant:tenants!fk_maintenance_tenant_prop(first_name, last_name)
     `)
     .eq('property_id', propertyId)
@@ -247,7 +228,6 @@ export async function getInspections(propertyId: string) {
     .from('inspections')
     .select(`
       *,
-      unit:units!fk_inspections_unit_prop(name, unit_number),
       inspection_items(*)
     `)
     .eq('property_id', propertyId)
@@ -327,11 +307,10 @@ export async function getActivityLogs(propertyId: string) {
 
 export async function getReportsSummary(propertyId: string) {
   const supabase = await createClient();
-  const [invoices, payments, expenses, units, tenants, leases] = await Promise.all([
+  const [invoices, payments, expenses, tenants, leases] = await Promise.all([
     supabase.from('invoices').select('status, total_amount, balance_due').eq('property_id', propertyId),
     supabase.from('payments').select('amount, status').eq('property_id', propertyId),
     supabase.from('expenses').select('amount, status').eq('property_id', propertyId),
-    supabase.from('units').select('status').eq('property_id', propertyId),
     supabase.from('tenants').select('status').eq('property_id', propertyId),
     supabase.from('leases').select('status, rent_amount').eq('property_id', propertyId),
   ]);
@@ -339,18 +318,18 @@ export async function getReportsSummary(propertyId: string) {
   const invoiceData = (invoices.data || []) as { status: string; total_amount: number; balance_due: number }[];
   const paymentData = (payments.data || []) as { amount: number; status: string }[];
   const expenseData = (expenses.data || []) as { amount: number; status: string }[];
-  const unitData = (units.data || []) as { status: string }[];
   const tenantData = (tenants.data || []) as { status: string }[];
   const leaseData = (leases.data || []) as { status: string; rent_amount: number }[];
+  const activeLeaseCount = leaseData.filter((l) => l.status === 'active').length;
 
   return {
     totalRevenue: paymentData.filter((p) => p.status === 'completed').reduce((sum, p) => sum + Number(p.amount), 0),
     outstandingBalance: invoiceData.reduce((sum, i) => sum + Number(i.balance_due || 0), 0),
     totalExpenses: expenseData.filter((e) => e.status === 'paid').reduce((sum, e) => sum + Number(e.amount), 0),
-    occupiedUnits: unitData.filter((u) => u.status === 'occupied').length,
-    vacantUnits: unitData.filter((u) => u.status === 'vacant').length,
+    occupiedUnits: activeLeaseCount > 0 ? 1 : 0,
+    vacantUnits: activeLeaseCount > 0 ? 0 : 1,
     activeTenants: tenantData.filter((t) => t.status === 'active').length,
-    activeLeases: leaseData.filter((l) => l.status === 'active').length,
+    activeLeases: activeLeaseCount,
     monthlyRent: leaseData.filter((l) => l.status === 'active').reduce((sum, l) => sum + Number(l.rent_amount), 0),
     overdueInvoices: invoiceData.filter((i) => i.status === 'overdue').length,
   };
@@ -383,8 +362,7 @@ export async function getTenantDetail(propertyId: string, tenantId: string) {
           start_date,
           end_date,
           rent_amount,
-          status,
-          unit:units!fk_leases_unit_prop(id, name, unit_number)
+          status
         )
       )
     `)
@@ -397,29 +375,7 @@ export async function getTenantDetail(propertyId: string, tenantId: string) {
 }
 
 export async function getUnitDetail(propertyId: string, unitId: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('units')
-    .select(`
-      *,
-      leases!fk_leases_unit_prop(
-        id,
-        start_date,
-        end_date,
-        rent_amount,
-        status,
-        lease_tenants!fk_lease_tenants_lease_prop(
-          tenant:tenants!fk_lease_tenants_tenant_prop(first_name, last_name)
-        )
-      ),
-      maintenance_requests(id, title, status, priority, created_at)
-    `)
-    .eq('property_id', propertyId)
-    .eq('id', unitId)
-    .single();
-
-  if (error) return null;
-  return data;
+  return null;
 }
 
 export async function getPropertyTeam(propertyId: string) {
@@ -472,7 +428,7 @@ export async function getPropertyTeam(propertyId: string) {
 export async function getNeedsAttention(propertyId: string) {
   const supabase = await createClient();
 
-  const [overdueInvoices, openMaintenance, outstandingInvoices, vacantUnits] = await Promise.all([
+  const [overdueInvoices, openMaintenance, outstandingInvoices] = await Promise.all([
     supabase
       .from('invoices')
       .select('id, invoice_number, balance_due, due_date')
@@ -494,20 +450,13 @@ export async function getNeedsAttention(propertyId: string) {
       .in('status', ['issued', 'partially_paid'])
       .order('due_date', { ascending: true })
       .limit(5),
-    supabase
-      .from('units')
-      .select('id, name, unit_number')
-      .eq('property_id', propertyId)
-      .eq('status', 'vacant')
-      .order('unit_number', { ascending: true })
-      .limit(5),
   ]);
 
   return {
     overdueInvoices: overdueInvoices.data || [],
     openMaintenance: openMaintenance.data || [],
     outstandingInvoices: outstandingInvoices.data || [],
-    vacantUnits: vacantUnits.data || [],
+    vacantUnits: [],
   };
 }
 

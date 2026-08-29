@@ -44,7 +44,7 @@ export function OnboardingProductPreview({ stage, workspaceName = 'Your Workspac
             <p className="text-sm text-admin-muted leading-relaxed">
               {stage === 'welcome' || stage === 'workspace' && "Everything you need to manage properties, tenants, leases, and your team — in one place."}
               {stage === 'subscription' && "Select a subscription tier that scales seamlessly with your portfolio's footprint."}
-              {stage === 'property' && "A clean dashboard layout mapping all units, tenants, and lease agreements."}
+              {stage === 'property' && "A clean dashboard layout mapping all tenants, leases, and standalone properties."}
               {stage === 'ready' && "Your PropertyLedge workspace is successfully configured and prepared."}
             </p>
           </div>
@@ -90,9 +90,9 @@ export function OnboardingProductPreview({ stage, workspaceName = 'Your Workspac
                   <h4 className="text-xs font-semibold text-admin-foreground tracking-wide uppercase">Portfolio Properties</h4>
                   <div className="space-y-2">
                     {[
-                      { name: 'Riverside Apartments', type: 'Multifamily', units: 8 },
-                      { name: 'Greenfield Office Park', type: 'Commercial', units: 3 },
-                      { name: 'Oak Street Retail', type: 'Mixed Use', units: 2 },
+                      { name: 'Riverside Residence', type: 'Residential', status: 'Occupied' },
+                      { name: 'Greenfield Building', type: 'Commercial', status: 'Occupied' },
+                      { name: 'Oak Street Villa', type: 'Residential', status: 'Vacant' },
                     ].map((p, i) => (
                       <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-admin-border/40 hover:border-admin-border transition-colors bg-admin-surface-subtle/5">
                         <div className="flex items-center gap-3">
@@ -101,7 +101,7 @@ export function OnboardingProductPreview({ stage, workspaceName = 'Your Workspac
                           </div>
                           <div>
                             <p className="text-xs font-medium text-admin-foreground">{p.name}</p>
-                            <p className="text-[10px] text-admin-muted">{p.type} · {p.units} units</p>
+                            <p className="text-[10px] text-admin-muted">{p.type} · {p.status}</p>
                           </div>
                         </div>
                         <ArrowUpRight className="h-3 w-3 text-admin-muted/60" />

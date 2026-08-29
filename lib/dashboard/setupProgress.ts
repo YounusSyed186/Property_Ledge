@@ -93,7 +93,7 @@ export async function getSetupProgress(userId: string): Promise<SetupProgress> {
       id: 'property',
       label: 'Add first property',
       description: 'Add your first managed property',
-      href: '/dashboard/properties/new',
+      href: '/dashboard/properties?new=true',
       completed: hasProperty,
     },
     {

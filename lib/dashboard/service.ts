@@ -82,9 +82,32 @@ export async function createProperty(input: Tables['properties']['Insert']) {
     },
   });
 
+  const addressStr = (input as any).address || input.address_line_1 || '';
+  const suburbStr = (input as any).suburb || input.city || '';
+  const postcodeStr = (input as any).postcode || input.postal_code || '';
+  const nameVal = input.name || addressStr || 'Unnamed Property';
+  const carSpacesVal = (input as any).car_spaces ?? input.parking_spaces ?? 0;
+  const imageUrlVal = (input as any).image || input.image_url || null;
+  const customPropId = (input as any).property_id || ('PL-' + Math.floor(1000 + Math.random() * 9000).toString());
+
+  const payload = {
+    ...input,
+    owner_id: user.id,
+    name: nameVal,
+    address_line_1: addressStr,
+    city: suburbStr,
+    suburb: suburbStr,
+    postal_code: postcodeStr,
+    postcode: postcodeStr,
+    parking_spaces: Number(carSpacesVal),
+    car_spaces: Number(carSpacesVal),
+    image_url: imageUrlVal,
+    property_id: customPropId,
+  };
+
   const { data, error } = await supabase
     .from('properties')
-    .insert({ ...input, owner_id: user.id })
+    .insert(payload)
     .select()
     .single();
 
@@ -110,35 +133,17 @@ export async function deleteProperty(propertyId: string) {
   await recordActivityLog({ propertyId, action: 'archived', entityType: 'property', entityId: propertyId });
 }
 
-// Units
-export async function createUnit(propertyId: string, input: Omit<Tables['units']['Insert'], 'property_id'>) {
-  await requirePropertyPermission(propertyId, 'property.update');
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('units')
-    .insert({ ...input, property_id: propertyId })
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'created', entityType: 'unit', entityId: data.id });
-  return data;
+// Units (Deprecated in Standalone Property Model)
+export async function createUnit(propertyId: string, input: Record<string, unknown>) {
+  return { id: propertyId, ...input };
 }
 
-export async function updateUnit(propertyId: string, unitId: string, input: Tables['units']['Update']) {
-  await requirePropertyPermission(propertyId, 'property.update');
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('units').update(input).eq('id', unitId).eq('property_id', propertyId).select().single();
-  if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'updated', entityType: 'unit', entityId: unitId });
-  return data;
+export async function updateUnit(propertyId: string, unitId: string, input: Record<string, unknown>) {
+  return { id: unitId, ...input };
 }
 
 export async function deleteUnit(propertyId: string, unitId: string) {
-  await requirePropertyPermission(propertyId, 'property.update');
-  const supabase = await createClient();
-  const { error } = await supabase.from('units').delete().eq('id', unitId).eq('property_id', propertyId);
-  if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'deleted', entityType: 'unit', entityId: unitId });
+  return;
 }
 
 // Tenants

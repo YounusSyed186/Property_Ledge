@@ -251,12 +251,12 @@ export function OnboardingStepVisual({ stage, className = '' }: OnboardingStepVi
                   </div>
                   <div>
                     <span className="font-heading text-xs font-bold text-foreground truncate block">Sunset Heights</span>
-                    <p className="text-[10px] text-muted">8 Units · 100% Leased</p>
+                    <p className="text-[10px] text-muted">Residential · Active Lease</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-[10px] pt-1.5 border-t border-border/40">
-                  <span className="text-muted">Occupancy</span>
-                  <span className="text-emerald-500 font-bold">100%</span>
+                  <span className="text-muted">Status</span>
+                  <span className="text-emerald-500 font-bold">Occupied</span>
                 </div>
               </div>
 
@@ -337,7 +337,7 @@ export function OnboardingStepVisual({ stage, className = '' }: OnboardingStepVi
                 : stage === 'subscription'
                 ? 'Select a plan that scales seamlessly with your portfolio.'
                 : stage === 'property'
-                ? 'Map your properties, units, and leases in one central hub.'
+                ? 'Map your properties, tenants, and leases in one central hub.'
                 : 'Your PropertyLedge workspace is configured and ready for launch.'}
             </p>
           </motion.div>

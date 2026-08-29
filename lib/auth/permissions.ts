@@ -107,7 +107,7 @@ export function canPerformQuickAction(persona: Persona, actionId: QuickActionId)
 
 export const QUICK_ACTION_ROUTES: Record<QuickActionId, string> = {
   property: '/dashboard/properties/new',
-  unit: '/dashboard/units',
+  unit: '/dashboard/properties',
   tenant: '/dashboard/people',
   lease: '/dashboard/leases',
   invoice: '/dashboard/invoices',
@@ -118,7 +118,7 @@ export const QUICK_ACTION_ROUTES: Record<QuickActionId, string> = {
 
 export const QUICK_ACTION_LABELS: Record<QuickActionId, string> = {
   property: 'New Property',
-  unit: 'New Unit',
+  unit: 'Properties',
   tenant: 'New Tenant',
   lease: 'New Lease',
   invoice: 'New Invoice',

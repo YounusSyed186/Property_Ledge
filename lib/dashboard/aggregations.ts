@@ -121,18 +121,16 @@ export async function aggregateOperationalHealth(propertyIds: string[]): Promise
   const now = new Date();
   const thirtyDays = new Date(now.getTime() + 30 * ONE_DAY);
 
-  const [maintenanceRes, tasksRes, inspectionsRes, unitsRes, leasesRes] = await Promise.all([
+  const [maintenanceRes, tasksRes, inspectionsRes, leasesRes] = await Promise.all([
     supabase.from('maintenance_requests').select('status, scheduled_at, created_at, priority').in('property_id', propertyIds),
     supabase.from('tasks').select('status, due_date').in('property_id', propertyIds),
     supabase.from('inspections').select('status, scheduled_date').in('property_id', propertyIds),
-    supabase.from('units').select('status').in('property_id', propertyIds),
     supabase.from('leases').select('status, end_date').in('property_id', propertyIds),
   ]);
 
   const maintenance = (maintenanceRes.data || []) as MaintenanceRow[];
   const tasks = (tasksRes.data || []) as TaskRow[];
   const inspections = (inspectionsRes.data || []) as InspectionRow[];
-  const units = (unitsRes.data || []) as UnitRow[];
   const leases = (leasesRes.data || []) as LeaseRow[];
 
   const openMaintenanceRequests = maintenance.filter((m) => ['open', 'in_progress', 'scheduled'].includes(m.status)).length;
@@ -155,9 +153,9 @@ export async function aggregateOperationalHealth(propertyIds: string[]): Promise
 
   const expiringLeases = leases.filter((l) => l.status === 'active' && l.end_date && new Date(l.end_date).getTime() <= thirtyDays.getTime()).length;
 
-  const totalUnits = units.length;
-  const occupiedUnits = units.filter((u) => u.status === 'occupied').length;
-  const vacantUnits = units.filter((u) => u.status === 'vacant').length;
+  const totalUnits = propertyIds.length;
+  const occupiedUnits = leases.filter((l) => l.status === 'active').length;
+  const vacantUnits = Math.max(0, totalUnits - occupiedUnits);
   const occupancyRate = totalUnits > 0 ? occupiedUnits / totalUnits : null;
 
   return {

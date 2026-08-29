@@ -84,8 +84,8 @@ export function StaffDashboard({ userName }: { userName: string }) {
             </Card>
             <Card>
               <CardContent className="p-4">
-                <p className="text-caption text-admin-muted">Total Units</p>
-                <p className="text-display font-heading tabular-nums">{stats.totalUnits}</p>
+                <p className="text-caption text-admin-muted">Active Tenants</p>
+                <p className="text-display font-heading tabular-nums">{stats.activeTenants}</p>
               </CardContent>
             </Card>
           </div>

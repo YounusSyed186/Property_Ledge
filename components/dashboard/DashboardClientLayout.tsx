@@ -52,8 +52,8 @@ const NAV_GROUPS: { label: string; items: NavItemConfig[] }[] = [
   {
     label: 'People',
     items: [
-      { id: 'people', label: 'Tenants', href: '/dashboard/people', icon: Users },
-      { id: 'leases', label: 'Leases', href: '/dashboard/leases', icon: FileText },
+      { id: 'people', label: 'Tenants', href: '/dashboard/people', icon: Users, comingSoon: true },
+      { id: 'leases', label: 'Leases', href: '/dashboard/leases', icon: FileText, comingSoon: true },
     ],
   },
   {
@@ -186,8 +186,8 @@ function DashboardShellInner({
       commandMenuLinks={commandMenuLinks}
       useGlobalSearch
       settingsHref="/dashboard/settings"
-      navbarContext={<ShellContextBreadcrumb onCreateProperty={() => router.push('/dashboard/properties/new')} />}
-      mobileContextMenu={<MobileContextMenu onCreateProperty={() => router.push('/dashboard/properties/new')} />}
+      navbarContext={<ShellContextBreadcrumb onCreateProperty={() => router.push('/dashboard/properties?new=true')} />}
+      mobileContextMenu={<MobileContextMenu onCreateProperty={() => router.push('/dashboard/properties?new=true')} />}
       headerExtras={
         <div className="flex items-center gap-1.5 sm:gap-2">
           {isOnboardingPending && (

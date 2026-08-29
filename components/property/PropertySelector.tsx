@@ -22,7 +22,7 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
     if (onCreateClick) {
       onCreateClick();
     } else {
-      router.push('/dashboard/properties/new');
+      router.push('/dashboard/properties?new=true');
     }
   };
   const [isOpen, setIsOpen] = useState(false);

@@ -1,23 +1,18 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Home, Users, Wallet, AlertTriangle, DollarSign, Wrench, ClipboardCheck, FolderOpen, Activity } from 'lucide-react';
-import { Button, StatusBadge, NotFoundState } from '@/components/admin/ui';
+import { Home, Users, Wallet, AlertTriangle, DollarSign, Wrench, ClipboardCheck, FolderOpen, Activity } from 'lucide-react';
+import { StatusBadge, NotFoundState } from '@/components/admin/ui';
 import { AdminDataGrid } from '@/components/admin/data-grid';
 import { ComingSoonPage } from '@/components/dashboard/ComingSoonPage';
 import {
-  unitColumns,
   tenantColumns,
   leaseColumns,
-  maintenanceColumns,
-  documentColumns,
 } from '@/components/dashboard/entities/config';
-import { UnitDrawer } from '@/components/dashboard/units/UnitDrawer';
 import {
   fetchDashboardProperty,
-  fetchDashboardUnits,
   fetchDashboardTenants,
   fetchDashboardLeases,
   fetchDashboardMaintenance,
@@ -43,7 +38,6 @@ import {
 import { NeedsAttentionSection, buildAttentionItems } from '@/components/dashboard/overview/NeedsAttentionSection';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import { cn } from '@/lib/utils';
-import type { ColDef } from 'ag-grid-community';
 
 interface PropertyDetailHubProps {
   propertyId: string;
@@ -65,7 +59,6 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
   const router = useRouter();
   const { availableProperties, setSelectedProperty } = usePropertyContext();
   const [property, setProperty] = useState<PropertyDetail | null>(null);
-  const [units, setUnits] = useState<Array<{ id: string }>>([]);
   const [tenants, setTenants] = useState<Array<{ id: string }>>([]);
   const [leases, setLeases] = useState<Array<{ id: string }>>([]);
   const [maintenance, setMaintenance] = useState<Array<{ id: string }>>([]);
@@ -75,21 +68,11 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
   const [needsAttention, setNeedsAttention] = useState<Awaited<ReturnType<typeof fetchNeedsAttention>> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isCreate, setIsCreate] = useState(false);
-  const [selectedUnit, setSelectedUnit] = useState<{ id: string } | null>(null);
-
-  const openFinances = () => {
-    const property = availableProperties.find((p) => p.propertyId === propertyId);
-    if (property) setSelectedProperty(property);
-    router.push('/dashboard/money');
-  };
 
   const loadAll = () => {
     setIsLoading(true);
     Promise.all([
       fetchDashboardProperty(propertyId),
-      fetchDashboardUnits(propertyId),
       fetchDashboardTenants(propertyId),
       fetchDashboardLeases(propertyId),
       fetchDashboardMaintenance(propertyId),
@@ -98,9 +81,8 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
       fetchDashboardReports(propertyId),
       fetchNeedsAttention(propertyId),
     ])
-      .then(([prop, u, t, l, m, d, a, r, na]) => {
+      .then(([prop, t, l, m, d, a, r, na]) => {
         setProperty(prop as unknown as PropertyDetail);
-        setUnits(u);
         setTenants(t);
         setLeases(l);
         setMaintenance(m);
@@ -115,8 +97,6 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
   useEffect(() => {
     loadAll();
   }, [propertyId]);
-
-  const unitGridColumns = useMemo<ColDef[]>(() => [...unitColumns], []);
 
   if (isLoading) {
     return (
@@ -139,9 +119,8 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
     );
   }
 
-  const occupied = reports?.occupiedUnits ?? 0;
-  const totalUnits = units.length;
-  const occupancyPct = totalUnits > 0 ? Math.round((occupied / totalUnits) * 100) : 0;
+  const activeLease = leases.find((l: Record<string, unknown>) => l.status === 'active');
+  const isOccupied = !!activeLease;
   const attentionItems = buildAttentionItems(needsAttention);
 
   const activityItems = activity.slice(0, 8).map((log) => ({
@@ -163,15 +142,14 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
           identitySurface
           meta={
             <p className="text-[12px] text-admin-muted">
-              {property.property_type || 'Residential'} · {totalUnits} Units
+              {property.property_type || 'Standalone Property'} · {isOccupied ? 'Occupied' : 'Vacant'}
             </p>
           }
-          status={<StatusBadge domain="lease" status={property.status === 'active' ? 'active' : 'draft'} />}
+          status={<StatusBadge domain="lease" status={isOccupied ? 'active' : 'draft'} />}
           actions={
             <EntityActions
               onEdit={() => router.push('/dashboard/properties')}
               addItems={[
-                { label: 'Add Unit', onClick: () => { setSelectedUnit(null); setIsCreate(true); setIsDrawerOpen(true); } },
                 { label: 'Add Tenant', onClick: () => router.push('/dashboard/people') },
                 { label: 'Create Lease', onClick: () => router.push('/dashboard/leases') },
               ]}
@@ -182,7 +160,6 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
         <HubTabs
           tabs={[
             { value: 'overview', label: 'Overview' },
-            { value: 'units', label: 'Units', count: units.length },
             { value: 'tenants', label: 'Tenants', count: tenants.length },
             { value: 'leases', label: 'Leases', count: leases.length },
             { value: 'finances', label: 'Finances' },
@@ -200,9 +177,9 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
         {activeTab === 'overview' && (
           <div className="min-h-0 flex-1 space-y-6 overflow-y-auto no-scrollbar">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <CompactKpiCard label="Units" value={totalUnits} icon={Home} accent="blue" />
-              <CompactKpiCard label="Occupancy" value={`${occupancyPct}%`} hint={`${occupied} of ${totalUnits} occupied`} icon={Users} accent="teal" />
-              <CompactKpiCard label="Monthly Rent" value={formatCurrency(reports?.monthlyRent ?? 0)} icon={Wallet} accent="indigo" />
+              <CompactKpiCard label="Status" value={isOccupied ? 'Occupied' : 'Vacant'} icon={Home} accent={isOccupied ? 'teal' : 'amber'} />
+              <CompactKpiCard label="Tenants" value={tenants.length} icon={Users} accent="indigo" />
+              <CompactKpiCard label="Monthly Rent" value={formatCurrency(reports?.monthlyRent ?? 0)} icon={Wallet} accent="teal" />
               <CompactKpiCard label="Outstanding" value={formatCurrency(reports?.outstandingBalance ?? 0)} icon={AlertTriangle} accent="amber" />
             </div>
             {attentionItems.length > 0 && (
@@ -221,28 +198,6 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
               </div>
             </SectionPanel>
           </div>
-        )}
-
-        {activeTab === 'units' && (
-          <ListPageGrid>
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-              <div className="flex shrink-0 justify-end">
-                <Button size="sm" onClick={() => { setSelectedUnit(null); setIsCreate(true); setIsDrawerOpen(true); }}>
-                  <Plus className="mr-1 h-3 w-3" /> Add Unit
-                </Button>
-              </div>
-              <div className="flex min-h-0 flex-1 flex-col">
-                <AdminDataGrid
-                  rowData={units}
-                  columnDefs={unitGridColumns}
-                  labelSingular="unit"
-                  labelPlural="units"
-                  onRowClick={(row) => router.push(`/dashboard/properties/${propertyId}/units/${row.id}`)}
-                  getRowId={(p) => p.data.id}
-                />
-              </div>
-            </div>
-          </ListPageGrid>
         )}
 
         {activeTab === 'tenants' && (
@@ -311,15 +266,6 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
           />
         )}
       </PageContent>
-
-      <UnitDrawer
-        entity={selectedUnit}
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        onSuccess={() => { setIsDrawerOpen(false); loadAll(); }}
-        propertyId={propertyId}
-        isCreate={isCreate}
-      />
     </PageLayout>
   );
 }

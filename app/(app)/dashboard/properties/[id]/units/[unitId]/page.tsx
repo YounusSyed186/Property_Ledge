@@ -1,10 +1,10 @@
-import { UnitDetailHub } from '@/components/dashboard/hubs/UnitDetailHub';
+import { redirect } from 'next/navigation';
 
 export default async function Page({
   params,
 }: {
   params: Promise<{ id: string; unitId: string }>;
 }) {
-  const { id, unitId } = await params;
-  return <UnitDetailHub propertyId={id} unitId={unitId} />;
+  const { id } = await params;
+  redirect(`/dashboard/properties/${id}`);
 }

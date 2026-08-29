@@ -5,7 +5,6 @@ import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button, Input, Select, Textarea, useToast } from '@/components/admin/ui';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import {
-  fetchDashboardUnits,
   fetchDashboardTenants,
   handleCreateLease,
 } from '@/app/actions/dashboard';
@@ -15,33 +14,27 @@ interface CreateLeaseWizardProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
-  preselectedUnitId?: string;
   preselectedTenantId?: string;
 }
 
-type UnitRow = { id: string; name: string; unit_number: string; rent_amount: number | null };
 type TenantRow = { id: string; first_name: string; last_name: string; email: string };
 
-const STEPS = ['Unit', 'Tenant', 'Terms', 'Review'];
+const STEPS = ['Tenant', 'Terms', 'Review'];
 
 export function CreateLeaseWizard({
   isOpen,
   onClose,
   onSuccess,
-  preselectedUnitId,
   preselectedTenantId,
 }: CreateLeaseWizardProps) {
   const { selectedProperty } = usePropertyContext();
   const { success, error: showError } = useToast();
   const [step, setStep] = useState(0);
-  const [units, setUnits] = useState<UnitRow[]>([]);
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showNextActions, setShowNextActions] = useState(false);
-  const [createdLeaseId, setCreatedLeaseId] = useState<string | null>(null);
 
-  const [unitId, setUnitId] = useState(preselectedUnitId || '');
   const [tenantId, setTenantId] = useState(preselectedTenantId || '');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -54,12 +47,8 @@ export function CreateLeaseWizard({
   useEffect(() => {
     if (!isOpen || !selectedProperty) return;
     setIsLoading(true);
-    Promise.all([
-      fetchDashboardUnits(selectedProperty.propertyId),
-      fetchDashboardTenants(selectedProperty.propertyId),
-    ])
-      .then(([unitData, tenantData]) => {
-        setUnits(unitData as UnitRow[]);
+    fetchDashboardTenants(selectedProperty.propertyId)
+      .then((tenantData) => {
         setTenants(tenantData as TenantRow[]);
       })
       .finally(() => setIsLoading(false));
@@ -68,7 +57,6 @@ export function CreateLeaseWizard({
   useEffect(() => {
     if (!isOpen) {
       setStep(0);
-      setUnitId(preselectedUnitId || '');
       setTenantId(preselectedTenantId || '');
       setStartDate('');
       setEndDate('');
@@ -78,25 +66,14 @@ export function CreateLeaseWizard({
       setRentFrequency('monthly');
       setNotes('');
       setShowNextActions(false);
-      setCreatedLeaseId(null);
     }
-  }, [isOpen, preselectedUnitId, preselectedTenantId]);
+  }, [isOpen, preselectedTenantId]);
 
-  const selectedUnit = units.find((u) => u.id === unitId);
   const selectedTenant = tenants.find((t) => t.id === tenantId);
 
-  const handleUnitSelect = (id: string) => {
-    setUnitId(id);
-    const unit = units.find((u) => u.id === id);
-    if (unit?.rent_amount) {
-      setRentAmount(String(unit.rent_amount));
-    }
-  };
-
   const canProceed = () => {
-    if (step === 0) return !!unitId;
-    if (step === 1) return !!tenantId;
-    if (step === 2) return startDate && endDate && rentAmount;
+    if (step === 0) return !!tenantId;
+    if (step === 1) return startDate && endDate && rentAmount;
     return true;
   };
 
@@ -104,10 +81,9 @@ export function CreateLeaseWizard({
     if (!selectedProperty) return;
     setIsSaving(true);
     try {
-      const result = await handleCreateLease(
+      await handleCreateLease(
         selectedProperty.propertyId,
         {
-          unit_id: unitId,
           start_date: startDate,
           end_date: endDate,
           rent_amount: Number(rentAmount),
@@ -119,8 +95,6 @@ export function CreateLeaseWizard({
         },
         [tenantId]
       );
-      const leaseId = (result as { data?: { id: string } }).data?.id;
-      setCreatedLeaseId(leaseId || null);
       success('Lease created', 'Your lease draft has been created.');
       setShowNextActions(true);
     } catch (err) {
@@ -154,7 +128,7 @@ export function CreateLeaseWizard({
     <>
       <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={onClose} />
-        <div className="relative w-full max-w-lg bg-admin-surface border border-admin-border rounded-2xl shadow-2xl overflow-hidden">
+        <div className="relative w-full max-w-lg bg-admin-surface border border-admin-border rounded-2xl shadow-2xl overflow-hidden z-10">
           <div className="flex items-center justify-between px-6 py-4 border-b border-admin-border">
             <div>
               <h2 className="workspace-page-title">Create Lease</h2>
@@ -174,29 +148,7 @@ export function CreateLeaseWizard({
               </div>
             ) : step === 0 ? (
               <div className="space-y-2">
-                <p className="text-sm text-admin-muted mb-3">Select the unit for this lease.</p>
-                {units.map((unit) => (
-                  <button
-                    key={unit.id}
-                    type="button"
-                    onClick={() => handleUnitSelect(unit.id)}
-                    className={`w-full text-left p-3 rounded-xl border transition-all ${
-                      unitId === unit.id
-                        ? 'border-admin-primary bg-admin-primary-soft'
-                        : 'border-admin-border hover:border-admin-primary/50'
-                    }`}
-                  >
-                    <p className="font-medium">{unit.name}</p>
-                    <p className="text-sm text-admin-muted">Unit {unit.unit_number}</p>
-                  </button>
-                ))}
-                {units.length === 0 && (
-                  <p className="text-sm text-admin-muted text-center py-8">No units available. Add a unit first.</p>
-                )}
-              </div>
-            ) : step === 1 ? (
-              <div className="space-y-2">
-                <p className="text-sm text-admin-muted mb-3">Select the primary tenant.</p>
+                <p className="text-sm text-admin-muted mb-3">Select the primary tenant for this property.</p>
                 {tenants.map((tenant) => (
                   <button
                     key={tenant.id}
@@ -216,7 +168,7 @@ export function CreateLeaseWizard({
                   <p className="text-sm text-admin-muted text-center py-8">No tenants available. Add a tenant first.</p>
                 )}
               </div>
-            ) : step === 2 ? (
+            ) : step === 1 ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -261,7 +213,7 @@ export function CreateLeaseWizard({
             ) : (
               <div className="space-y-3 text-sm">
                 <div className="p-4 rounded-xl bg-admin-surface-subtle border border-admin-border space-y-2">
-                  <p><span className="text-admin-muted">Unit:</span> {selectedUnit?.name} ({selectedUnit?.unit_number})</p>
+                  <p><span className="text-admin-muted">Property:</span> {selectedProperty?.propertyName}</p>
                   <p><span className="text-admin-muted">Tenant:</span> {selectedTenant?.first_name} {selectedTenant?.last_name}</p>
                   <p><span className="text-admin-muted">Term:</span> {startDate} → {endDate}</p>
                   <p><span className="text-admin-muted">Rent:</span> ${rentAmount} / {rentFrequency}</p>

@@ -377,24 +377,66 @@ export const taskColumns: ColDef[] = [
 ];
 
 export const propertyFields: DrawerField[] = [
-  { name: 'name', label: 'Property Name', type: 'text', required: true },
-  { name: 'property_type', label: 'Type', type: 'text', placeholder: 'apartment, house, etc.' },
-  { name: 'address_line_1', label: 'Address Line 1', type: 'text', required: true },
-  { name: 'address_line_2', label: 'Address Line 2', type: 'text' },
-  { name: 'city', label: 'City', type: 'text', required: true },
-  { name: 'state', label: 'State', type: 'text', required: true },
-  { name: 'postal_code', label: 'Postal Code', type: 'text', required: true },
-  { name: 'country', label: 'Country', type: 'text' },
+  { name: 'address_line_1', label: 'Street Address', type: 'text', required: true },
+  { name: 'suburb', label: 'Suburb', type: 'text', required: true },
+  { name: 'state', label: 'State/Territory', type: 'text', required: true },
+  { name: 'postcode', label: 'Postcode', type: 'text', required: true },
+  {
+    name: 'property_category',
+    label: 'Category',
+    type: 'select',
+    required: true,
+    options: [
+      { value: 'Residential', label: 'Residential' },
+      { value: 'Commercial', label: 'Commercial' },
+    ],
+  },
+  { name: 'property_type', label: 'Property Type', type: 'text', required: true, placeholder: 'House, Apartment/Unit, Townhouse, etc.' },
   { name: 'bedrooms', label: 'Bedrooms', type: 'number' },
   { name: 'bathrooms', label: 'Bathrooms', type: 'number' },
+  { name: 'car_spaces', label: 'Car Spaces', type: 'number' },
+  { name: 'rent_amount', label: 'Advertised Rent ($)', type: 'number' },
+  {
+    name: 'payment_frequency',
+    label: 'Payment Frequency',
+    type: 'select',
+    options: [
+      { value: 'Weekly', label: 'Weekly' },
+      { value: 'Fortnightly', label: 'Fortnightly' },
+      { value: 'Monthly', label: 'Monthly' },
+    ],
+  },
   { name: 'description', label: 'Description', type: 'textarea' },
 ];
 
 export const propertyColumns: ColDef[] = [
-  { field: 'name', headerName: 'Property', flex: 2, minWidth: 160 },
+  {
+    field: 'address_line_1',
+    headerName: 'Property Address',
+    flex: 2,
+    minWidth: 180,
+    valueGetter: (params) => params.data?.address_line_1 || params.data?.address || params.data?.name || '—',
+  },
+  {
+    field: 'suburb',
+    headerName: 'Suburb / City',
+    flex: 1.2,
+    minWidth: 130,
+    valueGetter: (params) => params.data?.suburb || params.data?.city || '—',
+  },
+  { field: 'state', headerName: 'State', width: 90 },
   { field: 'property_type', headerName: 'Type', flex: 1.2, minWidth: 130 },
-  { field: 'city', headerName: 'City', flex: 1.2, minWidth: 120 },
+  {
+    field: 'rent_amount',
+    headerName: 'Advertised Rent',
+    flex: 1.2,
+    minWidth: 130,
+    cellRenderer: (params: { data: Record<string, unknown> }) => {
+      const rent = params.data?.rent_amount;
+      const freq = params.data?.payment_frequency || 'Weekly';
+      if (rent === undefined || rent === null || rent === '') return '—';
+      return `$${Number(rent)} / ${freq === 'Monthly' ? 'mo' : 'wk'}`;
+    },
+  },
   { field: 'status', headerName: 'Status', flex: 1, minWidth: 110, cellRenderer: 'statusCell' },
-  { field: 'units_count', headerName: 'Units', flex: 0.8, minWidth: 80 },
-  { field: 'tenants_count', headerName: 'Tenants', flex: 0.8, minWidth: 90 },
 ];
