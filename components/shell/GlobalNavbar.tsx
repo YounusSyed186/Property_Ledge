@@ -10,7 +10,7 @@ import { AccountMenu } from './AccountMenu';
 import { HelpMenu } from './HelpMenu';
 import { cn } from '@/lib/utils';
 
-export const SHELL_NAVBAR_HEIGHT = 48;
+export const SHELL_NAVBAR_HEIGHT = 52;
 
 interface GlobalNavbarProps {
   homeHref: string;
@@ -75,19 +75,17 @@ export function GlobalNavbar({
           {mobileMenuOpen ? <X className="h-3.5 w-3.5" /> : <Menu className="h-3.5 w-3.5" />}
         </motion.button>
 
-        <Link href={homeHref} className="flex shrink-0 items-center gap-1.5 group">
-          <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-md border border-admin-sidebar-border bg-admin-sidebar-surface">
-            <img
-              src={isShellDark ? '/logo_Dark.png' : '/logo_Light.png'}
-              alt=""
-              className="h-3.5 w-3.5 object-contain"
-            />
-          </div>
-          <span className="hidden font-heading text-xs font-bold tracking-tight text-admin-sidebar-foreground sm:inline">
+        <Link href={homeHref} className="flex shrink-0 items-center gap-2 group py-0.5 md:hidden">
+          <img
+            src={isShellDark ? '/logo_Dark.png' : '/logo_Light.png'}
+            alt="PropertyLedge"
+            className="h-6 w-auto object-contain shrink-0"
+          />
+          <span className="font-heading text-sm font-bold tracking-tight text-admin-sidebar-foreground">
             {brandLabel}
           </span>
           {brandBadge && (
-            <span className="hidden rounded border border-admin-sidebar-border bg-admin-sidebar-surface px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider text-admin-sidebar-muted sm:inline">
+            <span className="rounded bg-[#008F83]/15 text-[#32D5C4] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider">
               {brandBadge}
             </span>
           )}
@@ -106,18 +104,24 @@ export function GlobalNavbar({
       <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
         {headerExtras}
 
+        {/* Environment Indicator: Production Hub */}
+        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F5FAF9] dark:bg-[#071526] border border-[#DCEDE9] dark:border-[#17283A] text-[#3E5C58] dark:text-[#AEB8C3] text-[11px] font-medium select-none">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#13A26B]" />
+          <span>Production Hub</span>
+        </div>
+
         <motion.button
           type="button"
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
           onClick={onSearchOpen}
           className={cn(
-            'hidden items-center gap-1.5 rounded-md border border-admin-shell-search-border bg-admin-shell-search-bg px-2 py-1 text-[11px] text-admin-sidebar-muted transition-colors hover:border-admin-primary/40 hover:text-admin-sidebar-foreground sm:flex',
-            'min-w-[120px] lg:min-w-[150px]'
+            'hidden items-center gap-1.5 rounded-lg border border-admin-sidebar-border bg-[#071526] px-2.5 py-1 text-[11px] text-admin-sidebar-muted transition-all hover:border-[#008F83]/50 hover:text-admin-sidebar-foreground sm:flex',
+            'min-w-[130px] lg:min-w-[160px]'
           )}
           aria-label="Open search"
         >
-          <Search className="h-3 w-3 shrink-0" />
+          <Search className="h-3 w-3 shrink-0 text-admin-sidebar-muted" />
           <span className="flex-1 text-left">Search…</span>
           <kbd className="hidden rounded border border-admin-sidebar-border bg-admin-sidebar px-1 py-px font-mono text-[9px] text-admin-sidebar-muted lg:inline">
             ⌘K
@@ -129,7 +133,7 @@ export function GlobalNavbar({
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={onSearchOpen}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-admin-sidebar-border text-admin-sidebar-muted transition-colors hover:bg-admin-sidebar-hover hover:text-admin-sidebar-foreground sm:hidden"
+          className="flex h-7 w-7 items-center justify-center rounded-lg border border-admin-sidebar-border text-admin-sidebar-muted transition-colors hover:bg-admin-sidebar-hover hover:text-admin-sidebar-foreground sm:hidden"
           aria-label="Open search"
         >
           <Search className="h-3.5 w-3.5" />

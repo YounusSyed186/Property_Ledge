@@ -16,7 +16,7 @@ interface OnboardingPlansClientProps {
 
 export function OnboardingPlansClient({ plans, recommendedPlanId }: OnboardingPlansClientProps) {
   const { navigate } = useOnboardingNav();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(recommendedPlanId || null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,8 +40,12 @@ export function OnboardingPlansClient({ plans, recommendedPlanId }: OnboardingPl
 
   return (
     <OnboardingContent>
-      <OnboardingStep eyebrow="Plans" title="Choose your plan" description="Select the plan that fits your portfolio size.">
-        <div className="grid gap-4 sm:grid-cols-2">
+      <OnboardingStep 
+        eyebrow="Step 2 of 4" 
+        title="Choose your plan." 
+        description="Select the subscription plan that matches your property portfolio size."
+      >
+        <div className="grid gap-4 sm:grid-cols-2 mt-6">
           {plans.map((plan) => (
             <PlanCard
               key={plan.id}
@@ -52,6 +56,11 @@ export function OnboardingPlansClient({ plans, recommendedPlanId }: OnboardingPl
                 description: plan.description,
                 price_cents: plan.price_cents ?? 0,
                 billing_interval: plan.billing_interval,
+                features: plan.slug === 'manager' 
+                  ? ['Up to 50 properties', 'Advanced tenant screening', 'Standard reporting'] 
+                  : plan.slug === 'landlord'
+                  ? ['Up to 5 properties', 'Core lease management', 'Email support']
+                  : ['Unlimited properties', 'API & webhooks', 'Custom contract options']
               }}
               recommended={plan.id === recommendedPlanId}
               selected={selectedId === plan.id}
@@ -61,7 +70,7 @@ export function OnboardingPlansClient({ plans, recommendedPlanId }: OnboardingPl
         </div>
 
         {plans.length === 0 && (
-          <p className="text-sm text-admin-muted">No plans are available right now. You can continue to property setup.</p>
+          <p className="text-sm text-admin-muted mt-6">No plans are available right now. You can continue to property setup.</p>
         )}
 
         <OnboardingFooter

@@ -55,10 +55,21 @@ test.describe('resolveUserDestination', () => {
     expect(result).toBeNull();
   });
 
-  test('redirects incomplete onboarding to workspace step', () => {
+  test('allows dashboard when onboarding is in progress (non-blocking)', () => {
     const result = resolveUserDestination({
       isAuthenticated: true,
       pathname: '/dashboard',
+      persona: 'owner',
+      onboardingStatus: 'in_progress',
+      onboardingRoute: '/onboarding/workspace',
+    });
+    expect(result).toBeNull();
+  });
+
+  test('routes authenticated user from login to onboarding route if onboarding incomplete', () => {
+    const result = resolveUserDestination({
+      isAuthenticated: true,
+      pathname: '/login',
       persona: 'owner',
       onboardingStatus: 'in_progress',
       onboardingRoute: '/onboarding/workspace',

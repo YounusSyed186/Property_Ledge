@@ -166,28 +166,28 @@ export function AdminDataGridToolbar({
         /* Normal Toolbar */
         <div className={cn('flex flex-col lg:flex-row lg:items-center justify-between', compact ? 'gap-1' : 'gap-2')}>
           {/* Left: Quick Filters & Search */}
-          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
             {leftContent}
 
             {/* Global Search Bar */}
-            <div className={cn('relative flex-1 min-w-[180px]', compact ? 'max-w-[220px]' : 'max-w-xs')}>
-              <Search className="w-3 h-3 text-admin-muted absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <div className={cn('relative flex-1 min-w-[190px]', compact ? 'max-w-[220px]' : 'max-w-xs')}>
+              <Search className="w-4 h-4 text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchValue}
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder={searchPlaceholder}
-                className="w-full h-7 pl-7 pr-6 rounded-md bg-admin-surface-subtle border border-admin-border text-[11px] text-admin-foreground placeholder:text-admin-muted/60 focus:outline-none focus:ring-1 focus:ring-admin-primary/30 focus:border-admin-primary transition-all"
+                className="w-full h-8 pl-8 pr-7 rounded-lg bg-surface border border-border text-[12px] text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-[#008F83]/20 focus:border-[#008F83] transition-all shadow-2xs"
                 aria-label={searchPlaceholder}
               />
               {searchValue && (
                 <button
                   type="button"
                   onClick={() => onSearchChange('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-admin-muted hover:text-admin-foreground"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted hover:text-foreground"
                   aria-label="Clear search"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
@@ -207,23 +207,23 @@ export function AdminDataGridToolbar({
                     refreshColumns();
                     setIsColumnMenuOpen(!isColumnMenuOpen);
                   }}
-                  leftIcon={<Columns className="w-3.5 h-3.5" />}
+                  leftIcon={<Columns className="w-4 h-4" />}
                   title="Columns"
                 >
                   {!compact && 'Columns'}
                 </Button>
 
                 {isColumnMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 p-2 rounded-xl bg-admin-surface border border-admin-border shadow-elevation-2 z-dropdown animate-slide-up">
-                    <div className="flex items-center justify-between px-2 py-1.5 border-b border-admin-divider mb-1">
-                      <span className="text-caption font-bold text-admin-foreground">Toggle Columns</span>
+                  <div className="absolute right-0 mt-2 w-56 p-2 rounded-xl bg-surface border border-border shadow-elevation-2 z-dropdown animate-slide-up">
+                    <div className="flex items-center justify-between px-2 py-1.5 border-b border-divider mb-1">
+                      <span className="text-caption font-bold text-foreground">Toggle Columns</span>
                       <button
                         type="button"
                         onClick={resetColumns}
-                        className="text-metadata text-admin-muted hover:text-admin-primary flex items-center gap-1"
+                        className="text-metadata text-muted hover:text-[#008F83] flex items-center gap-1"
                         title="Reset column layout"
                       >
-                        <RotateCcw className="w-3 h-3" />
+                        <RotateCcw className="w-3.5 h-3.5" />
                         <span>Reset</span>
                       </button>
                     </div>
@@ -231,13 +231,13 @@ export function AdminDataGridToolbar({
                       {columns.map((col) => (
                         <label
                           key={col.colId}
-                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-admin-surface-subtle cursor-pointer text-caption text-admin-foreground transition-colors"
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-subtle cursor-pointer text-caption text-foreground transition-colors"
                         >
                           <input
                             type="checkbox"
                             checked={col.isVisible}
                             onChange={() => toggleColumn(col.colId, col.isVisible)}
-                            className="rounded border-admin-border text-admin-foreground focus:ring-admin-primary/40"
+                            className="w-4 h-4 rounded border-border text-[#008F83] accent-[#008F83] focus:ring-[#008F83]/30"
                           />
                           <span className="truncate">{col.headerName}</span>
                         </label>
@@ -254,7 +254,7 @@ export function AdminDataGridToolbar({
                 variant="secondary"
                 size="sm"
                 onClick={handleExportCsv}
-                leftIcon={<Download className="w-3.5 h-3.5" />}
+                leftIcon={<Download className="w-4 h-4" />}
                 title="Export CSV"
               >
                 {!compact && 'Export'}
@@ -263,8 +263,8 @@ export function AdminDataGridToolbar({
 
             {/* Total Count Badge */}
             {totalCount !== undefined && !compact && (
-              <div className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-md bg-admin-surface-subtle text-[11px] text-admin-muted border border-admin-border-subtle">
-                <span className="font-bold text-admin-foreground">{totalCount}</span>
+              <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface text-[11px] text-muted border border-border font-medium shadow-2xs">
+                <span className="font-bold text-foreground">{totalCount}</span>
                 <span>{totalCount === 1 ? labelSingular : labelPlural}</span>
               </div>
             )}

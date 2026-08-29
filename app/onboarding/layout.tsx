@@ -20,8 +20,10 @@ export default async function OnboardingLayout({ children }: { children: React.R
     redirect('/dashboard');
   }
 
+  const workspaceName = resolution.context.workspaceName || undefined;
+
   return (
-    <OnboardingShell userName={userName} userEmail={user.email || ''}>
+    <OnboardingShell userName={userName} userEmail={user.email || ''} workspaceName={workspaceName}>
       {children}
     </OnboardingShell>
   );

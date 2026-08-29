@@ -303,5 +303,3 @@ WHERE wm.status = 'invited'
 
 -- Remove invited placeholder member rows (invitation is now separate)
 DELETE FROM public.workspace_members WHERE status = 'invited';
-
-DROP FUNCTION IF EXISTS public.generate_profile_public_id();

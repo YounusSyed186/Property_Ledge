@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Button } from "@/components/ui/Button";
-import { Menu, X, ChevronDown, Sparkles, Building2, DollarSign, FileText, ClipboardCheck, BarChart3, User, LogOut, Grid, ShieldCheck } from "lucide-react";
+import { Menu, X, ChevronDown, Sparkles, Building2, DollarSign, FileText, ClipboardCheck, BarChart3, User, LogOut, Grid, ShieldCheck, ArrowRight } from "lucide-react";
 import { ServicesDropdown } from "@/components/marketing/owners/ServicesDropdown";
 import { services } from "@/lib/owners/owner-data";
 import { createClient } from "@/lib/supabase/client";
@@ -20,6 +20,7 @@ export function Navbar() {
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [user, setUser] = useState<any>(null);
+  const [isOnboardingPending, setIsOnboardingPending] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -39,27 +40,45 @@ export function Navbar() {
     async function fetchUserData(sessionUser: any) {
       if (!sessionUser) {
         setUser(null);
+        setIsOnboardingPending(false);
         return;
       }
       try {
-        const { data: profile } = await (supabase as any)
-          .from("profiles")
-          .select("full_name, avatar_url")
-          .eq("id", sessionUser.id)
-          .maybeSingle();
+        const [{ data: profile }, { data: accountContext }] = await Promise.all([
+          (supabase as any)
+            .from("profiles")
+            .select("full_name, avatar_url")
+            .eq("id", sessionUser.id)
+            .maybeSingle(),
+          (supabase as any)
+            .from("account_context")
+            .select("onboarding_status")
+            .eq("user_id", sessionUser.id)
+            .maybeSingle(),
+        ]);
 
+        const onboardingStatus =
+          accountContext?.onboarding_status ??
+          sessionUser.user_metadata?.onboarding?.status ??
+          "not_started";
+
+        setIsOnboardingPending(onboardingStatus !== "completed");
         setUser({
           id: sessionUser.id,
           email: sessionUser.email,
           full_name: profile?.full_name || sessionUser.user_metadata?.full_name || sessionUser.email?.split("@")[0],
           avatar_url: profile?.avatar_url || sessionUser.user_metadata?.avatar_url,
+          onboardingStatus,
         });
       } catch {
+        const metaStatus = sessionUser.user_metadata?.onboarding?.status ?? "not_started";
+        setIsOnboardingPending(metaStatus !== "completed");
         setUser({
           id: sessionUser.id,
           email: sessionUser.email,
           full_name: sessionUser.user_metadata?.full_name || sessionUser.email?.split("@")[0],
           avatar_url: sessionUser.user_metadata?.avatar_url,
+          onboardingStatus: metaStatus,
         });
       }
     }
@@ -234,84 +253,112 @@ export function Navbar() {
         {/* Right Action Items */}
         <div className="hidden md:flex items-center gap-3">
           {user ? (
-            <div className="relative" ref={profileMenuRef}>
-              <button
-                type="button"
-                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                className="flex items-center gap-2.5 px-3 py-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-all border border-black/10 dark:border-white/15 focus:outline-none bg-surface-subtle/50 dark:bg-[#1A2226]"
-              >
-                {user.avatar_url ? (
-                  <img
-                    src={user.avatar_url}
-                    alt={user.full_name || "Profile"}
-                    className="w-7 h-7 rounded-full object-cover border border-accent shadow-sm shrink-0"
-                  />
-                ) : (
-                  <div className="w-7 h-7 rounded-full bg-foreground text-background font-bold text-xs flex items-center justify-center shadow-sm shrink-0">
-                    {user.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
-                  </div>
-                )}
-                <span className="text-xs font-bold text-foreground max-w-[140px] truncate">
-                  {user.full_name || "Account"}
-                </span>
-                <ChevronDown className={`w-3.5 h-3.5 text-muted transition-transform duration-200 ${profileMenuOpen ? "rotate-180" : ""}`} />
-              </button>
+            <>
+              {isOnboardingPending && (
+                <Link
+                  href="/onboarding"
+                  className={`inline-flex items-center gap-1.5 font-bold text-xs transition-all duration-300 rounded-full group select-none active:scale-[0.98] bg-[#C7A66A] text-[#071014] hover:bg-[#D4B57D] shadow-md shadow-[#C7A66A]/20 border border-[#C7A66A]/40 ${
+                    isScrolled ? "px-3.5 py-1.5 h-8" : "px-4 py-2 h-9"
+                  }`}
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#071014] opacity-50"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#071014]"></span>
+                  </span>
+                  <span>Continue Setup</span>
+                  <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+                </Link>
+              )}
 
-              {/* Profile Dropdown Menu */}
-              {profileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-surface dark:bg-[#121719] border border-border dark:border-[#2A3032] rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="p-3 border-b border-border/70 dark:border-[#2A3032]/70 flex items-center gap-3">
-                    {user.avatar_url ? (
-                      <img
-                        src={user.avatar_url}
-                        alt={user.full_name}
-                        className="w-9 h-9 rounded-full object-cover border border-accent"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-foreground text-background font-bold text-xs flex items-center justify-center">
-                        {user.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
+              <div className="relative" ref={profileMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-all border border-black/10 dark:border-white/15 focus:outline-none bg-surface-subtle/50 dark:bg-[#1A2226]"
+                >
+                  {user.avatar_url ? (
+                    <img
+                      src={user.avatar_url}
+                      alt={user.full_name || "Profile"}
+                      className="w-7 h-7 rounded-full object-cover border border-accent shadow-sm shrink-0"
+                    />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-foreground text-background font-bold text-xs flex items-center justify-center shadow-sm shrink-0">
+                      {user.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
+                    </div>
+                  )}
+                  <span className="text-xs font-bold text-foreground max-w-[140px] truncate">
+                    {user.full_name || "Account"}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-muted transition-transform duration-200 ${profileMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {/* Profile Dropdown Menu */}
+                {profileMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-surface dark:bg-[#121719] border border-border dark:border-[#2A3032] rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="p-3 border-b border-border/70 dark:border-[#2A3032]/70 flex items-center gap-3">
+                      {user.avatar_url ? (
+                        <img
+                          src={user.avatar_url}
+                          alt={user.full_name}
+                          className="w-9 h-9 rounded-full object-cover border border-accent"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-foreground text-background font-bold text-xs flex items-center justify-center">
+                          {user.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-foreground truncate">{user.full_name || "User"}</p>
+                        <p className="text-[10px] text-muted truncate">{user.email}</p>
                       </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-foreground truncate">{user.full_name || "User"}</p>
-                      <p className="text-[10px] text-muted truncate">{user.email}</p>
+                    </div>
+
+                    <div className="py-1.5 space-y-0.5 text-xs font-medium">
+                      {isOnboardingPending && (
+                        <Link
+                          href="/onboarding"
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[#C7A66A] font-bold bg-[#C7A66A]/10 hover:bg-[#C7A66A]/20 transition-colors"
+                        >
+                          <Sparkles className="w-4 h-4 text-[#C7A66A]" />
+                          <span>Continue Setup</span>
+                        </Link>
+                      )}
+                      <Link
+                        href="/profile"
+                        onClick={() => setProfileMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-accent/10 hover:text-accent transition-colors"
+                      >
+                        <User className="w-4 h-4 text-accent" />
+                        <span>Account Management</span>
+                      </Link>
+                      <Link
+                        href="/dashboard"
+                        onClick={() => setProfileMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-accent/10 hover:text-accent transition-colors"
+                      >
+                        <Grid className="w-4 h-4 text-accent" />
+                        <span>Workspace</span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setProfileMenuOpen(false);
+                          const { logoutAction } = await import("@/lib/auth/actions");
+                          await logoutAction();
+                          window.location.href = "/login";
+                        }}
+                        className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Log Out</span>
+                      </button>
                     </div>
                   </div>
-
-                  <div className="py-1.5 space-y-0.5 text-xs font-medium">
-                    <Link
-                      href="/profile"
-                      onClick={() => setProfileMenuOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-accent/10 hover:text-accent transition-colors"
-                    >
-                      <User className="w-4 h-4 text-accent" />
-                      <span>Account Management</span>
-                    </Link>
-                    <Link
-                      href="/dashboard"
-                      onClick={() => setProfileMenuOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-accent/10 hover:text-accent transition-colors"
-                    >
-                      <Grid className="w-4 h-4 text-accent" />
-                      <span>Workspace</span>
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        setProfileMenuOpen(false);
-                        const { logoutAction } = await import("@/lib/auth/actions");
-                        await logoutAction();
-                        window.location.href = "/login";
-                      }}
-                      className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Log Out</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </>
           ) : (
             <>
               <Link
@@ -415,6 +462,20 @@ export function Navbar() {
             <div className="flex flex-col gap-3 pt-4">
               {user ? (
                 <>
+                  {isOnboardingPending && (
+                    <Link
+                      href="/onboarding"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-bold rounded-lg bg-[#C7A66A] text-[#071014] hover:bg-[#D4B57D] shadow-md shadow-[#C7A66A]/20"
+                    >
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#071014] opacity-50"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#071014]"></span>
+                      </span>
+                      <span>Continue Setup</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  )}
                   <Link
                     href="/profile"
                     onClick={() => setMobileMenuOpen(false)}

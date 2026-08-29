@@ -391,10 +391,10 @@ export const propertyFields: DrawerField[] = [
 ];
 
 export const propertyColumns: ColDef[] = [
-  { field: 'name', headerName: 'Property', flex: 1, minWidth: 180 },
-  { field: 'property_type', headerName: 'Type', width: 110 },
-  { field: 'city', headerName: 'City', width: 120 },
-  { field: 'status', headerName: 'Status', width: 110, cellRenderer: 'statusCell' },
-  { field: 'units_count', headerName: 'Units', width: 80 },
-  { field: 'tenants_count', headerName: 'Tenants', width: 90 },
+  { field: 'name', headerName: 'Property', flex: 2, minWidth: 160 },
+  { field: 'property_type', headerName: 'Type', flex: 1.2, minWidth: 130 },
+  { field: 'city', headerName: 'City', flex: 1.2, minWidth: 120 },
+  { field: 'status', headerName: 'Status', flex: 1, minWidth: 110, cellRenderer: 'statusCell' },
+  { field: 'units_count', headerName: 'Units', flex: 0.8, minWidth: 80 },
+  { field: 'tenants_count', headerName: 'Tenants', flex: 0.8, minWidth: 90 },
 ];

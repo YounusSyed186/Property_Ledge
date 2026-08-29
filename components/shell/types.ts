@@ -6,11 +6,15 @@ export interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   /** When true, only highlight on exact path match (not child routes). */
   exact?: boolean;
+  /** When true, renders a Coming Soon badge and dims the item. */
+  comingSoon?: boolean;
 }
 
 export interface NavSection {
   label: string;
   items: NavItem[];
+  /** Optional badge shown next to the section label (e.g. "Coming soon"). */
+  badge?: string;
 }
 
 export interface PageContext {

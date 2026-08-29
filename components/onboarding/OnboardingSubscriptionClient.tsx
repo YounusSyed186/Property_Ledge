@@ -54,16 +54,16 @@ export function OnboardingSubscriptionClient({ plans, recommendedPlanId }: Onboa
   return (
     <OnboardingContent>
       <OnboardingStep
-        eyebrow="Get started"
-        title="How would you like to start?"
-        description="Choose the option that works best for your portfolio. You can change your plan later."
+        eyebrow="Step 2 of 4"
+        title="Choose your experience."
+        description="Select the option that fits your portfolio. You can adjust your plan at any time."
       >
-        <div className="space-y-2">
+        <div className="space-y-3 mt-6">
           <SelectionCard
             id="explore"
             name="startChoice"
             title="Explore first"
-            description="Get into PropertyLedge and set up at your own pace"
+            description="Get into PropertyLedge and set up your workspace at your own pace."
             icon={<Compass className="h-4 w-4" />}
             selected={choice === 'explore'}
             onSelect={() => setChoice('explore')}
@@ -73,7 +73,7 @@ export function OnboardingSubscriptionClient({ plans, recommendedPlanId }: Onboa
               id="trial"
               name="startChoice"
               title="Free trial — 14 days"
-              description={`Try the full PropertyLedge experience with the ${trialPlan.name} plan`}
+              description={`Try the full PropertyLedge experience with the ${trialPlan.name} plan.`}
               icon={<Sparkles className="h-4 w-4" />}
               selected={choice === 'trial'}
               onSelect={() => setChoice('trial')}
@@ -83,7 +83,7 @@ export function OnboardingSubscriptionClient({ plans, recommendedPlanId }: Onboa
             id="paid"
             name="startChoice"
             title="Choose a plan"
-            description="Select a subscription plan and complete payment"
+            description="Select a subscription plan and configure secure payment options."
             icon={<CreditCard className="h-4 w-4" />}
             selected={choice === 'paid'}
             onSelect={() => setChoice('paid')}

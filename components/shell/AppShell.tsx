@@ -21,7 +21,7 @@ import { ToastProvider } from '@/components/admin/ui';
 import { cn } from '@/lib/utils';
 import type { AppShellProps, NavSection } from './types';
 
-export const SHELL_SIDEBAR_WIDTH_EXPANDED = 248;
+export const SHELL_SIDEBAR_WIDTH_EXPANDED = 212;
 export const SHELL_SIDEBAR_WIDTH_COLLAPSED = 52;
 
 export function isNavActive(
@@ -64,43 +64,41 @@ interface SidebarItemProps {
   isCollapsed: boolean;
   onNavigate?: () => void;
   layoutId: string;
+  comingSoon?: boolean;
 }
 
-function SidebarItem({ label, href, icon: Icon, isActive, isCollapsed, onNavigate, layoutId }: SidebarItemProps) {
+function SidebarItem({ label, href, icon: Icon, isActive, isCollapsed, onNavigate, layoutId, comingSoon }: SidebarItemProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <div className="relative" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
-      <Link href={href} onClick={onNavigate} className="block select-none">
+    <div className="relative w-full" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+      <Link href={href} onClick={onNavigate} className={cn('block select-none w-full', comingSoon && 'opacity-50 pointer-events-none')}>
         <motion.div
           whileHover={{ scale: isCollapsed ? 1.04 : 1.01, x: isCollapsed ? 0 : 1 }}
           whileTap={{ scale: 0.98 }}
           className={cn(
-            'relative flex items-center rounded-md text-[12px] font-medium transition-colors cursor-pointer',
+            'relative flex items-center rounded-lg text-[12.5px] font-medium transition-colors cursor-pointer w-full',
             isActive
               ? 'text-admin-sidebar-active-text font-semibold'
               : 'text-admin-sidebar-muted hover:text-admin-sidebar-foreground hover:bg-admin-sidebar-hover',
-            isCollapsed ? 'w-8 h-8 mx-auto justify-center p-0' : 'gap-2 px-2.5 py-1.5 h-8'
+            isCollapsed ? 'w-8 h-8 mx-auto justify-center p-0' : 'gap-2 px-2.5 py-1.5 h-8.5'
           )}
           aria-current={isActive ? 'page' : undefined}
         >
           {isActive && (
-            <>
-              <span className="absolute left-0 top-1 bottom-1 w-0.5 rounded-full bg-admin-sidebar-active-icon z-20" aria-hidden="true" />
-              <motion.div
-                layoutId={layoutId}
-                className="absolute inset-0 bg-admin-sidebar-active-pill border border-admin-sidebar-active-pill-border rounded-md z-0"
-                transition={{ type: 'spring', stiffness: 400, damping: 34 }}
-              />
-            </>
+            <motion.div
+              layoutId={layoutId}
+              className="absolute inset-0 bg-[#008F83] rounded-lg shadow-xs z-0"
+              transition={{ type: 'spring', stiffness: 400, damping: 34 }}
+            />
           )}
           <motion.div
             className="relative z-10 shrink-0 flex items-center justify-center"
           >
             <Icon
               className={cn(
-                'w-3.5 h-3.5 transition-colors',
-                isActive ? 'text-admin-sidebar-active-icon' : 'text-admin-sidebar-muted group-hover:text-admin-sidebar-foreground'
+                'w-4 h-4 transition-colors',
+                isActive ? 'text-white' : 'text-[#D5DCE3] group-hover:text-white'
               )}
             />
           </motion.div>
@@ -111,9 +109,14 @@ function SidebarItem({ label, href, icon: Icon, isActive, isCollapsed, onNavigat
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -6 }}
                 transition={{ duration: 0.15 }}
-                className="truncate relative z-10 font-medium"
+                className="truncate relative z-10 font-medium flex items-center justify-between flex-1 min-w-0"
               >
-                {label}
+                <span className="truncate">{label}</span>
+                {comingSoon && (
+                  <span className="inline-flex items-center px-1 py-px rounded text-[8px] font-semibold bg-[#008F83]/15 text-[#32D5C4] leading-none tracking-wide ml-1.5 shrink-0">
+                    Soon
+                  </span>
+                )}
               </motion.span>
             )}
           </AnimatePresence>
@@ -126,9 +129,14 @@ function SidebarItem({ label, href, icon: Icon, isActive, isCollapsed, onNavigat
             animate={{ opacity: 1, scale: 1, x: 12 }}
             exit={{ opacity: 0, scale: 0.92, x: 6 }}
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute left-full top-1/2 -translate-y-1/2 z-50 px-2 py-1 rounded-md bg-admin-sidebar-surface text-admin-sidebar-foreground border border-admin-sidebar-border font-medium text-xs shadow-lg whitespace-nowrap pointer-events-none"
+            className="absolute left-full top-1/2 -translate-y-1/2 z-50 px-2 py-1 rounded-md bg-admin-sidebar-surface text-admin-sidebar-foreground border border-admin-sidebar-border font-medium text-xs shadow-lg whitespace-nowrap pointer-events-none flex items-center gap-1.5"
           >
             {label}
+            {comingSoon && (
+              <span className="inline-flex items-center px-1 py-px rounded text-[8px] font-semibold bg-[#008F83]/15 text-[#32D5C4]">
+                Soon
+              </span>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -174,6 +182,7 @@ function Sidebar({
   activeNavLayoutId,
 }: SidebarProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const isShellDark = themeMode === 'light' || themeMode === 'full-dark' || themeMode === 'dark';
 
   return (
     <motion.aside
@@ -181,11 +190,39 @@ function Sidebar({
       animate={{ width: isCollapsed ? SHELL_SIDEBAR_WIDTH_COLLAPSED : SHELL_SIDEBAR_WIDTH_EXPANDED }}
       transition={{ type: 'spring', stiffness: 300, damping: 32 }}
       className={cn(
-        'hidden md:flex flex-col shrink-0 h-full bg-admin-sidebar text-admin-sidebar-foreground z-30 select-none overflow-hidden',
-        isCollapsed ? 'px-1' : 'px-1.5'
+        'hidden md:flex flex-col shrink-0 h-full bg-admin-sidebar text-admin-sidebar-foreground z-30 select-none overflow-hidden border-r border-admin-sidebar-border',
+        isCollapsed ? 'px-1' : 'px-2'
       )}
     >
-      <nav className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-1.5 pt-2 pb-1">
+      {/* Sidebar Branding Header (occupies full width of the sidebar) */}
+      <div
+        className={cn(
+          'flex items-center shrink-0 border-b border-admin-sidebar-border mb-1',
+          isCollapsed ? 'h-[52px] justify-center px-1' : 'h-[52px] px-2 w-full'
+        )}
+      >
+        <Link href={homeHref} className="flex items-center gap-2.5 group w-full min-w-0">
+          <img
+            src={isShellDark ? '/logo_Dark.png' : '/logo_Light.png'}
+            alt="PropertyLedge"
+            className="h-7 w-auto object-contain shrink-0"
+          />
+          {!isCollapsed && (
+            <div className="flex items-center justify-between flex-1 min-w-0">
+              <span className="font-heading text-[15px] font-bold tracking-tight text-admin-sidebar-foreground truncate">
+                PropertyLedge
+              </span>
+              {brandBadge && (
+                <span className="rounded bg-[#008F83]/15 text-[#32D5C4] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider shrink-0 ml-1">
+                  {brandBadge}
+                </span>
+              )}
+            </div>
+          )}
+        </Link>
+      </div>
+
+      <nav className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-1.5 pt-1.5 pb-1">
           {navSections.map((section) => {
             const isGroupCollapsed = !!collapsedGroups[section.label];
             return (
@@ -194,9 +231,16 @@ function Sidebar({
                   <button
                     type="button"
                     onClick={() => setCollapsedGroups((prev) => ({ ...prev, [section.label]: !prev[section.label] }))}
-                    className="w-full flex items-center justify-between px-2 py-0.5 text-[10px] font-semibold text-admin-sidebar-muted hover:text-admin-sidebar-foreground uppercase tracking-wider font-heading transition-colors group/header"
+                    className="w-full flex items-center justify-between px-2.5 py-1 text-[10px] font-semibold text-[#7F8B99] hover:text-[#D5DCE3] uppercase tracking-[0.10em] transition-colors group/header select-none"
                   >
-                    <span>{section.label}</span>
+                    <span className="flex items-center gap-1.5">
+                      {section.label}
+                      {section.badge && (
+                        <span className="px-1 py-px rounded text-[8px] font-semibold bg-[#008F83]/15 text-[#32D5C4] leading-none normal-case tracking-normal">
+                          {section.badge}
+                        </span>
+                      )}
+                    </span>
                     <motion.div animate={{ rotate: isGroupCollapsed ? -90 : 0 }} transition={{ duration: 0.2 }}>
                       <ChevronDown className="w-3 h-3 opacity-60 group-hover/header:opacity-100 transition-opacity" />
                     </motion.div>
@@ -223,6 +267,7 @@ function Sidebar({
                           isCollapsed={isCollapsed}
                           onNavigate={onNavigate}
                           layoutId={activeNavLayoutId}
+                          comingSoon={item.comingSoon}
                         />
                       ))}
                     </motion.div>
@@ -345,15 +390,13 @@ function MobileDrawer({
       >
         <div className="space-y-6">
           <div className="flex items-center justify-between pb-3 border-b border-admin-sidebar-border">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-admin-sidebar-surface border border-admin-sidebar-border flex items-center justify-center overflow-hidden">
-                <img
-                  src={isShellDark ? '/logo_Dark.png' : '/logo_Light.png'}
-                  alt="PropertyLedge Logo"
-                  className="w-5 h-5 object-contain"
-                />
-              </div>
-              <span className="font-heading font-bold text-base tracking-tight text-admin-sidebar-foreground">PropertyLedge</span>
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <img
+                src={isShellDark ? '/logo_Dark.png' : '/logo_Light.png'}
+                alt="PropertyLedge Logo"
+                className="h-6 w-auto object-contain shrink-0"
+              />
+              <span className="font-heading font-bold text-base tracking-tight text-admin-sidebar-foreground truncate">PropertyLedge</span>
             </div>
             <motion.button
               whileHover={{ scale: 1.1 }}
@@ -369,8 +412,13 @@ function MobileDrawer({
           <nav className="space-y-5">
             {navSections.map((section) => (
               <div key={section.label}>
-                <p className="text-[10px] font-semibold text-admin-sidebar-muted/70 uppercase tracking-[0.1em] px-3 mb-1.5">
+                <p className="text-[10px] font-semibold text-[#7F8B99] uppercase tracking-[0.10em] px-3 mb-1.5 flex items-center gap-1.5">
                   {section.label}
+                  {section.badge && (
+                    <span className="px-1 py-px rounded text-[8px] font-semibold bg-[#008F83]/15 text-[#32D5C4] leading-none normal-case tracking-normal">
+                      {section.badge}
+                    </span>
+                  )}
                 </p>
                 <div className="space-y-1">
                   {section.items.map((item) => (
@@ -383,6 +431,7 @@ function MobileDrawer({
                       isCollapsed={false}
                       onNavigate={onClose}
                       layoutId={activeNavLayoutId}
+                      comingSoon={item.comingSoon}
                     />
                   ))}
                 </div>
@@ -476,7 +525,7 @@ export function AppShell({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const search = searchParams.toString();
-  const [themeMode, setThemeMode] = useState<'light' | 'full-light' | 'full-dark' | 'dark'>('light');
+  const [themeMode, setThemeMode] = useState<'light' | 'full-light' | 'full-dark' | 'dark'>('dark');
   const [mounted, setMounted] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -485,7 +534,7 @@ export function AppShell({
   useEffect(() => {
     if (typeof document !== 'undefined') {
       const stored = localStorage.getItem('propertyledge_theme') as typeof themeMode | null;
-      const currentMode = stored || (document.documentElement.getAttribute('data-theme-mode') as typeof themeMode) || 'light';
+      const currentMode = stored || (document.documentElement.getAttribute('data-theme-mode') as typeof themeMode) || 'dark';
       setThemeMode(currentMode);
     }
     const syncTheme = () => {
@@ -542,61 +591,61 @@ export function AppShell({
   return (
     <ToastProvider>
       <div
-        className="h-screen w-screen bg-admin-sidebar text-admin-foreground flex flex-col overflow-hidden font-sans antialiased selection:bg-admin-foreground/10 selection:text-admin-foreground"
+        className="h-screen w-screen bg-admin-sidebar text-admin-foreground flex flex-row overflow-hidden font-sans antialiased selection:bg-admin-foreground/10 selection:text-admin-foreground"
         style={{ '--shell-navbar-height': `${SHELL_NAVBAR_HEIGHT}px` } as React.CSSProperties}
       >
-        <GlobalNavbar
-          homeHref={homeHref}
-          brandBadge={brandBadge}
-          brandLabel={mobileTitle}
-          themeMode={themeMode}
-          userName={userName}
-          userEmail={userEmail}
-          onLogout={handleLogout}
-          onSearchOpen={() => setIsSearchOpen(true)}
-          onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
-          mobileMenuOpen={mobileMenuOpen}
-          contextBreadcrumb={navbarContext}
-          mobileContextMenu={mobileContextMenu}
-          settingsHref={settingsHref}
-          showWorkspaceSettings={showWorkspaceSettings}
-          showBilling={showBilling}
-          showHelp={showHelp}
-          showNotifications={showNotifications}
-          headerExtras={headerExtras}
+        {/* Full-height Sidebar on the left */}
+        <Sidebar
+          {...sidebarProps}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         />
 
-        <div className="flex flex-1 min-h-0 overflow-hidden bg-admin-sidebar">
-          <Sidebar
-            {...sidebarProps}
-            isCollapsed={isSidebarCollapsed}
-            onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <MobileDrawer {...sidebarProps} isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+          )}
+        </AnimatePresence>
+
+        {/* Right side: Navbar at top (spanning rest of width) + Workspace below */}
+        <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden bg-admin-sidebar">
+          <GlobalNavbar
+            homeHref={homeHref}
+            brandBadge={brandBadge}
+            brandLabel={mobileTitle}
+            themeMode={themeMode}
+            userName={userName}
+            userEmail={userEmail}
+            onLogout={handleLogout}
+            onSearchOpen={() => setIsSearchOpen(true)}
+            onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+            mobileMenuOpen={mobileMenuOpen}
+            contextBreadcrumb={navbarContext}
+            mobileContextMenu={mobileContextMenu}
+            settingsHref={settingsHref}
+            showWorkspaceSettings={showWorkspaceSettings}
+            showBilling={showBilling}
+            showHelp={showHelp}
+            showNotifications={showNotifications}
+            headerExtras={headerExtras}
           />
 
-          <AnimatePresence>
-            {mobileMenuOpen && (
-              <MobileDrawer {...sidebarProps} isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
-            )}
-          </AnimatePresence>
-
-          <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden bg-admin-sidebar">
-            <div className="app-workspace relative flex flex-1 flex-col min-h-0 overflow-hidden bg-admin-surface text-admin-foreground rounded-lg text-body mb-14 md:mb-0 md:mt-0 md:mr-0 md:ml-0 md:rounded-tl-xl">
-              <main className="flex h-full w-full flex-1 flex-col min-w-0 min-h-0 overflow-hidden p-0.5">
-                <div className="flex h-full min-h-0 w-full flex-1 flex-col">
-                  {!mounted ? (
-                    <div className="flex flex-1 items-center justify-center">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-6 h-6 rounded-full border-2 border-admin-primary border-t-transparent animate-spin" />
-                        <span className="text-xs text-admin-muted font-medium">{loadingMessage}</span>
-                      </div>
+          <div className="app-workspace relative flex flex-1 flex-col min-h-0 overflow-hidden bg-admin-surface text-admin-foreground rounded-lg text-body mb-14 md:mb-0 md:mt-0 md:mr-0 md:ml-0 md:rounded-tl-xl">
+            <main className="flex h-full w-full flex-1 flex-col min-w-0 min-h-0 overflow-hidden p-0.5">
+              <div className="flex h-full min-h-0 w-full flex-1 flex-col">
+                {!mounted ? (
+                  <div className="flex flex-1 items-center justify-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-6 h-6 rounded-full border-2 border-admin-primary border-t-transparent animate-spin" />
+                      <span className="text-xs text-admin-muted font-medium">{loadingMessage}</span>
                     </div>
-                  ) : (
-                    children
-                  )}
-                </div>
-              </main>
-              <div id="workspace-drawer-root" className="absolute inset-0 z-40 pointer-events-none [&>*]:pointer-events-auto" />
-            </div>
+                  </div>
+                ) : (
+                  children
+                )}
+              </div>
+            </main>
+            <div id="workspace-drawer-root" className="absolute inset-0 z-40 pointer-events-none [&>*]:pointer-events-auto" />
           </div>
         </div>
 

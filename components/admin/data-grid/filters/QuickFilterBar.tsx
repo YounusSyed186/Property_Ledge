@@ -25,7 +25,7 @@ export function QuickFilterBar({
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-0.5 bg-admin-surface-subtle p-0.5 rounded-lg border border-admin-border-subtle max-w-full overflow-x-auto admin-scrollbar',
+        'inline-flex items-center gap-1 bg-surface-subtle p-0.5 rounded-lg border border-border max-w-full overflow-x-auto admin-scrollbar shrink-0',
         className
       )}
       role="radiogroup"
@@ -41,20 +41,20 @@ export function QuickFilterBar({
             aria-checked={isActive}
             onClick={() => onChange(opt.value)}
             className={cn(
-              'px-2.5 py-1 rounded-md text-[12px] transition-all duration-150 flex items-center gap-1.5 whitespace-nowrap font-medium',
+              'px-3 py-1.5 rounded-md text-[12px] transition-all duration-150 flex items-center gap-1.5 whitespace-nowrap font-medium',
               isActive
-                ? 'bg-admin-surface text-admin-foreground shadow-xs border border-admin-border font-bold'
-                : 'text-admin-muted hover:text-admin-foreground hover:bg-admin-surface/50'
+                ? 'bg-[#008F83] text-white shadow-xs font-semibold'
+                : 'text-muted hover:text-foreground hover:bg-surface'
             )}
           >
             <span>{opt.label}</span>
             {opt.count !== undefined && (
               <span
                 className={cn(
-                  'text-[10px] px-1.5 py-0 rounded-full font-mono font-semibold leading-tight',
+                  'text-[10px] px-1.5 py-0.5 rounded-full font-mono font-semibold leading-none',
                   isActive
-                    ? 'bg-admin-foreground text-admin-surface'
-                    : 'bg-admin-surface-elevated text-admin-muted border border-admin-border-subtle'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-surface text-muted border border-border'
                 )}
               >
                 {opt.count}

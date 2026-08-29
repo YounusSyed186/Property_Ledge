@@ -325,7 +325,9 @@ export function AdminDataGrid<TData = any>({
     ];
   }, [columnDefs, enableSelection]);
 
-  const isEmpty = !loading && (!rowData || rowData.length === 0);
+  const isDataLoaded = Array.isArray(rowData);
+  const isLoadingState = Boolean(loading || !isDataLoaded);
+  const isEmpty = !isLoadingState && rowData.length === 0;
 
   const toolbarProps: AdminDataGridToolbarProps = {
     gridApi,
@@ -353,13 +355,11 @@ export function AdminDataGrid<TData = any>({
 
       {/* Grid Container */}
       <div ref={gridContainerRef} className="relative h-full min-h-[200px] w-full flex-1 overflow-hidden">
-        {loading && (
-          <div className="absolute inset-0 z-10 bg-admin-surface/85 backdrop-blur-xs flex items-center justify-center">
-            <AdminDataGridLoading />
-          </div>
-        )}
-
-        {isEmpty ? (
+        {isLoadingState && !isDataLoaded ? (
+          /* Initial data fetching: Render Row Skeleton Table */
+          <AdminDataGridLoading />
+        ) : isEmpty ? (
+          /* Confirmed empty state */
           <AdminDataGridEmpty
             isFiltered={isFiltered}
             onClearFilters={handleClearFilters}
@@ -368,7 +368,9 @@ export function AdminDataGrid<TData = any>({
             icon={emptyIcon}
           />
         ) : (
-          <div className="ag-theme-propertyledge w-full h-full min-h-0 flex-1">
+          /* Render AG Grid with overlay if refetching */
+          <div className="ag-theme-propertyledge w-full h-full min-h-0 flex-1 relative">
+            {loading && <AdminDataGridLoading overlay />}
             <AgGridReact<TData>
               rowData={rowData}
               columnDefs={effectiveColDefs}
@@ -380,6 +382,9 @@ export function AdminDataGrid<TData = any>({
               paginationPageSize={isServerSide ? effectivePageSize : undefined}
               suppressPaginationPanel={true}
               onGridReady={onGridReady}
+              onFirstDataRendered={(params) => {
+                params.api.sizeColumnsToFit();
+              }}
               onPaginationChanged={onPaginationChanged}
               onSelectionChanged={onSelectionChanged}
               onFilterChanged={onFilterChanged}
@@ -406,7 +411,7 @@ export function AdminDataGrid<TData = any>({
       </div>
 
       {/* Pagination Footer */}
-      {!isEmpty && (
+      {!isEmpty && !isLoadingState && (
         <AdminDataGridPagination
           currentPage={effectiveCurrentPage}
           totalPages={effectiveTotalPages}

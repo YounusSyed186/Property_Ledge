@@ -3,9 +3,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Home, Users, Wallet, AlertTriangle } from 'lucide-react';
+import { Plus, Home, Users, Wallet, AlertTriangle, DollarSign, Wrench, ClipboardCheck, FolderOpen, Activity } from 'lucide-react';
 import { Button, StatusBadge, NotFoundState } from '@/components/admin/ui';
 import { AdminDataGrid } from '@/components/admin/data-grid';
+import { ComingSoonPage } from '@/components/dashboard/ComingSoonPage';
 import {
   unitColumns,
   tenantColumns,
@@ -271,62 +272,43 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
         )}
 
         {activeTab === 'finances' && (
-          <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar">
-          <SectionPanel title="Finances" action={
-            <button type="button" onClick={openFinances} className="text-[12px] text-admin-primary hover:underline">
-              Open Finances
-            </button>
-          }>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <CompactKpiCard label="Collected" value={formatCurrency(reports?.totalRevenue ?? 0)} accent="teal" />
-              <CompactKpiCard label="Outstanding" value={formatCurrency(reports?.outstandingBalance ?? 0)} accent="blue" />
-              <CompactKpiCard label="Expenses" value={formatCurrency(reports?.totalExpenses ?? 0)} accent="neutral" />
-            </div>
-          </SectionPanel>
-          </div>
+          <ComingSoonPage
+            title="Property Finances"
+            description="Detailed financial tracking per property — rent collected, outstanding balances, and expenses — is coming soon."
+            icon={DollarSign}
+          />
         )}
 
         {activeTab === 'maintenance' && (
-          <ListPageGrid>
-            <AdminDataGrid
-              rowData={maintenance}
-              columnDefs={maintenanceColumns}
-              labelSingular="request"
-              labelPlural="requests"
-              onRowClick={(row) => router.push(`/dashboard/maintenance/${row.id}`)}
-              getRowId={(p) => p.data.id}
-            />
-          </ListPageGrid>
+          <ComingSoonPage
+            title="Maintenance"
+            description="Track and manage maintenance requests for this property. Full maintenance management is coming soon."
+            icon={Wrench}
+          />
         )}
 
         {activeTab === 'inspections' && (
-          <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar">
-          <SectionPanel title="Inspections">
-            <p className="text-[13px] text-admin-muted">
-              <Link href="/dashboard/inspections" className="text-admin-primary hover:underline">View all inspections</Link> for this property.
-            </p>
-          </SectionPanel>
-          </div>
+          <ComingSoonPage
+            title="Inspections"
+            description="Schedule and record property inspections with photos, checklists, and sign-offs. Coming soon."
+            icon={ClipboardCheck}
+          />
         )}
 
         {activeTab === 'documents' && (
-          <ListPageGrid>
-            <AdminDataGrid
-              rowData={documents}
-              columnDefs={documentColumns}
-              labelSingular="document"
-              labelPlural="documents"
-              getRowId={(p) => p.data.id}
-            />
-          </ListPageGrid>
+          <ComingSoonPage
+            title="Documents"
+            description="Securely store leases, agreements, and property documents in one place. Coming soon."
+            icon={FolderOpen}
+          />
         )}
 
         {activeTab === 'activity' && (
-          <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar">
-          <SectionPanel title="Activity log">
-            <ActivityTimeline items={activityItems} emptyMessage="No activity recorded yet." />
-          </SectionPanel>
-          </div>
+          <ComingSoonPage
+            title="Activity Log"
+            description="A full audit trail of all actions taken on this property is coming soon."
+            icon={Activity}
+          />
         )}
       </PageContent>
 

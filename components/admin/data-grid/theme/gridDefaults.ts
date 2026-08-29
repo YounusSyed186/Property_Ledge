@@ -10,7 +10,8 @@ export const defaultGridColDef: ColDef = {
   filter: true,
   resizable: true,
   suppressMovable: false,
-  minWidth: 120,
+  flex: 1,
+  minWidth: 100,
   headerClass: 'font-semibold text-body-sm tracking-wider',
   tooltipValueGetter: (params) => {
     if (params.valueFormatted) return params.valueFormatted;
@@ -29,4 +30,7 @@ export const defaultGridOptions: GridOptions = {
   enableCellTextSelection: true,
   suppressMenuHide: true,
   enableBrowserTooltips: true,
+  autoSizeStrategy: {
+    type: 'fitGridWidth',
+  },
 };

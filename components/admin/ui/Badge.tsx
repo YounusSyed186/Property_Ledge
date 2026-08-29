@@ -11,26 +11,26 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 const variantStyles: Record<BadgeVariant, string> = {
-  success: 'bg-admin-success-soft text-admin-success border-admin-success/30',
-  warning: 'bg-admin-warning-soft text-admin-warning border-admin-warning/30',
-  danger: 'bg-admin-danger-soft text-admin-danger border-admin-danger/30',
-  info: 'bg-admin-info-soft text-admin-info border-admin-info/30',
-  neutral: 'bg-admin-surface-subtle text-admin-muted-foreground border-admin-border',
-  primary: 'bg-admin-primary-soft text-admin-primary border-admin-primary/30',
+  success: 'bg-[#EFFAF5] dark:bg-[#16845A]/15 text-[#16845A] dark:text-[#34D399] border-[#CDEEDF] dark:border-[#16845A]/30',
+  warning: 'bg-[#FFF8E9] dark:bg-[#B77908]/15 text-[#B77908] dark:text-[#FBBF24] border-[#F6E1AF] dark:border-[#B77908]/30',
+  danger: 'bg-[#FFF1F1] dark:bg-[#C63D46]/15 text-[#C63D46] dark:text-[#F87171] border-[#F2CCCC] dark:border-[#C63D46]/30',
+  info: 'bg-[#EEF6FC] dark:bg-[#28709E]/15 text-[#28709E] dark:text-[#60A5FA] border-[#D3E6F5] dark:border-[#28709E]/30',
+  neutral: 'bg-[#F1F4F6] dark:bg-[#152538] text-[#485665] dark:text-[#AEB8C3] border-[#E1E6EA] dark:border-[#1B2B3D]',
+  primary: 'bg-[#E6F7F5] dark:bg-[#008F83]/15 text-[#008F83] dark:text-[#32D5C4] border-[#CDEEDF] dark:border-[#008F83]/30',
 };
 
 const sizeStyles: Record<BadgeSize, string> = {
-  sm: 'px-1.5 py-px text-[10px] gap-0.5 rounded-md tracking-normal font-medium',
-  md: 'px-2 py-0.5 text-[11px] gap-1 rounded-md tracking-normal font-medium',
+  sm: 'px-2 py-0.5 text-[10px] gap-1 rounded-md tracking-normal font-medium',
+  md: 'px-2.5 py-0.5 text-[11px] gap-1.5 rounded-md tracking-normal font-medium',
 };
 
 const dotColors: Record<BadgeVariant, string> = {
-  success: 'bg-admin-success',
-  warning: 'bg-admin-warning',
-  danger: 'bg-admin-danger',
-  info: 'bg-admin-info',
-  neutral: 'bg-admin-muted',
-  primary: 'bg-admin-primary',
+  success: 'bg-[#16845A] dark:bg-[#34D399]',
+  warning: 'bg-[#B77908] dark:bg-[#FBBF24]',
+  danger: 'bg-[#C63D46] dark:bg-[#F87171]',
+  info: 'bg-[#28709E] dark:bg-[#60A5FA]',
+  neutral: 'bg-[#7A8794]',
+  primary: 'bg-[#008F83]',
 };
 
 export function Badge({ variant = 'neutral', size = 'sm', dot = false, className, children, ...props }: BadgeProps) {

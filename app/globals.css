@@ -7,319 +7,334 @@
    ============================================================ */
 
 :root {
-  /* ---------- LIGHT THEME (Warm Neutral) ---------- */
-  --background: #F9FAFB;
-  --foreground: #111827;
-  --surface: #FFFFFF;
-  --surface-elevated: #F9FAFB;
-  --surface-subtle: #F3F4F6;
-  --muted: #6B7280;
-  --muted-dark: #4B5563;
-  --accent: #6B7280;
-  --accent-hover: #4B5563;
-  --accent-subtle: rgba(107, 114, 128, 0.08);
-  --border: #D1D5DB;
-  --border-subtle: #E5E7EB;
-  --border-strong: #D1D5DB;
-  --success: #36B86B;
-  --warning: #D97706;
-  --danger: #EF4444;
-  --info: #2563EB;
-  --shadow-color: rgba(0, 0, 0, 0.05);
+  /* ---------- BRAND TOKENS ---------- */
+  --pl-brand: #008F83;
+  --pl-brand-hover: #00A99D;
+  --pl-brand-active: #007A70;
+  --pl-brand-light: #E6F7F5;
+  --pl-brand-subtle: #F0FBFA;
+  --pl-logo-teal: #32D5C4;
 
-  /* ---------- ADMIN SHELL (PropertyLedge Navy + Blue) ---------- */
-  --admin-background: #F4F7FB;
-  --admin-shell: #061324;
+  /* ---------- WORKSPACE & APPLICATION ---------- */
+  --background: #F6F8FA;
+  --foreground: #132033;
+  --surface: #FFFFFF;
+  --surface-elevated: #FBFCFD;
+  --surface-subtle: #F0FBFA;
+  --muted: #52606D;
+  --muted-dark: #374151;
+  --accent: #008F83;
+  --accent-hover: #00A99D;
+  --accent-subtle: #F0FBFA;
+  --border: #E2E7EB;
+  --border-subtle: #EDF0F2;
+  --border-strong: #D5DCE2;
+  --border-focus: #008F83;
+  --success: #16845A;
+  --warning: #B77908;
+  --danger: #D64545;
+  --info: #28709E;
+  --shadow-color: rgba(6, 18, 34, 0.04);
+  --scrollbar-thumb: rgba(6, 18, 34, 0.16);
+  --scrollbar-thumb-hover: rgba(6, 18, 34, 0.28);
+  --scrollbar-track: transparent;
+
+  /* ---------- DEEP NAVY SIDEBAR & SHELL ---------- */
+  --admin-background: #F6F8FA;
+  --admin-shell: #061222;
   --shell-navbar-height: 48px;
-  --admin-sidebar: #061324;
-  --admin-sidebar-surface: #0A1B30;
-  --admin-sidebar-border: #1A2B42;
-  --admin-sidebar-border-subtle: #152338;
-  --admin-sidebar-foreground: #A8B5C7;
-  --admin-sidebar-muted: #718096;
-  --admin-sidebar-hover: #0A1B30;
-  --admin-sidebar-active-pill: #173B6D;
-  --admin-sidebar-active-pill-border: #1E4A7A;
+  --admin-sidebar: #061222;
+  --admin-sidebar-surface: #071526;
+  --admin-sidebar-border: #17283A;
+  --admin-sidebar-border-subtle: #112030;
+  --admin-sidebar-foreground: #D5DCE3;
+  --admin-sidebar-muted: #7F8B99;
+  --admin-sidebar-hover: #08182A;
+  --admin-sidebar-active-pill: #008F83;
+  --admin-sidebar-active-pill-border: #008F83;
   --admin-sidebar-active-text: #FFFFFF;
-  --admin-sidebar-active-icon: #60A5FA;
-  --admin-shell-search-bg: #0D1F35;
-  --admin-shell-search-border: #20334D;
+  --admin-sidebar-active-icon: #FFFFFF;
+  --admin-shell-search-bg: #071526;
+  --admin-shell-search-border: #17283A;
   --admin-surface: #FFFFFF;
-  --admin-surface-elevated: #F8FAFC;
-  --admin-surface-subtle: #E8EEF6;
-  --admin-border: #E2E8F0;
-  --admin-border-subtle: #EDF2F7;
-  --admin-border-strong: #CBD5E1;
-  --admin-divider: #E2E8F0;
-  --admin-primary: #2563EB;
-  --admin-primary-hover: #1D4ED8;
-  --admin-primary-soft: #EFF6FF;
-  --admin-primary-border: #BFDBFE;
-  --admin-indigo: #6366F1;
-  --admin-indigo-soft: #EEF2FF;
-  --admin-teal: #0F9F9A;
-  --admin-teal-soft: #ECFDFB;
-  --admin-success: #16A34A;
-  --admin-success-soft: #ECFDF3;
-  --admin-warning: #D97706;
-  --admin-warning-soft: #FFF7ED;
-  --admin-danger: #DC2626;
-  --admin-danger-soft: #FEF2F2;
-  --admin-info: #2563EB;
-  --admin-info-soft: #EFF6FF;
-  --admin-foreground: #172033;
-  --admin-muted: #8491A5;
-  --admin-muted-foreground: #536176;
-  --admin-text-secondary: #536176;
+  --admin-surface-elevated: #FBFCFD;
+  --admin-surface-subtle: #F0FBFA;
+  --admin-border: #E2E7EB;
+  --admin-border-subtle: #EDF0F2;
+  --admin-border-strong: #D5DCE2;
+  --admin-divider: #EDF0F2;
+  --admin-primary: #008F83;
+  --admin-primary-hover: #00A99D;
+  --admin-primary-soft: #F0FBFA;
+  --admin-primary-border: #E6F7F5;
+  --admin-indigo: #008F83;
+  --admin-indigo-soft: #F0FBFA;
+  --admin-teal: #008F83;
+  --admin-teal-soft: #E6F7F5;
+  --admin-success: #16845A;
+  --admin-success-soft: #EFFAF5;
+  --admin-warning: #B77908;
+  --admin-warning-soft: #FFF8E9;
+  --admin-danger: #D64545;
+  --admin-danger-soft: #FFF1F1;
+  --admin-info: #28709E;
+  --admin-info-soft: #EEF6FC;
+  --admin-foreground: #132033;
+  --admin-muted: #7A8794;
+  --admin-muted-foreground: #52606D;
+  --admin-text-secondary: #7A8794;
 }
 
-/* ---------- DARK THEME (Obsidian Layered) ---------- */
+/* ---------- DARK THEME ---------- */
 .dark {
-  --background: #070A0D;
-  --foreground: #F2F5F8;
-  --surface: #0E1317;
-  --surface-elevated: #13191E;
-  --surface-subtle: #172026;
-  --muted: #8E99A4;
-  --muted-dark: #5C6773;
-  --accent: #8E99A4;
-  --accent-hover: #CBD5E1;
-  --accent-subtle: rgba(255, 255, 255, 0.06);
-  --border: #1E262C;
-  --border-subtle: #161F24;
-  --border-strong: #1E262C;
-  --success: #36B86B;
-  --warning: #F59E0B;
-  --danger: #EF4444;
-  --info: #3B82F6;
+  --background: #07111F;
+  --foreground: #F4F7F9;
+  --surface: #0B1726;
+  --surface-elevated: #0F1D2D;
+  --surface-subtle: #152538;
+  --muted: #7F8B99;
+  --muted-dark: #536170;
+  --accent: #008F83;
+  --accent-hover: #00A99D;
+  --accent-subtle: rgba(0, 143, 131, 0.15);
+  --border: #1B2B3D;
+  --border-subtle: #152538;
+  --border-strong: #24384E;
+  --border-focus: #008F83;
+  --success: #16845A;
+  --warning: #B77908;
+  --danger: #D64545;
+  --info: #28709E;
   --shadow-color: rgba(0, 0, 0, 0.55);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.18);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.32);
+  --scrollbar-track: transparent;
 
-  /* ---------- ADMIN SHELL (Default: Full Dark) ---------- */
-  --admin-background: #071014;
-  --admin-shell: #10151B;
+  /* ---------- DARK ADMIN SHELL ---------- */
+  --admin-background: #07111F;
+  --admin-shell: #061222;
   --shell-navbar-height: 48px;
-  --admin-sidebar: #10151B;
-  --admin-sidebar-surface: #10151B;
-  --admin-sidebar-border: rgba(255, 255, 255, 0.08);
-  --admin-sidebar-border-subtle: rgba(255, 255, 255, 0.04);
-  --admin-sidebar-foreground: #F3F4F6;
-  --admin-sidebar-muted: #9CA3AF;
-  --admin-sidebar-hover: rgba(255, 255, 255, 0.06);
-  --admin-sidebar-active-pill: #161D26;
-  --admin-sidebar-active-pill-border: rgba(255, 255, 255, 0.12);
+  --admin-sidebar: #061222;
+  --admin-sidebar-surface: #071526;
+  --admin-sidebar-border: #17283A;
+  --admin-sidebar-border-subtle: #112030;
+  --admin-sidebar-foreground: #D5DCE3;
+  --admin-sidebar-muted: #7F8B99;
+  --admin-sidebar-hover: #08182A;
+  --admin-sidebar-active-pill: #008F83;
+  --admin-sidebar-active-pill-border: #008F83;
   --admin-sidebar-active-text: #FFFFFF;
-  --admin-surface: #0E171B;
-  --admin-surface-elevated: #131E23;
-  --admin-surface-subtle: #17242A;
-  --admin-border: rgba(255, 255, 255, 0.08);
-  --admin-border-subtle: rgba(255, 255, 255, 0.05);
-  --admin-divider: rgba(255, 255, 255, 0.07);
-  --admin-primary: #C4B09D;
-  --admin-primary-hover: #D5C5B5;
-  --admin-primary-soft: rgba(196, 176, 157, 0.15);
-  --admin-success: #36B86B;
-  --admin-success-soft: rgba(54, 184, 107, 0.15);
-  --admin-warning: #F59E0B;
-  --admin-warning-soft: rgba(245, 158, 11, 0.12);
-  --admin-danger: #EF4444;
-  --admin-danger-soft: rgba(239, 68, 68, 0.12);
-  --admin-info: #3B82F6;
-  --admin-info-soft: rgba(59, 130, 246, 0.12);
-  --admin-foreground: #F2F4F3;
-  --admin-muted: #8E9993;
-  --admin-muted-foreground: #66726B;
+  --admin-sidebar-active-icon: #FFFFFF;
+  --admin-shell-search-bg: #071526;
+  --admin-shell-search-border: #17283A;
+  --admin-surface: #0B1726;
+  --admin-surface-elevated: #0F1D2D;
+  --admin-surface-subtle: #152538;
+  --admin-border: #1B2B3D;
+  --admin-border-subtle: #152538;
+  --admin-border-strong: #24384E;
+  --admin-divider: #17283A;
+  --admin-primary: #008F83;
+  --admin-primary-hover: #00A99D;
+  --admin-primary-soft: rgba(0, 143, 131, 0.18);
+  --admin-primary-border: #008F83;
+  --admin-indigo: #008F83;
+  --admin-indigo-soft: rgba(0, 143, 131, 0.18);
+  --admin-teal: #008F83;
+  --admin-teal-soft: rgba(0, 143, 131, 0.18);
+  --admin-success: #16845A;
+  --admin-success-soft: rgba(22, 132, 90, 0.18);
+  --admin-warning: #B77908;
+  --admin-warning-soft: rgba(183, 121, 8, 0.18);
+  --admin-danger: #D64545;
+  --admin-danger-soft: rgba(214, 69, 69, 0.18);
+  --admin-info: #28709E;
+  --admin-info-soft: rgba(40, 112, 158, 0.18);
+  --admin-foreground: #F4F7F9;
+  --admin-muted: #7F8B99;
+  --admin-muted-foreground: #B7C1CB;
+  --admin-text-secondary: #B7C1CB;
 }
 
 /* ---------- THEME MODE OVERRIDES ---------- */
-html[data-theme-mode="light"] {
-  /* Workspace (Light) */
-  --background: #F9FAFB;
-  --foreground: #111827;
-  --surface: #FFFFFF;
-  --surface-elevated: #F9FAFB;
-  --surface-subtle: #F3F4F6;
-  --muted: #6B7280;
-  --muted-dark: #4B5563;
-  --accent: #6B7280;
-  --accent-hover: #4B5563;
-  --accent-subtle: rgba(107, 114, 128, 0.08);
-  --border: #D1D5DB;
-  --border-subtle: #E5E7EB;
-  --border-strong: #D1D5DB;
-  --success: #36B86B;
-  --warning: #D97706;
-  --danger: #EF4444;
-  --info: #2563EB;
-  --shadow-color: rgba(0, 0, 0, 0.05);
 
-  /* ---------- ADMIN PANEL (Mixed Mode: Navy Sidebar, Light Workspace) ---------- */
-  --admin-background: #F4F7FB;
-  --admin-shell: #061324;
-  --shell-navbar-height: 48px;
-  --admin-sidebar: #061324;
-  --admin-sidebar-surface: #0A1B30;
-  --admin-sidebar-border: #1A2B42;
-  --admin-sidebar-border-subtle: #152338;
-  --admin-sidebar-foreground: #A8B5C7;
-  --admin-sidebar-muted: #718096;
-  --admin-sidebar-hover: #0A1B30;
-  --admin-sidebar-active-pill: #173B6D;
-  --admin-sidebar-active-pill-border: #1E4A7A;
+/* ---------- THEME MODE: MIXED (LIGHT WORKSPACE + NAVY SHELL) ---------- */
+html[data-theme-mode="light"] {
+  --background: #F6F8FA;
+  --foreground: #132033;
+  --surface: #FFFFFF;
+  --surface-elevated: #FBFCFD;
+  --surface-subtle: #F0FBFA;
+  --muted: #52606D;
+  --muted-dark: #374151;
+  --accent: #008F83;
+  --accent-hover: #00A99D;
+  --accent-subtle: #F0FBFA;
+  --border: #E2E7EB;
+  --border-subtle: #EDF0F2;
+  --border-strong: #D5DCE2;
+  --border-focus: #008F83;
+  --success: #16845A;
+  --warning: #B77908;
+  --danger: #D64545;
+  --info: #28709E;
+  --shadow-color: rgba(6, 18, 34, 0.04);
+
+  --admin-background: #F6F8FA;
+  --admin-shell: #061222;
+  --admin-sidebar: #061222;
+  --admin-sidebar-surface: #071526;
+  --admin-sidebar-hover: #08182A;
+  --admin-sidebar-border: #17283A;
+  --admin-sidebar-foreground: #D5DCE3;
+  --admin-sidebar-muted: #7F8B99;
+  --admin-sidebar-active-pill: #008F83;
+  --admin-sidebar-active-pill-border: #008F83;
   --admin-sidebar-active-text: #FFFFFF;
-  --admin-sidebar-active-icon: #60A5FA;
-  --admin-shell-search-bg: #0D1F35;
-  --admin-shell-search-border: #20334D;
+  --admin-sidebar-active-icon: #FFFFFF;
+  --admin-shell-search-bg: #071526;
+  --admin-shell-search-border: #17283A;
   --admin-surface: #FFFFFF;
-  --admin-surface-elevated: #F8FAFC;
-  --admin-surface-subtle: #E8EEF6;
-  --admin-border: #E2E8F0;
-  --admin-border-subtle: #EDF2F7;
-  --admin-border-strong: #CBD5E1;
-  --admin-divider: #E2E8F0;
-  --admin-primary: #2563EB;
-  --admin-primary-hover: #1D4ED8;
-  --admin-primary-soft: #EFF6FF;
-  --admin-primary-border: #BFDBFE;
-  --admin-indigo: #6366F1;
-  --admin-indigo-soft: #EEF2FF;
-  --admin-teal: #0F9F9A;
-  --admin-teal-soft: #ECFDFB;
-  --admin-success: #16A34A;
-  --admin-success-soft: #ECFDF3;
-  --admin-warning: #D97706;
-  --admin-warning-soft: #FFF7ED;
-  --admin-danger: #DC2626;
-  --admin-danger-soft: #FEF2F2;
-  --admin-info: #2563EB;
-  --admin-info-soft: #EFF6FF;
-  --admin-foreground: #172033;
-  --admin-muted: #8491A5;
-  --admin-muted-foreground: #536176;
-  --admin-text-secondary: #536176;
+  --admin-surface-elevated: #FBFCFD;
+  --admin-surface-subtle: #F0FBFA;
+  --admin-border: #E2E7EB;
+  --admin-border-subtle: #EDF0F2;
+  --admin-border-strong: #D5DCE2;
+  --admin-divider: #EDF0F2;
+  --admin-primary: #008F83;
+  --admin-primary-hover: #00A99D;
+  --admin-primary-soft: #E6F7F5;
+  --admin-primary-border: #CDEEDF;
+  --admin-indigo: #008F83;
+  --admin-indigo-soft: #E6F7F5;
+  --admin-teal: #008F83;
+  --admin-teal-soft: #E6F7F5;
+  --admin-success: #16845A;
+  --admin-success-soft: #EFFAF5;
+  --admin-warning: #B77908;
+  --admin-warning-soft: #FFF8E9;
+  --admin-danger: #D64545;
+  --admin-danger-soft: #FFF1F1;
+  --admin-info: #28709E;
+  --admin-info-soft: #EEF6FC;
+  --admin-foreground: #132033;
+  --admin-muted: #7A8794;
+  --admin-muted-foreground: #52606D;
+  --admin-text-secondary: #7A8794;
 }
 
+/* ---------- THEME MODE: FULL LIGHT (LIGHT WORKSPACE + LIGHT SHELL) ---------- */
 html[data-theme-mode="full-light"] {
-  /* Workspace (Light) */
-  --background: #F9FAFB;
-  --foreground: #111827;
+  --background: #F6F8FA;
+  --foreground: #132033;
   --surface: #FFFFFF;
-  --surface-elevated: #F9FAFB;
-  --surface-subtle: #F3F4F6;
-  --muted: #6B7280;
-  --muted-dark: #4B5563;
-  --accent: #6B7280;
-  --accent-hover: #4B5563;
-  --accent-subtle: rgba(107, 114, 128, 0.08);
-  --border: #D1D5DB;
-  --border-subtle: #E5E7EB;
-  --border-strong: #D1D5DB;
-  --success: #36B86B;
-  --warning: #D97706;
-  --danger: #EF4444;
-  --info: #2563EB;
-  --shadow-color: rgba(0, 0, 0, 0.05);
+  --surface-elevated: #FBFCFD;
+  --surface-subtle: #F0FBFA;
+  --muted: #52606D;
+  --muted-dark: #374151;
+  --accent: #008F83;
+  --accent-hover: #00A99D;
+  --accent-subtle: #F0FBFA;
+  --border: #E2E7EB;
+  --border-subtle: #EDF0F2;
+  --border-strong: #D5DCE2;
+  --border-focus: #008F83;
+  --success: #16845A;
+  --warning: #B77908;
+  --danger: #D64545;
+  --info: #28709E;
+  --shadow-color: rgba(6, 18, 34, 0.04);
 
-  /* ---------- ADMIN PANEL DESIGN SYSTEM (Full Light: Light Sidebar, Light Workspace) ---------- */
-  --admin-background: #F4F7FB;
-  --admin-shell: #061324;
-  --admin-sidebar: #061324;
-  --admin-sidebar-surface: #0A1B30;
-  --admin-sidebar-border: #1A2B42;
-  --admin-sidebar-border-subtle: #152338;
-  --admin-sidebar-foreground: #A8B5C7;
-  --admin-sidebar-muted: #718096;
-  --admin-sidebar-hover: #0A1B30;
-  --admin-sidebar-active-pill: #173B6D;
-  --admin-sidebar-active-pill-border: #1E4A7A;
+  --admin-background: #F6F8FA;
+  --admin-shell: #FFFFFF;
+  --admin-sidebar: #FFFFFF;
+  --admin-sidebar-surface: #F8FAFB;
+  --admin-sidebar-hover: #F0FBFA;
+  --admin-sidebar-border: #E2E7EB;
+  --admin-sidebar-foreground: #132033;
+  --admin-sidebar-muted: #7A8794;
+  --admin-sidebar-active-pill: #008F83;
+  --admin-sidebar-active-pill-border: #008F83;
   --admin-sidebar-active-text: #FFFFFF;
-  --admin-sidebar-active-icon: #60A5FA;
-  --admin-shell-search-bg: #0D1F35;
-  --admin-shell-search-border: #20334D;
+  --admin-sidebar-active-icon: #FFFFFF;
+  --admin-shell-search-bg: #F8FAFB;
+  --admin-shell-search-border: #E2E7EB;
   --admin-surface: #FFFFFF;
-  --admin-surface-elevated: #F8FAFC;
-  --admin-surface-subtle: #E8EEF6;
-  --admin-border: #E2E8F0;
-  --admin-border-subtle: #EDF2F7;
-  --admin-border-strong: #CBD5E1;
-  --admin-divider: #E2E8F0;
-  --admin-primary: #2563EB;
-  --admin-primary-hover: #1D4ED8;
-  --admin-primary-soft: #EFF6FF;
-  --admin-primary-border: #BFDBFE;
-  --admin-indigo: #6366F1;
-  --admin-indigo-soft: #EEF2FF;
-  --admin-teal: #0F9F9A;
-  --admin-teal-soft: #ECFDFB;
-  --admin-success: #16A34A;
-  --admin-success-soft: #ECFDF3;
-  --admin-warning: #D97706;
-  --admin-warning-soft: #FFF7ED;
-  --admin-danger: #DC2626;
-  --admin-danger-soft: #FEF2F2;
-  --admin-info: #2563EB;
-  --admin-info-soft: #EFF6FF;
-  --admin-foreground: #172033;
-  --admin-muted: #8491A5;
-  --admin-muted-foreground: #536176;
-  --admin-text-secondary: #536176;
+  --admin-surface-elevated: #FBFCFD;
+  --admin-surface-subtle: #F0FBFA;
+  --admin-border: #E2E7EB;
+  --admin-border-subtle: #EDF0F2;
+  --admin-border-strong: #D5DCE2;
+  --admin-divider: #EDF0F2;
+  --admin-primary: #008F83;
+  --admin-primary-hover: #00A99D;
+  --admin-primary-soft: #E6F7F5;
+  --admin-primary-border: #CDEEDF;
+  --admin-indigo: #008F83;
+  --admin-indigo-soft: #E6F7F5;
+  --admin-teal: #008F83;
+  --admin-teal-soft: #E6F7F5;
+  --admin-success: #16845A;
+  --admin-success-soft: #EFFAF5;
+  --admin-warning: #B77908;
+  --admin-warning-soft: #FFF8E9;
+  --admin-danger: #D64545;
+  --admin-danger-soft: #FFF1F1;
+  --admin-info: #28709E;
+  --admin-info-soft: #EEF6FC;
+  --admin-foreground: #132033;
+  --admin-muted: #7A8794;
+  --admin-muted-foreground: #52606D;
+  --admin-text-secondary: #7A8794;
 }
 
 html[data-theme-mode="full-dark"],
 html[data-theme-mode="dark"] {
-  /* Workspace (Dark) */
-  --background: #070A0D;
-  --foreground: #F2F5F8;
-  --surface: #0E1317;
-  --surface-elevated: #13191E;
-  --surface-subtle: #172026;
-  --muted: #8E99A4;
-  --muted-dark: #5C6773;
-  --accent: #8E99A4;
-  --accent-hover: #CBD5E1;
-  --accent-subtle: rgba(255, 255, 255, 0.06);
-  --border: #1E262C;
-  --border-subtle: #161F24;
-  --border-strong: #1E262C;
-  --success: #36B86B;
-  --warning: #F59E0B;
-  --danger: #EF4444;
-  --info: #3B82F6;
-  --shadow-color: rgba(0, 0, 0, 0.55);
+  --background: #07111F;
+  --foreground: #F4F7F9;
+  --surface: #0B1726;
+  --surface-elevated: #0F1D2D;
+  --surface-subtle: #152538;
+  --muted: #7F8B99;
+  --muted-dark: #536170;
+  --accent: #008F83;
+  --accent-hover: #00A99D;
+  --accent-subtle: rgba(0, 143, 131, 0.15);
+  --border: #1B2B3D;
+  --border-subtle: #152538;
+  --border-strong: #24384E;
+  --border-focus: #008F83;
+  --success: #16845A;
+  --warning: #B77908;
+  --danger: #D64545;
+  --info: #28709E;
 
-  /* ---------- ADMIN PANEL DESIGN SYSTEM (Full Dark: Dark Sidebar, Dark Workspace) ---------- */
-  --admin-background: #071014;
-  --admin-shell: #10151B;
-  --shell-navbar-height: 48px;
-  --admin-sidebar: #10151B;
-  --admin-sidebar-surface: #10151B;
-  --admin-sidebar-border: rgba(255, 255, 255, 0.08);
-  --admin-sidebar-border-subtle: rgba(255, 255, 255, 0.04);
-  --admin-sidebar-foreground: #F3F4F6;
-  --admin-sidebar-muted: #9CA3AF;
-  --admin-sidebar-hover: rgba(255, 255, 255, 0.06);
-  --admin-sidebar-active-pill: #161D26;
-  --admin-sidebar-active-pill-border: rgba(255, 255, 255, 0.12);
+  --admin-background: #07111F;
+  --admin-shell: #061222;
+  --admin-sidebar: #061222;
+  --admin-sidebar-surface: #071526;
+  --admin-sidebar-hover: #08182A;
+  --admin-sidebar-border: #17283A;
+  --admin-sidebar-foreground: #D5DCE3;
+  --admin-sidebar-muted: #7F8B99;
+  --admin-sidebar-active-pill: #008F83;
+  --admin-sidebar-active-pill-border: #008F83;
   --admin-sidebar-active-text: #FFFFFF;
-  --admin-surface: #0E171B;
-  --admin-surface-elevated: #131E23;
-  --admin-surface-subtle: #17242A;
-  --admin-border: rgba(255, 255, 255, 0.08);
-  --admin-border-subtle: rgba(255, 255, 255, 0.05);
-  --admin-divider: rgba(255, 255, 255, 0.07);
-  --admin-primary: #C4B09D;
-  --admin-primary-hover: #D5C5B5;
-  --admin-primary-soft: rgba(196, 176, 157, 0.15);
-  --admin-success: #36B86B;
-  --admin-success-soft: rgba(54, 184, 107, 0.15);
-  --admin-warning: #F59E0B;
-  --admin-warning-soft: rgba(245, 158, 11, 0.12);
-  --admin-danger: #EF4444;
-  --admin-danger-soft: rgba(239, 68, 68, 0.12);
-  --admin-info: #3B82F6;
-  --admin-info-soft: rgba(59, 130, 246, 0.12);
-  --admin-foreground: #F2F4F3;
-  --admin-muted: #8E9993;
-  --admin-muted-foreground: #66726B;
+  --admin-sidebar-active-icon: #FFFFFF;
+  --admin-surface: #0B1726;
+  --admin-surface-elevated: #0F1D2D;
+  --admin-surface-subtle: #152538;
+  --admin-border: #1B2B3D;
+  --admin-border-subtle: #152538;
+  --admin-border-strong: #24384E;
+  --admin-divider: #17283A;
+  --admin-primary: #008F83;
+  --admin-primary-hover: #00A99D;
+  --admin-primary-soft: rgba(0, 143, 131, 0.18);
+  --admin-foreground: #F4F7F9;
+  --admin-muted: #7F8B99;
+  --admin-muted-foreground: #B7C1CB;
+  --admin-text-secondary: #B7C1CB;
 }
 
 /* ============================================================
@@ -365,12 +380,61 @@ body {
 }
 
 /* ============================================================
-   SCROLLBAR (Admin)
+   SCROLLBAR (Theme-Aware Custom Scrollbars)
    ============================================================ */
 
-.admin-scrollbar::-webkit-scrollbar {
+/* Global elegant scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
   width: 6px;
   height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Specific .custom-scrollbar utility for cards, modals, and internal panels */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.admin-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
 }
 
 .admin-scrollbar::-webkit-scrollbar-track {
@@ -378,12 +442,12 @@ body {
 }
 
 .admin-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--admin-border-subtle);
+  background: var(--scrollbar-thumb);
   border-radius: 9999px;
 }
 
 .admin-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--admin-muted);
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Hide scrollbars but keep scroll behavior */

@@ -65,8 +65,16 @@ export function resolveUserDestination(input: RouteResolutionInput): RouteResolu
 
   if (matchesPrefix(pathname, AUTH_PREFIXES)) {
     const planParam = input.planParam;
-    const defaultTarget = planParam ? `/checkout?plan=${planParam}` : '/dashboard';
-    return { destination: 'DASHBOARD', path: redirectTo || defaultTarget, reason: 'already_authenticated' };
+    const defaultTarget = planParam
+      ? `/checkout?plan=${planParam}`
+      : needsOnboarding(onboardingStatus)
+        ? (onboardingRoute || '/onboarding')
+        : '/dashboard';
+    return {
+      destination: needsOnboarding(onboardingStatus) ? 'ONBOARDING' : 'DASHBOARD',
+      path: redirectTo || defaultTarget,
+      reason: 'already_authenticated',
+    };
   }
 
   if (persona === 'platform_admin' && pathname.startsWith('/dashboard')) {
@@ -75,24 +83,6 @@ export function resolveUserDestination(input: RouteResolutionInput): RouteResolu
 
   if (persona === 'tenant' && pathname.startsWith('/dashboard')) {
     return { destination: 'TENANT', path: '/tenant', reason: 'tenant_persona' };
-  }
-
-  if (
-    needsOnboarding(onboardingStatus) &&
-    !matchesPrefix(pathname, ONBOARDING_EXEMPT_PREFIXES) &&
-    !pathname.startsWith('/admin')
-  ) {
-    const target = onboardingRoute || '/onboarding';
-    if (pathname.startsWith('/dashboard') && target === '/onboarding/complete') {
-      return null;
-    }
-    if (!pathname.startsWith(target) && target !== '/dashboard') {
-      return { destination: 'ONBOARDING', path: target, reason: 'onboarding_incomplete' };
-    }
-  }
-
-  if (onboardingStatus === 'completed' && pathname.startsWith('/onboarding')) {
-    return { destination: 'DASHBOARD', path: '/dashboard', reason: 'onboarding_complete' };
   }
 
   if (persona === 'staff' && (pathname === '/dashboard' || pathname === '/dashboard/')) {

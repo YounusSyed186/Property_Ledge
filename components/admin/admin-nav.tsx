@@ -20,13 +20,15 @@ export function AdminNav() {
   return (
     <aside className="hidden md:flex flex-col justify-between shrink-0 w-64 p-4 bg-admin-sidebar text-admin-sidebar-foreground border-r border-admin-sidebar-border transition-all duration-300">
       <div>
-        <div className="flex items-center gap-3 px-3 py-4 border-b border-admin-sidebar-border mb-6">
-          <div className="w-9 h-9 rounded-lg bg-admin-primary/15 border border-admin-primary/30 flex items-center justify-center shrink-0">
-            <Shield className="w-5 h-5 text-admin-primary" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-base font-bold font-heading text-white truncate">PropertyLedge Admin</h2>
-            <p className="text-metadata text-admin-sidebar-muted">Platform Management</p>
+        <div className="flex items-center gap-2.5 px-2 py-3 border-b border-admin-sidebar-border mb-5 w-full">
+          <img
+            src="/logo_Dark.png"
+            alt="PropertyLedge"
+            className="h-6 w-auto object-contain shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-bold font-heading text-white truncate">PropertyLedge Admin</h2>
+            <p className="text-[10px] text-admin-sidebar-muted">Platform Management</p>
           </div>
         </div>
 
@@ -40,20 +42,17 @@ export function AdminNav() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'relative flex items-center gap-2.5 h-10 px-3 rounded-lg text-[13px] font-medium transition-all duration-200 group',
+                  'relative flex items-center gap-2.5 h-9 px-3 rounded-lg text-[12px] font-medium transition-all duration-150 group',
                   isActive
-                    ? 'bg-admin-primary-soft text-admin-primary font-semibold'
-                    : 'text-admin-sidebar-muted hover:text-admin-sidebar-foreground hover:bg-white/[0.04]'
+                    ? 'bg-[#008F83] text-white font-semibold shadow-xs'
+                    : 'text-[#D5DCE3] hover:text-white hover:bg-[#08182A]'
                 )}
                 aria-current={isActive ? 'page' : undefined}
               >
-                {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full bg-admin-primary" aria-hidden="true" />
-                )}
                 <Icon
                   className={cn(
-                    'w-4 h-4 shrink-0 transition-colors',
-                    isActive ? 'text-admin-primary' : 'text-admin-sidebar-muted group-hover:text-admin-sidebar-foreground'
+                    'w-3.5 h-3.5 shrink-0 transition-colors',
+                    isActive ? 'text-white' : 'text-[#D5DCE3] group-hover:text-white'
                   )}
                 />
                 {item.name}

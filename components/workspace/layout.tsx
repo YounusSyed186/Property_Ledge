@@ -12,7 +12,7 @@ export const WORKSPACE_PAGE_HEADER = `${WORKSPACE_PAGE_X} pt-4`;
 
 /** Wrapper for AG Grid inside ListPage — fills remaining viewport height */
 export function ListPageGrid({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', className)}>{children}</div>;
+  return <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden w-full', className)}>{children}</div>;
 }
 
 /* ── Page shell ───────────────────────────────────────────── */
@@ -38,14 +38,13 @@ export function PageContent({
 }: {
   children: React.ReactNode;
   className?: string;
-  /** When true, content fills remaining viewport height (for AG Grid list pages). */
   fill?: boolean;
 }) {
   return (
-    <div className={cn('flex flex-1 min-h-0 flex-col overflow-hidden', className)}>
+    <div className={cn('flex flex-1 min-h-0 flex-col overflow-hidden w-full', className)}>
       <div
         className={cn(
-          'mx-auto flex w-full max-w-[1400px] flex-1 flex-col min-h-0',
+          'flex w-full flex-1 flex-col min-h-0',
           WORKSPACE_PAGE_X,
           fill ? 'gap-2 overflow-hidden pb-4 pt-2' : 'gap-6 overflow-y-auto pb-8 pt-4 no-scrollbar'
         )}
@@ -174,7 +173,7 @@ export function CompactKpiCard({ label, value, hint, trend, href, icon: Icon, ac
   const inner = (
     <div
       className={cn(
-        'rounded-xl border border-admin-border bg-admin-surface px-4 py-4 transition-colors',
+        'rounded-xl border border-admin-border bg-admin-surface px-4 py-4 transition-colors w-full',
         href && 'hover:border-admin-primary-border hover:shadow-sm',
         className
       )}
@@ -217,7 +216,7 @@ export function SectionPanel({
   className?: string;
 }) {
   return (
-    <section className={cn('rounded-xl border border-admin-border bg-admin-surface', className)}>
+    <section className={cn('rounded-xl border border-admin-border bg-admin-surface w-full', className)}>
       <div className="flex items-center justify-between gap-2 border-b border-admin-border px-4 py-3">
         <h2 className="text-section-title font-semibold text-admin-foreground">{title}</h2>
         {action}
@@ -262,7 +261,7 @@ export function HubTabs({
   return (
     <div
       className={cn(
-        'flex gap-0 overflow-x-auto border-b border-admin-border no-scrollbar',
+        'flex gap-0 overflow-x-auto border-b border-admin-border no-scrollbar w-full',
         className
       )}
       role="tablist"
@@ -324,14 +323,14 @@ export function ActivityTimeline({
   }
 
   return (
-    <ul className="space-y-4">
+    <ul className="space-y-4 w-full">
       {items.map((item, i) => (
         <li key={item.id} className="relative flex gap-3 pl-0">
           {i < items.length - 1 && (
             <span className="absolute left-[5px] top-3 h-[calc(100%+8px)] w-px bg-admin-border" aria-hidden />
           )}
           <span className={cn('relative z-10 mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full border-2', dotColor(item.tone))} />
-          <div className="min-w-0 pb-1">
+          <div className="min-w-0 pb-1 flex-1">
             <p className="text-body-sm font-medium text-admin-foreground">{item.title}</p>
             {item.detail && <p className="mt-0.5 text-caption text-admin-muted">{item.detail}</p>}
             <p className="mt-0.5 text-metadata text-admin-muted/80">{item.time}</p>
@@ -344,7 +343,7 @@ export function ActivityTimeline({
 
 export function PageSkeleton({ rows = 3 }: { rows?: number }) {
   return (
-    <div className="animate-pulse space-y-4">
+    <div className="animate-pulse space-y-4 w-full">
       <div className="h-8 w-48 rounded bg-admin-surface-subtle" />
       <div className="h-4 w-72 max-w-full rounded bg-admin-surface-subtle" />
       <div className="grid grid-cols-2 gap-4 pt-2 lg:grid-cols-4">

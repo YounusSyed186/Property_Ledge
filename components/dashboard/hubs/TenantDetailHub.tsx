@@ -11,6 +11,8 @@ import { NotFoundState, StatusBadge, Button } from '@/components/admin/ui';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format/currency';
 import { humanizeActivityLog, formatActivityTimestamp } from '@/lib/activity/formatActivity';
+import { ComingSoonPage } from '@/components/dashboard/ComingSoonPage';
+import { CreditCard, Wrench, FolderOpen, Activity } from 'lucide-react';
 import {
   PageLayout,
   PageContent,
@@ -298,180 +300,35 @@ export function TenantDetailHub({ tenantId }: TenantDetailPageProps) {
           )}
 
           {activeTab === 'payments' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-                <CompactKpiCard label="Recent Payments" value={payments.length} />
-                <CompactKpiCard label="Open Invoices" value={invoices.filter((i) => i.status !== 'paid').length} />
-                <CompactKpiCard label="Outstanding" value={formatCurrency(outstandingBalance)} />
-              </div>
-
-              <SectionPanel
-                title="Recent Payments"
-                action={<ViewAllLink href="/dashboard/money?tab=payments" label="View all in Finances →" />}
-              >
-                {tabLoading ? (
-                  <p className="text-[13px] text-admin-muted">Loading payments...</p>
-                ) : payments.length === 0 ? (
-                  <EmptyTabMessage message="No payments recorded for this tenant yet." />
-                ) : (
-                  <ul className="divide-y divide-admin-border">
-                    {payments.map((payment) => (
-                      <li key={payment.id} className="flex items-center justify-between py-2.5 text-[13px]">
-                        <div>
-                          <p className="font-medium text-admin-foreground">
-                            {formatCurrency(Number(payment.amount))}
-                            {payment.invoice?.invoice_number && (
-                              <span className="ml-2 text-admin-muted">· {payment.invoice.invoice_number}</span>
-                            )}
-                          </p>
-                          <p className="text-[12px] text-admin-muted">
-                            {payment.payment_date}
-                            {payment.payment_method ? ` · ${payment.payment_method}` : ''}
-                          </p>
-                        </div>
-                        <StatusBadge domain="payment" status={payment.status} />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </SectionPanel>
-
-              <SectionPanel
-                title="Invoices"
-                action={<ViewAllLink href="/dashboard/money?tab=invoices" label="View all invoices →" />}
-              >
-                {tabLoading ? (
-                  <p className="text-[13px] text-admin-muted">Loading invoices...</p>
-                ) : invoices.length === 0 ? (
-                  <EmptyTabMessage message="No invoices for this tenant yet." />
-                ) : (
-                  <ul className="divide-y divide-admin-border">
-                    {invoices.map((invoice) => (
-                      <li key={invoice.id} className="flex items-center justify-between py-2.5 text-[13px]">
-                        <div>
-                          <p className="font-medium text-admin-foreground">{invoice.invoice_number}</p>
-                          <p className="text-[12px] text-admin-muted">
-                            Due {invoice.due_date} · {formatCurrency(Number(invoice.total_amount))}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <StatusBadge domain="invoice" status={invoice.status} />
-                          {Number(invoice.balance_due) > 0 && (
-                            <p className="mt-1 text-[12px] text-admin-muted">
-                              {formatCurrency(Number(invoice.balance_due))} due
-                            </p>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </SectionPanel>
-            </div>
+            <ComingSoonPage
+              title="Payments"
+              description="Full payment and invoice tracking for this tenant is coming soon."
+              icon={CreditCard}
+            />
           )}
 
           {activeTab === 'maintenance' && (
-            <SectionPanel
-              title="Maintenance Requests"
-              action={<ViewAllLink href="/dashboard/maintenance" label="View all maintenance →" />}
-            >
-              {tabLoading ? (
-                <p className="text-[13px] text-admin-muted">Loading maintenance requests...</p>
-              ) : maintenance.length === 0 ? (
-                <EmptyTabMessage message="No maintenance requests from this tenant yet." />
-              ) : (
-                <>
-                  <p className="mb-3 text-[12px] text-admin-muted">
-                    {openMaintenanceCount} open request{openMaintenanceCount === 1 ? '' : 's'}
-                  </p>
-                  <ul className="space-y-2">
-                    {maintenance.map((req) => (
-                      <li key={req.id}>
-                        <button
-                          type="button"
-                          className="flex w-full items-center justify-between rounded-md border border-admin-border px-3 py-2 text-left text-[13px] hover:bg-admin-surface-subtle"
-                          onClick={() => router.push(`/dashboard/maintenance/${req.id}`)}
-                        >
-                          <span>
-                            {req.title}
-                            <span className="block text-[12px] text-admin-muted">
-                              {new Date(req.created_at).toLocaleDateString()} · {req.priority} priority
-                            </span>
-                          </span>
-                          <StatusBadge domain="maintenance" status={req.status} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </SectionPanel>
+            <ComingSoonPage
+              title="Maintenance"
+              description="View and manage maintenance requests raised by this tenant. Coming soon."
+              icon={Wrench}
+            />
           )}
 
           {activeTab === 'documents' && (
-            <SectionPanel
+            <ComingSoonPage
               title="Documents"
-              action={<ViewAllLink href="/dashboard/documents" label="View all documents →" />}
-            >
-              {tabLoading ? (
-                <p className="text-[13px] text-admin-muted">Loading documents...</p>
-              ) : documents.length === 0 ? (
-                <EmptyTabMessage message="No documents linked to this tenant yet." />
-              ) : (
-                <ul className="divide-y divide-admin-border">
-                  {documents.map((doc) => (
-                    <li key={doc.id} className="flex items-center justify-between py-2.5 text-[13px]">
-                      <div>
-                        <p className="font-medium text-admin-foreground">{doc.name}</p>
-                        <p className="text-[12px] text-admin-muted">
-                          {doc.document_type.replace(/_/g, ' ')} · {new Date(doc.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      {doc.file_url ? (
-                        <a
-                          href={doc.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[12px] font-medium text-admin-primary hover:underline"
-                        >
-                          Open
-                        </a>
-                      ) : (
-                        <StatusBadge domain="document" status={doc.status} />
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </SectionPanel>
+              description="Securely store and manage documents linked to this tenant. Coming soon."
+              icon={FolderOpen}
+            />
           )}
 
           {activeTab === 'activity' && (
-            <SectionPanel
+            <ComingSoonPage
               title="Activity"
-              action={<ViewAllLink href="/dashboard/activity" label="View full activity log →" />}
-            >
-              {tabLoading ? (
-                <p className="text-[13px] text-admin-muted">Loading activity...</p>
-              ) : activity.length === 0 ? (
-                <EmptyTabMessage message="No activity recorded for this tenant yet." />
-              ) : (
-                <ul className="space-y-3">
-                  {activity.map((entry) => {
-                    const humanized = humanizeActivityLog(entry);
-                    return (
-                      <li key={entry.id} className="flex gap-3 text-[13px]">
-                        <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-admin-primary" />
-                        <div>
-                          <p className="text-admin-foreground">{humanized.message}</p>
-                          <p className="text-[12px] text-admin-muted">{formatActivityTimestamp(entry.created_at)}</p>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </SectionPanel>
+              description="A full audit trail of all actions related to this tenant is coming soon."
+              icon={Activity}
+            />
           )}
         </PageContent>
 

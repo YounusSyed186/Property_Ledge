@@ -14,14 +14,17 @@ interface FormFieldProps {
 
 export function FormField({ id, label, hint, error, children, className }: FormFieldProps) {
   return (
-    <div className={cn('space-y-1.5', className)}>
-      <label htmlFor={id} className="block text-sm font-medium text-admin-foreground">
+    <div className={cn('space-y-2', className)}>
+      <label 
+        htmlFor={id} 
+        className="block text-xs sm:text-sm font-semibold text-admin-foreground/80 tracking-tight cursor-default"
+      >
         {label}
       </label>
       {children}
-      {hint && !error && <p className="text-xs text-admin-muted">{hint}</p>}
+      {hint && !error && <p className="text-xs text-admin-muted font-medium cursor-default">{hint}</p>}
       {error && (
-        <p id={`${id}-error`} className="text-xs text-admin-danger" role="alert">
+        <p id={`${id}-error`} className="text-xs font-medium text-admin-danger" role="alert">
           {error}
         </p>
       )}
@@ -30,4 +33,4 @@ export function FormField({ id, label, hint, error, children, className }: FormF
 }
 
 export const inputClassName =
-  'w-full rounded-lg border border-admin-border bg-admin-surface px-3 py-2 text-sm text-admin-foreground placeholder:text-admin-muted focus:outline-none focus:ring-2 focus:ring-admin-success/40 focus:border-admin-success transition-colors';
+  'w-full h-11 sm:h-12 px-4 rounded-xl border border-admin-border/60 bg-admin-surface text-sm sm:text-base text-admin-foreground placeholder:text-admin-muted/60 focus:outline-none focus:ring-2 focus:ring-admin-primary/20 focus:border-admin-primary transition-all duration-150';

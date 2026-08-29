@@ -7,6 +7,7 @@ import { OnboardingStep } from '@/components/onboarding/OnboardingStep';
 import { OnboardingFooter } from '@/components/onboarding/OnboardingFooter';
 import { FormField, inputClassName } from '@/components/onboarding/FormField';
 import { createOnboardingProperty, getOnboardingProgress, skipOnboardingProperty } from '@/app/actions/onboarding';
+import { cn } from '@/lib/utils';
 
 const PROPERTY_TYPES = [
   'Apartment / Multifamily',
@@ -90,11 +91,11 @@ export default function OnboardingPropertyPage() {
     <OnboardingContent>
       <form onSubmit={handleSubmit}>
         <OnboardingStep
-          eyebrow="First property"
-          title="Add your first property"
-          description="Start with one property. You can add more from your dashboard whenever you're ready."
+          eyebrow="Step 3 of 4"
+          title="Let's add your first property."
+          description="Start with one property. You can add more properties from your dashboard whenever you're ready."
         >
-          <div className="space-y-4">
+          <div className="space-y-4 mt-6">
             <FormField id="propertyName" label="Property name" error={errors.name}>
               <input
                 id="propertyName"
@@ -107,18 +108,25 @@ export default function OnboardingPropertyPage() {
             </FormField>
 
             <FormField id="propertyType" label="Property type">
-              <select
-                id="propertyType"
-                value={propertyType}
-                onChange={(e) => setPropertyType(e.target.value)}
-                className={inputClassName}
-              >
-                {PROPERTY_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  id="propertyType"
+                  value={propertyType}
+                  onChange={(e) => setPropertyType(e.target.value)}
+                  className={cn(inputClassName, "appearance-none bg-admin-surface pr-10 cursor-pointer")}
+                >
+                  {PROPERTY_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-admin-muted">
+                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                  </svg>
+                </div>
+              </div>
             </FormField>
 
             <FormField id="address" label="Address" error={errors.addressLine1}>
@@ -140,7 +148,7 @@ export default function OnboardingPropertyPage() {
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   className={inputClassName}
-                  placeholder="Mumbai"
+                  placeholder="Melbourne"
                 />
               </FormField>
               <FormField id="state" label="State" error={errors.state}>
@@ -150,7 +158,7 @@ export default function OnboardingPropertyPage() {
                   value={state}
                   onChange={(e) => setState(e.target.value)}
                   className={inputClassName}
-                  placeholder="Maharashtra"
+                  placeholder="Victoria"
                 />
               </FormField>
             </div>
@@ -162,7 +170,7 @@ export default function OnboardingPropertyPage() {
                 value={postalCode}
                 onChange={(e) => setPostalCode(e.target.value)}
                 className={inputClassName}
-                placeholder="400001"
+                placeholder="3000"
               />
             </FormField>
           </div>

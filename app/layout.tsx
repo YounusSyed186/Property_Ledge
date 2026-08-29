@@ -43,13 +43,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth" data-theme-mode="light" suppressHydrationWarning>
+    <html lang="en" className="scroll-smooth dark" data-theme-mode="dark" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                const storedTheme = localStorage.getItem('propertyledge_theme') || 'light';
+                const storedTheme = localStorage.getItem('propertyledge_theme') || 'dark';
                 document.documentElement.setAttribute('data-theme-mode', storedTheme);
                 if (storedTheme === 'dark' || storedTheme === 'full-dark') {
                   document.documentElement.classList.add('dark');

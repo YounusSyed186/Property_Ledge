@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Star, Quote } from "lucide-react";
+import { Star, Quotes as Quote } from "@phosphor-icons/react";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/ui/Reveal";
 

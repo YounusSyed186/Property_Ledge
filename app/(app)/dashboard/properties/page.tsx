@@ -48,9 +48,10 @@ export default function PropertiesPage() {
     () => [
       ...propertyColumns,
       {
-        headerName: '',
+        headerName: 'Actions',
         field: 'actions',
-        width: 80,
+        width: 90,
+        minWidth: 80,
         sortable: false,
         filter: false,
         cellRenderer: (params: { data: Record<string, unknown> }) => (
@@ -62,7 +63,7 @@ export default function PropertiesPage() {
               setIsCreate(false);
               setIsDrawerOpen(true);
             }}
-            className="text-[11px] text-admin-primary hover:underline"
+            className="text-[12px] font-semibold text-[#008F83] hover:underline"
           >
             Edit
           </button>

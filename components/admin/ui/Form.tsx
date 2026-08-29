@@ -19,24 +19,26 @@ export function Input({ label, error, helpText, leftIcon, className, id, ...prop
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={inputId} className="block text-caption font-medium text-admin-foreground">
+        <label htmlFor={inputId} className="block text-caption font-medium text-[#182536] dark:text-[#F4F7F9]">
           {label}
         </label>
       )}
       <div className="relative">
         {leftIcon && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-admin-muted pointer-events-none">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
             {leftIcon}
           </span>
         )}
         <input
           id={inputId}
           className={cn(
-            'w-full h-9 px-3 rounded-lg bg-admin-surface border text-body-sm text-admin-foreground placeholder:text-admin-muted/60 transition-all duration-200',
-            'focus:outline-none focus:ring-2 focus:ring-admin-primary-soft focus:border-admin-primary',
+            'w-full h-10 px-3 rounded-lg bg-surface border text-body-sm text-[#182536] dark:text-[#F4F7F9] placeholder:text-[#9AA5AF] transition-all duration-150',
+            'focus:outline-none focus:border-[#008F83] focus:ring-3 focus:ring-[#008F83]/10',
             'disabled:opacity-50 disabled:pointer-events-none',
             leftIcon && 'pl-10',
-            error ? 'border-admin-danger ring-1 ring-admin-danger-soft' : 'border-admin-border-strong hover:border-admin-muted',
+            error
+              ? 'border-[#D64545] ring-3 ring-[#D64545]/10'
+              : 'border-[#DCE2E7] dark:border-[#1B2B3D] hover:border-[#BBC6CE] dark:hover:border-[#24384E]',
             className
           )}
           aria-invalid={!!error}
@@ -45,12 +47,12 @@ export function Input({ label, error, helpText, leftIcon, className, id, ...prop
         />
       </div>
       {error && (
-        <p id={`${inputId}-error`} className="text-xs text-admin-danger" role="alert">
+        <p id={`${inputId}-error`} className="text-xs text-[#D64545] font-medium" role="alert">
           {error}
         </p>
       )}
       {!error && helpText && (
-        <p id={`${inputId}-help`} className="text-xs text-admin-muted">
+        <p id={`${inputId}-help`} className="text-xs text-muted">
           {helpText}
         </p>
       )}
@@ -73,17 +75,19 @@ export function Select({ label, error, helpText, className, id, children, ...pro
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={selectId} className="block text-caption font-medium text-admin-foreground">
+        <label htmlFor={selectId} className="block text-caption font-medium text-[#182536] dark:text-[#F4F7F9]">
           {label}
         </label>
       )}
       <select
         id={selectId}
         className={cn(
-          'w-full h-9 px-3 rounded-lg bg-admin-surface border text-body-sm text-admin-foreground transition-all duration-200 appearance-none cursor-pointer',
-          'focus:outline-none focus:ring-2 focus:ring-admin-primary-soft focus:border-admin-primary',
+          'w-full h-10 px-3 rounded-lg bg-surface border text-body-sm text-[#182536] dark:text-[#F4F7F9] transition-all duration-150 appearance-none cursor-pointer',
+          'focus:outline-none focus:border-[#008F83] focus:ring-3 focus:ring-[#008F83]/10',
           'disabled:opacity-50 disabled:pointer-events-none',
-          error ? 'border-admin-danger ring-1 ring-admin-danger-soft' : 'border-admin-border-strong hover:border-admin-muted',
+          error
+            ? 'border-[#D64545] ring-3 ring-[#D64545]/10'
+            : 'border-[#DCE2E7] dark:border-[#1B2B3D] hover:border-[#BBC6CE] dark:hover:border-[#24384E]',
           className
         )}
         aria-invalid={!!error}
@@ -92,11 +96,11 @@ export function Select({ label, error, helpText, className, id, children, ...pro
         {children}
       </select>
       {error && (
-        <p className="text-xs text-admin-danger" role="alert">
+        <p className="text-xs text-[#D64545] font-medium" role="alert">
           {error}
         </p>
       )}
-      {!error && helpText && <p className="text-xs text-admin-muted">{helpText}</p>}
+      {!error && helpText && <p className="text-xs text-muted">{helpText}</p>}
     </div>
   );
 }
@@ -116,28 +120,30 @@ export function Textarea({ label, error, helpText, className, id, ...props }: Te
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={textareaId} className="block text-caption font-medium text-admin-foreground">
+        <label htmlFor={textareaId} className="block text-caption font-medium text-[#182536] dark:text-[#F4F7F9]">
           {label}
         </label>
       )}
       <textarea
         id={textareaId}
         className={cn(
-          'w-full px-3 py-2 rounded-lg bg-admin-surface border text-body-sm text-admin-foreground placeholder:text-admin-muted/60 transition-all duration-200 resize-y min-h-[80px]',
-          'focus:outline-none focus:ring-2 focus:ring-admin-primary-soft focus:border-admin-primary',
+          'w-full px-3 py-2 rounded-lg bg-surface border text-body-sm text-[#182536] dark:text-[#F4F7F9] placeholder:text-[#9AA5AF] transition-all duration-150 resize-y min-h-[84px]',
+          'focus:outline-none focus:border-[#008F83] focus:ring-3 focus:ring-[#008F83]/10',
           'disabled:opacity-50 disabled:pointer-events-none',
-          error ? 'border-admin-danger ring-1 ring-admin-danger-soft' : 'border-admin-border-strong hover:border-admin-muted',
+          error
+            ? 'border-[#D64545] ring-3 ring-[#D64545]/10'
+            : 'border-[#DCE2E7] dark:border-[#1B2B3D] hover:border-[#BBC6CE] dark:hover:border-[#24384E]',
           className
         )}
         aria-invalid={!!error}
         {...props}
       />
       {error && (
-        <p className="text-xs text-admin-danger" role="alert">
+        <p className="text-xs text-[#D64545] font-medium" role="alert">
           {error}
         </p>
       )}
-      {!error && helpText && <p className="text-xs text-admin-muted">{helpText}</p>}
+      {!error && helpText && <p className="text-xs text-muted">{helpText}</p>}
     </div>
   );
 }
@@ -158,13 +164,13 @@ export function Checkbox({ label, className, id, ...props }: CheckboxProps) {
         type="checkbox"
         id={checkboxId}
         className={cn(
-          'w-4 h-4 rounded border-admin-border bg-admin-sidebar-surface accent-admin-primary cursor-pointer',
-          'focus:outline-none focus:ring-2 focus:ring-admin-primary/40',
+          'w-4 h-4 rounded border-[#CBD4DB] dark:border-[#1B2B3D] bg-surface text-[#008F83] accent-[#008F83] cursor-pointer',
+          'focus:outline-none focus:ring-2 focus:ring-[#008F83]/30',
           className
         )}
         {...props}
       />
-      {label && <span className="text-body-sm text-admin-foreground group-hover:text-admin-primary transition-colors">{label}</span>}
+      {label && <span className="text-body-sm text-[#182536] dark:text-[#F4F7F9] group-hover:text-[#008F83] transition-colors">{label}</span>}
     </label>
   );
 }
@@ -188,11 +194,11 @@ export function Switch({ label, className, id, ...props }: SwitchProps) {
           className="peer sr-only"
           {...props}
         />
-        <div className="w-10 h-6 rounded-full bg-admin-border peer-checked:bg-admin-primary transition-colors duration-200 relative">
-          <div className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-elevation-1 transition-transform duration-200 peer-checked:translate-x-4" />
+        <div className="w-10 h-6 rounded-full bg-[#DCE2E7] dark:bg-[#1B2B3D] peer-checked:bg-[#008F83] transition-colors duration-200 relative">
+          <div className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-xs transition-transform duration-200 peer-checked:translate-x-4" />
         </div>
       </div>
-      {label && <span className="text-body-sm text-admin-foreground group-hover:text-admin-primary transition-colors">{label}</span>}
+      {label && <span className="text-body-sm text-[#182536] dark:text-[#F4F7F9] group-hover:text-[#008F83] transition-colors">{label}</span>}
     </label>
   );
 }

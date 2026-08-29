@@ -7,8 +7,10 @@ import { NotFoundState, StatusBadge, Button } from '@/components/admin/ui';
 import { fetchDashboardUnit } from '@/app/actions/dashboard';
 import { CreateLeaseWizard } from '@/components/dashboard/workflows/CreateLeaseWizard';
 import { UnitDrawer } from '@/components/dashboard/units/UnitDrawer';
-import { cn } from '@/lib/utils';
+import { ComingSoonPage } from '@/components/dashboard/ComingSoonPage';
+import { Wrench, CreditCard, FolderOpen, ClipboardCheck, Activity } from 'lucide-react';
 import { formatCurrency } from '@/lib/format/currency';
+import { cn } from '@/lib/utils';
 import {
   PageLayout,
   PageContent,
@@ -219,36 +221,38 @@ export function UnitDetailHub({ propertyId, unitId }: UnitDetailHubProps) {
           </SectionPanel>
         )}
         {activeTab === 'maintenance' && (
-          <SectionPanel title="Maintenance">
-            <ul className="space-y-2">
-              {(unit.maintenance_requests || []).map((req) => (
-                <li key={req.id}>
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between rounded-md border border-admin-border px-3 py-2 text-left text-[13px] hover:bg-admin-surface-subtle"
-                    onClick={() => router.push(`/dashboard/maintenance/${req.id}`)}
-                  >
-                    <span>{req.title}</span>
-                    <StatusBadge domain="maintenance" status={req.status} />
-                  </button>
-                </li>
-              ))}
-              {(unit.maintenance_requests || []).length === 0 && (
-                <p className="text-[13px] text-admin-muted">No maintenance requests.</p>
-              )}
-            </ul>
-          </SectionPanel>
+          <ComingSoonPage
+            title="Maintenance"
+            description="Track and manage maintenance requests for this unit. Full maintenance management is coming soon."
+            icon={Wrench}
+          />
         )}
         {['payments', 'documents', 'inspection', 'activity'].includes(activeTab) && (
-          <SectionPanel title={activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}>
-            <p className="text-[13px] text-admin-muted">
-              View full {activeTab} in the{' '}
-              <Link href={`/dashboard/${activeTab === 'payments' ? 'money?tab=payments' : activeTab}`} className="text-admin-primary hover:underline">
-                {activeTab === 'payments' ? 'Finances' : activeTab}
-              </Link>{' '}
-              section.
-            </p>
-          </SectionPanel>
+          activeTab === 'payments' ? (
+            <ComingSoonPage
+              title="Payments"
+              description="View and manage rent payments for this unit. Full payment tracking is coming soon."
+              icon={CreditCard}
+            />
+          ) : activeTab === 'documents' ? (
+            <ComingSoonPage
+              title="Documents"
+              description="Store and manage documents related to this unit. Coming soon."
+              icon={FolderOpen}
+            />
+          ) : activeTab === 'inspection' ? (
+            <ComingSoonPage
+              title="Inspection"
+              description="Schedule and record unit inspections with checklists and sign-offs. Coming soon."
+              icon={ClipboardCheck}
+            />
+          ) : (
+            <ComingSoonPage
+              title="Activity"
+              description="A full audit trail of all actions on this unit is coming soon."
+              icon={Activity}
+            />
+          )
         )}
       </PageContent>
 

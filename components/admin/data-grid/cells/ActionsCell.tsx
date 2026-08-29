@@ -28,7 +28,7 @@ export function ActionsCell(props: CustomCellRendererProps) {
             e.stopPropagation();
             onInspect(props.data);
           }}
-          leftIcon={<Eye className="w-3.5 h-3.5" />}
+          leftIcon={<Eye className="w-4 h-4" />}
         >
           {inspectLabel}
         </Button>
