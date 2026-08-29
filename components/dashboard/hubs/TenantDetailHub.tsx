@@ -143,12 +143,12 @@ export function TenantDetailHub({ tenantId }: TenantDetailPageProps) {
     )
       .then((data) => {
         if ('payments' in data) {
-          setPayments((data.payments as PaymentRow[]) || []);
-          setInvoices((data.invoices as InvoiceRow[]) || []);
+          setPayments((data.payments as unknown as PaymentRow[]) || []);
+          setInvoices((data.invoices as unknown as InvoiceRow[]) || []);
         }
-        if ('maintenance' in data) setMaintenance((data.maintenance as MaintenanceRow[]) || []);
-        if ('documents' in data) setDocuments((data.documents as DocumentRow[]) || []);
-        if ('activity' in data) setActivity((data.activity as ActivityRow[]) || []);
+        if ('maintenance' in data) setMaintenance((data.maintenance as unknown as MaintenanceRow[]) || []);
+        if ('documents' in data) setDocuments((data.documents as unknown as DocumentRow[]) || []);
+        if ('activity' in data) setActivity((data.activity as unknown as ActivityRow[]) || []);
       })
       .finally(() => setTabLoading(false));
   }, [activeTab, selectedProperty?.propertyId, tenantId, tenant]);

@@ -551,7 +551,8 @@ export async function getTenantActivity(propertyId: string, tenantId: string) {
   const invoiceIds = new Set((invoices.data || []).map((i) => (i as { id: string }).id));
   const maintenanceIds = new Set((maintenance.data || []).map((m) => (m as { id: string }).id));
 
-  const filtered = (logs.data || []).filter((log) => {
+  const rawLogs = (logs.data || []) as any[];
+  const filtered = rawLogs.filter((log) => {
     const row = log as {
       entity_type: string;
       entity_id: string | null;
@@ -572,11 +573,11 @@ export async function getTenantActivity(propertyId: string, tenantId: string) {
     ? await supabase.from('profiles').select('id, full_name, public_id').in('id', userIds)
     : { data: [] };
 
-  const profileMap = new Map((profiles || []).map((p) => [(p as { id: string }).id, p]));
+  const profileMap = new Map(((profiles || []) as any[]).map((p) => [p.id, p]));
 
-  return filtered.map((log) => {
-    const row = log as { user_id?: string };
-    const profile = row.user_id ? profileMap.get(row.user_id) : undefined;
+  return filtered.map((logItem) => {
+    const log = logItem as Record<string, any>;
+    const profile = log.user_id ? profileMap.get(log.user_id) : undefined;
     return {
       ...log,
       user: {
