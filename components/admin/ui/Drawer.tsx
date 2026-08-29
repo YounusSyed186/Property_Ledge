@@ -19,9 +19,9 @@ export interface DrawerProps {
 }
 
 const widthClasses = {
-  sm: 'sm:w-[360px]',
-  md: 'sm:w-[420px]',
-  lg: 'sm:w-[520px]',
+  sm: 'sm:max-w-md',
+  md: 'sm:max-w-lg',
+  lg: 'sm:max-w-2xl',
 };
 
 export function Drawer({
@@ -70,50 +70,58 @@ export function Drawer({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!mounted || !portalRoot) return null;
+  const targetRoot = portalRoot || (typeof document !== 'undefined' ? document.body : null);
+
+  if (!mounted || !targetRoot) return null;
 
   return createPortal(
-    <div className="absolute inset-0 overflow-hidden font-sans" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto font-sans" role="dialog" aria-modal="true">
+      {/* Backdrop */}
       <div
         className={cn(
-          'absolute inset-0 bg-admin-foreground/20 backdrop-blur-[2px] transition-opacity duration-300 ease-out',
+          'fixed inset-0 bg-black/65 backdrop-blur-sm transition-opacity duration-300 ease-out',
           animateIn ? 'opacity-100' : 'opacity-0'
         )}
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="absolute inset-y-0 right-0 flex max-w-full pl-6">
-        <div
-          className={cn(
-            'flex h-full w-full max-w-full flex-col border-l border-admin-border bg-admin-surface text-admin-foreground shadow-elevation-overlay transition-transform duration-300 ease-out',
-            widthClasses[width],
-            animateIn ? 'translate-x-0' : 'translate-x-full',
-            className
-          )}
-        >
-          <div className="flex shrink-0 items-start justify-between border-b border-admin-border px-4 py-3">
-            <div className="min-w-0 pr-3">
-              <h2 className="text-section-title font-semibold text-admin-foreground truncate">{title}</h2>
-              {description && (
-                <p className="mt-0.5 text-caption text-admin-muted">{description}</p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="shrink-0 rounded-md p-1.5 text-admin-muted transition-colors hover:bg-admin-surface-subtle hover:text-admin-foreground"
-              aria-label="Close drawer"
-            >
-              <X className="h-4 w-4" />
-            </button>
+
+      {/* Pop-up Form Dialog */}
+      <div
+        className={cn(
+          'relative flex max-h-[90vh] w-full flex-col rounded-2xl border border-admin-border bg-admin-surface text-admin-foreground shadow-elevation-overlay transition-all duration-300 ease-out z-10',
+          widthClasses[width],
+          animateIn ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-3',
+          className
+        )}
+      >
+        {/* Header */}
+        <div className="flex shrink-0 items-start justify-between border-b border-admin-border px-6 py-4.5 rounded-t-2xl bg-admin-surface">
+          <div className="min-w-0 pr-4">
+            <h2 className="text-section-title font-bold text-admin-foreground truncate">{title}</h2>
+            {description && (
+              <p className="mt-0.5 text-body-sm text-admin-muted">{description}</p>
+            )}
           </div>
-          <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-4">{children}</div>
-          {footer && (
-            <div className="shrink-0 border-t border-admin-border px-4 py-3">{footer}</div>
-          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-lg p-1.5 text-admin-muted transition-colors hover:bg-admin-surface-subtle hover:text-admin-foreground"
+            aria-label="Close form"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
+
+        {/* Form Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+
+        {/* Footer */}
+        {footer && (
+          <div className="shrink-0 border-t border-admin-border px-6 py-4 bg-admin-surface-subtle/50 rounded-b-2xl">{footer}</div>
+        )}
       </div>
     </div>,
-    portalRoot
+    targetRoot
   );
 }
