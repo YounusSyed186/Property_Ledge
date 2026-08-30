@@ -375,7 +375,7 @@ export function AdminDataGrid<TData = any>({
           isExpanded ? 'h-full min-h-[200px] flex-1' : 'h-[240px] min-h-[240px] max-h-[240px] flex-none'
         )}
       >
-        {isLoadingState && !isDataLoaded ? (
+        {isLoadingState && (!isDataLoaded || rowData.length === 0) ? (
           /* Initial data fetching: Render Row Skeleton Table */
           <AdminDataGridLoading />
         ) : isEmpty ? (

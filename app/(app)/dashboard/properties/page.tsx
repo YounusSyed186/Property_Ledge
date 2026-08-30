@@ -2,15 +2,27 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Plus, Building2, Home, CheckCircle, X, Pencil } from 'lucide-react';
+import {
+  Plus,
+  Building2,
+  Building,
+  Home,
+  CheckCircle2,
+  X,
+  Pencil,
+  ArrowUpRight,
+  List,
+  LayoutGrid,
+} from 'lucide-react';
 import { ColDef } from 'ag-grid-community';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button, useToast } from '@/components/admin/ui';
-import { AdminDataGrid } from '@/components/admin/data-grid';
+import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
 import { EntityDrawer } from '@/components/dashboard/EntityDrawer';
 import { PropertyCreationWizard } from '@/components/dashboard/properties/PropertyCreationWizard';
 import { propertyFields, propertyColumns } from '@/components/dashboard/entities/config';
-import { ListPage, CompactKpiCard, ListPageGrid } from '@/components/workspace';
+import { ListPage, ListPageGrid } from '@/components/workspace';
+import { cn } from '@/lib/utils';
 import {
   fetchDashboardProperties,
   handleCreateProperty,
@@ -27,6 +39,8 @@ export default function PropertiesPage() {
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Draft' | 'Archived'>('All');
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
   const isNewQueryParam = searchParams.get('new') === 'true' || searchParams.get('action') === 'new';
 
@@ -59,8 +73,38 @@ export default function PropertiesPage() {
     loadData();
   }, []);
 
-  const totalUnits = rows.reduce((sum, r) => sum + Number(r.units_count ?? 0), 0);
-  const activeCount = rows.filter((r) => r.status === 'active').length;
+  const filterOptions = useMemo<QuickFilterOption[]>(
+    () => [
+      { label: 'All', value: 'All' },
+      { label: 'Active', value: 'Active' },
+      { label: 'Draft', value: 'Draft' },
+      { label: 'Archived', value: 'Archived' },
+    ],
+    []
+  );
+
+  const filteredRows = useMemo(() => {
+    return rows.filter((r) => {
+      const status = String(r.status || '').toLowerCase();
+      if (statusFilter === 'All') return true;
+      if (statusFilter === 'Active') return status === 'active';
+      if (statusFilter === 'Draft') return status === 'draft' || status === 'pending';
+      if (statusFilter === 'Archived') return status === 'archived';
+      return true;
+    });
+  }, [rows, statusFilter]);
+
+  const stats = useMemo(() => {
+    const total = rows.length;
+    const active = rows.filter((r) => String(r.status || '').toLowerCase() === 'active').length;
+    const totalUnits = rows.reduce((sum, r) => sum + Number(r.units_count ?? 1), 0);
+    const draft = rows.filter((r) => {
+      const status = String(r.status || '').toLowerCase();
+      return status === 'draft' || status === 'pending';
+    }).length;
+
+    return { total, active, totalUnits, draft };
+  }, [rows]);
 
   const columns = useMemo<ColDef[]>(
     () => [
@@ -93,38 +137,287 @@ export default function PropertiesPage() {
   return (
     <ListPage
       title="Properties"
-      description="Manage your property portfolio with full V1 data parity."
-      summary={
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <CompactKpiCard label="Properties" value={rows.length} icon={Building2} accent="blue" />
-          <CompactKpiCard label="Total Units" value={totalUnits} icon={Home} accent="indigo" />
-          <CompactKpiCard label="Active" value={activeCount} icon={CheckCircle} accent="teal" />
+      description="Central catalog to view, add, and manage real estate assets in your portfolio."
+      actions={
+        <div className="flex items-center gap-3">
+          <div className="flex items-center bg-admin-surface border border-admin-border rounded-xl p-1 shadow-xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={cn(
+                'p-1.5 rounded-lg transition-colors',
+                viewMode === 'table'
+                  ? 'bg-admin-surface-elevated text-admin-primary shadow-xs'
+                  : 'text-admin-muted hover:text-admin-foreground'
+              )}
+              title="Table View"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={cn(
+                'p-1.5 rounded-lg transition-colors',
+                viewMode === 'grid'
+                  ? 'bg-admin-surface-elevated text-admin-primary shadow-xs'
+                  : 'text-admin-muted hover:text-admin-foreground'
+              )}
+              title="Card Grid View"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
+
+          <Button onClick={() => setIsWizardOpen(true)} className="font-bold gap-2">
+            <Plus className="w-4 h-4" /> Add Property
+          </Button>
         </div>
       }
-      actions={
-        <Button
-          size="sm"
-          onClick={() => setIsWizardOpen(true)}
-          className="bg-[#008F83] hover:bg-[#007a70] text-white"
-        >
-          <Plus className="w-3.5 h-3.5 mr-1" />
-          Add Property
-        </Button>
+      summary={
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          {/* Action Card */}
+          <div
+            onClick={() => setIsWizardOpen(true)}
+            className="bg-admin-primary text-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+          >
+            <div className="flex justify-between items-start mb-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                <Building className="w-5 h-5 text-white" />
+              </div>
+              <ArrowUpRight className="w-5 h-5 text-white/70 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+            </div>
+            <div>
+              <h3 className="text-base font-black mb-0.5">Add Property</h3>
+              <p className="text-xs text-white/80 font-medium">Register properties & configure units.</p>
+            </div>
+          </div>
+
+          {/* Active Properties */}
+          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
+            <div className="flex justify-between items-start mb-3">
+              <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Active Properties</p>
+              <h3 className="text-2xl font-black text-admin-foreground">
+                {isLoading ? (
+                  <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
+                ) : (
+                  stats.active
+                )}
+              </h3>
+            </div>
+          </div>
+
+          {/* Total Units */}
+          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
+            <div className="flex justify-between items-start mb-3">
+              <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
+                <Home className="w-5 h-5" />
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Residential Units</p>
+              <h3 className="text-2xl font-black text-admin-foreground">
+                {isLoading ? (
+                  <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
+                ) : (
+                  stats.totalUnits
+                )}
+              </h3>
+            </div>
+          </div>
+
+          {/* Total Portfolio */}
+          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
+            <div className="flex justify-between items-start mb-3">
+              <div className="w-10 h-10 bg-admin-surface-elevated rounded-xl flex items-center justify-center text-admin-muted">
+                <Building2 className="w-5 h-5" />
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Total Portfolio</p>
+              <h3 className="text-2xl font-black text-admin-foreground">
+                {isLoading ? (
+                  <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
+                ) : (
+                  stats.total
+                )}
+              </h3>
+            </div>
+          </div>
+        </div>
       }
     >
-      <ListPageGrid>
-        <AdminDataGrid
-          rowData={rows}
-          columnDefs={columns}
-          loading={isLoading}
-          labelSingular="property"
-          labelPlural="properties"
-          searchPlaceholder="Search properties..."
-          onRowClick={(row) => router.push(`/dashboard/properties/${row.id}`)}
-          getRowId={(params) => String(params.data.id)}
-          disablePagination={true}
-        />
-      </ListPageGrid>
+      <div className="flex-1 flex flex-col min-h-0 h-full space-y-4">
+        {!isLoading && filteredRows.length === 0 && statusFilter === 'All' ? (
+          <div className="py-20 px-6 text-center bg-admin-surface rounded-2xl border border-admin-border shadow-xs flex-1 flex flex-col items-center justify-center min-h-[300px]">
+            <div className="w-14 h-14 bg-admin-surface-subtle rounded-full flex items-center justify-center mx-auto mb-4 text-admin-muted border border-admin-border">
+              <Building2 className="w-7 h-7" />
+            </div>
+            <h3 className="text-lg font-black text-admin-foreground mb-1">No properties found</h3>
+            <p className="text-xs text-admin-muted max-w-sm mx-auto mb-5 font-medium">
+              Start expanding your portfolio by adding your first real estate asset or building.
+            </p>
+            <Button onClick={() => setIsWizardOpen(true)} className="font-bold">
+              <Plus className="w-4 h-4 mr-1.5" /> Add First Property
+            </Button>
+          </div>
+        ) : viewMode === 'table' ? (
+          <ListPageGrid>
+            <AdminDataGrid
+              rowData={filteredRows}
+              columnDefs={columns}
+              loading={isLoading}
+              labelSingular="property"
+              labelPlural="properties"
+              onRowClick={(row) => router.push(`/dashboard/properties/${row.id}`)}
+              getRowId={(params) => String(params.data.id)}
+              enableColumnChooser
+              enableExport
+              exportFilename="properties-export"
+              searchPlaceholder="Search properties..."
+              leftToolbarContent={
+                <QuickFilterBar
+                  options={filterOptions}
+                  activeValue={statusFilter}
+                  onChange={(val) => setStatusFilter(val as any)}
+                />
+              }
+              disablePagination={true}
+            />
+          </ListPageGrid>
+        ) : isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto flex-1 p-1">
+            {[...Array(6)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-admin-surface border border-admin-border rounded-2xl p-5 shadow-xs flex flex-col justify-between gap-3 skeleton-shimmer"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl skeleton-shimmer shrink-0" />
+                    <div className="space-y-1.5">
+                      <div className="h-3.5 rounded skeleton-shimmer w-28" />
+                      <div className="h-2.5 rounded skeleton-shimmer w-20" />
+                    </div>
+                  </div>
+                  <div className="h-5 w-14 rounded skeleton-shimmer" />
+                </div>
+                <div className="grid grid-cols-2 gap-2 py-2 border-y border-admin-border/60 my-1">
+                  <div className="space-y-1.5">
+                    <div className="h-2 rounded skeleton-shimmer w-10" />
+                    <div className="h-3 rounded skeleton-shimmer w-16" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="h-2 rounded skeleton-shimmer w-12" />
+                    <div className="h-3 rounded skeleton-shimmer w-16" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="h-2 rounded skeleton-shimmer w-14" />
+                    <div className="h-3 rounded skeleton-shimmer w-16" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="h-2 rounded skeleton-shimmer w-10" />
+                    <div className="h-3 rounded skeleton-shimmer w-8" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <div className="h-3 rounded skeleton-shimmer w-16" />
+                  <div className="h-3 rounded skeleton-shimmer w-12" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto flex-1 p-1">
+            {filteredRows.map((p) => {
+              const address = String(p.address_line_1 || p.address || p.name || '—');
+              const location = `${p.suburb || p.city || ''}${p.state ? `, ${p.state}` : ''}`.trim() || '—';
+              const rent = p.rent_amount ? `$${Number(p.rent_amount).toLocaleString()}` : '—';
+              const frequency = String(p.payment_frequency || 'Weekly');
+
+              return (
+                <div
+                  key={String(p.id)}
+                  className="bg-admin-surface border border-admin-border rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-3"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-admin-primary/10 text-admin-primary flex items-center justify-center font-bold text-sm shrink-0 border border-admin-primary/20">
+                        <Building2 className="w-5 h-5 text-admin-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm text-admin-foreground leading-tight truncate max-w-[180px]">
+                          {String(p.name || address)}
+                        </h4>
+                        <p className="text-xs text-admin-muted mt-0.5 truncate max-w-[180px]">{address}</p>
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        'px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider',
+                        String(p.status).toLowerCase() === 'active'
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                          : String(p.status).toLowerCase() === 'draft' || String(p.status).toLowerCase() === 'pending'
+                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                          : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20'
+                      )}
+                    >
+                      {String(p.status || 'Active')}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs py-2 border-y border-admin-border my-1">
+                    <div>
+                      <span className="text-admin-muted block">Location</span>
+                      <span className="font-bold text-admin-foreground truncate block max-w-[120px]">{location}</span>
+                    </div>
+                    <div>
+                      <span className="text-admin-muted block">Type / Beds</span>
+                      <span className="font-bold text-admin-foreground truncate block max-w-[120px]">
+                        {String(p.property_type || 'Residential')} {p.bedrooms ? `(${p.bedrooms} Bed)` : ''}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-admin-muted block">Advertised Rent</span>
+                      <span className="font-bold text-admin-foreground truncate block max-w-[120px]">
+                        {rent} <span className="text-[10px] text-admin-muted font-normal">/{frequency}</span>
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-admin-muted block">Total Units</span>
+                      <span className="font-bold text-admin-foreground">{p.units_count !== undefined && p.units_count !== null ? String(p.units_count) : '1'}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-1">
+                    <button
+                      onClick={() => router.push(`/dashboard/properties/${p.id}`)}
+                      className="text-xs font-bold text-[#008F83] hover:underline"
+                    >
+                      View Details
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelected(p);
+                        setIsDrawerOpen(true);
+                      }}
+                      className="p-1 text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-500/10 rounded transition-colors inline-flex items-center gap-1 font-bold text-xs"
+                    >
+                      <Pencil className="w-3.5 h-3.5" /> Edit
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* V1 Property Creation Journey Modal */}
       <AnimatePresence>

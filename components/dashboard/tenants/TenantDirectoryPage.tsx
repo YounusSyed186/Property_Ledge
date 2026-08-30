@@ -293,7 +293,13 @@ export function TenantDirectoryPage() {
             </div>
             <div>
               <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Active Residents</p>
-              <h3 className="text-2xl font-black text-admin-foreground">{stats.active}</h3>
+              <h3 className="text-2xl font-black text-admin-foreground">
+                {isLoading ? (
+                  <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
+                ) : (
+                  stats.active
+                )}
+              </h3>
             </div>
           </div>
 
@@ -306,7 +312,13 @@ export function TenantDirectoryPage() {
             </div>
             <div>
               <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Pending / Prospects</p>
-              <h3 className="text-2xl font-black text-admin-foreground">{stats.pending}</h3>
+              <h3 className="text-2xl font-black text-admin-foreground">
+                {isLoading ? (
+                  <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
+                ) : (
+                  stats.pending
+                )}
+              </h3>
             </div>
           </div>
 
@@ -319,7 +331,13 @@ export function TenantDirectoryPage() {
             </div>
             <div>
               <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Total Directory</p>
-              <h3 className="text-2xl font-black text-admin-foreground">{stats.total}</h3>
+              <h3 className="text-2xl font-black text-admin-foreground">
+                {isLoading ? (
+                  <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
+                ) : (
+                  stats.total
+                )}
+              </h3>
             </div>
           </div>
         </div>
@@ -327,11 +345,7 @@ export function TenantDirectoryPage() {
     >
       <div className="flex-1 flex flex-col min-h-0 h-full space-y-4">
         {/* Tenants Data Table */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-24 bg-admin-surface rounded-2xl border border-admin-border flex-1 min-h-[300px]">
-            <div className="w-8 h-8 border-3 border-admin-primary/20 border-t-admin-primary rounded-full animate-spin" />
-          </div>
-        ) : filteredTenants.length === 0 && statusFilter === 'All' ? (
+        {!isLoading && filteredTenants.length === 0 && statusFilter === 'All' ? (
           <div className="py-20 px-6 text-center bg-admin-surface rounded-2xl border border-admin-border shadow-xs flex-1 flex flex-col items-center justify-center min-h-[300px]">
             <div className="w-14 h-14 bg-admin-surface-subtle rounded-full flex items-center justify-center mx-auto mb-4 text-admin-muted border border-admin-border">
               <Users className="w-7 h-7" />
@@ -349,6 +363,7 @@ export function TenantDirectoryPage() {
             <AdminDataGrid
               rowData={filteredTenants}
               columnDefs={agGridColumns}
+              loading={isLoading}
               labelSingular="tenant"
               labelPlural="tenants"
               onRowClick={(row) => router.push(`/dashboard/people/${row.id}`)}
@@ -367,6 +382,36 @@ export function TenantDirectoryPage() {
               disablePagination={true}
             />
           </ListPageGrid>
+        ) : isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto flex-1 p-1">
+            {[...Array(6)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-admin-surface border border-admin-border rounded-2xl p-5 shadow-xs flex flex-col justify-between gap-3 skeleton-shimmer"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl skeleton-shimmer shrink-0" />
+                    <div className="space-y-1.5">
+                      <div className="h-3.5 rounded skeleton-shimmer w-28" />
+                      <div className="h-2.5 rounded skeleton-shimmer w-36" />
+                    </div>
+                  </div>
+                  <div className="h-5 w-14 rounded skeleton-shimmer" />
+                </div>
+                <div className="h-px w-full bg-admin-border/60" />
+                <div className="space-y-2 py-1">
+                  <div className="h-3 rounded skeleton-shimmer w-32" />
+                  <div className="h-3 rounded skeleton-shimmer w-24" />
+                </div>
+                <div className="h-px w-full bg-admin-border/60" />
+                <div className="flex items-center justify-between pt-1">
+                  <div className="h-3 rounded skeleton-shimmer w-12" />
+                  <div className="h-3 rounded skeleton-shimmer w-20" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto flex-1 p-1">
             {filteredTenants.map((t) => {

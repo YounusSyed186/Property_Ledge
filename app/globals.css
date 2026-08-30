@@ -647,3 +647,24 @@ body {
     opacity 200ms ease,
     padding 250ms ease;
 }
+
+/* ── Skeleton shimmer animation ──────────────────────────── */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--admin-border) 0%,
+    color-mix(in srgb, var(--admin-border) 60%, var(--admin-surface-elevated)) 40%,
+    var(--admin-border) 80%
+  );
+  background-size: 800px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
