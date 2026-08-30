@@ -119,7 +119,21 @@ export async function createProperty(input: Tables['properties']['Insert']) {
 export async function updateProperty(propertyId: string, input: Tables['properties']['Update']) {
   await requirePropertyPermission(propertyId, 'property.update');
   const supabase = await createClient();
-  const { data, error } = await supabase.from('properties').update(input).eq('id', propertyId).select().single();
+
+  const addressStr = (input as any).address || input.address_line_1;
+  const suburbStr = (input as any).suburb || input.city;
+  const postcodeStr = (input as any).postcode || input.postal_code;
+  const carSpacesVal = (input as any).car_spaces ?? input.parking_spaces;
+
+  const payload = {
+    ...input,
+    ...(addressStr ? { address_line_1: addressStr, name: addressStr } : {}),
+    ...(suburbStr ? { city: suburbStr, suburb: suburbStr } : {}),
+    ...(postcodeStr ? { postal_code: postcodeStr, postcode: postcodeStr } : {}),
+    ...(carSpacesVal !== undefined && carSpacesVal !== null ? { parking_spaces: Number(carSpacesVal), car_spaces: Number(carSpacesVal) } : {}),
+  };
+
+  const { data, error } = await supabase.from('properties').update(payload).eq('id', propertyId).select().single();
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'property', entityId: propertyId });
   return data;
@@ -204,22 +218,165 @@ export async function createLease(propertyId: string, input: Omit<Tables['leases
   return data;
 }
 
+export interface TenancySetupInput {
+  tenants: Array<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+  }>;
+  lease: {
+    startDate: string;
+    endDate?: string | null;
+    leaseType: string;
+    rentAmount: number;
+    rentFrequency?: 'weekly' | 'fortnightly' | 'monthly' | 'yearly';
+    securityDeposit?: number;
+    paymentDueDay?: number;
+    status?: 'draft' | 'pending' | 'active';
+    notes?: string | null;
+  };
+  bond?: {
+    amount: number;
+    isPaid?: boolean;
+    dueDate?: string | null;
+  };
+}
+
+export async function setupTenancyWithLease(propertyId: string, input: TenancySetupInput) {
+  const user = await requirePropertyPermission(propertyId, 'lease.create');
+  const supabase = await createClient();
+
+  const isPeriodic = input.lease.leaseType === 'Periodic';
+  const effectiveEndDate = isPeriodic ? null : (input.lease.endDate || null);
+
+  // 1. Create Lease
+  const leasePayload: any = {
+    property_id: propertyId,
+    created_by: user.id,
+    start_date: input.lease.startDate,
+    end_date: effectiveEndDate,
+    rent_amount: Number(input.lease.rentAmount) || 0,
+    rent_frequency: input.lease.rentFrequency || 'monthly',
+    security_deposit: Number(input.bond?.amount ?? input.lease.securityDeposit ?? 0),
+    payment_due_day: Number(input.lease.paymentDueDay) || 1,
+    status: input.lease.status || 'active',
+    notes: input.lease.notes || null,
+  };
+
+  const { data: newLease, error: leaseErr } = await supabase
+    .from('leases')
+    .insert(leasePayload)
+    .select()
+    .single();
+
+  if (leaseErr) throw new Error(leaseErr.message);
+
+  // 2. Insert tenants and link to lease
+  const createdTenants = [];
+  for (let i = 0; i < input.tenants.length; i++) {
+    const t = input.tenants[i];
+    const { data: newTenant, error: tenantErr } = await supabase
+      .from('tenants')
+      .insert({
+        property_id: propertyId,
+        first_name: t.firstName,
+        last_name: t.lastName || '',
+        email: t.email,
+        phone: t.phone || null,
+        status: 'active',
+      })
+      .select()
+      .single();
+
+    if (tenantErr) throw new Error(tenantErr.message);
+    createdTenants.push(newTenant);
+
+    // Link to lease_tenants
+    const { error: linkErr } = await supabase
+      .from('lease_tenants')
+      .insert({
+        lease_id: newLease.id,
+        tenant_id: newTenant.id,
+        property_id: propertyId,
+        role: i === 0 ? 'primary' : 'co-tenant',
+        is_primary: i === 0,
+      });
+
+    if (linkErr) throw new Error(linkErr.message);
+
+    await recordActivityLog({ propertyId, action: 'created', entityType: 'tenant', entityId: newTenant.id });
+  }
+
+  await recordActivityLog({ propertyId, action: 'created', entityType: 'lease', entityId: newLease.id });
+
+  return { lease: newLease, tenants: createdTenants };
+}
+
 export async function updateLease(propertyId: string, leaseId: string, input: Tables['leases']['Update']) {
   await requirePropertyPermission(propertyId, 'lease.update');
   const supabase = await createClient();
-  const { data, error } = await supabase.from('leases').update(input).eq('id', leaseId).eq('property_id', propertyId).select().single();
+  const { data, error } = await supabase
+    .from('leases')
+    .update(input)
+    .eq('id', leaseId)
+    .eq('property_id', propertyId)
+    .select()
+    .single();
+
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'lease', entityId: leaseId });
   return data;
 }
 
 export async function deleteLease(propertyId: string, leaseId: string) {
-  await requirePropertyPermission(propertyId, 'lease.manage');
+  await requirePropertyPermission(propertyId, 'lease.delete');
   const supabase = await createClient();
-  const { error } = await supabase.from('leases').update({ status: 'cancelled' }).eq('id', leaseId).eq('property_id', propertyId);
+
+  // Delete junction rows
+  await supabase.from('lease_tenants').delete().eq('lease_id', leaseId);
+
+  const { error } = await supabase
+    .from('leases')
+    .delete()
+    .eq('id', leaseId)
+    .eq('property_id', propertyId);
+
   if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'cancelled', entityType: 'lease', entityId: leaseId });
+  await recordActivityLog({ propertyId, action: 'deleted', entityType: 'lease', entityId: leaseId });
+  return { success: true };
 }
+
+export async function convertToPeriodic(propertyId: string, leaseId: string) {
+  await requirePropertyPermission(propertyId, 'lease.update');
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('leases')
+    .update({ end_date: null, status: 'active' })
+    .eq('id', leaseId)
+    .eq('property_id', propertyId)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  await recordActivityLog({ propertyId, action: 'converted_to_periodic', entityType: 'lease', entityId: leaseId });
+  return data;
+}
+
+export async function updateLeaseStatus(propertyId: string, leaseId: string, status: string) {
+  await requirePropertyPermission(propertyId, 'lease.update');
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('leases')
+    .update({ status })
+    .eq('id', leaseId)
+    .eq('property_id', propertyId)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  await recordActivityLog({ propertyId, action: `status_changed_${status}`, entityType: 'lease', entityId: leaseId });
+  return data;
+}
+
 
 // Invoices
 export async function createInvoice(propertyId: string, input: Omit<Tables['invoices']['Insert'], 'property_id'>) {

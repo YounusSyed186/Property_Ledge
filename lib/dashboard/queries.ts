@@ -66,12 +66,41 @@ export async function getTenants(propertyId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('tenants')
-    .select('*')
+    .select(`
+      *,
+      lease_tenants!lease_tenants_tenant_id_fkey(
+        is_primary,
+        role,
+        lease:leases!lease_tenants_lease_id_fkey(id, status, start_date, end_date, rent_amount, rent_frequency)
+      )
+    `)
     .eq('property_id', propertyId)
     .order('last_name', { ascending: true });
 
   if (error) {
     console.error('Error fetching tenants:', error);
+    return [];
+  }
+  return data || [];
+}
+
+export async function getAllWorkspaceTenants() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('tenants')
+    .select(`
+      *,
+      property:properties(id, name, address_line_1, city, suburb, postal_code, state),
+      lease_tenants!lease_tenants_tenant_id_fkey(
+        is_primary,
+        role,
+        lease:leases!lease_tenants_lease_id_fkey(id, status, start_date, end_date, rent_amount, rent_frequency)
+      )
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching all workspace tenants:', error);
     return [];
   }
   return data || [];
@@ -83,9 +112,10 @@ export async function getLeases(propertyId: string) {
     .from('leases')
     .select(`
       *,
-      lease_tenants!fk_lease_tenants_lease_prop(
+      property:properties(id, name, address_line_1, city, suburb, postal_code, state),
+      lease_tenants!lease_tenants_lease_id_fkey(
         tenant_id, role, is_primary,
-        tenant:tenants!fk_lease_tenants_tenant_prop(first_name, last_name)
+        tenant:tenants!lease_tenants_tenant_id_fkey(id, first_name, last_name, email, phone, status)
       )
     `)
     .eq('property_id', propertyId)
@@ -96,6 +126,61 @@ export async function getLeases(propertyId: string) {
     return [];
   }
   return data || [];
+}
+
+export async function getAllWorkspaceLeases() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('leases')
+    .select(`
+      *,
+      property:properties(id, name, address_line_1, city, suburb, postal_code, state),
+      lease_tenants!lease_tenants_lease_id_fkey(
+        tenant_id, role, is_primary,
+        tenant:tenants!lease_tenants_tenant_id_fkey(id, first_name, last_name, email, phone, status)
+      )
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching all workspace leases:', error);
+    return [];
+  }
+  return data || [];
+}
+
+export async function getTenantDetail(propertyId: string, tenantId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('tenants')
+    .select(`
+      *,
+      property:properties(id, name, address_line_1, city, suburb, postal_code, state),
+      lease_tenants!lease_tenants_tenant_id_fkey(
+        lease_id,
+        role,
+        is_primary,
+        lease:leases!lease_tenants_lease_id_fkey(
+          id,
+          start_date,
+          end_date,
+          rent_amount,
+          rent_frequency,
+          security_deposit,
+          payment_due_day,
+          status,
+          notes
+        )
+      )
+    `)
+    .eq('id', tenantId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching tenant detail:', error);
+    return null;
+  }
+  return data;
 }
 
 export async function getLeaseDetail(propertyId: string, leaseId: string) {
@@ -348,32 +433,6 @@ export async function getUserWorkspaces() {
   return data || [];
 }
 
-export async function getTenantDetail(propertyId: string, tenantId: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('tenants')
-    .select(`
-      *,
-      lease_tenants!fk_lease_tenants_tenant_prop(
-        lease_id,
-        role,
-        is_primary,
-        lease:leases!fk_lease_tenants_lease_prop(
-          id,
-          start_date,
-          end_date,
-          rent_amount,
-          status
-        )
-      )
-    `)
-    .eq('property_id', propertyId)
-    .eq('id', tenantId)
-    .single();
-
-  if (error) return null;
-  return data;
-}
 
 export async function getUnitDetail(propertyId: string, unitId: string) {
   return null;

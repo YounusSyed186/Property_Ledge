@@ -68,9 +68,10 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
   helpText?: string;
+  options?: Array<{ value: string; label: string }>;
 }
 
-export function Select({ label, error, helpText, className, id, children, ...props }: SelectProps) {
+export function Select({ label, error, helpText, className, id, children, options, ...props }: SelectProps) {
   const selectId = id || props.name;
   return (
     <div className="space-y-1.5">
@@ -93,7 +94,12 @@ export function Select({ label, error, helpText, className, id, children, ...pro
         aria-invalid={!!error}
         {...props}
       >
-        {children}
+        {children ||
+          options?.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
       </select>
       {error && (
         <p className="text-xs text-[#D64545] font-medium" role="alert">

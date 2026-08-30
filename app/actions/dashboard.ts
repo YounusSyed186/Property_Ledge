@@ -187,22 +187,39 @@ export async function handleDeleteUnit(propertyId: string, unitId: string) {
   return { success: true };
 }
 
+export async function fetchAllWorkspaceTenants() {
+  await requireAuthenticatedUser();
+  return queries.getAllWorkspaceTenants();
+}
+
+export async function fetchAllWorkspaceLeases() {
+  await requireAuthenticatedUser();
+  return queries.getAllWorkspaceLeases();
+}
+
+// Tenancy Setup (Atomic Tenant + Lease + Bond creation)
+export async function handleSetupTenancy(propertyId: string, input: service.TenancySetupInput) {
+  const data = await service.setupTenancyWithLease(propertyId, input);
+  revalidateDashboard('/dashboard/tenants', '/dashboard/people', '/dashboard/leases', '/dashboard', `/dashboard/properties/${propertyId}`);
+  return { success: true, data };
+}
+
 // Tenant CRUD
 export async function handleCreateTenant(propertyId: string, input: Omit<Tables['tenants']['Insert'], 'property_id'>) {
   const data = await service.createTenant(propertyId, input);
-  revalidateDashboard('/dashboard/tenants', '/dashboard');
+  revalidateDashboard('/dashboard/tenants', '/dashboard/people', '/dashboard', `/dashboard/properties/${propertyId}`);
   return { success: true, data };
 }
 
 export async function handleUpdateTenant(propertyId: string, tenantId: string, input: Tables['tenants']['Update']) {
   const data = await service.updateTenant(propertyId, tenantId, input);
-  revalidateDashboard('/dashboard/tenants');
+  revalidateDashboard('/dashboard/tenants', '/dashboard/people', `/dashboard/properties/${propertyId}`);
   return { success: true, data };
 }
 
 export async function handleDeleteTenant(propertyId: string, tenantId: string) {
   await service.deleteTenant(propertyId, tenantId);
-  revalidateDashboard('/dashboard/tenants', '/dashboard');
+  revalidateDashboard('/dashboard/tenants', '/dashboard/people', '/dashboard', `/dashboard/properties/${propertyId}`);
   return { success: true };
 }
 
@@ -213,19 +230,31 @@ export async function handleCreateLease(
   tenantIds?: string[]
 ) {
   const data = await service.createLease(propertyId, input, tenantIds);
-  revalidateDashboard('/dashboard/leases', '/dashboard');
+  revalidateDashboard('/dashboard/leases', '/dashboard', `/dashboard/properties/${propertyId}`);
   return { success: true, data };
 }
 
 export async function handleUpdateLease(propertyId: string, leaseId: string, input: Tables['leases']['Update']) {
   const data = await service.updateLease(propertyId, leaseId, input);
-  revalidateDashboard('/dashboard/leases');
+  revalidateDashboard('/dashboard/leases', `/dashboard/properties/${propertyId}`);
+  return { success: true, data };
+}
+
+export async function handleConvertToPeriodic(propertyId: string, leaseId: string) {
+  const data = await service.convertToPeriodic(propertyId, leaseId);
+  revalidateDashboard('/dashboard/leases', `/dashboard/properties/${propertyId}`);
+  return { success: true, data };
+}
+
+export async function handleUpdateLeaseStatus(propertyId: string, leaseId: string, status: string) {
+  const data = await service.updateLeaseStatus(propertyId, leaseId, status);
+  revalidateDashboard('/dashboard/leases', `/dashboard/properties/${propertyId}`);
   return { success: true, data };
 }
 
 export async function handleDeleteLease(propertyId: string, leaseId: string) {
   await service.deleteLease(propertyId, leaseId);
-  revalidateDashboard('/dashboard/leases', '/dashboard');
+  revalidateDashboard('/dashboard/leases', '/dashboard', `/dashboard/properties/${propertyId}`);
   return { success: true };
 }
 

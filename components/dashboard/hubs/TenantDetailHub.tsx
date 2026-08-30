@@ -7,6 +7,7 @@ import { PropertyRequired } from '@/components/dashboard/PropertyRequired';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import { fetchDashboardTenant, fetchDashboardTenantTabData } from '@/app/actions/dashboard';
 import { CreateLeaseWizard } from '@/components/dashboard/workflows/CreateLeaseWizard';
+import { TenantDrawer } from '@/components/dashboard/tenants/TenantDrawer';
 import { NotFoundState, StatusBadge, Button } from '@/components/admin/ui';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format/currency';
@@ -116,6 +117,7 @@ export function TenantDetailHub({ tenantId }: TenantDetailPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [leaseWizardOpen, setLeaseWizardOpen] = useState(false);
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [tabLoading, setTabLoading] = useState(false);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
@@ -210,7 +212,7 @@ export function TenantDetailHub({ tenantId }: TenantDetailPageProps) {
             status={<StatusBadge domain="lease" status={tenant.status === 'active' ? 'active' : tenant.status} />}
             actions={
               <EntityActions
-                onEdit={() => router.push('/dashboard/people')}
+                onEdit={() => setIsEditDrawerOpen(true)}
                 addItems={[
                   { label: 'Create Lease', onClick: () => setLeaseWizardOpen(true) },
                   { label: 'Record Payment', onClick: () => router.push('/dashboard/money?tab=payments') },
@@ -337,6 +339,28 @@ export function TenantDetailHub({ tenantId }: TenantDetailPageProps) {
           onClose={() => setLeaseWizardOpen(false)}
           preselectedTenantId={tenantId}
         />
+
+        {isEditDrawerOpen && tenant && selectedProperty && (
+          <TenantDrawer
+            isOpen={true}
+            tenant={{
+              id: tenant.id,
+              first_name: tenant.first_name,
+              last_name: tenant.last_name,
+              email: tenant.email,
+              phone: tenant.phone,
+              status: tenant.status,
+              notes: tenant.notes,
+            }}
+            propertyId={selectedProperty.propertyId}
+            onClose={() => setIsEditDrawerOpen(false)}
+            onSuccess={() => {
+              fetchDashboardTenant(selectedProperty.propertyId, tenantId).then((data) =>
+                setTenant(data as unknown as TenantDetail | null)
+              );
+            }}
+          />
+        )}
       </PageLayout>
     </PropertyRequired>
   );

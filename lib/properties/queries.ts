@@ -254,14 +254,12 @@ export async function getPropertyStats(propertyId: string) {
   const supabase = await createClient();
 
   const [
-    { count: unitsCount },
     { count: tenantsCount },
     { count: activeLeasesCount },
     { count: openMaintenanceCount },
     { count: outstandingInvoicesCount },
     { count: overdueInvoicesCount }
   ] = await Promise.all([
-    supabase.from('units').select('*', { count: 'exact', head: true }).eq('property_id', propertyId),
     supabase.from('tenants').select('*', { count: 'exact', head: true }).eq('property_id', propertyId).eq('status', 'active'),
     supabase.from('leases').select('*', { count: 'exact', head: true }).eq('property_id', propertyId).eq('status', 'active'),
     supabase.from('maintenance_requests').select('*', { count: 'exact', head: true }).eq('property_id', propertyId).in('status', ['open', 'in_progress', 'scheduled']),
@@ -270,7 +268,7 @@ export async function getPropertyStats(propertyId: string) {
   ]);
 
   return {
-    totalUnits: unitsCount || 0,
+    totalUnits: 1,
     activeTenants: tenantsCount || 0,
     activeLeases: activeLeasesCount || 0,
     openMaintenanceRequests: openMaintenanceCount || 0,

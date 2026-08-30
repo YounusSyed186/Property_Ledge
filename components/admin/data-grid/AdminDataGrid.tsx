@@ -19,6 +19,7 @@ import { AdminDataGridPagination } from './AdminDataGridPagination';
 import { AdminDataGridEmpty } from './AdminDataGridEmpty';
 import { AdminDataGridLoading } from './AdminDataGridLoading';
 import { useCollapsibleWorkspaceOptional, useCollapsibleWorkspaceSnapshot } from '@/components/workspace/useCollapsibleDataWorkspace';
+import { cn } from '@/lib/utils';
 import type { AdminDataGridToolbarProps } from './AdminDataGridToolbar';
 
 // Standard Cell Components
@@ -61,6 +62,11 @@ export interface AdminDataGridProps<TData = any> {
   onPageSizeChange?: (size: number) => void;
   onViewportScroll?: (detail: { scrollTop: number; direction: 'horizontal' | 'vertical' }) => void;
   compactToolbar?: boolean;
+  hideSearch?: boolean;
+  disablePagination?: boolean;
+  isExpanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
+  defaultExpanded?: boolean;
 }
 
 export function AdminDataGrid<TData = any>({
@@ -92,6 +98,11 @@ export function AdminDataGrid<TData = any>({
   onPageSizeChange,
   onViewportScroll,
   compactToolbar,
+  hideSearch = false,
+  disablePagination = false,
+  isExpanded: propIsExpanded,
+  onExpandedChange,
+  defaultExpanded = true,
 }: AdminDataGridProps<TData>) {
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
   const [searchValue, setSearchValue] = useState('');
@@ -99,47 +110,42 @@ export function AdminDataGrid<TData = any>({
   const [isFiltered, setIsFiltered] = useState(false);
   const [clientPage, setClientPage] = useState(1);
   const [clientPageSize, setClientPageSize] = useState(defaultPageSize);
+  const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
   const gridContainerRef = useRef<HTMLDivElement>(null);
-  const workspaceStore = useCollapsibleWorkspaceOptional();
   const viewportScrollRef = useRef(onViewportScroll);
 
+  const isExpanded = propIsExpanded ?? internalExpanded;
+
+  const handleToggleExpand = useCallback(() => {
+    const next = !isExpanded;
+    if (onExpandedChange) {
+      onExpandedChange(next);
+    } else {
+      setInternalExpanded(next);
+    }
+    if (gridApi) {
+      requestAnimationFrame(() => {
+        gridApi.sizeColumnsToFit();
+      });
+    }
+  }, [isExpanded, onExpandedChange, gridApi]);
+
+  const workspaceStore = useCollapsibleWorkspaceOptional();
+
   useEffect(() => {
-    viewportScrollRef.current =
-      onViewportScroll ??
-      (workspaceStore
-        ? (detail: { scrollTop: number; direction: 'horizontal' | 'vertical' }) => {
-            if (detail.direction === 'vertical') {
-              workspaceStore.reportBodyScroll(detail.scrollTop);
-            }
-          }
-        : undefined);
-  }, [onViewportScroll, workspaceStore]);
+    if (workspaceStore) {
+      workspaceStore.setExpanded(isExpanded);
+    }
+  }, [isExpanded, workspaceStore]);
+
+  useEffect(() => {
+    viewportScrollRef.current = onViewportScroll;
+  }, [onViewportScroll]);
 
   const onBodyScroll = useCallback((event: BodyScrollEvent) => {
     if (event.direction !== 'vertical') return;
     viewportScrollRef.current?.({ scrollTop: event.top, direction: 'vertical' });
   }, []);
-
-  useEffect(() => {
-    if (!workspaceStore) return;
-    const el = gridContainerRef.current;
-    if (!el) return;
-
-    let rafId = 0;
-    const onWheel = (event: WheelEvent) => {
-      if (rafId) return;
-      rafId = requestAnimationFrame(() => {
-        rafId = 0;
-        workspaceStore.reportWheelDelta(event.deltaY);
-      });
-    };
-
-    el.addEventListener('wheel', onWheel, { passive: true });
-    return () => {
-      el.removeEventListener('wheel', onWheel);
-      if (rafId) cancelAnimationFrame(rafId);
-    };
-  }, [workspaceStore]);
 
   // Register cell renderers mapping
   const components = useMemo(
@@ -346,15 +352,29 @@ export function AdminDataGrid<TData = any>({
     labelSingular,
     labelPlural,
     compactOverride: compactToolbar,
+    hideSearch,
+    isExpanded,
+    onToggleExpand: handleToggleExpand,
   };
 
   return (
-    <div className="flex-1 flex flex-col w-full h-full min-h-0 rounded-2xl bg-admin-surface border border-admin-border shadow-xs overflow-hidden">
+    <div
+      className={cn(
+        'flex flex-col w-full rounded-2xl bg-admin-surface border border-admin-border shadow-xs overflow-hidden transition-[height,max-height,min-height] duration-250 ease-out',
+        isExpanded ? 'flex-1 h-full min-h-[480px]' : 'flex-none h-[340px] max-h-[340px]'
+      )}
+    >
       {/* Toolbar — isolated subscriber so grid body does not rerender on collapse */}
       <AdminDataGridToolbarBridge {...toolbarProps} />
 
       {/* Grid Container */}
-      <div ref={gridContainerRef} className="relative h-full min-h-[200px] w-full flex-1 overflow-hidden">
+      <div
+        ref={gridContainerRef}
+        className={cn(
+          'relative w-full overflow-hidden transition-[height,max-height,min-height] duration-250 ease-out',
+          isExpanded ? 'h-full min-h-[200px] flex-1' : 'h-[240px] min-h-[240px] max-h-[240px] flex-none'
+        )}
+      >
         {isLoadingState && !isDataLoaded ? (
           /* Initial data fetching: Render Row Skeleton Table */
           <AdminDataGridLoading />
@@ -377,8 +397,8 @@ export function AdminDataGrid<TData = any>({
               defaultColDef={defaultGridColDef}
               gridOptions={defaultGridOptions}
               components={components}
-              pagination={!isServerSide}
-              paginationAutoPageSize={!isServerSide}
+              pagination={!isServerSide && !disablePagination}
+              paginationAutoPageSize={!isServerSide && !disablePagination}
               paginationPageSize={isServerSide ? effectivePageSize : undefined}
               suppressPaginationPanel={true}
               onGridReady={onGridReady}
@@ -389,7 +409,9 @@ export function AdminDataGrid<TData = any>({
               onSelectionChanged={onSelectionChanged}
               onFilterChanged={onFilterChanged}
               onBodyScroll={onBodyScroll}
-              onRowClicked={(params) => {
+              onCellClicked={(params) => {
+                const colId = params.column?.getColId();
+                if (colId === 'actions') return;
                 if (onRowClick && params.data) {
                   onRowClick(params.data);
                 }
@@ -411,7 +433,7 @@ export function AdminDataGrid<TData = any>({
       </div>
 
       {/* Pagination Footer */}
-      {!isEmpty && !isLoadingState && (
+      {!isEmpty && !isLoadingState && !disablePagination && (
         <AdminDataGridPagination
           currentPage={effectiveCurrentPage}
           totalPages={effectiveTotalPages}

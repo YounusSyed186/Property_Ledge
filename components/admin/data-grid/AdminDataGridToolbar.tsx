@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, Columns, Download, CheckSquare, SlidersHorizontal, RotateCcw } from 'lucide-react';
+import { Search, X, Columns, Download, CheckSquare, SlidersHorizontal, RotateCcw, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/admin/ui';
 import { GridApi } from 'ag-grid-community';
 import { cn } from '@/lib/utils';
@@ -37,6 +37,9 @@ interface AdminDataGridToolbarProps {
   labelPlural?: string;
   compact?: boolean;
   compactOverride?: boolean;
+  hideSearch?: boolean;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
 export type { AdminDataGridToolbarProps };
@@ -58,6 +61,9 @@ export function AdminDataGridToolbar({
   labelSingular = 'item',
   labelPlural = 'items',
   compact = false,
+  hideSearch = false,
+  isExpanded = true,
+  onToggleExpand,
 }: AdminDataGridToolbarProps) {
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
   const [columns, setColumns] = useState<ColumnItem[]>([]);
@@ -170,27 +176,29 @@ export function AdminDataGridToolbar({
             {leftContent}
 
             {/* Global Search Bar */}
-            <div className={cn('relative flex-1 min-w-[190px]', compact ? 'max-w-[220px]' : 'max-w-xs')}>
-              <Search className="w-4 h-4 text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                value={searchValue}
-                onChange={(e) => onSearchChange(e.target.value)}
-                placeholder={searchPlaceholder}
-                className="w-full h-8 pl-8 pr-7 rounded-lg bg-surface border border-border text-[12px] text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-[#008F83]/20 focus:border-[#008F83] transition-all shadow-2xs"
-                aria-label={searchPlaceholder}
-              />
-              {searchValue && (
-                <button
-                  type="button"
-                  onClick={() => onSearchChange('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted hover:text-foreground"
-                  aria-label="Clear search"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
+            {!hideSearch && (
+              <div className={cn('relative flex-1 min-w-[190px]', compact ? 'max-w-[220px]' : 'max-w-xs')}>
+                <Search className="w-4 h-4 text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchValue}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="w-full h-8 pl-8 pr-7 rounded-lg bg-surface border border-border text-[12px] text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-[#008F83]/20 focus:border-[#008F83] transition-all shadow-2xs"
+                  aria-label={searchPlaceholder}
+                />
+                {searchValue && (
+                  <button
+                    type="button"
+                    onClick={() => onSearchChange('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted hover:text-foreground"
+                    aria-label="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right: Columns menu, Export, Count */}
@@ -258,6 +266,19 @@ export function AdminDataGridToolbar({
                 title="Export CSV"
               >
                 {!compact && 'Export'}
+              </Button>
+            )}
+
+            {/* Explicit Expand / Collapse Button */}
+            {onToggleExpand && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onToggleExpand}
+                title={isExpanded ? 'Collapse Grid ↓' : 'Expand Grid ↑'}
+                className="font-medium"
+              >
+                {isExpanded ? 'Collapse Grid ↓' : 'Expand Grid ↑'}
               </Button>
             )}
 

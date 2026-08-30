@@ -119,32 +119,28 @@ export function createCollapsibleWorkspaceStore(enabled: boolean) {
       return () => listeners.delete(listener);
     },
     getSnapshot,
-    reportBodyScroll(scrollTop: number) {
-      if (!enabled) return;
-      const nextScrollTop = Math.max(0, scrollTop);
-      let nextWheel = wheelAccumulator;
-
-      // With pagination, scrollTop is often 0 — only clear wheel when not latched compact.
-      if (nextScrollTop === 0 && nextWheel < 5 && !latchedCompact) {
-        nextWheel = 0;
-      }
-
-      // Real body scroll past threshold should latch compact; at top restores when unlatched.
-      if (nextScrollTop === 0 && latchedCompact && nextWheel === 0) {
-        latchedCompact = false;
-      }
-
-      commitValues(nextScrollTop, nextWheel);
+    reportBodyScroll(_scrollTop: number) {
+      // Scrolling no longer triggers workspace collapse state changes
     },
-    reportWheelDelta(deltaY: number) {
+    reportWheelDelta(_deltaY: number) {
+      // Mouse wheel no longer triggers workspace collapse state changes
+    },
+    setExpanded(expanded: boolean) {
       if (!enabled) return;
-      let nextWheel = wheelAccumulator;
-      if (deltaY > 0) {
-        nextWheel = Math.min(MAX_EFFECTIVE, nextWheel + deltaY * 0.35);
-      } else if (deltaY < 0) {
-        nextWheel = Math.max(0, nextWheel + deltaY * 0.35);
-      }
-      commitValues(bodyScrollTop, nextWheel);
+      latchedCompact = expanded;
+      const nextProgress = expanded ? 1 : 0;
+      const nextPhase: WorkspacePhase = expanded ? 'compact' : 'expanded';
+      const nextSnapshot: WorkspaceSnapshot = {
+        bodyScrollTop: 0,
+        wheelAccumulator: expanded ? MAX_EFFECTIVE : 0,
+        effectiveScroll: expanded ? MAX_EFFECTIVE : 0,
+        progress: nextProgress,
+        phase: nextPhase,
+        isCompact: expanded,
+      };
+      if (snapshotsEqual(cachedSnapshot, nextSnapshot)) return;
+      cachedSnapshot = nextSnapshot;
+      notify();
     },
     reset() {
       latchedCompact = false;

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { NotFoundState, StatusBadge, Button } from '@/components/admin/ui';
 import { fetchDashboardLease } from '@/app/actions/dashboard';
+import { LeaseEditDrawer } from '@/components/dashboard/leases/LeaseEditDrawer';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format/currency';
 import {
@@ -50,12 +51,17 @@ export function LeaseDetailHub({ propertyId, leaseId }: LeaseDetailHubProps) {
   const [lease, setLease] = useState<LeaseDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
 
-  useEffect(() => {
+  const loadLease = () => {
     setIsLoading(true);
     fetchDashboardLease(propertyId, leaseId)
       .then((data) => setLease(data as LeaseDetail | null))
       .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    loadLease();
   }, [propertyId, leaseId]);
 
   if (isLoading) {
@@ -114,7 +120,7 @@ export function LeaseDetailHub({ propertyId, leaseId }: LeaseDetailHubProps) {
           }
           actions={
             <EntityActions
-              onEdit={() => router.push(`/dashboard/leases`)}
+              onEdit={() => setIsEditDrawerOpen(true)}
               addItems={[
                 { label: 'Record Payment', onClick: () => router.push('/dashboard/money?tab=payments') },
               ]}
@@ -180,6 +186,27 @@ export function LeaseDetailHub({ propertyId, leaseId }: LeaseDetailHubProps) {
           </SectionPanel>
         )}
       </PageContent>
+
+      {isEditDrawerOpen && lease && (
+        <LeaseEditDrawer
+          isOpen={true}
+          lease={{
+            id: lease.id,
+            start_date: lease.start_date,
+            end_date: lease.end_date,
+            rent_amount: lease.rent_amount,
+            rent_frequency: lease.rent_frequency,
+            security_deposit: 0,
+            payment_due_day: 1,
+            status: lease.status,
+          }}
+          propertyId={propertyId}
+          onClose={() => setIsEditDrawerOpen(false)}
+          onSuccess={() => {
+            loadLease();
+          }}
+        />
+      )}
     </PageLayout>
   );
 }

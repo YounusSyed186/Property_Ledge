@@ -52,8 +52,8 @@ const NAV_GROUPS: { label: string; items: NavItemConfig[] }[] = [
   {
     label: 'People',
     items: [
-      { id: 'people', label: 'Tenants', href: '/dashboard/people', icon: Users, comingSoon: true },
-      { id: 'leases', label: 'Leases', href: '/dashboard/leases', icon: FileText, comingSoon: true },
+      { id: 'people', label: 'Tenants', href: '/dashboard/people', icon: Users },
+      { id: 'leases', label: 'Leases', href: '/dashboard/leases', icon: FileText },
     ],
   },
   {

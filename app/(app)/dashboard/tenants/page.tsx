@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+import { TenantDirectoryPage } from '@/components/dashboard/tenants/TenantDirectoryPage';
 
 export default function TenantsPage() {
-  redirect('/dashboard/people');
+  return <TenantDirectoryPage />;
 }

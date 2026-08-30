@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Plus, Building2, Home, CheckCircle, X } from 'lucide-react';
+import { Plus, Building2, Home, CheckCircle, X, Pencil } from 'lucide-react';
 import { ColDef } from 'ag-grid-community';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button, useToast } from '@/components/admin/ui';
@@ -67,9 +67,9 @@ export default function PropertiesPage() {
       ...propertyColumns,
       {
         headerName: 'Actions',
-        field: 'actions',
-        width: 90,
-        minWidth: 80,
+        colId: 'actions',
+        width: 100,
+        pinned: 'right',
         sortable: false,
         filter: false,
         cellRenderer: (params: { data: Record<string, unknown> }) => (
@@ -80,9 +80,9 @@ export default function PropertiesPage() {
               setSelected(params.data);
               setIsDrawerOpen(true);
             }}
-            className="text-[12px] font-semibold text-[#008F83] hover:underline"
+            className="p-1 text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-500/10 rounded transition-colors inline-flex items-center gap-1 font-bold text-xs"
           >
-            Edit
+            <Pencil className="w-3.5 h-3.5" /> Edit
           </button>
         ),
       },
@@ -122,6 +122,7 @@ export default function PropertiesPage() {
           searchPlaceholder="Search properties..."
           onRowClick={(row) => router.push(`/dashboard/properties/${row.id}`)}
           getRowId={(params) => String(params.data.id)}
+          disablePagination={true}
         />
       </ListPageGrid>
 

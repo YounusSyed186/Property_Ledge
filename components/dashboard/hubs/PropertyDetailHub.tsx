@@ -37,6 +37,8 @@ import {
 } from '@/components/workspace';
 import { NeedsAttentionSection, buildAttentionItems } from '@/components/dashboard/overview/NeedsAttentionSection';
 import { usePropertyContext } from '@/components/property/PropertyContext';
+import { TenancySetupWizard } from '@/components/dashboard/workflows/TenancySetupWizard';
+import { CreateLeaseWizard } from '@/components/dashboard/workflows/CreateLeaseWizard';
 import { cn } from '@/lib/utils';
 
 interface PropertyDetailHubProps {
@@ -68,6 +70,9 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
   const [needsAttention, setNeedsAttention] = useState<Awaited<ReturnType<typeof fetchNeedsAttention>> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+
+  const [isTenancyWizardOpen, setIsTenancyWizardOpen] = useState(false);
+  const [isCreateLeaseWizardOpen, setIsCreateLeaseWizardOpen] = useState(false);
 
   const loadAll = () => {
     setIsLoading(true);
@@ -150,8 +155,8 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
             <EntityActions
               onEdit={() => router.push('/dashboard/properties')}
               addItems={[
-                { label: 'Add Tenant', onClick: () => router.push('/dashboard/people') },
-                { label: 'Create Lease', onClick: () => router.push('/dashboard/leases') },
+                { label: 'Setup Tenancy / Tenant', onClick: () => setIsTenancyWizardOpen(true) },
+                { label: 'Create Lease', onClick: () => setIsCreateLeaseWizardOpen(true) },
               ]}
               moreItems={[{ label: 'View in Portfolio', onClick: () => router.push('/dashboard/properties') }]}
             />
@@ -266,6 +271,34 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
           />
         )}
       </PageContent>
+
+      {/* Tenancy Setup Wizard Modal */}
+      {isTenancyWizardOpen && property && (
+        <TenancySetupWizard
+          isOpen={true}
+          propertyId={property.id}
+          propertyName={property.name}
+          propertyAddress={property.address_line_1}
+          defaultRentAmount={reports?.monthlyRent || 0}
+          onClose={() => setIsTenancyWizardOpen(false)}
+          onSuccess={() => {
+            loadAll();
+          }}
+        />
+      )}
+
+      {/* Create Lease Wizard Modal */}
+      {isCreateLeaseWizardOpen && property && (
+        <CreateLeaseWizard
+          isOpen={true}
+          propertyId={property.id}
+          propertyName={property.name}
+          onClose={() => setIsCreateLeaseWizardOpen(false)}
+          onSuccess={() => {
+            loadAll();
+          }}
+        />
+      )}
     </PageLayout>
   );
 }
