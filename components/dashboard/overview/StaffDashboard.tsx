@@ -58,6 +58,9 @@ export function StaffDashboard({ userName }: { userName: string }) {
         setOverview(overviewData);
         setNeedsAttention(attentionData);
       })
+      .catch((err) => {
+        console.error('Error fetching staff dashboard data:', err);
+      })
       .finally(() => setIsLoading(false));
   }, [selectedProperty?.propertyId]);
 

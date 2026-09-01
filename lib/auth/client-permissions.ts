@@ -52,5 +52,7 @@ export function useEntitlementLimit(entitlementKey: string): number {
 }
 
 export function useCanAndEntitled(permission: string, entitlementKey: string): boolean {
-  return useCan(permission) && useEntitled(entitlementKey);
+  const can = useCan(permission);
+  const entitled = useEntitled(entitlementKey);
+  return can && entitled;
 }

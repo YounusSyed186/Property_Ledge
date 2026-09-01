@@ -1,4 +1,5 @@
 import { emailService } from '@/lib/email/service';
+import { getAppBaseUrl } from '@/lib/routing/env';
 
 export interface SubscriptionRequestedNotificationParams {
   accountName: string;
@@ -21,7 +22,7 @@ class NotificationService {
    */
   async notifySubscriptionRequested(params: SubscriptionRequestedNotificationParams) {
     const adminEmail = process.env.ADMIN_NOTIFY_EMAIL || 'admin@propertyledge.com.au';
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const baseUrl = getAppBaseUrl();
 
     // 1. Send notification email to Administrator
     try {
@@ -68,7 +69,7 @@ class NotificationService {
    * Generates SUBSCRIPTION_ACCEPTED event and notifies user
    */
   async notifySubscriptionAccepted(params: SubscriptionAcceptedNotificationParams) {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const baseUrl = getAppBaseUrl();
 
     try {
       await emailService.sendEmail({

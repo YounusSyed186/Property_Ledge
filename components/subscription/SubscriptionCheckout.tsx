@@ -741,7 +741,7 @@ export function SubscriptionCheckout({
                   <div className="space-y-2 pt-2 text-xs text-muted border-t border-border/60">
                     <div className="font-semibold text-foreground">Transfer Instructions:</div>
                     <ol className="list-decimal list-inside space-y-1 pl-1">
-                      <li>Open your bank's mobile app or online banking.</li>
+                      <li>Open your bank&apos;s mobile app or online banking.</li>
                       <li>Transfer the exact amount (${expectedAmount.toFixed(2)} AUD) to the BSB and Account above.</li>
                       <li>
                         Include <strong className="text-foreground font-mono">{checkoutSession?.reference}</strong> in your payment reference.

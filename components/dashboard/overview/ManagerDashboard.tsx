@@ -59,6 +59,9 @@ export function ManagerDashboard({ userName }: { userName: string }) {
         setOverview(overviewData);
         setNeedsAttention(attentionData);
       })
+      .catch((err) => {
+        console.error('Error fetching manager dashboard data:', err);
+      })
       .finally(() => setIsLoading(false));
   }, [selectedProperty?.propertyId]);
 

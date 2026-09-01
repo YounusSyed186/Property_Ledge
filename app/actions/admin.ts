@@ -24,6 +24,7 @@ import { requireAdmin } from '@/lib/admin/authorization';
 import { emailService } from '@/lib/email/service';
 import { createAdminClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { getAppBaseUrl } from '@/lib/routing/env';
 
 interface SubscriptionWithRelations {
   id: string;
@@ -191,7 +192,7 @@ export async function handleApproveSubscription(subscriptionId: string) {
           userName: userProfile.full_name || 'Customer',
           planName: typedSubscription.plan?.name || 'Landlord',
           effectiveDate: new Date().toISOString(),
-          appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+          appUrl: getAppBaseUrl(),
         },
       });
     }
@@ -241,7 +242,7 @@ export async function handleRejectSubscription(subscriptionId: string, reason?: 
           userName: userProfile.full_name || 'Customer',
           planName: typedSubscription.plan?.name || 'Landlord',
           reason: reason || 'The administration team was unable to verify your payment.',
-          supportUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/support`,
+          supportUrl: `${getAppBaseUrl()}/support`,
         },
       });
     }

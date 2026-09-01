@@ -7,6 +7,7 @@ import { authorizeOrThrow } from '@/lib/auth/authorize';
 import { requireAuthenticatedUser } from '@/lib/auth/authorization';
 import { ENTITLEMENT_KEYS } from '@/lib/entitlements/types';
 import { setActiveWorkspaceCookie } from '@/lib/auth/authorization';
+import { getAppBaseUrl } from '@/lib/routing/env';
 
 async function requireTeamManagement(workspaceId: string) {
   await authorizeOrThrow({
@@ -153,7 +154,7 @@ export async function createInviteLink(workspaceId: string, roleId: string) {
   const row = (data as Array<{ invitation_id: string; raw_token: string }>)?.[0];
   if (!row) throw new Error('Failed to create invitation');
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const appUrl = getAppBaseUrl();
   revalidatePath('/dashboard/team');
   return {
     invitationId: row.invitation_id,

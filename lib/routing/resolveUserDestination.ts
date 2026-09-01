@@ -1,4 +1,5 @@
 import type { RouteResolution, RouteResolutionInput, UserDestination } from './types';
+import { safeRedirectPath } from './safeRedirect';
 
 const ONBOARDING_EXEMPT_PREFIXES = [
   '/onboarding',
@@ -60,7 +61,8 @@ export function resolveUserDestination(input: RouteResolutionInput): RouteResolu
   }
 
   if (redirectTo && matchesPrefix(pathname, AUTH_PREFIXES)) {
-    return { destination: 'DASHBOARD', path: redirectTo, reason: 'auth_redirect' };
+    const sanitized = safeRedirectPath(redirectTo, '/dashboard');
+    return { destination: 'DASHBOARD', path: sanitized, reason: 'auth_redirect' };
   }
 
   if (matchesPrefix(pathname, AUTH_PREFIXES)) {
@@ -70,9 +72,10 @@ export function resolveUserDestination(input: RouteResolutionInput): RouteResolu
       : needsOnboarding(onboardingStatus)
         ? (onboardingRoute || '/onboarding')
         : '/dashboard';
+    const target = redirectTo ? safeRedirectPath(redirectTo, defaultTarget) : defaultTarget;
     return {
       destination: needsOnboarding(onboardingStatus) ? 'ONBOARDING' : 'DASHBOARD',
-      path: redirectTo || defaultTarget,
+      path: target,
       reason: 'already_authenticated',
     };
   }

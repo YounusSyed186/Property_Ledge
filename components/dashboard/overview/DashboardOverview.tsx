@@ -104,6 +104,9 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
         setReports(reportsData);
         setLeases(leasesData as typeof leases);
       })
+      .catch((err) => {
+        console.error('Error fetching dashboard overview data:', err);
+      })
       .finally(() => setIsLoading(false));
   }, [selectedProperty?.propertyId]);
 

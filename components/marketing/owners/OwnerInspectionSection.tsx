@@ -26,7 +26,7 @@ export function OwnerInspectionSection() {
 
             <Reveal direction="up" delay={0.2}>
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-heading tracking-tight text-foreground uppercase">
-                Know the condition of your property — even when you're not there.
+                Know the condition of your property — even when you&apos;re not there.
               </h2>
             </Reveal>
 

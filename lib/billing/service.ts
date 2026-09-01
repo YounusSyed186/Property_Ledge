@@ -48,7 +48,7 @@ export async function createManualCheckoutSession(
 
   // 2. Ensure account_context exists for user (user_id is PK)
   let accountId = userId;
-  let { data: accountCtx } = await (supabase as any)
+  const { data: accountCtx } = await (supabase as any)
     .from('account_context')
     .select('user_id')
     .eq('user_id', userId)

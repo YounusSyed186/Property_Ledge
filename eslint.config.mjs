@@ -1,5 +1,34 @@
-import nextConfig from 'eslint-config-next';
+import { dirname } from "path";
+import { fileURLToPath } from "url";
+import { FlatCompat } from "@eslint/eslintrc";
 
-export default [
-  ...nextConfig,
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
+
+const eslintConfig = [
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    rules: {
+      "react/display-name": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+    },
+  },
+  {
+    ignores: [
+      ".next/**",
+      "node_modules/**",
+      "public/**",
+      "artifacts/**",
+      "test-results/**",
+      "playwright-report/**",
+      "next-env.d.ts",
+    ]
+  }
 ];
+
+export default eslintConfig;

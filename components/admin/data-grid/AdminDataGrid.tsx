@@ -389,7 +389,7 @@ export function AdminDataGrid<TData = any>({
           />
         ) : (
           /* Render AG Grid with overlay if refetching */
-          <div className="ag-theme-propertyledge w-full h-full min-h-0 flex-1 relative">
+          <div className="ag-theme-propertyledge w-full h-full min-h-[380px] flex-1 relative">
             {loading && <AdminDataGridLoading overlay />}
             <AgGridReact<TData>
               rowData={rowData}

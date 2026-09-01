@@ -49,14 +49,20 @@ function daysUntil(dateStr: string | null): number | null {
 export function LeaseDetailHub({ propertyId, leaseId }: LeaseDetailHubProps) {
   const router = useRouter();
   const [lease, setLease] = useState<LeaseDetail | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
 
   const loadLease = () => {
     setIsLoading(true);
+    setLoadError(null);
     fetchDashboardLease(propertyId, leaseId)
       .then((data) => setLease(data as LeaseDetail | null))
+      .catch((err) => {
+        console.error('Error fetching lease:', err);
+        setLoadError(err?.message || 'Failed to load lease details.');
+      })
       .finally(() => setIsLoading(false));
   };
 

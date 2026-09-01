@@ -75,7 +75,7 @@ export function OwnerProblemSection() {
         <div className="text-center max-w-2xl mx-auto space-y-4 mb-16">
           <SectionLabel dot>PROPERTY OWNERS KNOW THE PROBLEM</SectionLabel>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-heading tracking-tight text-foreground uppercase">
-            Your portfolio shouldn't live across twelve different places.
+            Your portfolio shouldn&apos;t live across twelve different places.
           </h2>
         </div>
 

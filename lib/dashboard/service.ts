@@ -1,6 +1,5 @@
-// @ts-nocheck
 import { createClient } from '@/lib/supabase/server';
-import { requireAuthenticatedUser, requirePropertyAccess, requirePropertyPermission } from './authorization';
+import { requireAuthenticatedUser, requirePropertyPermission } from './authorization';
 import type { Database } from '@/types/database';
 
 type Tables = Database['public']['Tables'];
@@ -82,13 +81,13 @@ export async function createProperty(input: Tables['properties']['Insert']) {
     },
   });
 
-  const addressStr = (input as any).address || input.address_line_1 || '';
-  const suburbStr = (input as any).suburb || input.city || '';
-  const postcodeStr = (input as any).postcode || input.postal_code || '';
+  const addressStr = (input as Record<string, unknown>).address as string || input.address_line_1 || '';
+  const suburbStr = (input as Record<string, unknown>).suburb as string || input.city || '';
+  const postcodeStr = (input as Record<string, unknown>).postcode as string || input.postal_code || '';
   const nameVal = input.name || addressStr || 'Unnamed Property';
-  const carSpacesVal = (input as any).car_spaces ?? input.parking_spaces ?? 0;
-  const imageUrlVal = (input as any).image || input.image_url || null;
-  const customPropId = (input as any).property_id || ('PL-' + Math.floor(1000 + Math.random() * 9000).toString());
+  const carSpacesVal = (input as Record<string, unknown>).car_spaces ?? input.parking_spaces ?? 0;
+  const imageUrlVal = (input as Record<string, unknown>).image as string || input.image_url || null;
+  const customPropId = (input as Record<string, unknown>).property_id as string || ('PL-' + Math.floor(1000 + Math.random() * 9000).toString());
 
   const payload = {
     ...input,
@@ -107,12 +106,13 @@ export async function createProperty(input: Tables['properties']['Insert']) {
 
   const { data, error } = await supabase
     .from('properties')
-    .insert(payload)
+    .insert(payload as never)
     .select()
     .single();
 
   if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId: data.id, action: 'created', entityType: 'property', entityId: data.id });
+  const row = data as { id: string };
+  await recordActivityLog({ propertyId: row.id, action: 'created', entityType: 'property', entityId: row.id });
   return data;
 }
 
@@ -120,10 +120,10 @@ export async function updateProperty(propertyId: string, input: Tables['properti
   await requirePropertyPermission(propertyId, 'property.update');
   const supabase = await createClient();
 
-  const addressStr = (input as any).address || input.address_line_1;
-  const suburbStr = (input as any).suburb || input.city;
-  const postcodeStr = (input as any).postcode || input.postal_code;
-  const carSpacesVal = (input as any).car_spaces ?? input.parking_spaces;
+  const addressStr = (input as Record<string, unknown>).address as string || input.address_line_1;
+  const suburbStr = (input as Record<string, unknown>).suburb as string || input.city;
+  const postcodeStr = (input as Record<string, unknown>).postcode as string || input.postal_code;
+  const carSpacesVal = (input as Record<string, unknown>).car_spaces ?? input.parking_spaces;
 
   const payload = {
     ...input,
@@ -133,7 +133,12 @@ export async function updateProperty(propertyId: string, input: Tables['properti
     ...(carSpacesVal !== undefined && carSpacesVal !== null ? { parking_spaces: Number(carSpacesVal), car_spaces: Number(carSpacesVal) } : {}),
   };
 
-  const { data, error } = await supabase.from('properties').update(payload).eq('id', propertyId).select().single();
+  const { data, error } = await supabase
+    .from('properties')
+    .update(payload as never)
+    .eq('id', propertyId)
+    .select()
+    .single();
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'property', entityId: propertyId });
   return data;
@@ -142,7 +147,7 @@ export async function updateProperty(propertyId: string, input: Tables['properti
 export async function deleteProperty(propertyId: string) {
   await requirePropertyPermission(propertyId, 'property.delete');
   const supabase = await createClient();
-  const { error } = await supabase.from('properties').update({ status: 'archived' }).eq('id', propertyId);
+  const { error } = await supabase.from('properties').update({ status: 'archived' } as never).eq('id', propertyId);
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'archived', entityType: 'property', entityId: propertyId });
 }
@@ -166,18 +171,19 @@ export async function createTenant(propertyId: string, input: Omit<Tables['tenan
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('tenants')
-    .insert({ ...input, property_id: propertyId })
+    .insert({ ...input, property_id: propertyId } as never)
     .select()
     .single();
   if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'created', entityType: 'tenant', entityId: data.id });
+  const row = data as { id: string };
+  await recordActivityLog({ propertyId, action: 'created', entityType: 'tenant', entityId: row.id });
   return data;
 }
 
 export async function updateTenant(propertyId: string, tenantId: string, input: Tables['tenants']['Update']) {
   await requirePropertyPermission(propertyId, 'tenant.update');
   const supabase = await createClient();
-  const { data, error } = await supabase.from('tenants').update(input).eq('id', tenantId).eq('property_id', propertyId).select().single();
+  const { data, error } = await supabase.from('tenants').update(input as never).eq('id', tenantId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'tenant', entityId: tenantId });
   return data;
@@ -186,7 +192,7 @@ export async function updateTenant(propertyId: string, tenantId: string, input: 
 export async function deleteTenant(propertyId: string, tenantId: string) {
   await requirePropertyPermission(propertyId, 'tenant.manage');
   const supabase = await createClient();
-  const { error } = await supabase.from('tenants').update({ status: 'archived' }).eq('id', tenantId).eq('property_id', propertyId);
+  const { error } = await supabase.from('tenants').update({ status: 'archived' } as never).eq('id', tenantId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'archived', entityType: 'tenant', entityId: tenantId });
 }
@@ -197,24 +203,25 @@ export async function createLease(propertyId: string, input: Omit<Tables['leases
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('leases')
-    .insert({ ...input, property_id: propertyId, created_by: user.id })
+    .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
     .select()
     .single();
   if (error) throw new Error(error.message);
+  const leaseRow = data as { id: string };
 
   if (tenantIds?.length) {
     await supabase.from('lease_tenants').insert(
       tenantIds.map((tenantId, idx) => ({
-        lease_id: data.id,
+        lease_id: leaseRow.id,
         tenant_id: tenantId,
         property_id: propertyId,
-        role: idx === 0 ? 'primary' as const : 'co-tenant' as const,
+        role: idx === 0 ? 'primary' : 'co-tenant',
         is_primary: idx === 0,
-      }))
+      })) as never
     );
   }
 
-  await recordActivityLog({ propertyId, action: 'created', entityType: 'lease', entityId: data.id });
+  await recordActivityLog({ propertyId, action: 'created', entityType: 'lease', entityId: leaseRow.id });
   return data;
 }
 
@@ -251,7 +258,7 @@ export async function setupTenancyWithLease(propertyId: string, input: TenancySe
   const effectiveEndDate = isPeriodic ? null : (input.lease.endDate || null);
 
   // 1. Create Lease
-  const leasePayload: any = {
+  const leasePayload: Record<string, unknown> = {
     property_id: propertyId,
     created_by: user.id,
     start_date: input.lease.startDate,
@@ -266,14 +273,15 @@ export async function setupTenancyWithLease(propertyId: string, input: TenancySe
 
   const { data: newLease, error: leaseErr } = await supabase
     .from('leases')
-    .insert(leasePayload)
+    .insert(leasePayload as never)
     .select()
     .single();
 
   if (leaseErr) throw new Error(leaseErr.message);
+  const leaseObj = newLease as { id: string };
 
   // 2. Insert tenants and link to lease
-  const createdTenants = [];
+  const createdTenants: Array<Record<string, unknown>> = [];
   for (let i = 0; i < input.tenants.length; i++) {
     const t = input.tenants[i];
     const { data: newTenant, error: tenantErr } = await supabase
@@ -285,30 +293,31 @@ export async function setupTenancyWithLease(propertyId: string, input: TenancySe
         email: t.email,
         phone: t.phone || null,
         status: 'active',
-      })
+      } as never)
       .select()
       .single();
 
     if (tenantErr) throw new Error(tenantErr.message);
-    createdTenants.push(newTenant);
+    const tenantObj = newTenant as { id: string };
+    createdTenants.push(newTenant as Record<string, unknown>);
 
     // Link to lease_tenants
     const { error: linkErr } = await supabase
       .from('lease_tenants')
       .insert({
-        lease_id: newLease.id,
-        tenant_id: newTenant.id,
+        lease_id: leaseObj.id,
+        tenant_id: tenantObj.id,
         property_id: propertyId,
         role: i === 0 ? 'primary' : 'co-tenant',
         is_primary: i === 0,
-      });
+      } as never);
 
     if (linkErr) throw new Error(linkErr.message);
 
-    await recordActivityLog({ propertyId, action: 'created', entityType: 'tenant', entityId: newTenant.id });
+    await recordActivityLog({ propertyId, action: 'created', entityType: 'tenant', entityId: tenantObj.id });
   }
 
-  await recordActivityLog({ propertyId, action: 'created', entityType: 'lease', entityId: newLease.id });
+  await recordActivityLog({ propertyId, action: 'created', entityType: 'lease', entityId: leaseObj.id });
 
   return { lease: newLease, tenants: createdTenants };
 }
@@ -318,7 +327,7 @@ export async function updateLease(propertyId: string, leaseId: string, input: Ta
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('leases')
-    .update(input)
+    .update(input as never)
     .eq('id', leaseId)
     .eq('property_id', propertyId)
     .select()
@@ -352,7 +361,7 @@ export async function convertToPeriodic(propertyId: string, leaseId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('leases')
-    .update({ end_date: null, status: 'active' })
+    .update({ end_date: null, status: 'active' } as never)
     .eq('id', leaseId)
     .eq('property_id', propertyId)
     .select()
@@ -367,7 +376,7 @@ export async function updateLeaseStatus(propertyId: string, leaseId: string, sta
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('leases')
-    .update({ status })
+    .update({ status } as never)
     .eq('id', leaseId)
     .eq('property_id', propertyId)
     .select()
@@ -377,25 +386,25 @@ export async function updateLeaseStatus(propertyId: string, leaseId: string, sta
   return data;
 }
 
-
 // Invoices
 export async function createInvoice(propertyId: string, input: Omit<Tables['invoices']['Insert'], 'property_id'>) {
   const user = await requirePropertyPermission(propertyId, 'financial.manage');
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('invoices')
-    .insert({ ...input, property_id: propertyId, created_by: user.id })
+    .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
     .select()
     .single();
   if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'created', entityType: 'invoice', entityId: data.id });
+  const row = data as { id: string };
+  await recordActivityLog({ propertyId, action: 'created', entityType: 'invoice', entityId: row.id });
   return data;
 }
 
 export async function updateInvoice(propertyId: string, invoiceId: string, input: Tables['invoices']['Update']) {
   await requirePropertyPermission(propertyId, 'financial.manage');
   const supabase = await createClient();
-  const { data, error } = await supabase.from('invoices').update(input).eq('id', invoiceId).eq('property_id', propertyId).select().single();
+  const { data, error } = await supabase.from('invoices').update(input as never).eq('id', invoiceId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'invoice', entityId: invoiceId });
   return data;
@@ -404,7 +413,7 @@ export async function updateInvoice(propertyId: string, invoiceId: string, input
 export async function deleteInvoice(propertyId: string, invoiceId: string) {
   await requirePropertyPermission(propertyId, 'financial.manage');
   const supabase = await createClient();
-  const { error } = await supabase.from('invoices').update({ status: 'void' }).eq('id', invoiceId).eq('property_id', propertyId);
+  const { error } = await supabase.from('invoices').update({ status: 'void' } as never).eq('id', invoiceId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'voided', entityType: 'invoice', entityId: invoiceId });
 }
@@ -415,11 +424,12 @@ export async function createPayment(propertyId: string, input: Omit<Tables['paym
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('payments')
-    .insert({ ...input, property_id: propertyId, created_by: user.id })
+    .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
     .select()
     .single();
   if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'created', entityType: 'payment', entityId: data.id, metadata: { amount: input.amount } });
+  const row = data as { id: string };
+  await recordActivityLog({ propertyId, action: 'created', entityType: 'payment', entityId: row.id, metadata: { amount: input.amount } });
   await createNotification({
     userId: user.id,
     propertyId,
@@ -434,7 +444,7 @@ export async function createPayment(propertyId: string, input: Omit<Tables['paym
 export async function updatePayment(propertyId: string, paymentId: string, input: Tables['payments']['Update']) {
   await requirePropertyPermission(propertyId, 'financial.manage');
   const supabase = await createClient();
-  const { data, error } = await supabase.from('payments').update(input).eq('id', paymentId).eq('property_id', propertyId).select().single();
+  const { data, error } = await supabase.from('payments').update(input as never).eq('id', paymentId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'payment', entityId: paymentId });
   return data;
@@ -454,18 +464,19 @@ export async function createExpense(propertyId: string, input: Omit<Tables['expe
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('expenses')
-    .insert({ ...input, property_id: propertyId, created_by: user.id })
+    .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
     .select()
     .single();
   if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'created', entityType: 'expense', entityId: data.id });
+  const row = data as { id: string };
+  await recordActivityLog({ propertyId, action: 'created', entityType: 'expense', entityId: row.id });
   return data;
 }
 
 export async function updateExpense(propertyId: string, expenseId: string, input: Tables['expenses']['Update']) {
   await requirePropertyPermission(propertyId, 'financial.manage');
   const supabase = await createClient();
-  const { data, error } = await supabase.from('expenses').update(input).eq('id', expenseId).eq('property_id', propertyId).select().single();
+  const { data, error } = await supabase.from('expenses').update(input as never).eq('id', expenseId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'expense', entityId: expenseId });
   return data;
@@ -485,15 +496,16 @@ export async function createMaintenanceRequest(propertyId: string, input: Omit<T
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('maintenance_requests')
-    .insert({ ...input, property_id: propertyId, created_by: user.id })
+    .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
     .select()
     .single();
   if (error) throw new Error(error.message);
+  const row = data as { id: string };
   await recordActivityLog({
     propertyId,
     action: 'created',
     entityType: 'maintenance_request',
-    entityId: data.id,
+    entityId: row.id,
     metadata: { title: input.title },
   });
   await createNotification({
@@ -512,7 +524,7 @@ export async function updateMaintenanceRequest(propertyId: string, requestId: st
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('maintenance_requests')
-    .update(input)
+    .update(input as never)
     .eq('id', requestId)
     .eq('property_id', propertyId)
     .select()
@@ -525,7 +537,7 @@ export async function updateMaintenanceRequest(propertyId: string, requestId: st
 export async function deleteMaintenanceRequest(propertyId: string, requestId: string) {
   await requirePropertyPermission(propertyId, 'maintenance.manage');
   const supabase = await createClient();
-  const { error } = await supabase.from('maintenance_requests').update({ status: 'cancelled' }).eq('id', requestId).eq('property_id', propertyId);
+  const { error } = await supabase.from('maintenance_requests').update({ status: 'cancelled' } as never).eq('id', requestId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'cancelled', entityType: 'maintenance_request', entityId: requestId });
 }
@@ -536,11 +548,12 @@ export async function createInspection(propertyId: string, input: Omit<Tables['i
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('inspections')
-    .insert({ ...input, property_id: propertyId, created_by: user.id })
+    .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
     .select()
     .single();
   if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'created', entityType: 'inspection', entityId: data.id });
+  const row = data as { id: string };
+  await recordActivityLog({ propertyId, action: 'created', entityType: 'inspection', entityId: row.id });
   return data;
 }
 
@@ -549,7 +562,7 @@ export async function updateInspection(propertyId: string, inspectionId: string,
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('inspections')
-    .update(input)
+    .update(input as never)
     .eq('id', inspectionId)
     .eq('property_id', propertyId)
     .select()
@@ -562,7 +575,7 @@ export async function updateInspection(propertyId: string, inspectionId: string,
 export async function deleteInspection(propertyId: string, inspectionId: string) {
   await requirePropertyPermission(propertyId, 'inspection.manage');
   const supabase = await createClient();
-  const { error } = await supabase.from('inspections').update({ status: 'cancelled' }).eq('id', inspectionId).eq('property_id', propertyId);
+  const { error } = await supabase.from('inspections').update({ status: 'cancelled' } as never).eq('id', inspectionId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'cancelled', entityType: 'inspection', entityId: inspectionId });
 }
@@ -573,18 +586,19 @@ export async function createDocument(propertyId: string, input: Omit<Tables['doc
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('documents')
-    .insert({ ...input, property_id: propertyId, uploaded_by: user.id })
+    .insert({ ...input, property_id: propertyId, uploaded_by: user.id } as never)
     .select()
     .single();
   if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'created', entityType: 'document', entityId: data.id });
+  const row = data as { id: string };
+  await recordActivityLog({ propertyId, action: 'created', entityType: 'document', entityId: row.id });
   return data;
 }
 
 export async function updateDocument(propertyId: string, documentId: string, input: Tables['documents']['Update']) {
   await requirePropertyPermission(propertyId, 'document.manage');
   const supabase = await createClient();
-  const { data, error } = await supabase.from('documents').update(input).eq('id', documentId).eq('property_id', propertyId).select().single();
+  const { data, error } = await supabase.from('documents').update(input as never).eq('id', documentId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'document', entityId: documentId });
   return data;
@@ -604,18 +618,19 @@ export async function createTask(propertyId: string, input: Omit<Tables['tasks']
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('tasks')
-    .insert({ ...input, property_id: propertyId, created_by: user.id })
+    .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
     .select()
     .single();
   if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'created', entityType: 'task', entityId: data.id });
+  const row = data as { id: string };
+  await recordActivityLog({ propertyId, action: 'created', entityType: 'task', entityId: row.id });
   return data;
 }
 
 export async function updateTask(propertyId: string, taskId: string, input: Tables['tasks']['Update']) {
   await requirePropertyPermission(propertyId, 'task.manage');
   const supabase = await createClient();
-  const { data, error } = await supabase.from('tasks').update(input).eq('id', taskId).eq('property_id', propertyId).select().single();
+  const { data, error } = await supabase.from('tasks').update(input as never).eq('id', taskId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'task', entityId: taskId });
   return data;

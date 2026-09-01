@@ -1,10 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * PropertyLedge V4 E2E Playwright Configuration
+ * PropertyLedge V4 Playwright Configuration
  */
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: './tests',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
@@ -19,7 +19,12 @@ export default defineConfig({
 
   projects: [
     {
-      name: 'chromium',
+      name: 'unit',
+      testMatch: /tests\/unit\/.*\.spec\.ts/,
+    },
+    {
+      name: 'e2e',
+      testMatch: /tests\/e2e\/.*\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
   ],

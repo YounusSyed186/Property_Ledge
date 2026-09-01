@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createAdminClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/auth/queries';
 import { Subscription, SubscriptionStatus } from '@/types/subscriptions';
@@ -88,11 +87,12 @@ export async function updateSubscription(
     .eq('id', subscriptionId)
     .maybeSingle();
 
-  if (!existing) {
+  const row = existing as { account_id: string } | null;
+  if (!row) {
     throw new Error('Subscription not found.');
   }
 
-  await assertCanManageSubscription(existing.account_id, subscriptionId, systemOp);
+  await assertCanManageSubscription(row.account_id, subscriptionId, systemOp);
 
   const { data, error } = await (supabase as any)
     .from('subscriptions')

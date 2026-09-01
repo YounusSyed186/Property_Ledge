@@ -2,9 +2,9 @@
 
 import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, RefreshCw, LayoutDashboard } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 
-export default function AdminError({
+export default function TenantError({
   error,
   reset,
 }: {
@@ -12,7 +12,7 @@ export default function AdminError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error('Admin Panel Error:', error);
+    console.error('Tenant Portal Error:', error);
   }, [error]);
 
   return (
@@ -23,9 +23,9 @@ export default function AdminError({
         </div>
 
         <div className="space-y-1.5">
-          <h2 className="text-lg font-bold text-admin-foreground">Admin Operation Error</h2>
+          <h2 className="text-lg font-bold text-admin-foreground">Tenant Portal Error</h2>
           <p className="text-xs text-admin-muted">
-            Failed to load admin management surface. Please check your administrative privileges or retry.
+            We were unable to retrieve your tenancy or lease details. Please try again.
           </p>
         </div>
 
@@ -45,11 +45,11 @@ export default function AdminError({
             <span>Retry</span>
           </button>
           <Link
-            href="/admin"
+            href="/tenant"
             className="flex-1 py-2.5 px-3 rounded-lg bg-admin-surface-subtle border border-admin-border text-admin-foreground font-semibold text-xs flex items-center justify-center gap-1.5 hover:bg-admin-surface transition-all"
           >
-            <LayoutDashboard className="w-3.5 h-3.5" />
-            <span>Admin Home</span>
+            <Home className="w-3.5 h-3.5" />
+            <span>Tenant Home</span>
           </Link>
         </div>
       </div>

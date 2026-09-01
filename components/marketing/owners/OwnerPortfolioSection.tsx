@@ -25,7 +25,7 @@ export function OwnerPortfolioSection() {
 
             <Reveal direction="up" delay={0.3}>
               <p className="text-sm sm:text-base text-muted dark:text-[#AEB6B8] leading-relaxed">
-                Know what you own, what's earning, what's occupied and what needs your attention — without opening multiple spreadsheets or disconnected applications.
+                Know what you own, what&apos;s earning, what&apos;s occupied and what needs your attention — without opening multiple spreadsheets or disconnected applications.
               </p>
             </Reveal>
 

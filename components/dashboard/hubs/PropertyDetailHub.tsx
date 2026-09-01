@@ -69,6 +69,7 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
   const [reports, setReports] = useState<Awaited<ReturnType<typeof fetchDashboardReports>> | null>(null);
   const [needsAttention, setNeedsAttention] = useState<Awaited<ReturnType<typeof fetchNeedsAttention>> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
 
   const [isTenancyWizardOpen, setIsTenancyWizardOpen] = useState(false);
@@ -76,6 +77,7 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
 
   const loadAll = () => {
     setIsLoading(true);
+    setLoadError(null);
     Promise.all([
       fetchDashboardProperty(propertyId),
       fetchDashboardTenants(propertyId),
@@ -96,6 +98,10 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
         setReports(r);
         setNeedsAttention(na);
       })
+      .catch((err) => {
+        console.error('Failed to load property detail:', err);
+        setLoadError(err?.message || 'Failed to load property details. Please try again.');
+      })
       .finally(() => setIsLoading(false));
   };
 
@@ -107,6 +113,34 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
     return (
       <PageLayout>
         <PageContent><PageSkeleton /></PageContent>
+      </PageLayout>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <PageLayout>
+        <PageContent>
+          <div className="p-8 max-w-lg mx-auto text-center space-y-4 rounded-2xl bg-admin-surface-elevated border border-admin-border shadow-elevation-2">
+            <h2 className="text-lg font-bold text-admin-foreground">Unable to load property</h2>
+            <p className="text-xs text-admin-muted">{loadError}</p>
+            <div className="flex justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={loadAll}
+                className="px-4 py-2 rounded-xl bg-admin-primary text-black font-semibold text-xs hover:bg-admin-primary/90 transition-all"
+              >
+                Retry
+              </button>
+              <Link
+                href="/dashboard/properties"
+                className="px-4 py-2 rounded-xl bg-admin-surface-subtle border border-admin-border text-admin-foreground font-semibold text-xs hover:bg-admin-surface transition-all"
+              >
+                Back to Properties
+              </Link>
+            </div>
+          </div>
+        </PageContent>
       </PageLayout>
     );
   }

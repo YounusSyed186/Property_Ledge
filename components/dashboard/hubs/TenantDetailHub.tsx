@@ -125,12 +125,23 @@ export function TenantDetailHub({ tenantId }: TenantDetailPageProps) {
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [activity, setActivity] = useState<ActivityRow[]>([]);
 
-  useEffect(() => {
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadTenantData = () => {
     if (!selectedProperty) return;
     setIsLoading(true);
+    setLoadError(null);
     fetchDashboardTenant(selectedProperty.propertyId, tenantId)
       .then((data) => setTenant(data as unknown as TenantDetail | null))
+      .catch((err) => {
+        console.error('Error loading tenant:', err);
+        setLoadError(err?.message || 'Failed to load tenant details.');
+      })
       .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    loadTenantData();
   }, [selectedProperty?.propertyId, tenantId]);
 
   useEffect(() => {
@@ -151,6 +162,9 @@ export function TenantDetailHub({ tenantId }: TenantDetailPageProps) {
         if ('maintenance' in data) setMaintenance((data.maintenance as unknown as MaintenanceRow[]) || []);
         if ('documents' in data) setDocuments((data.documents as unknown as DocumentRow[]) || []);
         if ('activity' in data) setActivity((data.activity as unknown as ActivityRow[]) || []);
+      })
+      .catch((err) => {
+        console.error('Error loading tenant tab data:', err);
       })
       .finally(() => setTabLoading(false));
   }, [activeTab, selectedProperty?.propertyId, tenantId, tenant]);

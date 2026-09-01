@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { AuthActionResult } from '@/types/auth';
 import { mapAuthError } from '@/lib/errors';
 import { logAuthEvent } from '@/lib/debug/logger';
+import { getAppBaseUrl } from '@/lib/routing/env';
 
 export async function signUpAction(formData: {
   email: string;
@@ -23,6 +24,7 @@ export async function signUpAction(formData: {
 
   try {
     const supabase = await createClient();
+    const appBaseUrl = getAppBaseUrl();
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -30,7 +32,7 @@ export async function signUpAction(formData: {
         data: {
           full_name: fullName,
         },
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`,
+        emailRedirectTo: `${appBaseUrl}/auth/callback`,
       },
     });
 
@@ -134,8 +136,9 @@ export async function forgotPasswordAction(email: string): Promise<AuthActionRes
 
   try {
     const supabase = await createClient();
+    const appBaseUrl = getAppBaseUrl();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/reset-password`,
+      redirectTo: `${appBaseUrl}/reset-password`,
     });
 
     if (error) {

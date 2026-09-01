@@ -27,7 +27,7 @@ test.describe('Phase 2 Unit Tests - Email Service & Templates', () => {
     });
 
     expect(html).toContain('Subscription Request Received');
-    expect(html).toContain('Under Review (You will be notified shortly)');
+    expect(html).toContain('We have received your payment proof and subscription request.');
     expect(html).toContain('Sarah Williams');
     expect(html).toContain('Landlord');
   });
@@ -39,7 +39,7 @@ test.describe('Phase 2 Unit Tests - Email Service & Templates', () => {
       effectiveDate: '2026-08-23T00:00:00Z',
     });
 
-    expect(html).toContain('Subscription Approved!');
+    expect(html).toContain('Payment Verified & Activated');
     expect(html).toContain('Property Manager');
     expect(html).toContain('Sarah Williams');
   });

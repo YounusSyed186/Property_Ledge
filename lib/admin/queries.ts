@@ -84,7 +84,7 @@ export async function getAdminSubscriptions({
   }
 
   const accountIds = Array.from(new Set(subs.map((s: any) => s.account_id).filter(Boolean)));
-  let profileMap = new Map();
+  const profileMap = new Map();
   if (accountIds.length > 0) {
     const { data: profiles } = await (supabase as any)
       .from('profiles')
@@ -240,12 +240,12 @@ export async function getAdminUsers({
     .from('profiles')
     .select('*');
 
-  let profileMap = new Map();
+  const profileMap = new Map();
   if (profiles) {
     profiles.forEach((p: any) => profileMap.set(p.id, p));
   }
 
-  let contextMap = new Map();
+  const contextMap = new Map();
   try {
     const { data: contexts } = await (supabase as any)
       .from('account_context')
@@ -334,7 +334,7 @@ export async function getAdminPayments({
   }
 
   const accountIds = Array.from(new Set(payments.map((p: any) => p.account_id).filter(Boolean)));
-  let profileMap = new Map();
+  const profileMap = new Map();
   if (accountIds.length > 0) {
     const { data: profiles } = await (supabase as any)
       .from('profiles')

@@ -589,11 +589,10 @@ export function AppShell({
   };
 
   return (
-    <ToastProvider>
-      <div
-        className="h-screen w-screen bg-admin-sidebar text-admin-foreground flex flex-row overflow-hidden font-sans antialiased selection:bg-admin-foreground/10 selection:text-admin-foreground"
-        style={{ '--shell-navbar-height': `${SHELL_NAVBAR_HEIGHT}px` } as React.CSSProperties}
-      >
+    <div
+      className="h-screen w-screen bg-admin-sidebar text-admin-foreground flex flex-row overflow-hidden font-sans antialiased selection:bg-admin-foreground/10 selection:text-admin-foreground"
+      style={{ '--shell-navbar-height': `${SHELL_NAVBAR_HEIGHT}px` } as React.CSSProperties}
+    >
         {/* Full-height Sidebar on the left */}
         <Sidebar
           {...sidebarProps}
@@ -667,6 +666,5 @@ export function AppShell({
 
         {mobileBottomNav}
       </div>
-    </ToastProvider>
   );
 }

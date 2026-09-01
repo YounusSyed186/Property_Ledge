@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/server';
+import { getAppBaseUrl } from '@/lib/routing/env';
 
 export interface SendEmailOptions {
   to: string | string[];
@@ -84,7 +85,7 @@ export function buildEmailHtml(templateType: string, variables: Record<string, a
       </table>
       <table width="100%" border="0" cellspacing="0" cellpadding="0" style="text-align:center;margin-bottom:24px;">
         <tr><td>
-          <a href="${adminUrl || 'http://localhost:3000/admin/subscriptions'}" target="_blank" style="background:#a9927d;color:#141419;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:bold;text-decoration:none;display:inline-block;letter-spacing:0.5px;">Review in Admin Panel</a>
+          <a href="${adminUrl || `${getAppBaseUrl()}/admin/subscriptions`}" target="_blank" style="background:#a9927d;color:#141419;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:bold;text-decoration:none;display:inline-block;letter-spacing:0.5px;">Review in Admin Panel</a>
         </td></tr>
       </table>
     `);
@@ -112,7 +113,7 @@ export function buildEmailHtml(templateType: string, variables: Record<string, a
       </p>
       <table width="100%" border="0" cellspacing="0" cellpadding="0" style="text-align:center;margin-bottom:24px;">
         <tr><td>
-          <a href="${statusUrl || 'http://localhost:3000/subscription'}" target="_blank" style="background:#a9927d;color:#141419;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:bold;text-decoration:none;display:inline-block;letter-spacing:0.5px;">View Subscription Status</a>
+          <a href="${statusUrl || `${getAppBaseUrl()}/subscription`}" target="_blank" style="background:#a9927d;color:#141419;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:bold;text-decoration:none;display:inline-block;letter-spacing:0.5px;">View Subscription Status</a>
         </td></tr>
       </table>
     `);
@@ -140,7 +141,7 @@ export function buildEmailHtml(templateType: string, variables: Record<string, a
       </div>
       <table width="100%" border="0" cellspacing="0" cellpadding="0" style="text-align:center;margin-bottom:24px;">
         <tr><td>
-          <a href="${appUrl || 'http://localhost:3000'}" target="_blank" style="background:#a9927d;color:#141419;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:bold;text-decoration:none;display:inline-block;letter-spacing:0.5px;">Go to Workspace</a>
+          <a href="${appUrl || getAppBaseUrl()}" target="_blank" style="background:#a9927d;color:#141419;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:bold;text-decoration:none;display:inline-block;letter-spacing:0.5px;">Go to Workspace</a>
         </td></tr>
       </table>
     `);
@@ -167,7 +168,7 @@ export function buildEmailHtml(templateType: string, variables: Record<string, a
       </p>
       <table width="100%" border="0" cellspacing="0" cellpadding="0" style="text-align:center;margin-bottom:24px;">
         <tr><td>
-          <a href="${supportUrl || 'http://localhost:3000/support'}" target="_blank" style="background:#a9927d;color:#141419;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:bold;text-decoration:none;display:inline-block;letter-spacing:0.5px;">Contact Support</a>
+          <a href="${supportUrl || `${getAppBaseUrl()}/support`}" target="_blank" style="background:#a9927d;color:#141419;padding:14px 28px;border-radius:12px;font-size:15px;font-weight:bold;text-decoration:none;display:inline-block;letter-spacing:0.5px;">Contact Support</a>
         </td></tr>
       </table>
     `);

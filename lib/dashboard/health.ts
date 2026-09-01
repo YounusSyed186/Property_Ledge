@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * PROPERTY LEDGE — Centralized health engine.
  *

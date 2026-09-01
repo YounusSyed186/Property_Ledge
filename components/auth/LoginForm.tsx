@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 import { loginAction } from "@/lib/auth/actions";
 import { signInWithGoogle } from "@/lib/auth/oauth";
+import { safeRedirectPath } from "@/lib/routing/safeRedirect";
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -77,7 +78,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       }
 
       const params = new URLSearchParams(window.location.search);
-      const redirectTo = params.get("redirectTo") || "/dashboard";
+      const redirectTo = safeRedirectPath(params.get("redirectTo"), "/dashboard");
 
       router.push(redirectTo);
       router.refresh();
