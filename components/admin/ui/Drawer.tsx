@@ -90,36 +90,36 @@ export function Drawer({
       {/* Pop-up Form Dialog */}
       <div
         className={cn(
-          'relative flex max-h-[90vh] w-full flex-col rounded-2xl border border-admin-border bg-admin-surface text-admin-foreground shadow-elevation-overlay transition-all duration-300 ease-out z-10',
+          'relative flex max-h-[90vh] w-full flex-col rounded-xl border border-admin-border bg-admin-surface text-admin-foreground shadow-elevation-overlay transition-all duration-200 ease-out z-10',
           widthClasses[width],
-          animateIn ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-3',
+          animateIn ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-2',
           className
         )}
       >
         {/* Header */}
-        <div className="flex shrink-0 items-start justify-between border-b border-admin-border px-6 py-4.5 rounded-t-2xl bg-admin-surface">
+        <div className="flex shrink-0 items-start justify-between border-b border-admin-border px-5 sm:px-6 py-4 rounded-t-xl bg-admin-surface">
           <div className="min-w-0 pr-4">
-            <h2 className="text-section-title font-bold text-admin-foreground truncate">{title}</h2>
+            <h2 className="text-sm sm:text-base font-semibold text-admin-foreground truncate">{title}</h2>
             {description && (
-              <p className="mt-0.5 text-body-sm text-admin-muted">{description}</p>
+              <p className="mt-0.5 text-xs text-admin-muted">{description}</p>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-lg p-1.5 text-admin-muted transition-colors hover:bg-admin-surface-subtle hover:text-admin-foreground"
+            className="shrink-0 rounded-md p-1.5 text-admin-muted transition-colors hover:bg-admin-surface-subtle hover:text-admin-foreground"
             aria-label="Close form"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Form Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5">{children}</div>
 
         {/* Footer */}
         {footer && (
-          <div className="shrink-0 border-t border-admin-border px-6 py-4 bg-admin-surface-subtle/50 rounded-b-2xl">{footer}</div>
+          <div className="shrink-0 border-t border-admin-border px-5 sm:px-6 py-3.5 bg-admin-surface-subtle/50 rounded-b-xl">{footer}</div>
         )}
       </div>
     </div>,

@@ -100,10 +100,10 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
           type="button"
           onClick={() => refreshProperties()}
           title="Click to retry loading properties"
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-colors"
+          className="flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-xs font-medium hover:bg-red-100 transition-colors"
         >
-          <span>Error loading properties</span>
-          <span className="underline font-bold text-[10px]">Retry</span>
+          <span>Couldn't load properties</span>
+          <span className="underline font-semibold text-[11px]">Try again</span>
         </button>
       </div>
     );
@@ -116,94 +116,114 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         data-testid="property-selector"
-        className={triggerClass}
+        className={cn(
+          triggerClass,
+          !selectedProperty && 'text-admin-sidebar-foreground font-medium'
+        )}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        <span className="truncate" data-testid="current-property">
+        <span className="truncate max-w-[140px]" data-testid="current-property">
           {selectedProperty ? selectedProperty.propertyName : 'All Properties'}
         </span>
-        <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', isOpen && 'rotate-180')} />
+        <ChevronDown className={cn('h-3 w-3 shrink-0 text-admin-sidebar-muted transition-transform', isOpen && 'rotate-180')} />
       </button>
 
       {isOpen && (
         <div className={cn(
-          'absolute z-50 mt-2 w-72 overflow-hidden rounded-xl border border-admin-border bg-admin-surface shadow-lg animate-in fade-in zoom-in-95 duration-150',
+          'absolute z-50 mt-1.5 w-72 overflow-hidden rounded-lg border border-admin-border bg-admin-surface shadow-elevation-2 animate-in fade-in zoom-in-95 duration-100',
           isNavbar ? 'left-0' : 'right-0'
         )}>
-          <div className="border-b border-admin-border px-3 py-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-admin-muted">Property</p>
+          <div className="border-b border-admin-border px-3 py-2 flex items-center justify-between">
+            <p className="text-[11px] font-semibold text-admin-foreground">Select Property</p>
+            <span className="text-[10px] text-admin-muted font-normal">
+              {availableProperties.length} available
+            </span>
           </div>
           <div className="border-b border-admin-border p-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search properties..."
-                className="w-full pl-10 pr-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full pl-8 pr-3 py-1.5 rounded-md border border-border bg-background text-xs text-foreground placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
           </div>
 
-          <div className="max-h-80 overflow-y-auto p-1">
+          <div className="max-h-72 overflow-y-auto p-1.5 space-y-0.5">
             <button
               type="button"
               onClick={handleSelectAll}
               className={cn(
-                'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
-                !selectedProperty ? 'bg-admin-success/10 font-medium text-admin-success' : 'text-admin-foreground hover:bg-admin-surface-subtle'
+                'flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-colors',
+                !selectedProperty
+                  ? 'bg-admin-primary-soft font-semibold text-admin-primary border border-admin-primary/20'
+                  : 'text-admin-foreground hover:bg-admin-surface-subtle'
               )}
             >
-              <Building2 className="h-4 w-4 shrink-0" />
-              <span className="flex-1 text-left">All Properties</span>
+              <div className={cn(
+                'flex items-center justify-center w-6 h-6 rounded-md shrink-0',
+                !selectedProperty ? 'bg-admin-primary text-white' : 'bg-admin-surface-subtle text-admin-muted'
+              )}>
+                <Building2 className="h-3.5 w-3.5" />
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <p className="font-medium truncate">All Properties</p>
+                <p className="text-[10px] text-admin-muted truncate">View workspace-wide summary</p>
+              </div>
+              {!selectedProperty && (
+                <span className="text-[10px] font-semibold text-admin-primary">Active</span>
+              )}
             </button>
-            {filteredProperties.map((property) => (
-                  <button
-                    key={property.propertyId}
-                    onClick={() => handleSelect(property)}
-                    className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors',
-                      selectedProperty?.propertyId === property.propertyId
-                        ? 'bg-accent/10 text-accent font-medium'
-                        : 'text-foreground hover:bg-muted'
-                    )}
-                  >
-                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-accent/10 text-accent shrink-0">
-                      <Building2 className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 min-w-0 text-left">
-                      <p className="font-medium truncate">{property.propertyName}</p>
-                      <p className="text-xs text-muted-foreground truncate">{property.organizationName}</p>
-                    </div>
-                    <span
-                      className={cn(
-                        'px-2 py-0.5 rounded-full text-[10px] font-medium',
-                        property.role === 'owner' && 'bg-purple/20 text-purple',
-                        property.role === 'manager' && 'bg-blue/20 text-blue',
-                        property.role === 'agent' && 'bg-green/20 text-green',
-                        property.role === 'staff' && 'bg-orange/20 text-orange',
-                        property.role === 'viewer' && 'bg-gray/20 text-gray'
-                      )}
-                    >
-                      {property.role}
-                    </span>
-                  </button>
-                ))}
+
+            {filteredProperties.map((property) => {
+              const isSelected = selectedProperty?.propertyId === property.propertyId;
+              return (
+                <button
+                  key={property.propertyId}
+                  onClick={() => handleSelect(property)}
+                  className={cn(
+                    'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition-colors',
+                    isSelected
+                      ? 'bg-admin-primary-soft text-admin-primary font-semibold border border-admin-primary/20'
+                      : 'text-foreground hover:bg-admin-surface-subtle'
+                  )}
+                >
+                  <div className={cn(
+                    'flex items-center justify-center w-6 h-6 rounded-md shrink-0',
+                    isSelected ? 'bg-admin-primary text-white' : 'bg-admin-surface-subtle text-admin-muted'
+                  )}>
+                    <Building2 className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="font-medium truncate">{property.propertyName}</p>
+                    <p className="text-[10px] text-muted truncate">{property.organizationName}</p>
+                  </div>
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted/15 text-muted capitalize shrink-0">
+                    {property.role}
+                  </span>
+                </button>
+              );
+            })}
+
             {filteredProperties.length === 0 && searchQuery && (
-              <div className="p-4 text-center text-sm text-admin-muted">No properties found</div>
+              <div className="p-3 text-center text-xs text-admin-muted">
+                No properties matching &quot;{searchQuery}&quot;
+              </div>
             )}
           </div>
 
           {showCreateLink && (
-            <div className="border-t border-admin-border p-2">
+            <div className="border-t border-admin-border p-1.5">
               <button
                 type="button"
                 onClick={handleCreate}
-                className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-admin-success transition-colors hover:bg-admin-success/10"
+                className="flex w-full items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-admin-primary transition-colors hover:bg-admin-primary-soft"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-3.5 w-3.5" />
                 Add property
               </button>
             </div>

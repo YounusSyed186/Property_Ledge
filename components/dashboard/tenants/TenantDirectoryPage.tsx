@@ -22,6 +22,7 @@ import { LayoutGrid, List } from 'lucide-react';
 import { Button, useToast } from '@/components/admin/ui';
 import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
 import { ListPage, ListPageGrid } from '@/components/workspace';
+import { usePropertyContext } from '@/components/property/PropertyContext';
 import { fetchAllWorkspaceTenants, fetchDashboardProperties } from '@/app/actions/dashboard';
 import { TenancySetupWizard } from '@/components/dashboard/workflows/TenancySetupWizard';
 import { TenantDrawer } from '@/components/dashboard/tenants/TenantDrawer';
@@ -69,6 +70,7 @@ type PropertyOption = {
 export function TenantDirectoryPage() {
   const router = useRouter();
   const { error: showError } = useToast();
+  const { selectedProperty, availableProperties } = usePropertyContext();
 
   const [tenants, setTenants] = useState<TenantRecord[]>([]);
   const [properties, setProperties] = useState<PropertyOption[]>([]);
@@ -164,8 +166,9 @@ export function TenantDirectoryPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
+      const activePropertyId = selectedProperty?.propertyId ?? null;
       const [tenantsData, propertiesData] = await Promise.all([
-        fetchAllWorkspaceTenants(),
+        fetchAllWorkspaceTenants(activePropertyId),
         fetchDashboardProperties(),
       ]);
       setTenants(tenantsData as unknown as TenantRecord[]);
@@ -180,12 +183,20 @@ export function TenantDirectoryPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [selectedProperty?.propertyId]);
 
   const handleStartTenancySetup = () => {
     if (properties.length === 0) {
       showError('No Properties Found', 'Please create a property before adding tenants.');
       return;
+    }
+    if (selectedProperty) {
+      const prop = properties.find((p) => p.id === selectedProperty.propertyId);
+      if (prop) {
+        setSelectedPropertyForSetup(prop);
+        setIsSetupWizardOpen(true);
+        return;
+      }
     }
     if (properties.length === 1) {
       setSelectedPropertyForSetup(properties[0]);
@@ -211,24 +222,30 @@ export function TenantDirectoryPage() {
 
   const filteredTenants = useMemo(() => {
     return tenants.filter((t) => {
+      if (selectedProperty && t.property_id !== selectedProperty.propertyId) {
+        return false;
+      }
       if (statusFilter === 'All') return true;
       return getTenantCategory(t) === statusFilter;
     });
-  }, [tenants, statusFilter]);
+  }, [tenants, statusFilter, selectedProperty]);
 
   const stats = useMemo(() => {
-    const active = tenants.filter((t) => getTenantCategory(t) === 'Active Resident').length;
-    const pending = tenants.filter((t) => getTenantCategory(t) === 'Prospect / Applicant').length;
-    const past = tenants.filter((t) => getTenantCategory(t) === 'Inactive / Past Resident').length;
-    const archived = tenants.filter((t) => getTenantCategory(t) === 'Archived').length;
+    const active = filteredTenants.filter((t) => getTenantCategory(t) === 'Active Resident').length;
+    const pending = filteredTenants.filter((t) => getTenantCategory(t) === 'Prospect / Applicant').length;
+    const past = filteredTenants.filter((t) => getTenantCategory(t) === 'Inactive / Past Resident').length;
+    const archived = filteredTenants.filter((t) => getTenantCategory(t) === 'Archived').length;
 
-    return { total: tenants.length, active, pending, past, archived };
-  }, [tenants]);
+    return { total: filteredTenants.length, active, pending, past, archived };
+  }, [filteredTenants]);
+
+  const contextName = selectedProperty ? selectedProperty.propertyName : 'All Properties';
+  const pageDescription = `${contextName} · ${filteredTenants.length} ${filteredTenants.length === 1 ? 'resident' : 'residents'}`;
 
   return (
     <ListPage
       title="Tenants"
-      description="Central directory of current, pending, and past residents across your properties."
+      description={pageDescription}
       actions={
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-admin-surface border border-admin-border rounded-xl p-1 shadow-xs">

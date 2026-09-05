@@ -328,19 +328,39 @@ export function PermissionMatrix({
         />
       )}
 
-      {/* Dynamic Column Option Notice */}
-      <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-admin-surface-subtle/40 border border-admin-border/60 text-xs">
+      {/* Dynamic Column Option Notice & Human Legend */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg bg-admin-surface-subtle/50 border border-admin-border/60 text-xs">
         <div className="flex items-center gap-2 text-admin-muted text-[11px]">
           <span>
             <strong className="text-admin-foreground font-semibold">{totalSelected}</strong> of {totalAvailable} permissions granted
           </span>
         </div>
 
+        {/* 5-State Visual Legend */}
+        <div className="flex flex-wrap items-center gap-3 text-[11px] text-admin-muted">
+          <div className="flex items-center gap-1">
+            <span className="w-3.5 h-3.5 rounded bg-admin-primary text-white flex items-center justify-center text-[9px] font-bold">✓</span>
+            <span>Granted</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-3.5 h-3.5 rounded border border-admin-border bg-admin-surface inline-block" />
+            <span>Available</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-3.5 h-3.5 rounded bg-admin-primary/20 text-admin-primary flex items-center justify-center text-[10px] font-bold">−</span>
+            <span>Partial</span>
+          </div>
+          <div className="flex items-center gap-1" title="Action is not supported for this resource">
+            <span className="font-mono text-admin-muted font-bold">·</span>
+            <span>Unsupported</span>
+          </div>
+        </div>
+
         <button
           type="button"
           onClick={() => setHideEmptyColumns(!hideEmptyColumns)}
           className={cn(
-            'px-2.5 py-0.5 rounded-md text-[11px] font-medium border transition-colors flex items-center gap-1',
+            'px-2 py-1 rounded-md text-[11px] font-medium border transition-colors flex items-center gap-1',
             hideEmptyColumns
               ? 'bg-admin-primary/10 border-admin-primary/30 text-admin-primary font-semibold'
               : 'bg-admin-surface border-admin-border/60 text-admin-muted hover:text-admin-foreground'
@@ -354,7 +374,7 @@ export function PermissionMatrix({
       {/* ONE UNIFIED DATA TABLE CONTAINER */}
       <div
         className={cn(
-          'w-full overflow-hidden rounded-2xl border border-admin-border/90 bg-admin-surface shadow-xs',
+          'w-full overflow-hidden rounded-lg border border-admin-border/90 bg-admin-surface shadow-xs',
           isFullscreen ? 'flex-1 min-h-0' : ''
         )}
       >

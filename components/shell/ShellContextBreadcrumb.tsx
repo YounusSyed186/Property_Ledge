@@ -17,11 +17,17 @@ interface ShellContextBreadcrumbProps {
 
 export function ShellContextBreadcrumb({ onCreateProperty, className }: ShellContextBreadcrumbProps) {
   return (
-    <div className={cn('flex min-w-0 items-center gap-1', className)}>
+    <div className={cn('flex min-w-0 items-center gap-1.5 text-xs', className)}>
       <ContextDivider />
-      <WorkspaceSelector variant="navbar" />
+      <div className="flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors">
+        <span className="text-[11px] font-medium text-admin-sidebar-muted">Org:</span>
+        <WorkspaceSelector variant="navbar" />
+      </div>
       <ContextDivider />
-      <PropertySelector variant="navbar" onCreateClick={onCreateProperty} />
+      <div className="flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors">
+        <span className="text-[11px] font-medium text-admin-sidebar-muted">Property:</span>
+        <PropertySelector variant="navbar" onCreateClick={onCreateProperty} />
+      </div>
     </div>
   );
 }

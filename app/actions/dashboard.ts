@@ -40,9 +40,13 @@ export async function fetchDashboardUnits(propertyId: string) {
   return queries.getUnits(propertyId);
 }
 
-export async function fetchDashboardTenants(propertyId: string) {
-  await requirePropertyAccess(propertyId);
-  return queries.getTenants(propertyId);
+export async function fetchDashboardTenants(propertyId?: string | null) {
+  if (propertyId) {
+    await requirePropertyAccess(propertyId);
+    return queries.getTenants(propertyId);
+  }
+  await requireAuthenticatedUser();
+  return queries.getAllWorkspaceTenants();
 }
 
 export async function fetchDashboardLeases(propertyId?: string | null) {
@@ -212,12 +216,20 @@ export async function handleDeleteUnit(propertyId: string, unitId: string) {
   return { success: true };
 }
 
-export async function fetchAllWorkspaceTenants() {
+export async function fetchAllWorkspaceTenants(propertyId?: string | null) {
+  if (propertyId) {
+    await requirePropertyAccess(propertyId);
+    return queries.getTenants(propertyId);
+  }
   await requireAuthenticatedUser();
   return queries.getAllWorkspaceTenants();
 }
 
-export async function fetchAllWorkspaceLeases() {
+export async function fetchAllWorkspaceLeases(propertyId?: string | null) {
+  if (propertyId) {
+    await requirePropertyAccess(propertyId);
+    return queries.getLeases(propertyId);
+  }
   await requireAuthenticatedUser();
   return queries.getAllWorkspaceLeases();
 }

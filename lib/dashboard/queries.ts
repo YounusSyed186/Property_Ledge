@@ -118,6 +118,7 @@ export async function getTenants(propertyId: string) {
     .from('tenants')
     .select(`
       *,
+      property:properties(id, name, address_line_1, city, suburb, postal_code, state),
       lease_tenants!lease_tenants_tenant_id_fkey(
         is_primary,
         role,

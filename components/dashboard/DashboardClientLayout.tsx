@@ -182,7 +182,7 @@ function DashboardShellInner({
       persona={persona}
       loadingMessage="Loading dashboard..."
       activeNavLayoutId="dashboard-active-nav-pill"
-      commandMenuFooter="PropertyLedge V3 Dashboard"
+      commandMenuFooter="PropertyLedge V4 Dashboard"
       commandMenuLinks={commandMenuLinks}
       useGlobalSearch
       settingsHref="/dashboard/settings"

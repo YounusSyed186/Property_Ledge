@@ -17,28 +17,28 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 export function Input({ label, error, helpText, leftIcon, className, id, ...props }: InputProps) {
   const inputId = id || props.name;
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       {label && (
-        <label htmlFor={inputId} className="block text-caption font-medium text-[#182536] dark:text-[#F4F7F9]">
+        <label htmlFor={inputId} className="block text-xs font-medium text-foreground">
           {label}
         </label>
       )}
       <div className="relative">
         {leftIcon && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
             {leftIcon}
           </span>
         )}
         <input
           id={inputId}
           className={cn(
-            'w-full h-10 px-3 rounded-lg bg-surface border text-body-sm text-[#182536] dark:text-[#F4F7F9] placeholder:text-[#9AA5AF] transition-all duration-150',
-            'focus:outline-none focus:border-[#008F83] focus:ring-3 focus:ring-[#008F83]/10',
-            'disabled:opacity-50 disabled:pointer-events-none',
-            leftIcon && 'pl-10',
+            'w-full h-9 px-3 rounded-md bg-surface border text-xs text-foreground placeholder:text-muted transition-all duration-150',
+            'focus:outline-none focus:border-[#008F83] focus:ring-2 focus:ring-[#008F83]/25',
+            'disabled:opacity-50 disabled:pointer-events-none shadow-2xs',
+            leftIcon && 'pl-8',
             error
-              ? 'border-[#D64545] ring-3 ring-[#D64545]/10'
-              : 'border-[#DCE2E7] dark:border-[#1B2B3D] hover:border-[#BBC6CE] dark:hover:border-[#24384E]',
+              ? 'border-[#DC2626] ring-1 ring-[#DC2626]/20'
+              : 'border-[#E2E8F0] dark:border-[#1E293B] hover:border-[#CBD5E1] dark:hover:border-[#334155]',
             className
           )}
           aria-invalid={!!error}
@@ -47,12 +47,12 @@ export function Input({ label, error, helpText, leftIcon, className, id, ...prop
         />
       </div>
       {error && (
-        <p id={`${inputId}-error`} className="text-xs text-[#D64545] font-medium" role="alert">
+        <p id={`${inputId}-error`} className="text-[11px] text-[#DC2626] font-medium mt-0.5" role="alert">
           {error}
         </p>
       )}
       {!error && helpText && (
-        <p id={`${inputId}-help`} className="text-xs text-muted">
+        <p id={`${inputId}-help`} className="text-[11px] text-muted mt-0.5">
           {helpText}
         </p>
       )}
@@ -74,21 +74,21 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 export function Select({ label, error, helpText, className, id, children, options, ...props }: SelectProps) {
   const selectId = id || props.name;
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       {label && (
-        <label htmlFor={selectId} className="block text-caption font-medium text-[#182536] dark:text-[#F4F7F9]">
+        <label htmlFor={selectId} className="block text-xs font-medium text-foreground">
           {label}
         </label>
       )}
       <select
         id={selectId}
         className={cn(
-          'w-full h-10 px-3 rounded-lg bg-surface border text-body-sm text-[#182536] dark:text-[#F4F7F9] transition-all duration-150 appearance-none cursor-pointer',
-          'focus:outline-none focus:border-[#008F83] focus:ring-3 focus:ring-[#008F83]/10',
+          'w-full h-9 px-3 rounded-md bg-surface border text-xs text-foreground transition-all duration-150 cursor-pointer shadow-2xs',
+          'focus:outline-none focus:border-[#008F83] focus:ring-2 focus:ring-[#008F83]/25',
           'disabled:opacity-50 disabled:pointer-events-none',
           error
-            ? 'border-[#D64545] ring-3 ring-[#D64545]/10'
-            : 'border-[#DCE2E7] dark:border-[#1B2B3D] hover:border-[#BBC6CE] dark:hover:border-[#24384E]',
+            ? 'border-[#DC2626] ring-1 ring-[#DC2626]/20'
+            : 'border-[#E2E8F0] dark:border-[#1E293B] hover:border-[#CBD5E1] dark:hover:border-[#334155]',
           className
         )}
         aria-invalid={!!error}
@@ -102,11 +102,11 @@ export function Select({ label, error, helpText, className, id, children, option
           ))}
       </select>
       {error && (
-        <p className="text-xs text-[#D64545] font-medium" role="alert">
+        <p className="text-[11px] text-[#DC2626] font-medium mt-0.5" role="alert">
           {error}
         </p>
       )}
-      {!error && helpText && <p className="text-xs text-muted">{helpText}</p>}
+      {!error && helpText && <p className="text-[11px] text-muted mt-0.5">{helpText}</p>}
     </div>
   );
 }
@@ -124,32 +124,32 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 export function Textarea({ label, error, helpText, className, id, ...props }: TextareaProps) {
   const textareaId = id || props.name;
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       {label && (
-        <label htmlFor={textareaId} className="block text-caption font-medium text-[#182536] dark:text-[#F4F7F9]">
+        <label htmlFor={textareaId} className="block text-xs font-medium text-foreground">
           {label}
         </label>
       )}
       <textarea
         id={textareaId}
         className={cn(
-          'w-full px-3 py-2 rounded-lg bg-surface border text-body-sm text-[#182536] dark:text-[#F4F7F9] placeholder:text-[#9AA5AF] transition-all duration-150 resize-y min-h-[84px]',
-          'focus:outline-none focus:border-[#008F83] focus:ring-3 focus:ring-[#008F83]/10',
+          'w-full px-3 py-2 rounded-md bg-surface border text-xs text-foreground placeholder:text-muted transition-all duration-150 resize-y min-h-[80px] shadow-2xs',
+          'focus:outline-none focus:border-[#008F83] focus:ring-2 focus:ring-[#008F83]/25',
           'disabled:opacity-50 disabled:pointer-events-none',
           error
-            ? 'border-[#D64545] ring-3 ring-[#D64545]/10'
-            : 'border-[#DCE2E7] dark:border-[#1B2B3D] hover:border-[#BBC6CE] dark:hover:border-[#24384E]',
+            ? 'border-[#DC2626] ring-1 ring-[#DC2626]/20'
+            : 'border-[#E2E8F0] dark:border-[#1E293B] hover:border-[#CBD5E1] dark:hover:border-[#334155]',
           className
         )}
         aria-invalid={!!error}
         {...props}
       />
       {error && (
-        <p className="text-xs text-[#D64545] font-medium" role="alert">
+        <p className="text-[11px] text-[#DC2626] font-medium mt-0.5" role="alert">
           {error}
         </p>
       )}
-      {!error && helpText && <p className="text-xs text-muted">{helpText}</p>}
+      {!error && helpText && <p className="text-[11px] text-muted mt-0.5">{helpText}</p>}
     </div>
   );
 }

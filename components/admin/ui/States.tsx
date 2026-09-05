@@ -16,15 +16,15 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
   return (
-    <div className={cn('flex flex-col items-center justify-center text-center py-12 px-6', className)}>
+    <div className={cn('flex flex-col items-center justify-center text-center py-10 px-4', className)}>
       {icon && (
-        <div className="w-14 h-14 rounded-2xl bg-admin-primary-soft border border-admin-primary/20 flex items-center justify-center text-admin-primary mb-4">
+        <div className="w-11 h-11 rounded-lg bg-admin-primary-soft border border-admin-primary/20 flex items-center justify-center text-admin-primary mb-3 shadow-2xs">
           {icon}
         </div>
       )}
-      <h3 className="text-card-title font-heading text-admin-foreground">{title}</h3>
-      {description && <p className="text-body-sm text-admin-muted mt-1.5 max-w-sm">{description}</p>}
-      {action && <div className="mt-5">{action}</div>}
+      <h3 className="text-sm font-semibold text-admin-foreground">{title}</h3>
+      {description && <p className="text-xs text-admin-muted mt-1 max-w-sm leading-relaxed">{description}</p>}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
@@ -40,16 +40,16 @@ interface LoadingStateProps {
 
 export function LoadingState({ rows = 3, className }: LoadingStateProps) {
   return (
-    <div className={cn('space-y-4', className)} aria-label="Loading" role="status">
-      <div className="space-y-2">
-        <div className="h-6 w-48 bg-admin-surface-subtle rounded-md animate-pulse" />
-        <div className="h-4 w-72 bg-admin-surface-subtle rounded-md animate-pulse" />
+    <div className={cn('space-y-3', className)} aria-label="Loading" role="status">
+      <div className="space-y-1.5">
+        <div className="h-5 w-40 bg-admin-surface-subtle rounded animate-pulse" />
+        <div className="h-3.5 w-60 bg-admin-surface-subtle rounded animate-pulse" />
       </div>
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="bg-admin-surface border border-admin-border rounded-xl p-5 space-y-3">
-          <div className="h-4 w-32 bg-admin-surface-subtle rounded-md animate-pulse" />
-          <div className="h-8 w-48 bg-admin-surface-subtle rounded-md animate-pulse" />
-          <div className="h-4 w-full bg-admin-surface-subtle rounded-md animate-pulse" />
+        <div key={i} className="bg-admin-surface border border-admin-border rounded-lg p-4 space-y-2.5">
+          <div className="h-3.5 w-28 bg-admin-surface-subtle rounded animate-pulse" />
+          <div className="h-7 w-40 bg-admin-surface-subtle rounded animate-pulse" />
+          <div className="h-3.5 w-full bg-admin-surface-subtle rounded animate-pulse" />
         </div>
       ))}
     </div>
@@ -68,22 +68,22 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({
-  title = 'Something went wrong',
-  description = "We couldn't load this data. Please try again.",
+  title = "Couldn't load this",
+  description = "We couldn't retrieve this information right now. Please check your connection and try again.",
   onRetry,
   className,
 }: ErrorStateProps) {
   return (
-    <div className={cn('flex flex-col items-center justify-center text-center py-12 px-6', className)}>
-      <div className="w-14 h-14 rounded-2xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center text-admin-danger mb-4">
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <div className={cn('flex flex-col items-center justify-center text-center py-10 px-4', className)}>
+      <div className="w-11 h-11 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 flex items-center justify-center text-red-600 dark:text-red-400 mb-3 shadow-2xs">
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
       </div>
-      <h3 className="text-card-title font-heading text-admin-foreground">{title}</h3>
-      <p className="text-body-sm text-admin-muted mt-1.5 max-w-sm">{description}</p>
+      <h3 className="text-sm font-semibold text-admin-foreground">{title}</h3>
+      <p className="text-xs text-admin-muted mt-1 max-w-sm leading-relaxed">{description}</p>
       {onRetry && (
-        <div className="mt-5">
+        <div className="mt-4">
           <Button variant="secondary" size="sm" onClick={onRetry}>
             Try again
           </Button>

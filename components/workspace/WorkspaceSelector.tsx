@@ -131,10 +131,10 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
           type="button"
           onClick={() => refreshBootstrap()}
           title="Click to retry loading workspaces"
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-colors"
+          className="flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-xs font-medium hover:bg-red-100 transition-colors"
         >
-          <span>Error loading workspaces</span>
-          <span className="underline font-bold text-[10px]">Retry</span>
+          <span>Couldn't load organization</span>
+          <span className="underline font-semibold text-[11px]">Try again</span>
         </button>
       </div>
     );
@@ -146,10 +146,10 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
         <button
           type="button"
           onClick={() => showCreateLink && router.push('/onboarding/workspace')}
-          className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 transition-colors hover:bg-muted"
+          className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 transition-colors hover:bg-muted"
         >
-          <Briefcase className="h-4 w-4 text-muted-foreground" />
-          <span className="truncate text-sm font-medium">No Workspace</span>
+          <Briefcase className="h-3.5 w-3.5 text-muted" />
+          <span className="truncate text-xs font-medium">No Workspace</span>
         </button>
       </div>
     );
@@ -166,70 +166,79 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        {!isNavbar && <Briefcase className="h-4 w-4 shrink-0 text-accent" />}
-        <span className="flex-1 truncate text-left" data-testid="current-workspace">
+        {!isNavbar && <Briefcase className="h-3.5 w-3.5 shrink-0 text-admin-primary" />}
+        <span className="flex-1 truncate text-left max-w-[140px]" data-testid="current-workspace">
           {displayName}
         </span>
-        <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', isOpen && 'rotate-180')} />
+        <ChevronDown className={cn('h-3 w-3 shrink-0 text-admin-sidebar-muted transition-transform', isOpen && 'rotate-180')} />
       </button>
 
       {isOpen && (
         <div
           className={cn(
-            'absolute z-50 mt-2 overflow-hidden rounded-xl border border-admin-border bg-admin-surface shadow-lg animate-in fade-in zoom-in-95 duration-150',
+            'absolute z-50 mt-1.5 overflow-hidden rounded-lg border border-admin-border bg-admin-surface shadow-elevation-2 animate-in fade-in zoom-in-95 duration-100',
             isNavbar ? 'left-0 w-72' : 'left-0 right-0'
           )}
         >
-          <div className="border-b border-admin-border px-3 py-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-admin-muted">Workspace</p>
+          <div className="border-b border-admin-border px-3 py-2 flex items-center justify-between">
+            <p className="text-[11px] font-semibold text-admin-foreground">Organization / Workspace</p>
+            <span className="text-[10px] text-admin-muted font-normal">{workspaces.length} active</span>
           </div>
           <div className="border-b border-admin-border p-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-admin-muted" />
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search workspaces..."
-                className="w-full rounded-lg border border-admin-border bg-admin-surface py-2 pl-10 pr-3 text-sm text-admin-foreground focus:outline-none focus:ring-2 focus:ring-admin-success/30"
+                className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-3 text-xs text-foreground placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
           </div>
-          <div className="max-h-64 overflow-y-auto p-1">
+          <div className="max-h-64 overflow-y-auto p-1.5 space-y-0.5">
             {(filteredWorkspaces.length > 0 ? filteredWorkspaces : selectedWorkspace ? [selectedWorkspace] : []).map(
-              (workspace) => (
-                <button
-                  key={workspace.id}
-                  type="button"
-                  onClick={() => handleSelect(workspace)}
-                  className={cn(
-                    'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
-                    workspace.id === activeWorkspaceId
-                      ? 'bg-accent/10 font-medium text-accent'
-                      : 'text-foreground hover:bg-muted'
-                  )}
-                >
-                  <Briefcase className="h-4 w-4 shrink-0" />
-                  <span className="flex-1 truncate text-left">{workspace.name}</span>
-                  {workspace.role ? (
-                    <span className="text-[10px] uppercase text-muted-foreground">{workspace.role}</span>
-                  ) : null}
-                </button>
-              )
+              (workspace) => {
+                const isSelected = workspace.id === activeWorkspaceId;
+                return (
+                  <button
+                    key={workspace.id}
+                    type="button"
+                    onClick={() => handleSelect(workspace)}
+                    className={cn(
+                      'flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-colors',
+                      isSelected
+                        ? 'bg-admin-primary-soft font-semibold text-admin-primary border border-admin-primary/20'
+                        : 'text-foreground hover:bg-admin-surface-subtle'
+                    )}
+                  >
+                    <div className={cn(
+                      'flex items-center justify-center w-6 h-6 rounded-md shrink-0',
+                      isSelected ? 'bg-admin-primary text-white' : 'bg-admin-surface-subtle text-admin-muted'
+                    )}>
+                      <Briefcase className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="flex-1 truncate text-left">{workspace.name}</span>
+                    {workspace.role ? (
+                      <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-muted/15 text-muted font-medium">{workspace.role}</span>
+                    ) : null}
+                  </button>
+                );
+              }
             )}
           </div>
           {showCreateLink && (
-            <div className="border-t border-border p-2">
+            <div className="border-t border-admin-border p-1.5">
               <button
                 type="button"
                 onClick={() => {
                   setIsOpen(false);
                   router.push('/onboarding/workspace');
                 }}
-                className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/10"
+                className="flex w-full items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-admin-primary transition-colors hover:bg-admin-primary-soft"
               >
-                <Plus className="h-4 w-4" />
-                Create Workspace
+                <Plus className="h-3.5 w-3.5" />
+                Add workspace
               </button>
             </div>
           )}

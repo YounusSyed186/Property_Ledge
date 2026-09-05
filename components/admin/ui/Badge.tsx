@@ -11,12 +11,12 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 const variantStyles: Record<BadgeVariant, string> = {
-  success: 'bg-[#EFFAF5] dark:bg-[#16845A]/15 text-[#16845A] dark:text-[#34D399] border-[#CDEEDF] dark:border-[#16845A]/30',
-  warning: 'bg-[#FFF8E9] dark:bg-[#B77908]/15 text-[#B77908] dark:text-[#FBBF24] border-[#F6E1AF] dark:border-[#B77908]/30',
-  danger: 'bg-[#FFF1F1] dark:bg-[#C63D46]/15 text-[#C63D46] dark:text-[#F87171] border-[#F2CCCC] dark:border-[#C63D46]/30',
-  info: 'bg-[#EEF6FC] dark:bg-[#28709E]/15 text-[#28709E] dark:text-[#60A5FA] border-[#D3E6F5] dark:border-[#28709E]/30',
-  neutral: 'bg-[#F1F4F6] dark:bg-[#152538] text-[#485665] dark:text-[#AEB8C3] border-[#E1E6EA] dark:border-[#1B2B3D]',
-  primary: 'bg-[#E6F7F5] dark:bg-[#008F83]/15 text-[#008F83] dark:text-[#32D5C4] border-[#CDEEDF] dark:border-[#008F83]/30',
+  success: 'bg-[#F0FDF4] dark:bg-[#16A34A]/15 text-[#15803D] dark:text-[#4ADE80] border-[#BBF7D0] dark:border-[#16A34A]/30 font-medium',
+  warning: 'bg-[#FFFBEB] dark:bg-[#D97706]/15 text-[#B45309] dark:text-[#FBBF24] border-[#FDE68A] dark:border-[#D97706]/30 font-medium',
+  danger: 'bg-[#FEF2F2] dark:bg-[#DC2626]/15 text-[#B91C1C] dark:text-[#F87171] border-[#FECACA] dark:border-[#DC2626]/30 font-medium',
+  info: 'bg-[#F0F9FF] dark:bg-[#0284C7]/15 text-[#0369A1] dark:text-[#60A5FA] border-[#BAE6FD] dark:border-[#0284C7]/30 font-medium',
+  neutral: 'bg-[#F8FAFC] dark:bg-[#1E293B] text-[#475569] dark:text-[#94A3B8] border-[#E2E8F0] dark:border-[#334155] font-medium',
+  primary: 'bg-[#F0FBFA] dark:bg-[#008F83]/15 text-[#008F83] dark:text-[#32D5C4] border-[#CCECE8] dark:border-[#008F83]/30 font-medium',
 };
 
 const sizeStyles: Record<BadgeSize, string> = {
@@ -25,11 +25,11 @@ const sizeStyles: Record<BadgeSize, string> = {
 };
 
 const dotColors: Record<BadgeVariant, string> = {
-  success: 'bg-[#16845A] dark:bg-[#34D399]',
-  warning: 'bg-[#B77908] dark:bg-[#FBBF24]',
-  danger: 'bg-[#C63D46] dark:bg-[#F87171]',
-  info: 'bg-[#28709E] dark:bg-[#60A5FA]',
-  neutral: 'bg-[#7A8794]',
+  success: 'bg-[#16A34A] dark:bg-[#4ADE80]',
+  warning: 'bg-[#D97706] dark:bg-[#FBBF24]',
+  danger: 'bg-[#DC2626] dark:bg-[#F87171]',
+  info: 'bg-[#0284C7] dark:bg-[#60A5FA]',
+  neutral: 'bg-[#94A3B8]',
   primary: 'bg-[#008F83]',
 };
 
@@ -37,7 +37,7 @@ export function Badge({ variant = 'neutral', size = 'sm', dot = false, className
   return (
     <span
       className={cn(
-        'inline-flex items-center border',
+        'inline-flex items-center border rounded-md shadow-2xs',
         variantStyles[variant],
         sizeStyles[size],
         className
@@ -56,7 +56,7 @@ export type StatusDomain = 'subscription' | 'invoice' | 'maintenance' | 'lease' 
 
 const STATUS_LABELS: Record<StatusDomain, Record<string, string>> = {
   subscription: { active: 'Active', trialing: 'Free trial', past_due: 'Payment overdue', canceled: 'Canceled', pending: 'Pending', expired: 'Expired' },
-  invoice: { draft: 'Draft', issued: 'Issued', sent: 'Sent', paid: 'Paid', overdue: 'Overdue', partially_paid: 'Partially paid', void: 'Void', cancelled: 'Cancelled' },
+  invoice: { draft: 'Draft', issued: 'Issued', sent: 'Sent', paid: 'Paid', overdue: 'Overdue', partially_paid: 'Partially paid', partial: 'Partially paid', void: 'Void', cancelled: 'Cancelled' },
   maintenance: { open: 'Open', in_progress: 'In progress', scheduled: 'Scheduled', completed: 'Completed', cancelled: 'Cancelled' },
   lease: { draft: 'Draft', active: 'Active', expired: 'Expired', terminated: 'Terminated', pending: 'Pending' },
   unit: { vacant: 'Vacant', occupied: 'Occupied', maintenance: 'Maintenance', reserved: 'Reserved' },
@@ -74,7 +74,7 @@ function statusToVariant(domain: StatusDomain, status: string): BadgeVariant {
   if (domain === 'invoice') {
     if (s === 'paid') return 'success';
     if (s === 'overdue') return 'danger';
-    if (s === 'partially_paid' || s === 'issued' || s === 'sent') return 'warning';
+    if (s === 'partially_paid' || s === 'partial' || s === 'issued' || s === 'sent') return 'warning';
   }
   if (domain === 'maintenance') {
     if (s === 'completed') return 'success';
@@ -105,19 +105,21 @@ function statusToVariant(domain: StatusDomain, status: string): BadgeVariant {
 }
 
 export function humanizeStatus(domain: StatusDomain, status: string): string {
-  return STATUS_LABELS[domain][status] || status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  return STATUS_LABELS[domain]?.[status] || status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-interface StatusBadgeProps {
-  domain: StatusDomain;
+export interface StatusBadgeProps {
+  domain?: StatusDomain;
+  type?: StatusDomain;
   status: string;
   dot?: boolean;
   className?: string;
 }
 
-export function StatusBadge({ domain, status, dot = true, className }: StatusBadgeProps) {
-  const variant = statusToVariant(domain, status);
-  const label = humanizeStatus(domain, status);
+export function StatusBadge({ domain, type, status, dot = true, className }: StatusBadgeProps) {
+  const effectiveDomain = domain || type || 'subscription';
+  const variant = statusToVariant(effectiveDomain, status);
+  const label = humanizeStatus(effectiveDomain, status);
   return (
     <Badge variant={variant} dot={dot} className={className}>
       {label}

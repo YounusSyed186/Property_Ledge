@@ -30,9 +30,9 @@ export function PropertyRequired({ children, message, allowAllProperties = false
         title="No properties yet"
         description="Create a property to start managing units, tenants, and more."
         action={
-          <Link href="/dashboard/properties?new=true">
-            <Button size="sm">Create Property</Button>
-          </Link>
+          <Button href="/dashboard/properties?new=true" size="sm">
+            Add property
+          </Button>
         }
       />
     );

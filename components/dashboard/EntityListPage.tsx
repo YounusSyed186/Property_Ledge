@@ -83,14 +83,16 @@ export function EntityListPage<T extends { id: string }>({
   clientFilter,
   renderCreateModal,
 }: EntityListPageProps<T>) {
-  const { selectedProperty } = usePropertyContext();
-  const { error: showError } = useToast();
+  const { selectedProperty, availableProperties } = usePropertyContext();
+  const { error: showError, info: showInfo } = useToast();
   const [rows, setRows] = useState<T[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedEntity, setSelectedEntity] = useState<T | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCreate, setIsCreate] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  const effectivePropertyId = selectedProperty?.propertyId || (availableProperties.length > 0 ? availableProperties[0].propertyId : '');
 
   const loadData = async () => {
     setIsLoading(true);
@@ -99,7 +101,7 @@ export function EntityListPage<T extends { id: string }>({
       setRows(data);
     } catch (err) {
       console.error(`Failed to load ${entityLabelPlural}:`, err);
-      showError('Load failed', `Could not load ${entityLabelPlural}.`);
+      showError("Couldn't load " + entityLabelPlural, "Please check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
@@ -112,6 +114,10 @@ export function EntityListPage<T extends { id: string }>({
   const handleOpenCreate = () => {
     if (renderCreateModal) {
       setIsCreateModalOpen(true);
+      return;
+    }
+    if (!effectivePropertyId) {
+      showInfo('No property available', 'Please add or select a property first.');
       return;
     }
     setSelectedEntity(null);
@@ -130,11 +136,10 @@ export function EntityListPage<T extends { id: string }>({
     [rows, clientFilter]
   );
 
+  const contextName = selectedProperty ? selectedProperty.propertyName : 'All Properties';
   const pageDescription =
     description ??
-    (selectedProperty
-      ? `${selectedProperty.propertyName} — ${displayRows.length} ${displayRows.length === 1 ? entityLabel : entityLabelPlural}`
-      : `All Properties — ${displayRows.length} ${displayRows.length === 1 ? entityLabel : entityLabelPlural}`);
+    `${contextName} · ${displayRows.length} ${displayRows.length === 1 ? entityLabel : entityLabelPlural}`;
 
   const columns = useMemo<ColDef[]>(
     () => [
@@ -169,8 +174,7 @@ export function EntityListPage<T extends { id: string }>({
           breadcrumb={breadcrumb}
           summary={summary}
           actions={
-            <Button onClick={handleOpenCreate} size="sm">
-              <Plus className="w-3 h-3 mr-1" />
+            <Button onClick={handleOpenCreate} size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />}>
               Add {entityLabel}
             </Button>
           }
@@ -195,7 +199,7 @@ export function EntityListPage<T extends { id: string }>({
           </ListPageGrid>
         </ListPage>
 
-        {selectedProperty && (
+        {effectivePropertyId && (
           <DrawerComponent
             entity={selectedEntity}
             isOpen={isDrawerOpen}
@@ -204,7 +208,7 @@ export function EntityListPage<T extends { id: string }>({
               setIsDrawerOpen(false);
               loadData();
             }}
-            propertyId={selectedProperty.propertyId}
+            propertyId={effectivePropertyId}
             isCreate={isCreate}
           />
         )}

@@ -26,6 +26,7 @@ import { ColDef } from 'ag-grid-community';
 import { Button, useToast, ConfirmDialog } from '@/components/admin/ui';
 import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
 import { ListPage, ListPageGrid } from '@/components/workspace';
+import { usePropertyContext } from '@/components/property/PropertyContext';
 import {
   fetchAllWorkspaceLeases,
   fetchDashboardProperties,
@@ -71,6 +72,7 @@ type LeaseRecord = {
 export function LeaseManagementPage() {
   const router = useRouter();
   const { success: showSuccess, error: showError } = useToast();
+  const { selectedProperty, availableProperties } = usePropertyContext();
 
   const [leases, setLeases] = useState<LeaseRecord[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
@@ -179,8 +181,9 @@ export function LeaseManagementPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
+      const activePropertyId = selectedProperty?.propertyId ?? null;
       const [leasesData, propertiesData] = await Promise.all([
-        fetchAllWorkspaceLeases(),
+        fetchAllWorkspaceLeases(activePropertyId),
         fetchDashboardProperties(),
       ]);
       setLeases(leasesData as unknown as LeaseRecord[]);
@@ -195,10 +198,13 @@ export function LeaseManagementPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [selectedProperty?.propertyId]);
 
   const filteredLeases = useMemo(() => {
     return leases.filter((l) => {
+      if (selectedProperty && l.property_id !== selectedProperty.propertyId) {
+        return false;
+      }
       if (statusFilter === 'All') return true;
       if (statusFilter === 'Active') return l.status === 'active';
       if (statusFilter === 'Pending') return l.status === 'pending';
@@ -208,7 +214,7 @@ export function LeaseManagementPage() {
       }
       return true;
     });
-  }, [leases, statusFilter]);
+  }, [leases, statusFilter, selectedProperty]);
 
   const confirmDeleteLease = async () => {
     if (!deletingLeaseId || !deletingPropertyId) return;
@@ -277,20 +283,23 @@ export function LeaseManagementPage() {
   };
 
   const stats = useMemo(() => {
-    const active = leases.filter((l) => l.status === 'active').length;
-    const periodic = leases.filter((l) => l.status === 'active' && !l.end_date).length;
-    const expired = leases.filter((l) => l.status === 'expired' || (l.end_date && new Date(l.end_date) < new Date())).length;
-    const totalRent = leases
+    const active = filteredLeases.filter((l) => l.status === 'active').length;
+    const periodic = filteredLeases.filter((l) => l.status === 'active' && !l.end_date).length;
+    const expired = filteredLeases.filter((l) => l.status === 'expired' || (l.end_date && new Date(l.end_date) < new Date())).length;
+    const totalRent = filteredLeases
       .filter((l) => l.status === 'active')
       .reduce((sum, l) => sum + (Number(l.rent_amount) || 0), 0);
 
-    return { total: leases.length, active, periodic, expired, totalRent };
-  }, [leases]);
+    return { total: filteredLeases.length, active, periodic, expired, totalRent };
+  }, [filteredLeases]);
+
+  const contextName = selectedProperty ? selectedProperty.propertyName : 'All Properties';
+  const pageDescription = `${contextName} · ${filteredLeases.length} ${filteredLeases.length === 1 ? 'lease' : 'leases'}`;
 
   return (
     <ListPage
       title="Leases"
-      description="Manage active tenancy contracts, renewal terms, and rental schedules across your properties."
+      description={pageDescription}
       actions={
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-admin-surface border border-admin-border rounded-xl p-1 shadow-xs">
@@ -324,7 +333,7 @@ export function LeaseManagementPage() {
 
           <Button
             onClick={() => {
-              setWizardInitialData(null);
+              setWizardInitialData(selectedProperty ? { property_id: selectedProperty.propertyId } : null);
               setIsCreateWizardOpen(true);
             }}
             className="font-bold gap-2"
@@ -659,6 +668,8 @@ export function LeaseManagementPage() {
       {isCreateWizardOpen && (
         <CreateLeaseWizard
           isOpen={true}
+          propertyId={selectedProperty?.propertyId}
+          propertyName={selectedProperty?.propertyName}
           initialData={wizardInitialData}
           onClose={() => {
             setIsCreateWizardOpen(false);

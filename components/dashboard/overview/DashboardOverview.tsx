@@ -132,17 +132,21 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
     };
   });
 
+  const contextSubtitle = selectedProperty
+    ? `Here's what's happening with ${selectedProperty.propertyName}.`
+    : "Here's an overview of what's happening across your portfolio.";
+
   return (
     <PageLayout>
       <div className={cn('shrink-0', WORKSPACE_PAGE_HEADER)}>
         <DashboardHeader
           greeting={`${greeting}, ${userName.split(' ')[0]}`}
-          subtitle="Here's what needs your attention across your portfolio."
-            actions={
-              <Button href="/dashboard/properties/new" size="md" leftIcon={<Plus className="h-3.5 w-3.5" />}>
-                Add property
-              </Button>
-            }
+          subtitle={contextSubtitle}
+          actions={
+            <Button href="/dashboard/properties?new=true" size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />}>
+              Add property
+            </Button>
+          }
         />
       </div>
       <PageContent>
@@ -153,33 +157,35 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
         ) : !hasProperties ? (
           <Card className="border-dashed">
             <CardContent className="p-8 text-center">
-              <Building2 className="mx-auto mb-4 h-16 w-16 text-admin-muted/50" />
-              <h3 className="workspace-page-title mb-2">No properties yet</h3>
-              <p className="mx-auto mb-6 max-w-md text-admin-muted">
-                Add your first property to start building your portfolio.
+              <Building2 className="mx-auto mb-3 h-12 w-12 text-admin-primary/60" />
+              <h3 className="text-base font-semibold text-admin-foreground mb-1.5">No properties yet</h3>
+              <p className="mx-auto mb-5 max-w-sm text-xs text-admin-muted leading-relaxed">
+                Add your first property to start managing tenants, leases, and payments all in one place.
               </p>
-              <Link href="/dashboard/properties/new" className="inline-flex items-center gap-2 rounded-xl bg-admin-primary px-6 py-3 font-semibold text-white hover:opacity-90">
-                <Plus className="h-5 w-5" /> Create Property
-              </Link>
+              <Button href="/dashboard/properties?new=true" size="md" leftIcon={<Plus className="h-4 w-4" />}>
+                Add property
+              </Button>
             </CardContent>
           </Card>
         ) : stats ? (
-          <div className="space-y-6">
-            <div className="space-y-3">
+          <div className="space-y-5">
+            <div className="space-y-2.5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-metadata font-semibold uppercase tracking-[0.16em] text-admin-muted">Portfolio overview</p>
-                  <p className="mt-1 text-caption text-admin-muted">A clear view of your selected property and portfolio activity.</p>
+                  <p className="text-xs font-semibold text-admin-foreground">
+                    {selectedProperty ? selectedProperty.propertyName : 'All Properties'} at a glance
+                  </p>
+                  <p className="text-[11px] text-admin-muted">Key numbers and daily operational metrics.</p>
                 </div>
-                <Link href="/dashboard/properties" className="hidden text-caption font-semibold text-admin-primary hover:underline sm:block">
-                  View properties
+                <Link href="/dashboard/properties" className="hidden text-xs font-medium text-admin-primary hover:underline sm:block">
+                  View properties →
                 </Link>
               </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <CompactKpiCard label="Properties" value={availableProperties.length} href="/dashboard/properties" icon={Building2} accent="blue" />
-                <CompactKpiCard label="Tenants" value={stats?.activeTenants ?? 0} href="/dashboard/people" icon={Users} accent="indigo" />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <CompactKpiCard label={selectedProperty ? "Units" : "Properties"} value={selectedProperty ? (stats?.totalUnits ?? 0) : availableProperties.length} href={selectedProperty ? "/dashboard/units" : "/dashboard/properties"} icon={Building2} accent="blue" />
+                <CompactKpiCard label="Tenants" value={stats?.activeTenants ?? 0} href="/dashboard/tenants" icon={Users} accent="indigo" />
                 <CompactKpiCard label="Active Leases" value={stats?.activeLeases ?? 0} href="/dashboard/leases" icon={Percent} accent="teal" />
-                <CompactKpiCard label="Rent collected" value={formatCurrency(collected)} href="/dashboard/money" icon={Wallet} accent="blue" />
+                <CompactKpiCard label="Rent collected" value={formatCurrency(collected)} href="/dashboard/money" icon={Wallet} accent="blue" hint={outstanding > 0 ? `${formatCurrency(outstanding)} to collect` : undefined} />
               </div>
             </div>
 
