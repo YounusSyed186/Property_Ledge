@@ -19,15 +19,9 @@ export function ShellContextBreadcrumb({ onCreateProperty, className }: ShellCon
   return (
     <div className={cn('flex min-w-0 items-center gap-1.5 text-xs', className)}>
       <ContextDivider />
-      <div className="flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors">
-        <span className="text-[11px] font-medium text-admin-sidebar-muted">Org:</span>
-        <WorkspaceSelector variant="navbar" />
-      </div>
+      <WorkspaceSelector variant="navbar" />
       <ContextDivider />
-      <div className="flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors">
-        <span className="text-[11px] font-medium text-admin-sidebar-muted">Property:</span>
-        <PropertySelector variant="navbar" onCreateClick={onCreateProperty} />
-      </div>
+      <PropertySelector variant="navbar" onCreateClick={onCreateProperty} />
     </div>
   );
 }

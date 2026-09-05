@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, Plus, Search, Briefcase } from 'lucide-react';
+import { ChevronDown, ChevronsUpDown, Plus, Search, Briefcase } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { switchWorkspace } from '@/app/actions/workspace-team';
 import { fetchWorkspaceBootstrap } from '@/app/actions/workspace-context';
@@ -18,6 +18,7 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
   const router = useRouter();
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const workspaceName = useWorkspaceStore((s) => s.workspaceName);
+  const roleName = useWorkspaceStore((s) => s.roleName);
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const isSwitching = useWorkspaceStore((s) => s.isSwitching);
   const updateFromServer = useWorkspaceStore((s) => s.updateFromServer);
@@ -110,14 +111,14 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
 
   const isNavbar = variant === 'navbar';
   const triggerClass = isNavbar
-    ? 'flex min-w-0 max-w-[160px] items-center gap-0.5 rounded-md px-1 py-0.5 text-xs font-medium text-admin-sidebar-foreground transition-colors hover:bg-admin-sidebar-hover'
+    ? 'flex h-8 items-center gap-2 rounded-lg px-2 text-xs font-semibold text-admin-sidebar-foreground transition-colors hover:bg-admin-sidebar-hover focus:outline-none'
     : 'flex w-full min-w-[180px] items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 transition-colors hover:bg-muted';
 
   if (isLoading && !hasKnownWorkspace) {
     return (
       <div className={cn('relative', className)}>
         <button type="button" disabled className={cn(triggerClass, 'text-admin-sidebar-muted opacity-60')}>
-          <div className="h-3.5 w-3.5 animate-pulse rounded bg-admin-sidebar-border" />
+          <div className="h-4 w-4 animate-pulse rounded-full bg-admin-sidebar-border" />
           <div className="h-3.5 w-20 animate-pulse rounded bg-admin-sidebar-border" />
         </button>
       </div>
@@ -166,11 +167,18 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        {!isNavbar && <Briefcase className="h-3.5 w-3.5 shrink-0 text-admin-primary" />}
-        <span className="flex-1 truncate text-left max-w-[140px]" data-testid="current-workspace">
+        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white shadow-xs">
+          {displayName.charAt(0).toUpperCase()}
+        </div>
+        <span className="max-w-[130px] truncate text-left font-semibold text-admin-sidebar-foreground" data-testid="current-workspace">
           {displayName}
         </span>
-        <ChevronDown className={cn('h-3 w-3 shrink-0 text-admin-sidebar-muted transition-transform', isOpen && 'rotate-180')} />
+        {isNavbar && (
+          <span className="rounded-full bg-admin-sidebar-surface px-2 py-0.5 text-[10px] font-medium text-admin-sidebar-muted border border-admin-sidebar-border">
+            {selectedWorkspace?.role ? (selectedWorkspace.role.charAt(0).toUpperCase() + selectedWorkspace.role.slice(1)) : (roleName || 'Owner')}
+          </span>
+        )}
+        <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-admin-sidebar-muted" />
       </button>
 
       {isOpen && (

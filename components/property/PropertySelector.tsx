@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, Building2, Plus, Search } from 'lucide-react';
+import { ChevronDown, ChevronsUpDown, Building2, Plus, Search } from 'lucide-react';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import type { UserPropertyAccess } from '@/lib/properties/queries';
 import { cn } from '@/lib/utils';
@@ -58,7 +58,7 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
 
   const isNavbar = variant === 'navbar';
   const triggerClass = isNavbar
-    ? 'flex min-w-0 max-w-[160px] items-center gap-0.5 rounded-md px-1 py-0.5 text-xs font-medium text-admin-sidebar-foreground transition-colors hover:bg-admin-sidebar-hover'
+    ? 'flex h-8 items-center gap-2 rounded-lg px-2 text-xs font-semibold text-admin-sidebar-foreground transition-colors hover:bg-admin-sidebar-hover focus:outline-none'
     : 'flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted transition-colors min-w-[200px] max-w-[300px]';
 
   const handleSelectAll = () => {
@@ -82,11 +82,10 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
           ref={buttonRef}
           type="button"
           disabled
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 text-muted-foreground text-xs font-medium"
+          className={cn(triggerClass, 'text-admin-sidebar-muted opacity-60')}
         >
-          <div className="w-3.5 h-3.5 rounded animate-pulse bg-muted" />
-          <span className="w-20 h-3.5 rounded animate-pulse bg-muted inline-block" />
-          <ChevronDown className="w-3.5 h-3.5" />
+          <div className="h-4 w-4 rounded-md bg-admin-sidebar-border animate-pulse" />
+          <span className="w-20 h-3.5 rounded bg-admin-sidebar-border animate-pulse inline-block" />
         </button>
       </div>
     );
@@ -116,17 +115,17 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         data-testid="property-selector"
-        className={cn(
-          triggerClass,
-          !selectedProperty && 'text-admin-sidebar-foreground font-medium'
-        )}
+        className={cn(triggerClass)}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        <span className="truncate max-w-[140px]" data-testid="current-property">
+        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-zinc-800 border border-zinc-700/60 text-white shadow-xs">
+          <Building2 className="h-3 w-3 text-white" />
+        </div>
+        <span className="max-w-[130px] truncate text-left font-semibold text-admin-sidebar-foreground" data-testid="current-property">
           {selectedProperty ? selectedProperty.propertyName : 'All Properties'}
         </span>
-        <ChevronDown className={cn('h-3 w-3 shrink-0 text-admin-sidebar-muted transition-transform', isOpen && 'rotate-180')} />
+        <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-admin-sidebar-muted" />
       </button>
 
       {isOpen && (
