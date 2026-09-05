@@ -84,19 +84,13 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
   const showSetup = setupProgress && !setupProgress.allComplete;
 
   useEffect(() => {
-    if (!selectedProperty) {
-      setOverview(null);
-      setReports(null);
-      setNeedsAttention(null);
-      setLeases([]);
-      return;
-    }
     setIsLoading(true);
+    const propertyId = selectedProperty?.propertyId ?? null;
     Promise.all([
-      fetchDashboardOverview(selectedProperty.propertyId),
-      fetchNeedsAttention(selectedProperty.propertyId),
-      fetchDashboardReports(selectedProperty.propertyId),
-      fetchDashboardLeases(selectedProperty.propertyId),
+      fetchDashboardOverview(propertyId),
+      fetchNeedsAttention(propertyId),
+      fetchDashboardReports(propertyId),
+      fetchDashboardLeases(propertyId),
     ])
       .then(([overviewData, attentionData, reportsData, leasesData]) => {
         setOverview(overviewData);
@@ -167,12 +161,6 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
               <Link href="/dashboard/properties/new" className="inline-flex items-center gap-2 rounded-xl bg-admin-primary px-6 py-3 font-semibold text-white hover:opacity-90">
                 <Plus className="h-5 w-5" /> Create Property
               </Link>
-            </CardContent>
-          </Card>
-        ) : !selectedProperty ? (
-          <Card>
-            <CardContent className="p-6 text-center text-admin-muted">
-              Select a property from the header to view your dashboard.
             </CardContent>
           </Card>
         ) : stats ? (

@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { Drawer, Button, Select, ConfirmDialog, useToast } from '@/components/admin/ui';
 import { useCan } from '@/lib/auth/client-permissions';
 import { toastAuthorizationError } from '@/lib/auth/toast-errors';
+import { PermissionMatrix } from '@/components/rbac/PermissionMatrix';
+import { fetchTeamPermissions } from '@/app/actions/workspace-roles';
 import {
   fetchAssignableRoles,
   fetchRolePermissions,
@@ -12,8 +14,8 @@ import {
   suspendMember,
   type WorkspaceMemberRow,
   type TeamRoleOption,
-  type PermissionRow,
 } from '@/app/actions/workspace-team';
+import type { PermissionItem } from '@/components/rbac/PermissionMatrix';
 
 interface MemberDetailDrawerProps {
   workspaceId: string;
@@ -23,30 +25,36 @@ interface MemberDetailDrawerProps {
 }
 
 export function MemberDetailDrawer({ workspaceId, member, onClose, onUpdated }: MemberDetailDrawerProps) {
-  const { error: toastError } = useToast();
+  const { error: toastError, success: toastSuccess } = useToast();
   const canUpdate = useCan('team.member.update');
   const canRemove = useCan('team.member.remove');
   const [roles, setRoles] = useState<TeamRoleOption[]>([]);
-  const [permissions, setPermissions] = useState<PermissionRow[]>([]);
+  const [catalog, setCatalog] = useState<PermissionItem[]>([]);
+  const [grantedKeys, setGrantedKeys] = useState<Set<string>>(new Set());
   const [newRoleId, setNewRoleId] = useState(member.roleId || '');
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (member.roleId) fetchRolePermissions(member.roleId).then(setPermissions);
-    if (canUpdate) fetchAssignableRoles(workspaceId).then(setRoles);
-  }, [member.roleId, workspaceId, canUpdate]);
+    fetchTeamPermissions().then(setCatalog);
 
-  const grouped = permissions.reduce<Record<string, PermissionRow[]>>((acc, p) => {
-    (acc[p.resource] ||= []).push(p);
-    return acc;
-  }, {});
+    if (member.roleId) {
+      fetchRolePermissions(member.roleId).then((perms) => {
+        setGrantedKeys(new Set(perms.map((p) => p.key)));
+      });
+    }
+
+    if (canUpdate) {
+      fetchAssignableRoles(workspaceId).then(setRoles);
+    }
+  }, [member.roleId, workspaceId, canUpdate]);
 
   async function handleRoleChange() {
     if (!newRoleId || newRoleId === member.roleId) return;
     setLoading(true);
     try {
       await changeMemberRole(workspaceId, member.id, newRoleId);
+      toastSuccess('Role updated', 'Member role was updated successfully.');
       onUpdated();
     } catch (e) {
       toastAuthorizationError(e, toastError);
@@ -59,6 +67,7 @@ export function MemberDetailDrawer({ workspaceId, member, onClose, onUpdated }: 
     setLoading(true);
     try {
       await removeMember(workspaceId, member.id);
+      toastSuccess('Member removed', 'The member was removed from this workspace.');
       onUpdated();
     } catch (e) {
       toastAuthorizationError(e, toastError);
@@ -72,6 +81,7 @@ export function MemberDetailDrawer({ workspaceId, member, onClose, onUpdated }: 
     setLoading(true);
     try {
       await suspendMember(workspaceId, member.id);
+      toastSuccess('Member suspended', 'The member has been suspended.');
       onUpdated();
     } catch (e) {
       toastAuthorizationError(e, toastError);
@@ -80,90 +90,124 @@ export function MemberDetailDrawer({ workspaceId, member, onClose, onUpdated }: 
     }
   }
 
+  const isOwner = member.roleName?.toLowerCase() === 'owner';
+
   return (
     <>
-      <Drawer isOpen onClose={onClose} title="Member details" width="md">
+      <Drawer
+        isOpen
+        onClose={onClose}
+        title="Member details & access"
+        description="View assigned role, access levels, and effective permissions."
+        width="lg"
+      >
         <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-full bg-admin-primary/10 flex items-center justify-center text-lg font-semibold text-admin-primary">
-              {(member.fullName || member.publicId || '?')[0]}
+          {/* Member Profile Header */}
+          <div className="flex items-center gap-4 p-4 rounded-xl bg-admin-surface-subtle/50 border border-admin-border">
+            <div className="h-12 w-12 rounded-full bg-admin-primary/15 flex items-center justify-center text-lg font-bold text-admin-primary">
+              {(member.fullName || member.publicId || '?')[0].toUpperCase()}
             </div>
-            <div>
-              <p className="font-semibold text-admin-foreground">{member.fullName || member.publicId || 'Unknown'}</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="font-semibold text-admin-foreground truncate">
+                  {member.fullName || member.publicId || 'Unknown'}
+                </p>
+                {member.isSystemRole && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-admin-border text-admin-muted">
+                    System Role
+                  </span>
+                )}
+              </div>
               {member.publicId && member.fullName && (
-                <p className="text-sm text-admin-muted">{member.publicId}</p>
+                <p className="text-xs text-admin-muted font-mono">{member.publicId}</p>
               )}
-              {!member.fullName && member.publicId && (
-                <p className="text-xs text-admin-muted">No display name set</p>
-              )}
-              <p className="text-sm capitalize text-admin-muted">{member.status}</p>
+              <div className="flex items-center gap-3 mt-1 text-xs text-admin-muted">
+                <span>
+                  Role: <strong className="text-admin-foreground font-medium">{member.roleName || 'None'}</strong>
+                </span>
+                <span>•</span>
+                <span className="capitalize">Status: {member.status}</span>
+                {member.joinedAt && (
+                  <>
+                    <span>•</span>
+                    <span>Joined: {new Date(member.joinedAt).toLocaleDateString()}</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
-          <div>
-            <p className="text-xs font-medium text-admin-muted mb-1">Role</p>
-            <p className="font-medium">{member.roleName}</p>
-            {member.isSystemRole && (
-              <span className="text-xs text-admin-muted">SYSTEM</span>
-            )}
-          </div>
-
-          {member.joinedAt && (
-            <div>
-              <p className="text-xs font-medium text-admin-muted mb-1">Joined</p>
-              <p className="text-sm">{new Date(member.joinedAt).toLocaleDateString()}</p>
-            </div>
-          )}
-
-          <div>
-            <p className="text-sm font-medium text-admin-foreground mb-2">Effective permissions</p>
-            <div className="space-y-3 max-h-64 overflow-y-auto">
-              {Object.entries(grouped).map(([resource, perms]) => (
-                <div key={resource}>
-                  <p className="text-xs font-medium capitalize text-admin-muted">{resource}</p>
-                  <ul className="text-sm ml-2">
-                    {perms.map((p) => (
-                      <li key={p.key} className="text-admin-foreground">✓ {p.name}</li>
+          {/* Role Assignment Control */}
+          {canUpdate && roles.length > 0 && !isOwner && (
+            <div className="p-4 rounded-xl border border-admin-border space-y-3 bg-admin-surface">
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-admin-foreground">
+                  Change Role Assignment
+                </h4>
+                <p className="text-[11px] text-admin-muted">
+                  Assign a different role to change inherited permissions for this member.
+                </p>
+              </div>
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Select
+                    value={newRoleId}
+                    onChange={(e) => setNewRoleId(e.target.value)}
+                  >
+                    {roles.map((r) => (
+                      <option key={r.roleId} value={r.roleId}>
+                        {r.name} {r.isSystemRole ? '(System)' : '(Custom)'} — {r.permissionCount} perms
+                      </option>
                     ))}
-                  </ul>
+                  </Select>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {canUpdate && roles.length > 0 && (
-            <div className="space-y-2 border-t border-admin-border pt-4">
-              <Select
-                label="Change role"
-                value={newRoleId}
-                onChange={(e) => setNewRoleId(e.target.value)}
-              >
-                {roles.map((r) => (
-                  <option key={r.roleId} value={r.roleId}>{r.name}</option>
-                ))}
-              </Select>
-              <Button
-                size="sm"
-                onClick={handleRoleChange}
-                disabled={loading || newRoleId === member.roleId}
-              >
-                Change role
-              </Button>
+                <Button
+                  size="sm"
+                  onClick={handleRoleChange}
+                  disabled={loading || !newRoleId || newRoleId === member.roleId}
+                >
+                  {loading ? 'Updating...' : 'Save role'}
+                </Button>
+              </div>
             </div>
           )}
 
-          <div className="flex gap-2 border-t border-admin-border pt-4">
-            {canUpdate && member.status === 'active' && (
-              <Button variant="secondary" size="sm" onClick={handleSuspend} disabled={loading}>
-                Suspend
-              </Button>
-            )}
-            {canRemove && (
-              <Button variant="destructive" size="sm" onClick={() => setConfirmRemove(true)} disabled={loading}>
-                Remove
-              </Button>
-            )}
+          {/* Effective Permission Matrix */}
+          <div>
+            <div className="mb-2">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-admin-foreground">
+                Effective Permissions
+              </h4>
+              <p className="text-[11px] text-admin-muted">
+                Permissions inherited from the assigned role (<span className="text-admin-foreground font-medium">{member.roleName}</span>).
+              </p>
+            </div>
+
+            <PermissionMatrix
+              permissions={catalog}
+              selectedKeys={grantedKeys}
+              readOnly
+            />
           </div>
+
+          {/* Actions: Suspend / Remove */}
+          {!isOwner && (
+            <div className="flex items-center justify-between border-t border-admin-border pt-4">
+              <span className="text-xs text-admin-muted">Administrative actions</span>
+              <div className="flex items-center gap-2">
+                {canUpdate && member.status === 'active' && (
+                  <Button variant="secondary" size="sm" onClick={handleSuspend} disabled={loading}>
+                    Suspend member
+                  </Button>
+                )}
+                {canRemove && (
+                  <Button variant="destructive" size="sm" onClick={() => setConfirmRemove(true)} disabled={loading}>
+                    Remove from team
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </Drawer>
 
@@ -171,8 +215,8 @@ export function MemberDetailDrawer({ workspaceId, member, onClose, onUpdated }: 
         isOpen={confirmRemove}
         onClose={() => setConfirmRemove(false)}
         onConfirm={handleRemove}
-        title="Remove member?"
-        description={`${member.fullName || 'This member'} will lose access to this workspace. They will not be deleted from PropertyLedge.`}
+        title="Remove member from team?"
+        description={`${member.fullName || 'This member'} will lose access to this workspace immediately. Their user profile will not be deleted.`}
         confirmLabel="Remove member"
         variant="danger"
       />

@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import { ConfigDetailDrawer, ConfigDetailActions, PermissionMatrix } from '@/components/admin/config';
 import { AdminConfigDrawerSkeleton } from '@/components/admin/config';
-import { fetchAdminPlatformRoleDetail } from '@/app/actions/admin-config';
+import { fetchAdminPlatformRoleDetail, fetchPlatformPermissions } from '@/app/actions/admin-config';
 import type { AdminPlatformRoleRow } from '@/lib/admin/types';
+import type { PermissionItem } from '@/components/rbac/PermissionMatrix';
 
 interface PlatformRoleDetailDrawerProps {
   role: AdminPlatformRoleRow | null;
@@ -22,12 +23,21 @@ export function PlatformRoleDetailDrawer({
   onDelete,
 }: PlatformRoleDetailDrawerProps) {
   const [detail, setDetail] = useState<Awaited<ReturnType<typeof fetchAdminPlatformRoleDetail>>>(null);
+  const [catalog, setCatalog] = useState<PermissionItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !role) return;
     setLoading(true);
-    fetchAdminPlatformRoleDetail(role.id).then(setDetail).finally(() => setLoading(false));
+    Promise.all([
+      fetchAdminPlatformRoleDetail(role.id),
+      fetchPlatformPermissions(),
+    ])
+      .then(([d, cat]) => {
+        setDetail(d);
+        setCatalog(cat);
+      })
+      .finally(() => setLoading(false));
   }, [isOpen, role?.id]);
 
   if (!role) return null;
@@ -63,10 +73,14 @@ export function PlatformRoleDetailDrawer({
     >
       {loading ? (
         <AdminConfigDrawerSkeleton />
-      ) : detail?.permissions ? (
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-wide text-admin-muted mb-3">Permission matrix</p>
-          <PermissionMatrix permissions={detail.permissions} grantedKeys={grantedKeys} />
+      ) : detail ? (
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-admin-muted">Permissions</p>
+          <PermissionMatrix
+            permissions={catalog.length > 0 ? catalog : detail.permissions || []}
+            grantedKeys={grantedKeys}
+            readOnly
+          />
         </div>
       ) : null}
     </ConfigDetailDrawer>

@@ -16,7 +16,7 @@ interface PropertySelectorProps {
 
 export function PropertySelector({ className, showCreateLink = true, onCreateClick, variant = 'sidebar' }: PropertySelectorProps) {
   const router = useRouter();
-  const { availableProperties, selectedProperty, setSelectedProperty, isLoading, hasPropertyAccess } = usePropertyContext();
+  const { availableProperties, selectedProperty, setSelectedProperty, isLoading, error, refreshProperties, hasPropertyAccess } = usePropertyContext();
 
   const handleCreate = () => {
     if (onCreateClick) {
@@ -82,44 +82,29 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
           ref={buttonRef}
           type="button"
           disabled
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 text-muted-foreground"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 text-muted-foreground text-xs font-medium"
         >
-          <div className="w-4 h-4 rounded animate-pulse bg-muted" />
-          <div className="w-24 h-4 rounded animate-pulse bg-muted" />
-          <ChevronDown className="w-4 h-4" />
+          <div className="w-3.5 h-3.5 rounded animate-pulse bg-muted" />
+          <span className="w-20 h-3.5 rounded animate-pulse bg-muted inline-block" />
+          <ChevronDown className="w-3.5 h-3.5" />
         </button>
       </div>
     );
   }
 
-  if (availableProperties.length === 0) {
+  if (error) {
     return (
       <div className={cn('relative', className)}>
         <button
           ref={buttonRef}
           type="button"
-          onClick={handleCreate}
-          data-testid="property-selector"
-          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted transition-colors"
+          onClick={() => refreshProperties()}
+          title="Click to retry loading properties"
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-colors"
         >
-          <Building2 className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground" data-testid="current-property">No Properties</span>
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          <span>Error loading properties</span>
+          <span className="underline font-bold text-[10px]">Retry</span>
         </button>
-        {showCreateLink && (
-          <div
-            ref={dropdownRef}
-            className="absolute right-0 mt-2 w-56 bg-popover border border-border rounded-xl shadow-lg p-2 z-50 animate-in fade-in zoom-in-95 duration-150"
-          >
-            <button
-              onClick={handleCreate}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Create Property
-            </button>
-          </div>
-        )}
       </div>
     );
   }

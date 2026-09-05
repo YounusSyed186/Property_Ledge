@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import { ConfigDetailDrawer, ConfigDetailActions, PermissionMatrix } from '@/components/admin/config';
 import { AdminConfigDrawerSkeleton } from '@/components/admin/config';
-import { fetchAdminSystemTeamRoleDetail } from '@/app/actions/admin-config';
+import { fetchAdminSystemTeamRoleDetail, fetchTeamPermissionsCatalog } from '@/app/actions/admin-config';
 import type { AdminSystemTeamRoleRow } from '@/lib/admin/types';
+import type { PermissionItem } from '@/components/rbac/PermissionMatrix';
 
 interface SystemTeamRoleDetailDrawerProps {
   role: AdminSystemTeamRoleRow | null;
@@ -15,15 +16,26 @@ interface SystemTeamRoleDetailDrawerProps {
 
 export function SystemTeamRoleDetailDrawer({ role, isOpen, onClose, onEdit }: SystemTeamRoleDetailDrawerProps) {
   const [detail, setDetail] = useState<Awaited<ReturnType<typeof fetchAdminSystemTeamRoleDetail>>>(null);
+  const [catalog, setCatalog] = useState<PermissionItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !role) return;
     setLoading(true);
-    fetchAdminSystemTeamRoleDetail(role.id).then(setDetail).finally(() => setLoading(false));
+    Promise.all([
+      fetchAdminSystemTeamRoleDetail(role.id),
+      fetchTeamPermissionsCatalog(),
+    ])
+      .then(([d, cat]) => {
+        setDetail(d);
+        setCatalog(cat);
+      })
+      .finally(() => setLoading(false));
   }, [isOpen, role?.id]);
 
   if (!role) return null;
+
+  const grantedKeys = new Set<string>((detail?.permissions || []).map((p: { key: string }) => p.key));
 
   return (
     <ConfigDetailDrawer
@@ -46,8 +58,15 @@ export function SystemTeamRoleDetailDrawer({ role, isOpen, onClose, onEdit }: Sy
     >
       {loading ? (
         <AdminConfigDrawerSkeleton />
-      ) : detail?.permissions ? (
-        <PermissionMatrix permissions={detail.permissions} grantedKeys={detail.permissions.map((p: { key: string }) => p.key)} />
+      ) : detail ? (
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-admin-muted">Permissions</p>
+          <PermissionMatrix
+            permissions={catalog.length > 0 ? catalog : detail.permissions || []}
+            grantedKeys={grantedKeys}
+            readOnly
+          />
+        </div>
       ) : null}
     </ConfigDetailDrawer>
   );

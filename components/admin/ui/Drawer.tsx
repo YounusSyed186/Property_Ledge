@@ -14,7 +14,7 @@ export interface DrawerProps {
   description?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  width?: 'sm' | 'md' | 'lg';
+  width?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
@@ -22,6 +22,7 @@ const widthClasses = {
   sm: 'sm:max-w-md',
   md: 'sm:max-w-lg',
   lg: 'sm:max-w-2xl',
+  xl: 'sm:max-w-4xl',
 };
 
 export function Drawer({

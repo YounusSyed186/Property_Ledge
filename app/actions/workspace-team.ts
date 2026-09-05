@@ -270,6 +270,10 @@ export async function addMemberByProfileId(workspaceId: string, publicId: string
 
 export async function changeMemberRole(workspaceId: string, memberId: string, roleId: string) {
   await requireTeamPermission(workspaceId, 'team.member.update');
+  const assignable = await fetchAssignableRoles(workspaceId);
+  if (!assignable.some((r) => r.roleId === roleId)) {
+    throw new Error('FORBIDDEN: You do not have permission to assign this role');
+  }
   const supabase = await createClient();
   const { error } = await supabase.rpc(
     'change_workspace_member_role' as never,

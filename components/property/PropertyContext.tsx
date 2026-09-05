@@ -24,15 +24,26 @@ function resolveSelection(
   properties: UserPropertyAccess[],
   workspaceId: string
 ): UserPropertyAccess | null {
-  const storedPropertyId = localStorage.getItem(storageKey(workspaceId));
+  const key = storageKey(workspaceId);
+  const storedPropertyId = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+
   if (storedPropertyId === ALL_PROPERTIES_ID) {
     return null;
   }
+
   if (storedPropertyId) {
     const storedProperty = properties.find((p) => p.propertyId === storedPropertyId);
-    if (storedProperty) return storedProperty;
+    if (storedProperty) {
+      return storedProperty;
+    }
+    // Stale or invalid property stored for this workspace — clear it
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(key);
+    }
   }
-  return properties.length > 0 ? properties[0] : null;
+
+  // NON-NEGOTIABLE RULE: Always default to null (All Properties) if no explicit valid selection exists.
+  return null;
 }
 
 const PropertyContext = createContext<PropertyContextType | undefined>(undefined);
@@ -63,6 +74,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       setAvailableProperties([]);
       setSelectedPropertyState(null);
       setIsLoading(false);
+      setError(null);
       return;
     }
 
@@ -74,7 +86,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
         `/api/properties/accessible?workspaceId=${encodeURIComponent(activeWorkspaceId)}`
       );
       if (!response.ok) {
-        throw new Error('Failed to fetch properties');
+        throw new Error('Unable to load properties. Please try again.');
       }
 
       const data = await response.json();
@@ -83,13 +95,8 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
 
       const selection = resolveSelection(properties, activeWorkspaceId);
       setSelectedPropertyState(selection);
-      if (selection) {
-        localStorage.setItem(storageKey(activeWorkspaceId), selection.propertyId);
-      } else if (properties.length === 0) {
-        localStorage.setItem(storageKey(activeWorkspaceId), ALL_PROPERTIES_ID);
-      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load properties');
+      setError(err instanceof Error ? err.message : 'Unable to load properties');
       console.error('Error fetching properties:', err);
     } finally {
       setIsLoading(false);

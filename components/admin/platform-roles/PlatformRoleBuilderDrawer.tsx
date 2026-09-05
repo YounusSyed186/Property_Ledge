@@ -107,7 +107,7 @@ export function PlatformRoleBuilderDrawer({ role, isOpen, onClose }: PlatformRol
       <div className="absolute inset-0 z-40 overflow-hidden font-sans rounded-xl lg:rounded-2xl">
         <div className={`absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ${animateIn ? 'opacity-100' : 'opacity-0'}`} onClick={onClose} />
         <div className="absolute inset-y-0 right-0 max-w-full flex pl-10 z-10">
-          <div className={`w-full sm:w-[560px] bg-admin-surface border-l border-admin-border flex flex-col shadow-2xl transition-transform duration-300 ${animateIn ? 'translate-x-0' : 'translate-x-full'}`}>
+          <div className={`w-full sm:w-[720px] lg:w-[840px] bg-admin-surface border-l border-admin-border flex flex-col shadow-2xl transition-transform duration-300 ${animateIn ? 'translate-x-0' : 'translate-x-full'}`}>
             <div className="p-6 border-b border-admin-border flex items-center justify-between shrink-0">
               <div>
                 <h2 className="text-base font-bold text-white">{isEdit ? 'Edit platform role' : 'Create platform role'}</h2>

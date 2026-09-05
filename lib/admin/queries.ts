@@ -727,3 +727,65 @@ export async function getTeamPermissionsCatalog() {
   if (error) return [];
   return data as Array<{ key: string; name: string; resource: string; action: string; description: string | null }>;
 }
+
+export async function getAdminPlatformRolesMatrixData() {
+  await requireAdmin();
+  const supabase = await createAdminClient();
+  const [permissions, roles, permsRes] = await Promise.all([
+    getPlatformPermissionsCatalog(),
+    getAdminPlatformRolesWithStats(),
+    (supabase as any)
+      .from('platform_role_permissions')
+      .select('role_id, permissions(key)'),
+  ]);
+
+  const rolePermissions: Record<string, string[]> = {};
+  roles.forEach((r) => {
+    rolePermissions[r.id] = [];
+  });
+
+  if (permsRes?.data) {
+    permsRes.data.forEach((row: any) => {
+      const roleId = row.role_id;
+      const permKey = row.permissions?.key;
+      if (roleId && permKey) {
+        if (!rolePermissions[roleId]) rolePermissions[roleId] = [];
+        rolePermissions[roleId].push(permKey);
+      }
+    });
+  }
+
+  return { permissions, roles, rolePermissions };
+}
+
+export async function getAdminSystemTeamRolesMatrixData() {
+  await requireAdmin();
+  const supabase = await createAdminClient();
+  const [permissions, roles, permsRes] = await Promise.all([
+    getTeamPermissionsCatalog(),
+    getAdminSystemTeamRolesWithStats(),
+    (supabase as any)
+      .from('team_role_permissions')
+      .select('role_id, permissions(key)'),
+  ]);
+
+  const rolePermissions: Record<string, string[]> = {};
+  roles.forEach((r) => {
+    rolePermissions[r.id] = [];
+  });
+
+  if (permsRes?.data) {
+    const roleIdSet = new Set(roles.map((r) => r.id));
+    permsRes.data.forEach((row: any) => {
+      const roleId = row.role_id;
+      const permKey = row.permissions?.key;
+      if (roleId && permKey && roleIdSet.has(roleId)) {
+        if (!rolePermissions[roleId]) rolePermissions[roleId] = [];
+        rolePermissions[roleId].push(permKey);
+      }
+    });
+  }
+
+  return { permissions, roles, rolePermissions };
+}
+

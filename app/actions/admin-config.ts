@@ -19,6 +19,8 @@ import {
   getAdminSystemTeamRoleDetail,
   getPlatformPermissionsCatalog,
   getTeamPermissionsCatalog,
+  getAdminPlatformRolesMatrixData,
+  getAdminSystemTeamRolesMatrixData,
 } from '@/lib/admin/queries';
 import { requireAdmin } from '@/lib/admin/authorization';
 
@@ -78,6 +80,11 @@ export async function fetchAdminPlatformRoleDetail(id: string) {
   return getAdminPlatformRoleDetail(id);
 }
 
+export async function fetchAdminPlatformRolesMatrixData() {
+  await requireAdmin();
+  return getAdminPlatformRolesMatrixData();
+}
+
 export async function fetchPlatformPermissions() {
   await requireAdmin();
   return getPlatformPermissionsCatalog();
@@ -112,6 +119,16 @@ export async function handleUpdatePlatformRole(input: {
   revalidatePath('/admin/platform-roles');
 }
 
+export async function handleBatchUpdatePlatformRolePermissions(
+  updates: Array<{ roleId: string; name: string; description: string; permissionKeys: string[] }>
+) {
+  await requireAdmin();
+  for (const update of updates) {
+    await updatePlatformRole(update.roleId, update.name, update.description, update.permissionKeys);
+  }
+  revalidatePath('/admin/platform-roles');
+}
+
 export async function handleDeletePlatformRole(id: string) {
   await requireAdmin();
   await deletePlatformRole(id);
@@ -128,6 +145,11 @@ export async function fetchAdminSystemTeamRoleDetail(id: string) {
   return getAdminSystemTeamRoleDetail(id);
 }
 
+export async function fetchAdminSystemTeamRolesMatrixData() {
+  await requireAdmin();
+  return getAdminSystemTeamRolesMatrixData();
+}
+
 export async function handleUpdateSystemTeamRole(input: {
   id: string;
   description: string;
@@ -137,3 +159,14 @@ export async function handleUpdateSystemTeamRole(input: {
   await updateSystemTeamRole(input.id, input.description, input.permissionKeys);
   revalidatePath('/admin/team-roles');
 }
+
+export async function handleBatchUpdateSystemTeamRolePermissions(
+  updates: Array<{ roleId: string; description: string; permissionKeys: string[] }>
+) {
+  await requireAdmin();
+  for (const update of updates) {
+    await updateSystemTeamRole(update.roleId, update.description, update.permissionKeys);
+  }
+  revalidatePath('/admin/team-roles');
+}
+

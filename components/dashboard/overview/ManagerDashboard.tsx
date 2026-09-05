@@ -45,15 +45,11 @@ export function ManagerDashboard({ userName }: { userName: string }) {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!selectedProperty) {
-      setOverview(null);
-      setNeedsAttention(null);
-      return;
-    }
     setIsLoading(true);
+    const propertyId = selectedProperty?.propertyId ?? null;
     Promise.all([
-      fetchDashboardOverview(selectedProperty.propertyId),
-      fetchNeedsAttention(selectedProperty.propertyId),
+      fetchDashboardOverview(propertyId),
+      fetchNeedsAttention(propertyId),
     ])
       .then(([overviewData, attentionData]) => {
         setOverview(overviewData);
@@ -73,10 +69,12 @@ export function ManagerDashboard({ userName }: { userName: string }) {
       <div className="space-y-6 pb-6">
         <div>
           <p className="text-body-sm text-admin-muted">Welcome back, {userName}</p>
-          <p className="text-caption text-admin-muted mt-1">Manager view — operations and tenant management</p>
+          <p className="text-caption text-admin-muted mt-1">
+            Manager view — {selectedProperty ? selectedProperty.propertyName : 'All Properties'} overview
+          </p>
         </div>
 
-        {selectedProperty && stats && (
+        {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <Card>
               <CardContent className="p-4">

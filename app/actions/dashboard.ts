@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { requireAuthenticatedUser, requirePropertyAccess } from '@/lib/dashboard/authorization';
+import { getActiveWorkspaceId } from '@/lib/auth/authorization';
 import * as queries from '@/lib/dashboard/queries';
 import * as service from '@/lib/dashboard/service';
 import type { Database } from '@/types/database';
@@ -13,9 +14,15 @@ function revalidateDashboard(...paths: string[]) {
 }
 
 // Reads
-export async function fetchDashboardOverview(propertyId: string) {
-  await requirePropertyAccess(propertyId);
-  return queries.getDashboardOverview(propertyId);
+export async function fetchDashboardOverview(propertyId?: string | null) {
+  if (propertyId) {
+    await requirePropertyAccess(propertyId);
+    return queries.getDashboardOverview(propertyId);
+  }
+  await requireAuthenticatedUser();
+  const workspaceId = await getActiveWorkspaceId();
+  if (!workspaceId) throw new Error('No active workspace selected.');
+  return queries.getWorkspaceDashboardOverview(workspaceId);
 }
 
 export async function fetchDashboardProperties() {
@@ -38,9 +45,15 @@ export async function fetchDashboardTenants(propertyId: string) {
   return queries.getTenants(propertyId);
 }
 
-export async function fetchDashboardLeases(propertyId: string) {
-  await requirePropertyAccess(propertyId);
-  return queries.getLeases(propertyId);
+export async function fetchDashboardLeases(propertyId?: string | null) {
+  if (propertyId) {
+    await requirePropertyAccess(propertyId);
+    return queries.getLeases(propertyId);
+  }
+  await requireAuthenticatedUser();
+  const workspaceId = await getActiveWorkspaceId();
+  if (!workspaceId) throw new Error('No active workspace selected.');
+  return queries.getAllWorkspaceLeases();
 }
 
 export async function fetchDashboardLease(propertyId: string, leaseId: string) {
@@ -98,9 +111,15 @@ export async function fetchDashboardActivity(propertyId: string) {
   return queries.getActivityLogs(propertyId);
 }
 
-export async function fetchDashboardReports(propertyId: string) {
-  await requirePropertyAccess(propertyId);
-  return queries.getReportsSummary(propertyId);
+export async function fetchDashboardReports(propertyId?: string | null) {
+  if (propertyId) {
+    await requirePropertyAccess(propertyId);
+    return queries.getReportsSummary(propertyId);
+  }
+  await requireAuthenticatedUser();
+  const workspaceId = await getActiveWorkspaceId();
+  if (!workspaceId) throw new Error('No active workspace selected.');
+  return queries.getWorkspaceReportsSummary(workspaceId);
 }
 
 export async function fetchUserWorkspaces() {
@@ -144,9 +163,15 @@ export async function fetchDashboardTeam(propertyId: string) {
   return queries.getPropertyTeam(propertyId);
 }
 
-export async function fetchNeedsAttention(propertyId: string) {
-  await requirePropertyAccess(propertyId);
-  return queries.getNeedsAttention(propertyId);
+export async function fetchNeedsAttention(propertyId?: string | null) {
+  if (propertyId) {
+    await requirePropertyAccess(propertyId);
+    return queries.getNeedsAttention(propertyId);
+  }
+  await requireAuthenticatedUser();
+  const workspaceId = await getActiveWorkspaceId();
+  if (!workspaceId) throw new Error('No active workspace selected.');
+  return queries.getWorkspaceNeedsAttention(workspaceId);
 }
 
 // Property CRUD

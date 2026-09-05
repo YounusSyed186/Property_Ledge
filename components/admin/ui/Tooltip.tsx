@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
    ============================================================ */
 
 interface TooltipProps {
-  content: string;
+  content: React.ReactNode;
   children: React.ReactNode;
   side?: 'top' | 'bottom' | 'left' | 'right';
   className?: string;
@@ -66,7 +66,8 @@ export function Tooltip({ content, children, side = 'top', className }: TooltipP
           ref={tooltipRef}
           style={{ top: position.top, left: position.left }}
           className={cn(
-            'fixed z-tooltip pointer-events-none px-2.5 py-1 rounded-md bg-admin-surface-elevated border border-admin-border text-caption font-medium text-admin-foreground shadow-elevation-3 whitespace-nowrap animate-fade-in',
+            'fixed z-tooltip pointer-events-none px-2.5 py-1.5 rounded-md bg-admin-surface-elevated border border-admin-border text-caption font-medium text-admin-foreground shadow-elevation-3 animate-fade-in',
+            typeof content === 'string' && 'whitespace-nowrap',
             className
           )}
           role="tooltip"

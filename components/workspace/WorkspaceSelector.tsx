@@ -24,6 +24,7 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
   const setSwitching = useWorkspaceStore((s) => s.setSwitching);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -43,11 +44,13 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
   const refreshBootstrap = useCallback(async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const bootstrap = await fetchWorkspaceBootstrap();
       if (bootstrap) {
         updateFromServer(bootstrap);
       }
     } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load workspaces');
       console.error('Error fetching workspaces:', err);
     } finally {
       setIsLoading(false);
@@ -116,6 +119,22 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
         <button type="button" disabled className={cn(triggerClass, 'text-admin-sidebar-muted opacity-60')}>
           <div className="h-3.5 w-3.5 animate-pulse rounded bg-admin-sidebar-border" />
           <div className="h-3.5 w-20 animate-pulse rounded bg-admin-sidebar-border" />
+        </button>
+      </div>
+    );
+  }
+
+  if (error && !hasKnownWorkspace) {
+    return (
+      <div className={cn('relative', className)}>
+        <button
+          type="button"
+          onClick={() => refreshBootstrap()}
+          title="Click to retry loading workspaces"
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-colors"
+        >
+          <span>Error loading workspaces</span>
+          <span className="underline font-bold text-[10px]">Retry</span>
         </button>
       </div>
     );

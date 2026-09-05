@@ -9,9 +9,10 @@ import { EmptyState, Button } from '@/components/admin/ui';
 interface PropertyRequiredProps {
   children: React.ReactNode;
   message?: string;
+  allowAllProperties?: boolean;
 }
 
-export function PropertyRequired({ children, message }: PropertyRequiredProps) {
+export function PropertyRequired({ children, message, allowAllProperties = false }: PropertyRequiredProps) {
   const { selectedProperty, isLoading, availableProperties } = usePropertyContext();
 
   if (isLoading) {
@@ -22,7 +23,7 @@ export function PropertyRequired({ children, message }: PropertyRequiredProps) {
     );
   }
 
-  if (availableProperties.length === 0) {
+  if (availableProperties.length === 0 && !allowAllProperties) {
     return (
       <EmptyState
         icon={<Building2 className="w-8 h-8" />}
@@ -37,7 +38,7 @@ export function PropertyRequired({ children, message }: PropertyRequiredProps) {
     );
   }
 
-  if (!selectedProperty) {
+  if (!selectedProperty && !allowAllProperties) {
     return (
       <EmptyState
         icon={<Building2 className="w-8 h-8" />}

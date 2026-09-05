@@ -93,10 +93,9 @@ export function EntityListPage<T extends { id: string }>({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const loadData = async () => {
-    if (!selectedProperty) return;
     setIsLoading(true);
     try {
-      const data = await fetchAction(selectedProperty.propertyId);
+      const data = await fetchAction(selectedProperty?.propertyId ?? '');
       setRows(data);
     } catch (err) {
       console.error(`Failed to load ${entityLabelPlural}:`, err);
@@ -135,7 +134,7 @@ export function EntityListPage<T extends { id: string }>({
     description ??
     (selectedProperty
       ? `${selectedProperty.propertyName} — ${displayRows.length} ${displayRows.length === 1 ? entityLabel : entityLabelPlural}`
-      : undefined);
+      : `All Properties — ${displayRows.length} ${displayRows.length === 1 ? entityLabel : entityLabelPlural}`);
 
   const columns = useMemo<ColDef[]>(
     () => [
@@ -162,7 +161,7 @@ export function EntityListPage<T extends { id: string }>({
   );
 
   return (
-    <PropertyRequired>
+    <PropertyRequired allowAllProperties>
       <>
         <ListPage
           title={title}

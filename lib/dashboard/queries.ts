@@ -19,6 +19,56 @@ export async function getDashboardOverview(propertyId: string) {
   };
 }
 
+export async function getWorkspaceDashboardOverview(workspaceId: string) {
+  const supabase = await createClient();
+  const [
+    { count: activeTenantsCount },
+    { count: activeLeasesCount },
+    { count: openMaintenanceCount },
+    { count: outstandingInvoicesCount },
+    activityResult,
+  ] = await Promise.all([
+    supabase
+      .from('tenants')
+      .select('id, properties!inner(workspace_id)', { count: 'exact', head: true })
+      .eq('properties.workspace_id', workspaceId)
+      .eq('status', 'active'),
+    supabase
+      .from('leases')
+      .select('id, properties!inner(workspace_id)', { count: 'exact', head: true })
+      .eq('properties.workspace_id', workspaceId)
+      .eq('status', 'active'),
+    supabase
+      .from('maintenance_requests')
+      .select('id, properties!inner(workspace_id)', { count: 'exact', head: true })
+      .eq('properties.workspace_id', workspaceId)
+      .in('status', ['open', 'in_progress', 'scheduled']),
+    supabase
+      .from('invoices')
+      .select('id, properties!inner(workspace_id)', { count: 'exact', head: true })
+      .eq('properties.workspace_id', workspaceId)
+      .in('status', ['issued', 'partially_paid']),
+    supabase
+      .from('activity_logs')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .order('created_at', { ascending: false })
+      .limit(10),
+  ]);
+
+  return {
+    stats: {
+      totalUnits: 0,
+      activeTenants: activeTenantsCount || 0,
+      activeLeases: activeLeasesCount || 0,
+      openMaintenanceRequests: openMaintenanceCount || 0,
+      outstandingInvoices: outstandingInvoicesCount || 0,
+      overdueInvoices: 0,
+    },
+    recentActivity: activityResult.data || [],
+  };
+}
+
 export async function getPropertiesForUser(userId: string) {
   return getUserProperties(userId);
 }
@@ -421,6 +471,36 @@ export async function getReportsSummary(propertyId: string) {
   };
 }
 
+export async function getWorkspaceReportsSummary(workspaceId: string) {
+  const supabase = await createClient();
+  const [invoices, payments, expenses, tenants, leases] = await Promise.all([
+    supabase.from('invoices').select('status, total_amount, balance_due, properties!inner(workspace_id)').eq('properties.workspace_id', workspaceId),
+    supabase.from('payments').select('amount, status, properties!inner(workspace_id)').eq('properties.workspace_id', workspaceId),
+    supabase.from('expenses').select('amount, status, properties!inner(workspace_id)').eq('properties.workspace_id', workspaceId),
+    supabase.from('tenants').select('status, properties!inner(workspace_id)').eq('properties.workspace_id', workspaceId),
+    supabase.from('leases').select('status, rent_amount, properties!inner(workspace_id)').eq('properties.workspace_id', workspaceId),
+  ]);
+
+  const invoiceData = (invoices.data || []) as { status: string; total_amount: number; balance_due: number }[];
+  const paymentData = (payments.data || []) as { amount: number; status: string }[];
+  const expenseData = (expenses.data || []) as { amount: number; status: string }[];
+  const tenantData = (tenants.data || []) as { status: string }[];
+  const leaseData = (leases.data || []) as { status: string; rent_amount: number }[];
+  const activeLeaseCount = leaseData.filter((l) => l.status === 'active').length;
+
+  return {
+    totalRevenue: paymentData.filter((p) => p.status === 'completed').reduce((sum, p) => sum + Number(p.amount), 0),
+    outstandingBalance: invoiceData.reduce((sum, i) => sum + Number(i.balance_due || 0), 0),
+    totalExpenses: expenseData.filter((e) => e.status === 'paid').reduce((sum, e) => sum + Number(e.amount), 0),
+    occupiedUnits: activeLeaseCount > 0 ? 1 : 0,
+    vacantUnits: activeLeaseCount > 0 ? 0 : 1,
+    activeTenants: tenantData.filter((t) => t.status === 'active').length,
+    activeLeases: activeLeaseCount,
+    monthlyRent: leaseData.filter((l) => l.status === 'active').reduce((sum, l) => sum + Number(l.rent_amount), 0),
+    overdueInvoices: invoiceData.filter((i) => i.status === 'overdue').length,
+  };
+}
+
 export async function getUserWorkspaces() {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -507,6 +587,41 @@ export async function getNeedsAttention(propertyId: string) {
       .from('invoices')
       .select('id, invoice_number, balance_due, due_date')
       .eq('property_id', propertyId)
+      .in('status', ['issued', 'partially_paid'])
+      .order('due_date', { ascending: true })
+      .limit(5),
+  ]);
+
+  return {
+    overdueInvoices: overdueInvoices.data || [],
+    openMaintenance: openMaintenance.data || [],
+    outstandingInvoices: outstandingInvoices.data || [],
+    vacantUnits: [],
+  };
+}
+
+export async function getWorkspaceNeedsAttention(workspaceId: string) {
+  const supabase = await createClient();
+
+  const [overdueInvoices, openMaintenance, outstandingInvoices] = await Promise.all([
+    supabase
+      .from('invoices')
+      .select('id, invoice_number, balance_due, due_date, properties!inner(workspace_id)')
+      .eq('properties.workspace_id', workspaceId)
+      .eq('status', 'overdue')
+      .order('due_date', { ascending: true })
+      .limit(5),
+    supabase
+      .from('maintenance_requests')
+      .select('id, title, priority, status, created_at, properties!inner(workspace_id)')
+      .eq('properties.workspace_id', workspaceId)
+      .in('status', ['open', 'in_progress', 'scheduled'])
+      .order('created_at', { ascending: false })
+      .limit(5),
+    supabase
+      .from('invoices')
+      .select('id, invoice_number, balance_due, due_date, properties!inner(workspace_id)')
+      .eq('properties.workspace_id', workspaceId)
       .in('status', ['issued', 'partially_paid'])
       .order('due_date', { ascending: true })
       .limit(5),
