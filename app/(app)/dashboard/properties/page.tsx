@@ -17,9 +17,9 @@ import {
 import { ColDef } from 'ag-grid-community';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button, useToast } from '@/components/admin/ui';
-import { EntityDrawer } from '@/components/dashboard/EntityDrawer';
+import { PropertyDrawer } from '@/components/dashboard/properties/PropertyDrawer';
 import { PropertyCreationWizard } from '@/components/dashboard/properties/PropertyCreationWizard';
-import { propertyFields, propertyColumns } from '@/components/dashboard/entities/config';
+import { propertyColumns } from '@/components/dashboard/entities/config';
 import { ListPage, ListPageGrid } from '@/components/workspace';
 import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
 import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
@@ -459,28 +459,16 @@ export default function PropertiesPage() {
       </AnimatePresence>
 
       {/* Edit Property Drawer */}
-      <EntityDrawer
-        title="Property"
-        fields={propertyFields}
-        entity={selected as { id: string } | null}
+      <PropertyDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         onSuccess={() => {
           setIsDrawerOpen(false);
           loadData();
         }}
+        property={selected as any}
         propertyId={String(selected?.id || '')}
         isCreate={false}
-        defaultValues={{ country: 'Australia', status: 'active' } as Record<string, unknown>}
-        onCreate={async (_propertyId, data) => {
-          const { fetchUserWorkspaces } = await import('@/app/actions/dashboard');
-          const workspaces = (await fetchUserWorkspaces()) as { id: string; name: string }[];
-          const workspaceId = workspaces[0]?.id;
-          if (!workspaceId) throw new Error('No workspace found. Please contact support.');
-          return handleCreateProperty({ ...data, workspace_id: workspaceId, status: 'active' } as never);
-        }}
-        onUpdate={async (_propertyId, id, data) => handleUpdateProperty(id, data as never)}
-        onDelete={async (_propertyId, id) => handleDeleteProperty(id)}
       />
     </ListPage>
   );

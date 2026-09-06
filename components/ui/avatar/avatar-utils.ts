@@ -17,7 +17,6 @@ export const BACKGROUND_PALETTE = [
   'dcfce7', // Mint Green
 ];
 
-// Curated stable seeds for user profile avatar picker
 export const CURATED_AVATAR_SEEDS = [
   'Felix',
   'Aneka',
@@ -35,6 +34,22 @@ export const CURATED_AVATAR_SEEDS = [
   'Zoe',
   'Ethan',
   'Grace',
+  'Nova',
+  'Atlas',
+  'Orion',
+  'Luna',
+  'Koa',
+  'Aria',
+  'Soren',
+  'Iris',
+  'Zephyr',
+  'Freya',
+  'Cassian',
+  'Nora',
+  'Silas',
+  'Ivy',
+  'Rowan',
+  'Hazel',
 ];
 
 /**

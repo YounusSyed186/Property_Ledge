@@ -9,6 +9,7 @@ export interface AccessibleWorkspace {
   slug: string;
   status: string;
   role: string;
+  avatarUrl?: string | null;
 }
 
 export interface WorkspaceBootstrap {

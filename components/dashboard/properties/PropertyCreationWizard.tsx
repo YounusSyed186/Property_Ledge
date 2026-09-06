@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, CheckCircle2, Building2 } from 'lucide-react';
+import { CheckCircle2, Building2 } from 'lucide-react';
 import { Button, Input, Select, useToast } from '@/components/admin/ui';
 import { fetchUserWorkspaces, handleCreateProperty } from '@/app/actions/dashboard';
 
-const steps = ['Property Location', 'Features & Rent', 'Property Image', 'Final Review'];
+const steps = ['Property Location', 'Features & Rent', 'Final Review'];
 
 interface PropertyCreationWizardProps {
   workspaceId?: string;
@@ -34,7 +34,6 @@ export function PropertyCreationWizard({ workspaceId: initialWorkspaceId, onCanc
     carSpaces: '',
     rentAmount: '',
     paymentFrequency: 'Weekly',
-    image: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -65,17 +64,6 @@ export function PropertyCreationWizard({ workspaceId: initialWorkspaceId, onCanc
       delete next[name];
       return next;
     });
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData((prev) => ({ ...prev, image: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
-    }
   };
 
   const validateStep = (step: number) => {
@@ -109,22 +97,16 @@ export function PropertyCreationWizard({ workspaceId: initialWorkspaceId, onCanc
           workspace_id: workspaceId,
           name: formData.name.trim() || formData.address.trim() || 'New Property',
           address_line_1: formData.address.trim(),
-          address: formData.address.trim(),
           city: formData.suburb.trim(),
-          suburb: formData.suburb.trim(),
           state: formData.state,
           postal_code: formData.postcode.trim(),
-          postcode: formData.postcode.trim(),
           property_category: formData.propertyCategory,
           property_type: formData.propertyType,
           bedrooms: formData.bedrooms !== '' ? Number(formData.bedrooms) : 0,
           bathrooms: formData.bathrooms !== '' ? Number(formData.bathrooms) : 0,
           parking_spaces: formData.carSpaces !== '' ? Number(formData.carSpaces) : 0,
-          car_spaces: formData.carSpaces !== '' ? Number(formData.carSpaces) : 0,
           rent_amount: formData.rentAmount !== '' ? Number(formData.rentAmount) : 0,
           payment_frequency: formData.paymentFrequency,
-          image_url: formData.image || null,
-          image: formData.image || null,
           status: 'active' as const,
         };
 
@@ -320,43 +302,6 @@ export function PropertyCreationWizard({ workspaceId: initialWorkspaceId, onCanc
         );
       case 2:
         return (
-          <div className="space-y-4 py-2 font-sans">
-            <label
-              className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all ${
-                formData.image
-                  ? 'border-[#008F83] bg-[#008F83]/5'
-                  : 'border-slate-300 dark:border-slate-700 hover:border-[#008F83]/60 bg-slate-50 dark:bg-slate-900/50'
-              }`}
-            >
-              <Upload className="w-10 h-10 text-[#008F83] mb-2" />
-              <span className="font-semibold text-body text-admin-foreground dark:text-slate-200">
-                Click to upload a property image
-              </span>
-              <span className="text-caption text-admin-muted mt-1">JPG, PNG, WebP accepted. Optional.</span>
-              <input
-                type="file"
-                className="hidden"
-                accept="image/*"
-                onChange={handleImageUpload}
-              />
-            </label>
-
-            {formData.image && (
-              <div className="relative rounded-2xl overflow-hidden h-48 border border-slate-200 dark:border-slate-800 shadow-md">
-                <img src={formData.image} alt="Property Preview" className="w-full h-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => setFormData((prev) => ({ ...prev, image: '' }))}
-                  className="absolute top-3 right-3 bg-black/70 text-white text-caption font-semibold px-3 py-1.5 rounded-full hover:bg-black transition-colors"
-                >
-                  Remove Image
-                </button>
-              </div>
-            )}
-          </div>
-        );
-      case 3:
-        return (
           <div className="py-2 font-sans">
             <div className="bg-slate-50 dark:bg-slate-900/60 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 space-y-4">
               <h4 className="text-card-title font-heading font-semibold text-[#008F83] flex items-center gap-2">
@@ -387,21 +332,12 @@ export function PropertyCreationWizard({ workspaceId: initialWorkspaceId, onCanc
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex justify-between items-center">
                   <span className="text-caption font-semibold text-admin-muted uppercase tracking-wider">Advertised Rent</span>
                   <span className="font-semibold text-[#008F83]">
                     ${formData.rentAmount || '0'} / {formData.paymentFrequency === 'Monthly' ? 'mo' : 'wk'}
                   </span>
                 </div>
-
-                {formData.image && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-caption font-semibold text-admin-muted uppercase tracking-wider">Image Preview</span>
-                    <div className="w-14 h-10 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
-                      <img src={formData.image} alt="Thumb" className="w-full h-full object-cover" />
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>

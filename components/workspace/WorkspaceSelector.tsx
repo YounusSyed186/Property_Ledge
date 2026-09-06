@@ -82,6 +82,14 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
     };
   }, []);
 
+  useEffect(() => {
+    function handleWorkspaceAvatarUpdated() {
+      refreshBootstrap();
+    }
+    window.addEventListener('workspace-avatar-updated', handleWorkspaceAvatarUpdated);
+    return () => window.removeEventListener('workspace-avatar-updated', handleWorkspaceAvatarUpdated);
+  }, [refreshBootstrap]);
+
   const filteredWorkspaces = workspaces.filter((w) =>
     w.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -168,7 +176,7 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        <Avatar seed={activeWorkspaceId || displayName} name={displayName} size="xs" className="shrink-0" />
+        <Avatar seed={activeWorkspaceId || displayName} avatarUrl={selectedWorkspace?.avatarUrl} name={displayName} size="xs" className="shrink-0" />
         <span className="max-w-[130px] truncate text-left font-semibold text-admin-sidebar-foreground" data-testid="current-workspace">
           {displayName}
         </span>
@@ -219,7 +227,7 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
                         : 'text-foreground hover:bg-admin-surface-subtle'
                     )}
                   >
-                    <Avatar seed={workspace.id || workspace.name} name={workspace.name} size="xs" className="shrink-0" />
+                    <Avatar seed={workspace.id || workspace.name} avatarUrl={workspace.avatarUrl} name={workspace.name} size="xs" className="shrink-0" />
                     <span className="flex-1 truncate text-left">{workspace.name}</span>
                     {workspace.role ? (
                       <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-muted/15 text-muted font-medium">{workspace.role}</span>

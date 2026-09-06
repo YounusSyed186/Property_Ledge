@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, UserPlus, Check, Building, Calendar, DollarSign, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, ChevronLeft, ChevronRight, UserPlus, Check, Building, Calendar, DollarSign, Sparkles, Search } from 'lucide-react';
 import { Button, Input, Select, Textarea, useToast } from '@/components/admin/ui';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import {
-  fetchDashboardTenants,
+  fetchAllWorkspaceTenants,
   fetchDashboardProperties,
   handleCreateLease,
   handleCreateTenant,
@@ -34,7 +34,26 @@ interface CreateLeaseWizardProps {
   } | null;
 }
 
-type TenantRow = { id: string; first_name: string; last_name: string; email: string };
+type TenantRow = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string | null;
+  property_id?: string;
+  property?: { id: string; name: string; address_line_1: string } | null;
+  lease_tenants?: Array<{
+    is_primary?: boolean;
+    role?: string;
+    lease?: {
+      id: string;
+      status: string;
+      start_date: string;
+      end_date: string | null;
+      rent_amount: number;
+    } | null;
+  }>;
+};
 type PropertyRow = { id: string; name: string; address_line_1: string; city: string; rent_amount?: number };
 
 const STEPS = ['Property & Tenant', 'Lease Terms', 'Financials', 'Review & Confirm'];
@@ -55,6 +74,7 @@ export function CreateLeaseWizard({
   const [properties, setProperties] = useState<PropertyRow[]>([]);
   const [targetPropertyId, setTargetPropertyId] = useState<string>(propIdProp || selectedProperty?.propertyId || '');
   const [tenants, setTenants] = useState<TenantRow[]>([]);
+  const [tenantSearch, setTenantSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showNextActions, setShowNextActions] = useState(false);
@@ -84,33 +104,36 @@ export function CreateLeaseWizard({
 
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Load properties if none preselected
+  // Load properties and all workspace tenants on open
   useEffect(() => {
     if (!isOpen) return;
-    fetchDashboardProperties().then((props) => {
-      setProperties(props as unknown as PropertyRow[]);
-    });
-  }, [isOpen]);
-
-  // Load tenants when target property changes
-  useEffect(() => {
-    if (!isOpen || !targetPropertyId) return;
     setIsLoading(true);
-    fetchDashboardTenants(targetPropertyId)
-      .then((data) => {
-        const tenantList = data as TenantRow[];
+    Promise.all([
+      fetchDashboardProperties(),
+      fetchAllWorkspaceTenants(),
+    ])
+      .then(([props, tenantData]) => {
+        setProperties((props || []) as unknown as PropertyRow[]);
+        const tenantList = (tenantData || []) as unknown as TenantRow[];
         setTenants(tenantList);
-        if (tenantList.length === 0) {
-          setTenantMode('new');
+        if (preselectedTenantId) {
+          const match = tenantList.find((t) => t.id === preselectedTenantId);
+          if (match && !propIdProp && !selectedProperty?.propertyId && match.property_id) {
+            setTargetPropertyId(match.property_id);
+          }
         }
       })
+      .catch((err) => {
+        console.error('Error initializing lease wizard:', err);
+      })
       .finally(() => setIsLoading(false));
-  }, [isOpen, targetPropertyId]);
+  }, [isOpen, preselectedTenantId, propIdProp, selectedProperty?.propertyId]);
 
   useEffect(() => {
     if (isOpen) {
       setStep(0);
       setValidationError(null);
+      setTenantSearch('');
       const activePropId = propIdProp || selectedProperty?.propertyId || initialData?.propertyId || '';
       setTargetPropertyId(activePropId);
       setSelectedTenantId(preselectedTenantId || '');
@@ -152,6 +175,19 @@ export function CreateLeaseWizard({
   const activeProp = properties.find((p) => p.id === targetPropertyId);
   const selectedTenantObj = tenants.find((t) => t.id === selectedTenantId);
 
+  const filteredTenants = useMemo(() => {
+    let list = tenants;
+    if (tenantSearch.trim()) {
+      const q = tenantSearch.toLowerCase().trim();
+      list = list.filter((t) =>
+        `${t.first_name || ''} ${t.last_name || ''}`.toLowerCase().includes(q) ||
+        (t.email || '').toLowerCase().includes(q) ||
+        (t.property?.name || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [tenants, tenantSearch]);
+
   const validateCurrentStep = () => {
     setValidationError(null);
     if (step === 0) {
@@ -181,18 +217,22 @@ export function CreateLeaseWizard({
         return false;
       }
       if (!isPeriodic && !endDate) {
-        setValidationError('End date is required for Fixed Term leases.');
+        setValidationError('End date is required for fixed term leases.');
         return false;
       }
-      if (!isPeriodic && endDate && startDate && endDate <= startDate) {
-        setValidationError('Lease end date must be after start date.');
+      if (!isPeriodic && endDate && new Date(endDate) <= new Date(startDate)) {
+        setValidationError('End date must be after start date.');
         return false;
       }
       return true;
     }
     if (step === 2) {
-      if (!rentAmount || Number(rentAmount) <= 0) {
-        setValidationError('Valid rent amount is required.');
+      if (!rentAmount || isNaN(Number(rentAmount)) || Number(rentAmount) <= 0) {
+        setValidationError('Please enter a valid positive rent amount.');
+        return false;
+      }
+      if (securityDeposit && (isNaN(Number(securityDeposit)) || Number(securityDeposit) < 0)) {
+        setValidationError('Security deposit must be a positive number.');
         return false;
       }
       return true;
@@ -278,45 +318,43 @@ export function CreateLeaseWizard({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={onClose} />
-        
-        <div className="relative w-full max-w-xl bg-admin-surface border border-admin-border rounded-2xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[90vh]">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+        <div className="relative w-full max-w-2xl bg-admin-surface border border-admin-border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-admin-border shrink-0 bg-admin-surface">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-widest bg-admin-primary/10 text-admin-primary">
-                  Lease Workflow
-                </span>
-                <span className="text-xs text-admin-muted">
-                  Step {step + 1} of {STEPS.length}: {STEPS[step]}
-                </span>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-admin-border">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-admin-primary/10 text-admin-primary flex items-center justify-center font-bold text-sm">
+                {step + 1}
               </div>
-              <h2 className="text-lg font-black text-admin-foreground tracking-tight mt-0.5">
-                {initialData ? 'Renew / Create Lease' : 'Create Lease Agreement'}
-              </h2>
+              <div>
+                <h2 className="text-base font-black text-admin-foreground">
+                  {initialData ? 'Renew / Create Lease' : 'Create Lease Agreement'}
+                </h2>
+                <p className="text-xs text-admin-muted">
+                  {STEPS[step]} · Step {step + 1} of {STEPS.length}
+                </p>
+              </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-elevated transition-colors"
+              className="p-1.5 text-admin-muted hover:text-admin-foreground rounded-lg hover:bg-admin-surface-subtle transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Stepper Progress Bar */}
-          <div className="grid grid-cols-4 border-b border-admin-border shrink-0 bg-admin-surface-subtle/40">
+          {/* Stepper Tabs */}
+          <div className="grid grid-cols-4 border-b border-admin-border bg-admin-surface-subtle text-xs font-semibold">
             {STEPS.map((label, idx) => (
               <div
                 key={label}
                 className={cn(
-                  'py-2 px-2 text-center text-[11px] font-bold transition-all border-b-2 truncate',
+                  'py-2.5 px-3 text-center border-b-2 transition-colors truncate',
                   step === idx
-                    ? 'border-admin-primary text-admin-primary bg-admin-primary/5'
+                    ? 'border-admin-primary text-admin-primary font-bold bg-admin-surface'
                     : step > idx
-                    ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                    ? 'border-transparent text-admin-foreground/80'
                     : 'border-transparent text-admin-muted'
                 )}
               >
@@ -388,46 +426,95 @@ export function CreateLeaseWizard({
                   </div>
 
                   {tenantMode === 'select' ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
+                      {tenants.length > 5 && (
+                        <div className="relative">
+                          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-admin-muted" />
+                          <input
+                            type="text"
+                            placeholder="Search residents by name or email..."
+                            value={tenantSearch}
+                            onChange={(e) => setTenantSearch(e.target.value)}
+                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-admin-surface border border-admin-border text-admin-foreground placeholder:text-admin-muted focus:outline-hidden focus:border-admin-primary"
+                          />
+                        </div>
+                      )}
+
                       {isLoading ? (
                         <div className="flex justify-center py-6">
                           <div className="w-6 h-6 border-2 border-admin-primary border-t-transparent rounded-full animate-spin" />
                         </div>
-                      ) : tenants.length > 0 ? (
-                        <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
-                          {tenants.map((t) => (
-                            <div
-                              key={t.id}
-                              onClick={() => setSelectedTenantId(t.id)}
-                              className={cn(
-                                'flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all',
-                                selectedTenantId === t.id
-                                  ? 'border-admin-primary bg-admin-primary/5 text-admin-foreground ring-1 ring-admin-primary'
-                                  : 'border-admin-border hover:border-admin-primary/40 bg-admin-surface'
-                              )}
-                            >
-                              <div>
-                                <div className="text-xs font-bold">{t.first_name} {t.last_name}</div>
-                                <div className="text-[11px] text-admin-muted">{t.email}</div>
-                              </div>
-                              {selectedTenantId === t.id && (
-                                <div className="w-5 h-5 rounded-full bg-admin-primary text-white flex items-center justify-center">
-                                  <Check className="w-3 h-3" />
+                      ) : filteredTenants.length > 0 ? (
+                        <div className="max-h-52 overflow-y-auto space-y-1.5 pr-1">
+                          {filteredTenants.map((t) => {
+                            const isSelected = selectedTenantId === t.id;
+                            const isThisProperty = targetPropertyId && t.property_id === targetPropertyId;
+                            return (
+                              <div
+                                key={t.id}
+                                onClick={() => setSelectedTenantId(t.id)}
+                                className={cn(
+                                  'flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all',
+                                  isSelected
+                                    ? 'border-admin-primary bg-admin-primary/5 text-admin-foreground ring-1 ring-admin-primary'
+                                    : 'border-admin-border hover:border-admin-primary/40 bg-admin-surface'
+                                )}
+                              >
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-admin-foreground">
+                                      {t.first_name} {t.last_name}
+                                    </span>
+                                    {t.lease_tenants?.some((lt) => lt.lease?.status === 'active') ? (
+                                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                        Active Lease
+                                      </span>
+                                    ) : (
+                                      <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-admin-surface-subtle text-admin-muted border border-admin-border/50">
+                                        Available (No Active Lease)
+                                      </span>
+                                    )}
+                                    {t.property?.name && (
+                                      <span className="text-[10px] text-admin-muted">
+                                        · {t.property.name}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-admin-muted">{t.email} {t.phone ? `· ${t.phone}` : ''}</div>
                                 </div>
-                              )}
-                            </div>
-                          ))}
+                                {isSelected && (
+                                  <div className="w-5 h-5 rounded-full bg-admin-primary text-white flex items-center justify-center shrink-0">
+                                    <Check className="w-3 h-3" />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : (
-                        <div className="p-4 text-center border border-dashed border-admin-border rounded-xl text-xs text-admin-muted">
-                          No tenants registered for this property yet.
-                          <button
-                            type="button"
-                            onClick={() => setTenantMode('new')}
-                            className="block mx-auto mt-1 font-bold text-admin-primary hover:underline"
-                          >
-                            Add New Tenant
-                          </button>
+                        <div className="p-5 text-center border border-dashed border-admin-border rounded-xl text-xs text-admin-muted space-y-2">
+                          <div>
+                            {tenantSearch
+                              ? `No residents matching "${tenantSearch}".`
+                              : 'No residents registered in your workspace yet.'}
+                          </div>
+                          {tenantSearch ? (
+                            <button
+                              type="button"
+                              onClick={() => setTenantSearch('')}
+                              className="font-bold text-admin-primary hover:underline text-xs"
+                            >
+                              Clear search
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setTenantMode('new')}
+                              className="inline-flex items-center gap-1 font-bold text-admin-primary hover:underline text-xs"
+                            >
+                              <UserPlus className="w-3.5 h-3.5" /> Add New Resident
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

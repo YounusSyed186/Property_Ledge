@@ -359,7 +359,7 @@ CREATE TABLE IF NOT EXISTS public.leases (
   unit_id UUID REFERENCES public.units(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending', 'active', 'expired', 'terminated', 'cancelled')),
   start_date DATE NOT NULL,
-  end_date DATE NOT NULL,
+  end_date DATE,
   rent_amount NUMERIC(10, 2) NOT NULL CHECK (rent_amount >= 0),
   security_deposit NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (security_deposit >= 0),
   payment_due_day INTEGER NOT NULL DEFAULT 1 CHECK (payment_due_day BETWEEN 1 AND 31),
@@ -368,7 +368,7 @@ CREATE TABLE IF NOT EXISTS public.leases (
   created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT chk_lease_dates CHECK (end_date >= start_date),
+  CONSTRAINT chk_lease_dates CHECK (end_date IS NULL OR end_date >= start_date),
   CONSTRAINT uq_leases_id_property UNIQUE (id, property_id),
   CONSTRAINT fk_leases_unit_prop FOREIGN KEY (unit_id, property_id) REFERENCES public.units(id, property_id) ON DELETE SET NULL
 );

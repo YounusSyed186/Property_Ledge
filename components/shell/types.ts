@@ -38,6 +38,7 @@ export interface AppShellProps {
   children: React.ReactNode;
   userEmail?: string;
   userName?: string;
+  userAvatarUrl?: string;
   navSections: NavSection[];
   variant: 'admin' | 'dashboard';
   homeHref: string;

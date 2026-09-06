@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { requireAuthenticatedUser, requirePropertyPermission } from './authorization';
 import type { Database } from '@/types/database';
 
@@ -13,7 +13,7 @@ async function recordActivityLog(params: {
   workspaceId?: string;
 }) {
   const user = await requireAuthenticatedUser();
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const { data: property } = await supabase
     .from('properties')
@@ -42,7 +42,7 @@ async function createNotification(params: {
   body: string;
   actionUrl?: string;
 }) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   await supabase.from('notifications').insert({
     user_id: params.userId,
     property_id: params.propertyId || null,
@@ -58,6 +58,7 @@ async function createNotification(params: {
 export async function createProperty(input: Tables['properties']['Insert']) {
   const user = await requireAuthenticatedUser();
   const supabase = await createClient();
+  const adminClient = await createAdminClient();
 
   const workspaceId = (input as { workspace_id?: string }).workspace_id;
   if (!workspaceId) throw new Error('workspace_id is required');
@@ -89,22 +90,26 @@ export async function createProperty(input: Tables['properties']['Insert']) {
   const imageUrlVal = (input as Record<string, unknown>).image as string || input.image_url || null;
   const customPropId = (input as Record<string, unknown>).property_id as string || ('PL-' + Math.floor(1000 + Math.random() * 9000).toString());
 
+  const rawInput = { ...input } as Record<string, unknown>;
+  delete rawInput.address;
+  delete rawInput.image;
+  delete rawInput.suburb;
+  delete rawInput.postcode;
+  delete rawInput.car_spaces;
+
   const payload = {
-    ...input,
+    ...rawInput,
     owner_id: user.id,
     name: nameVal,
     address_line_1: addressStr,
     city: suburbStr,
-    suburb: suburbStr,
     postal_code: postcodeStr,
-    postcode: postcodeStr,
     parking_spaces: Number(carSpacesVal),
-    car_spaces: Number(carSpacesVal),
     image_url: imageUrlVal,
     property_id: customPropId,
   };
 
-  const { data, error } = await supabase
+  const { data, error } = await adminClient
     .from('properties')
     .insert(payload as never)
     .select()
@@ -118,22 +123,29 @@ export async function createProperty(input: Tables['properties']['Insert']) {
 
 export async function updateProperty(propertyId: string, input: Tables['properties']['Update']) {
   await requirePropertyPermission(propertyId, 'property.update');
-  const supabase = await createClient();
+  const adminClient = await createAdminClient();
 
   const addressStr = (input as Record<string, unknown>).address as string || input.address_line_1;
   const suburbStr = (input as Record<string, unknown>).suburb as string || input.city;
   const postcodeStr = (input as Record<string, unknown>).postcode as string || input.postal_code;
   const carSpacesVal = (input as Record<string, unknown>).car_spaces ?? input.parking_spaces;
 
+  const rawInput = { ...input } as Record<string, unknown>;
+  delete rawInput.address;
+  delete rawInput.image;
+  delete rawInput.suburb;
+  delete rawInput.postcode;
+  delete rawInput.car_spaces;
+
   const payload = {
-    ...input,
-    ...(addressStr ? { address_line_1: addressStr, name: addressStr } : {}),
-    ...(suburbStr ? { city: suburbStr, suburb: suburbStr } : {}),
-    ...(postcodeStr ? { postal_code: postcodeStr, postcode: postcodeStr } : {}),
-    ...(carSpacesVal !== undefined && carSpacesVal !== null ? { parking_spaces: Number(carSpacesVal), car_spaces: Number(carSpacesVal) } : {}),
+    ...rawInput,
+    ...(addressStr ? { address_line_1: addressStr } : {}),
+    ...(suburbStr ? { city: suburbStr } : {}),
+    ...(postcodeStr ? { postal_code: postcodeStr } : {}),
+    ...(carSpacesVal !== undefined && carSpacesVal !== null ? { parking_spaces: Number(carSpacesVal) } : {}),
   };
 
-  const { data, error } = await supabase
+  const { data, error } = await adminClient
     .from('properties')
     .update(payload as never)
     .eq('id', propertyId)
@@ -146,8 +158,8 @@ export async function updateProperty(propertyId: string, input: Tables['properti
 
 export async function deleteProperty(propertyId: string) {
   await requirePropertyPermission(propertyId, 'property.delete');
-  const supabase = await createClient();
-  const { error } = await supabase.from('properties').update({ status: 'archived' } as never).eq('id', propertyId);
+  const adminClient = await createAdminClient();
+  const { error } = await adminClient.from('properties').update({ status: 'archived' } as never).eq('id', propertyId);
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'archived', entityType: 'property', entityId: propertyId });
 }
@@ -168,8 +180,8 @@ export async function deleteUnit(propertyId: string, unitId: string) {
 // Tenants
 export async function createTenant(propertyId: string, input: Omit<Tables['tenants']['Insert'], 'property_id'>) {
   await requirePropertyPermission(propertyId, 'tenant.create');
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient
     .from('tenants')
     .insert({ ...input, property_id: propertyId } as never)
     .select()
@@ -182,8 +194,8 @@ export async function createTenant(propertyId: string, input: Omit<Tables['tenan
 
 export async function updateTenant(propertyId: string, tenantId: string, input: Tables['tenants']['Update']) {
   await requirePropertyPermission(propertyId, 'tenant.update');
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('tenants').update(input as never).eq('id', tenantId).eq('property_id', propertyId).select().single();
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient.from('tenants').update(input as never).eq('id', tenantId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'tenant', entityId: tenantId });
   return data;
@@ -191,8 +203,8 @@ export async function updateTenant(propertyId: string, tenantId: string, input: 
 
 export async function deleteTenant(propertyId: string, tenantId: string) {
   await requirePropertyPermission(propertyId, 'tenant.manage');
-  const supabase = await createClient();
-  const { error } = await supabase.from('tenants').update({ status: 'archived' } as never).eq('id', tenantId).eq('property_id', propertyId);
+  const adminClient = await createAdminClient();
+  const { error } = await adminClient.from('tenants').update({ status: 'archived' } as never).eq('id', tenantId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'archived', entityType: 'tenant', entityId: tenantId });
 }
@@ -200,8 +212,8 @@ export async function deleteTenant(propertyId: string, tenantId: string) {
 // Leases
 export async function createLease(propertyId: string, input: Omit<Tables['leases']['Insert'], 'property_id'>, tenantIds?: string[]) {
   const user = await requirePropertyPermission(propertyId, 'lease.create');
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient
     .from('leases')
     .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
     .select()
@@ -210,7 +222,7 @@ export async function createLease(propertyId: string, input: Omit<Tables['leases
   const leaseRow = data as { id: string };
 
   if (tenantIds?.length) {
-    await supabase.from('lease_tenants').insert(
+    await adminClient.from('lease_tenants').insert(
       tenantIds.map((tenantId, idx) => ({
         lease_id: leaseRow.id,
         tenant_id: tenantId,
@@ -252,7 +264,7 @@ export interface TenancySetupInput {
 
 export async function setupTenancyWithLease(propertyId: string, input: TenancySetupInput) {
   const user = await requirePropertyPermission(propertyId, 'lease.create');
-  const supabase = await createClient();
+  const adminClient = await createAdminClient();
 
   const isPeriodic = input.lease.leaseType === 'Periodic';
   const effectiveEndDate = isPeriodic ? null : (input.lease.endDate || null);
@@ -271,7 +283,7 @@ export async function setupTenancyWithLease(propertyId: string, input: TenancySe
     notes: input.lease.notes || null,
   };
 
-  const { data: newLease, error: leaseErr } = await supabase
+  const { data: newLease, error: leaseErr } = await adminClient
     .from('leases')
     .insert(leasePayload as never)
     .select()
@@ -284,7 +296,7 @@ export async function setupTenancyWithLease(propertyId: string, input: TenancySe
   const createdTenants: Array<Record<string, unknown>> = [];
   for (let i = 0; i < input.tenants.length; i++) {
     const t = input.tenants[i];
-    const { data: newTenant, error: tenantErr } = await supabase
+    const { data: newTenant, error: tenantErr } = await adminClient
       .from('tenants')
       .insert({
         property_id: propertyId,
@@ -302,7 +314,7 @@ export async function setupTenancyWithLease(propertyId: string, input: TenancySe
     createdTenants.push(newTenant as Record<string, unknown>);
 
     // Link to lease_tenants
-    const { error: linkErr } = await supabase
+    const { error: linkErr } = await adminClient
       .from('lease_tenants')
       .insert({
         lease_id: leaseObj.id,
@@ -324,8 +336,8 @@ export async function setupTenancyWithLease(propertyId: string, input: TenancySe
 
 export async function updateLease(propertyId: string, leaseId: string, input: Tables['leases']['Update']) {
   await requirePropertyPermission(propertyId, 'lease.update');
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient
     .from('leases')
     .update(input as never)
     .eq('id', leaseId)
@@ -340,12 +352,12 @@ export async function updateLease(propertyId: string, leaseId: string, input: Ta
 
 export async function deleteLease(propertyId: string, leaseId: string) {
   await requirePropertyPermission(propertyId, 'lease.delete');
-  const supabase = await createClient();
+  const adminClient = await createAdminClient();
 
   // Delete junction rows
-  await supabase.from('lease_tenants').delete().eq('lease_id', leaseId);
+  await adminClient.from('lease_tenants').delete().eq('lease_id', leaseId);
 
-  const { error } = await supabase
+  const { error } = await adminClient
     .from('leases')
     .delete()
     .eq('id', leaseId)
@@ -358,8 +370,8 @@ export async function deleteLease(propertyId: string, leaseId: string) {
 
 export async function convertToPeriodic(propertyId: string, leaseId: string) {
   await requirePropertyPermission(propertyId, 'lease.update');
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient
     .from('leases')
     .update({ end_date: null, status: 'active' } as never)
     .eq('id', leaseId)
@@ -373,8 +385,8 @@ export async function convertToPeriodic(propertyId: string, leaseId: string) {
 
 export async function updateLeaseStatus(propertyId: string, leaseId: string, status: string) {
   await requirePropertyPermission(propertyId, 'lease.update');
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient
     .from('leases')
     .update({ status } as never)
     .eq('id', leaseId)
@@ -389,8 +401,8 @@ export async function updateLeaseStatus(propertyId: string, leaseId: string, sta
 // Invoices
 export async function createInvoice(propertyId: string, input: Omit<Tables['invoices']['Insert'], 'property_id'>) {
   const user = await requirePropertyPermission(propertyId, 'financial.manage');
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient
     .from('invoices')
     .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
     .select()
@@ -403,8 +415,8 @@ export async function createInvoice(propertyId: string, input: Omit<Tables['invo
 
 export async function updateInvoice(propertyId: string, invoiceId: string, input: Tables['invoices']['Update']) {
   await requirePropertyPermission(propertyId, 'financial.manage');
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('invoices').update(input as never).eq('id', invoiceId).eq('property_id', propertyId).select().single();
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient.from('invoices').update(input as never).eq('id', invoiceId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'invoice', entityId: invoiceId });
   return data;
@@ -412,8 +424,8 @@ export async function updateInvoice(propertyId: string, invoiceId: string, input
 
 export async function deleteInvoice(propertyId: string, invoiceId: string) {
   await requirePropertyPermission(propertyId, 'financial.manage');
-  const supabase = await createClient();
-  const { error } = await supabase.from('invoices').update({ status: 'void' } as never).eq('id', invoiceId).eq('property_id', propertyId);
+  const adminClient = await createAdminClient();
+  const { error } = await adminClient.from('invoices').update({ status: 'void' } as never).eq('id', invoiceId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'voided', entityType: 'invoice', entityId: invoiceId });
 }
@@ -421,8 +433,8 @@ export async function deleteInvoice(propertyId: string, invoiceId: string) {
 // Payments
 export async function createPayment(propertyId: string, input: Omit<Tables['payments']['Insert'], 'property_id'>) {
   const user = await requirePropertyPermission(propertyId, 'financial.manage');
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient
     .from('payments')
     .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
     .select()
@@ -443,8 +455,8 @@ export async function createPayment(propertyId: string, input: Omit<Tables['paym
 
 export async function updatePayment(propertyId: string, paymentId: string, input: Tables['payments']['Update']) {
   await requirePropertyPermission(propertyId, 'financial.manage');
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('payments').update(input as never).eq('id', paymentId).eq('property_id', propertyId).select().single();
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient.from('payments').update(input as never).eq('id', paymentId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'payment', entityId: paymentId });
   return data;
@@ -452,8 +464,8 @@ export async function updatePayment(propertyId: string, paymentId: string, input
 
 export async function deletePayment(propertyId: string, paymentId: string) {
   await requirePropertyPermission(propertyId, 'financial.manage');
-  const supabase = await createClient();
-  const { error } = await supabase.from('payments').delete().eq('id', paymentId).eq('property_id', propertyId);
+  const adminClient = await createAdminClient();
+  const { error } = await adminClient.from('payments').delete().eq('id', paymentId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'deleted', entityType: 'payment', entityId: paymentId });
 }
@@ -461,8 +473,8 @@ export async function deletePayment(propertyId: string, paymentId: string) {
 // Expenses
 export async function createExpense(propertyId: string, input: Omit<Tables['expenses']['Insert'], 'property_id'>) {
   const user = await requirePropertyPermission(propertyId, 'financial.manage');
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient
     .from('expenses')
     .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
     .select()
@@ -475,8 +487,8 @@ export async function createExpense(propertyId: string, input: Omit<Tables['expe
 
 export async function updateExpense(propertyId: string, expenseId: string, input: Tables['expenses']['Update']) {
   await requirePropertyPermission(propertyId, 'financial.manage');
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('expenses').update(input as never).eq('id', expenseId).eq('property_id', propertyId).select().single();
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient.from('expenses').update(input as never).eq('id', expenseId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'expense', entityId: expenseId });
   return data;
@@ -484,8 +496,8 @@ export async function updateExpense(propertyId: string, expenseId: string, input
 
 export async function deleteExpense(propertyId: string, expenseId: string) {
   await requirePropertyPermission(propertyId, 'financial.manage');
-  const supabase = await createClient();
-  const { error } = await supabase.from('expenses').delete().eq('id', expenseId).eq('property_id', propertyId);
+  const adminClient = await createAdminClient();
+  const { error } = await adminClient.from('expenses').delete().eq('id', expenseId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'deleted', entityType: 'expense', entityId: expenseId });
 }
@@ -493,8 +505,8 @@ export async function deleteExpense(propertyId: string, expenseId: string) {
 // Maintenance
 export async function createMaintenanceRequest(propertyId: string, input: Omit<Tables['maintenance_requests']['Insert'], 'property_id'>) {
   const user = await requirePropertyPermission(propertyId, 'maintenance.create');
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient
     .from('maintenance_requests')
     .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
     .select()
@@ -521,8 +533,8 @@ export async function createMaintenanceRequest(propertyId: string, input: Omit<T
 
 export async function updateMaintenanceRequest(propertyId: string, requestId: string, input: Tables['maintenance_requests']['Update']) {
   await requirePropertyPermission(propertyId, 'maintenance.manage');
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient
     .from('maintenance_requests')
     .update(input as never)
     .eq('id', requestId)
@@ -536,8 +548,8 @@ export async function updateMaintenanceRequest(propertyId: string, requestId: st
 
 export async function deleteMaintenanceRequest(propertyId: string, requestId: string) {
   await requirePropertyPermission(propertyId, 'maintenance.manage');
-  const supabase = await createClient();
-  const { error } = await supabase.from('maintenance_requests').update({ status: 'cancelled' } as never).eq('id', requestId).eq('property_id', propertyId);
+  const adminClient = await createAdminClient();
+  const { error } = await adminClient.from('maintenance_requests').update({ status: 'cancelled' } as never).eq('id', requestId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'cancelled', entityType: 'maintenance_request', entityId: requestId });
 }
@@ -545,8 +557,8 @@ export async function deleteMaintenanceRequest(propertyId: string, requestId: st
 // Inspections
 export async function createInspection(propertyId: string, input: Omit<Tables['inspections']['Insert'], 'property_id'>) {
   const user = await requirePropertyPermission(propertyId, 'inspection.create');
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient
     .from('inspections')
     .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
     .select()
@@ -559,8 +571,8 @@ export async function createInspection(propertyId: string, input: Omit<Tables['i
 
 export async function updateInspection(propertyId: string, inspectionId: string, input: Tables['inspections']['Update']) {
   await requirePropertyPermission(propertyId, 'inspection.manage');
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient
     .from('inspections')
     .update(input as never)
     .eq('id', inspectionId)
@@ -574,8 +586,8 @@ export async function updateInspection(propertyId: string, inspectionId: string,
 
 export async function deleteInspection(propertyId: string, inspectionId: string) {
   await requirePropertyPermission(propertyId, 'inspection.manage');
-  const supabase = await createClient();
-  const { error } = await supabase.from('inspections').update({ status: 'cancelled' } as never).eq('id', inspectionId).eq('property_id', propertyId);
+  const adminClient = await createAdminClient();
+  const { error } = await adminClient.from('inspections').update({ status: 'cancelled' } as never).eq('id', inspectionId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'cancelled', entityType: 'inspection', entityId: inspectionId });
 }
@@ -583,8 +595,8 @@ export async function deleteInspection(propertyId: string, inspectionId: string)
 // Documents
 export async function createDocument(propertyId: string, input: Omit<Tables['documents']['Insert'], 'property_id'>) {
   const user = await requirePropertyPermission(propertyId, 'document.create');
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient
     .from('documents')
     .insert({ ...input, property_id: propertyId, uploaded_by: user.id } as never)
     .select()
@@ -597,8 +609,8 @@ export async function createDocument(propertyId: string, input: Omit<Tables['doc
 
 export async function updateDocument(propertyId: string, documentId: string, input: Tables['documents']['Update']) {
   await requirePropertyPermission(propertyId, 'document.manage');
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('documents').update(input as never).eq('id', documentId).eq('property_id', propertyId).select().single();
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient.from('documents').update(input as never).eq('id', documentId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'document', entityId: documentId });
   return data;
@@ -606,8 +618,8 @@ export async function updateDocument(propertyId: string, documentId: string, inp
 
 export async function deleteDocument(propertyId: string, documentId: string) {
   await requirePropertyPermission(propertyId, 'document.manage');
-  const supabase = await createClient();
-  const { error } = await supabase.from('documents').delete().eq('id', documentId).eq('property_id', propertyId);
+  const adminClient = await createAdminClient();
+  const { error } = await adminClient.from('documents').delete().eq('id', documentId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'deleted', entityType: 'document', entityId: documentId });
 }
@@ -615,8 +627,8 @@ export async function deleteDocument(propertyId: string, documentId: string) {
 // Tasks
 export async function createTask(propertyId: string, input: Omit<Tables['tasks']['Insert'], 'property_id'>) {
   const user = await requirePropertyPermission(propertyId, 'task.create');
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient
     .from('tasks')
     .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
     .select()
@@ -629,8 +641,8 @@ export async function createTask(propertyId: string, input: Omit<Tables['tasks']
 
 export async function updateTask(propertyId: string, taskId: string, input: Tables['tasks']['Update']) {
   await requirePropertyPermission(propertyId, 'task.manage');
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('tasks').update(input as never).eq('id', taskId).eq('property_id', propertyId).select().single();
+  const adminClient = await createAdminClient();
+  const { data, error } = await adminClient.from('tasks').update(input as never).eq('id', taskId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'task', entityId: taskId });
   return data;
@@ -638,8 +650,8 @@ export async function updateTask(propertyId: string, taskId: string, input: Tabl
 
 export async function deleteTask(propertyId: string, taskId: string) {
   await requirePropertyPermission(propertyId, 'task.manage');
-  const supabase = await createClient();
-  const { error } = await supabase.from('tasks').delete().eq('id', taskId).eq('property_id', propertyId);
+  const adminClient = await createAdminClient();
+  const { error } = await adminClient.from('tasks').delete().eq('id', taskId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'deleted', entityType: 'task', entityId: taskId });
 }

@@ -499,6 +499,7 @@ export function AppShell({
   children,
   userEmail = 'user@propertyledge.com.au',
   userName = 'PropertyLedge User',
+  userAvatarUrl,
   navSections,
   variant,
   homeHref,
@@ -530,6 +531,22 @@ export function AppShell({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [avatarUrlState, setAvatarUrlState] = useState<string | undefined>(userAvatarUrl);
+
+  useEffect(() => {
+    setAvatarUrlState(userAvatarUrl);
+  }, [userAvatarUrl]);
+
+  useEffect(() => {
+    function handleAvatarUpdated(e: Event) {
+      const customEvent = e as CustomEvent<{ avatarUrl?: string }>;
+      if (customEvent.detail?.avatarUrl !== undefined) {
+        setAvatarUrlState(customEvent.detail.avatarUrl);
+      }
+    }
+    window.addEventListener('user-avatar-updated', handleAvatarUpdated);
+    return () => window.removeEventListener('user-avatar-updated', handleAvatarUpdated);
+  }, []);
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -618,6 +635,7 @@ export function AppShell({
             themeMode={themeMode}
             userName={userName}
             userEmail={userEmail}
+            userAvatarUrl={avatarUrlState}
             onLogout={handleLogout}
             onSearchOpen={() => setIsSearchOpen(true)}
             onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}

@@ -39,6 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <DashboardClientLayout
       userEmail={user.email || ''}
       userName={profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+      userAvatarUrl={profile?.avatar_url || ''}
       persona={personaContext.persona}
       workspaceId={workspaceContext?.workspaceId ?? null}
       workspaceName={workspaceContext?.workspaceName ?? null}

@@ -12,8 +12,25 @@ export function UserCell(props: CustomCellRendererProps) {
       ? value
       : (data.name || data.userName || data.full_name || data.fullName || value || 'Unknown');
   const userId = data.id || data.userId || data.user_id || data.email || name;
-  const avatarUrl = data.avatar_url || data.avatarUrl || data.image;
+  const initialAvatarUrl = data.avatar_url || data.avatarUrl || data.image;
   const subtitle = data.email || data.role || data.subheading;
+
+  const [avatarUrl, setAvatarUrl] = React.useState<string | undefined>(initialAvatarUrl);
+
+  React.useEffect(() => {
+    setAvatarUrl(data.avatar_url || data.avatarUrl || data.image);
+  }, [data.avatar_url, data.avatarUrl, data.image]);
+
+  React.useEffect(() => {
+    function handleAvatarUpdated(e: Event) {
+      const customEvent = e as CustomEvent<{ avatarUrl?: string }>;
+      if (customEvent.detail?.avatarUrl !== undefined) {
+        setAvatarUrl(customEvent.detail.avatarUrl);
+      }
+    }
+    window.addEventListener('user-avatar-updated', handleAvatarUpdated);
+    return () => window.removeEventListener('user-avatar-updated', handleAvatarUpdated);
+  }, []);
 
   return (
     <PersonIdentity

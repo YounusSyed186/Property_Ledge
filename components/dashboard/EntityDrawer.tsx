@@ -204,50 +204,68 @@ export function EntityDrawer<T extends { id: string }>({
             )}
           </div>
         )}
-        <div className="space-y-3">
-          {fields.map((field) => (
-            <div key={field.name}>
-              <label htmlFor={`entity-field-${field.name}`} className="mb-1 block text-[11px] font-semibold text-admin-foreground">
-                {field.label}
-                {field.required && <span className="ml-0.5 text-admin-danger">*</span>}
-              </label>
-              {field.type === 'select' ? (
-                <Select
-                  id={`entity-field-${field.name}`}
-                  value={String(formData[field.name] ?? '')}
-                  onChange={(e) => handleChange(field.name, e.target.value)}
-                  aria-describedby={errors[field.name] ? `entity-error-${field.name}` : undefined}
-                  error={errors[field.name]}
-                >
-                  <option value="">Select...</option>
-                  {field.options?.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </Select>
-              ) : field.type === 'textarea' ? (
-                <Textarea
-                  id={`entity-field-${field.name}`}
-                  value={String(formData[field.name] ?? '')}
-                  onChange={(e) => handleChange(field.name, e.target.value)}
-                  placeholder={field.placeholder}
-                  rows={3}
-                  error={errors[field.name]}
-                />
-              ) : (
-                <Input
-                  id={`entity-field-${field.name}`}
-                  type={field.type}
-                  value={String(formData[field.name] ?? '')}
-                  onChange={(e) => handleChange(field.name, e.target.value)}
-                  placeholder={field.placeholder}
-                  required={field.required}
-                  error={errors[field.name]}
-                />
-              )}
+        <div className="space-y-4 p-1">
+          {/* Header Card Summary */}
+          {entity && (
+            <div className="p-3.5 rounded-2xl bg-admin-surface-subtle border border-admin-border flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold text-admin-muted uppercase tracking-wider">
+                  {title} Record
+                </p>
+                <h4 className="font-extrabold text-sm text-admin-foreground truncate mt-0.5">
+                  {String((entity as any)?.name || (entity as any)?.title || (entity as any)?.invoice_number || (entity as any)?.first_name ? `${(entity as any)?.first_name} ${(entity as any)?.last_name || ''}` : `${title} #${entity.id.slice(0, 8)}`)}
+                </h4>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-admin-primary-soft text-admin-primary border border-admin-primary/20 shrink-0">
+                {String((entity as any)?.status || 'Active')}
+              </span>
             </div>
-          ))}
+          )}
+
+          <div className="space-y-3.5">
+            {fields.map((field) => (
+              <div key={field.name}>
+                {field.type === 'select' ? (
+                  <Select
+                    id={`entity-field-${field.name}`}
+                    label={field.label + (field.required ? ' *' : '')}
+                    value={String(formData[field.name] ?? '')}
+                    onChange={(e) => handleChange(field.name, e.target.value)}
+                    aria-describedby={errors[field.name] ? `entity-error-${field.name}` : undefined}
+                    error={errors[field.name]}
+                  >
+                    <option value="">Select...</option>
+                    {field.options?.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </Select>
+                ) : field.type === 'textarea' ? (
+                  <Textarea
+                    id={`entity-field-${field.name}`}
+                    label={field.label + (field.required ? ' *' : '')}
+                    value={String(formData[field.name] ?? '')}
+                    onChange={(e) => handleChange(field.name, e.target.value)}
+                    placeholder={field.placeholder}
+                    rows={3}
+                    error={errors[field.name]}
+                  />
+                ) : (
+                  <Input
+                    id={`entity-field-${field.name}`}
+                    label={field.label + (field.required ? ' *' : '')}
+                    type={field.type}
+                    value={String(formData[field.name] ?? '')}
+                    onChange={(e) => handleChange(field.name, e.target.value)}
+                    placeholder={field.placeholder}
+                    required={field.required}
+                    error={errors[field.name]}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </Drawer>
 

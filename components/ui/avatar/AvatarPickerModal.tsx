@@ -37,7 +37,7 @@ export function AvatarPickerModal({
 
   const handleSurpriseMe = () => {
     const newSeed = generateRandomSeed();
-    setSeedsList((prev) => [newSeed, ...prev.slice(0, 15)]);
+    setSeedsList((prev) => (prev.includes(newSeed) ? prev : [newSeed, ...prev]));
     setSelectedSeed(newSeed);
   };
 
@@ -69,10 +69,11 @@ export function AvatarPickerModal({
               Choose Your Avatar
             </h2>
             <p className="text-xs text-muted mt-0.5">
-              Select a friendly DiceBear avatar or click Surprise Me
+              Select any avatar or click Surprise Me
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-muted hover:text-foreground transition-colors"
           >
@@ -85,14 +86,14 @@ export function AvatarPickerModal({
           <Avatar seed={selectedSeed} name={userName} size="xl" className="ring-4 ring-red-500/20" />
           <div className="text-left">
             <p className="text-xs text-muted font-medium">Selected Avatar</p>
-            <p className="text-sm font-bold text-foreground font-mono mt-0.5">
-              {selectedSeed}
+            <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+              Active Selection
             </p>
           </div>
         </div>
 
         {/* Avatar Grid */}
-        <div className="grid grid-cols-4 sm:grid-cols-4 gap-3 max-h-[260px] overflow-y-auto p-1 custom-scrollbar">
+        <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 max-h-[300px] overflow-y-auto p-1 custom-scrollbar">
           {seedsList.map((seedItem) => {
             const isSelected = selectedSeed === seedItem;
             return (
@@ -108,9 +109,6 @@ export function AvatarPickerModal({
                 )}
               >
                 <Avatar seed={seedItem} size="lg" decorative />
-                <span className="text-[11px] font-medium text-muted group-hover:text-foreground mt-1.5 truncate max-w-full">
-                  {seedItem}
-                </span>
                 {isSelected && (
                   <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center shadow-xs">
                     <Check className="w-2.5 h-2.5 stroke-[3]" />

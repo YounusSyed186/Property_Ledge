@@ -139,25 +139,35 @@ export function ProfileCard({ user, accountContext }: ProfileCardProps) {
         {/* User Identity Header Row */}
         <div className="px-6 sm:px-10 pb-6 relative z-10 -mt-16 sm:-mt-20 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-5">
-            {/* Avatar with Camera Change Overlay */}
-            <div className="relative group shrink-0">
-              <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full border-4 border-surface dark:border-[#12181C] overflow-hidden bg-surface-subtle dark:bg-[#1A2328] shadow-lg flex items-center justify-center">
-                <Avatar
-                  seed={user.id || user.email || fullName}
-                  name={fullName}
-                  avatarUrl={currentAvatarUrl}
-                  size={144}
-                  className="w-full h-full border-0 shadow-none"
-                />
+            {/* Avatar with Camera Change Overlay & Explicit Button */}
+            <div className="flex flex-col items-center sm:items-start shrink-0">
+              <div className="relative group">
+                <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full border-4 border-surface dark:border-[#12181C] overflow-hidden bg-surface-subtle dark:bg-[#1A2328] shadow-lg flex items-center justify-center">
+                  <Avatar
+                    seed={user.id || user.email || fullName}
+                    name={fullName}
+                    avatarUrl={currentAvatarUrl}
+                    size={144}
+                    className="w-full h-full border-0 shadow-none"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAvatarPickerOpen(true)}
+                  className="absolute inset-0 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity text-xs font-bold backdrop-blur-xs shadow-md"
+                  title="Change Avatar"
+                >
+                  <Camera className="w-6 h-6" />
+                  <span>Change</span>
+                </button>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAvatarPickerOpen(true)}
-                className="absolute inset-0 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity text-xs font-bold backdrop-blur-xs shadow-md"
-                title="Change Avatar"
+                className="mt-2.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-admin-primary/10 text-admin-primary hover:bg-admin-primary/20 font-bold text-xs transition-colors border border-admin-primary/30 shadow-xs"
               >
-                <Camera className="w-6 h-6" />
-                <span>Change</span>
+                <Camera className="w-3.5 h-3.5 text-admin-primary" />
+                <span>Edit Avatar</span>
               </button>
             </div>
 
@@ -246,6 +256,32 @@ export function ProfileCard({ user, accountContext }: ProfileCardProps) {
             </div>
 
             <div className="space-y-4">
+              {/* Field: Profile Avatar Row */}
+              <div className="p-4 rounded-2xl bg-surface-subtle/60 dark:bg-[#172025] border border-border/50 dark:border-[#253036] flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Avatar
+                    seed={user.id || user.email || fullName}
+                    name={fullName}
+                    avatarUrl={currentAvatarUrl}
+                    size="md"
+                    className="shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <label className="text-xs font-bold text-foreground block truncate">User Avatar Reference</label>
+                    <p className="text-[11px] text-muted truncate">
+                      {currentAvatarUrl ? 'Custom avatar configured' : 'Using default DiceBear avatar'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAvatarPickerOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-admin-primary text-black font-bold text-xs hover:bg-admin-primary/90 transition-all shadow-xs flex items-center gap-1.5 shrink-0"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Customize Avatar</span>
+                </button>
+              </div>
               {/* Field: Profile ID */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
@@ -431,6 +467,7 @@ export function ProfileCard({ user, accountContext }: ProfileCardProps) {
         userName={fullName}
         onSelectAvatar={async (newAvatarUrl) => {
           setCurrentAvatarUrl(newAvatarUrl);
+          window.dispatchEvent(new CustomEvent('user-avatar-updated', { detail: { avatarUrl: newAvatarUrl } }));
           const res = await updateProfileAction({ avatarUrl: newAvatarUrl });
           if (res.success) {
             setMessage({ type: "success", text: "Avatar updated successfully." });

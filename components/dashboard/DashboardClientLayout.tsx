@@ -130,6 +130,7 @@ interface DashboardClientLayoutProps {
   children: React.ReactNode;
   userEmail?: string;
   userName?: string;
+  userAvatarUrl?: string;
   persona?: Persona;
   workspaceId?: string | null;
   workspaceName?: string | null;
@@ -143,6 +144,7 @@ function DashboardShellInner({
   children,
   userEmail,
   userName,
+  userAvatarUrl,
   persona = 'owner',
   permissions = [],
 }: DashboardClientLayoutProps) {
@@ -179,6 +181,7 @@ function DashboardShellInner({
       navSections={navSections}
       userEmail={userEmail}
       userName={userName}
+      userAvatarUrl={userAvatarUrl}
       persona={persona}
       loadingMessage="Loading dashboard..."
       activeNavLayoutId="dashboard-active-nav-pill"
@@ -218,6 +221,7 @@ export function DashboardClientLayout({
   children,
   userEmail,
   userName,
+  userAvatarUrl,
   persona = 'owner',
   workspaceId = null,
   workspaceName = null,
@@ -239,6 +243,7 @@ export function DashboardClientLayout({
       <DashboardShellInner
         userEmail={userEmail}
         userName={userName}
+        userAvatarUrl={userAvatarUrl}
         persona={persona}
         permissions={permissions}
       >

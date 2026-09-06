@@ -3,14 +3,19 @@
 import React from 'react';
 
 export function AdminDataGridLoading({ overlay = false }: { overlay?: boolean }) {
+  if (overlay) {
+    return (
+      <div className="absolute inset-0 z-20 flex items-center justify-center bg-admin-surface/60 backdrop-blur-xs transition-opacity duration-200 pointer-events-none">
+        <div className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-admin-surface border border-admin-border shadow-lg text-xs font-semibold text-admin-foreground">
+          <div className="w-4 h-4 border-2 border-admin-primary border-t-transparent rounded-full animate-spin" />
+          <span>Updating table...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={`w-full h-full flex flex-col min-h-[220px] select-none ${
-        overlay
-          ? 'absolute inset-0 z-20 bg-admin-surface/80 backdrop-blur-xs'
-          : 'bg-admin-surface'
-      }`}
-    >
+    <div className="w-full h-full flex flex-col min-h-[220px] select-none bg-admin-surface">
       {/* Table Header Skeleton */}
       <div className="flex items-center h-10 px-4 border-b border-admin-border/60 bg-admin-surface-subtle/40 gap-4 shrink-0">
         <div className="w-4 h-4 rounded skeleton-shimmer shrink-0" />

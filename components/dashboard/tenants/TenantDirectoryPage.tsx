@@ -629,6 +629,26 @@ export function TenantDirectoryPage() {
         </div>
       )}
 
+      {/* Tenancy Setup Wizard Modal */}
+      {isSetupWizardOpen && selectedPropertyForSetup && (
+        <TenancySetupWizard
+          isOpen={true}
+          propertyId={selectedPropertyForSetup.id}
+          propertyName={selectedPropertyForSetup.name}
+          propertyAddress={selectedPropertyForSetup.address_line_1}
+          defaultRentAmount={selectedPropertyForSetup.rent_amount || 0}
+          onClose={() => {
+            setIsSetupWizardOpen(false);
+            setSelectedPropertyForSetup(null);
+          }}
+          onSuccess={() => {
+            setIsSetupWizardOpen(false);
+            setSelectedPropertyForSetup(null);
+            loadData();
+          }}
+        />
+      )}
+
       {/* Edit Tenant Drawer */}
       {isEditDrawerOpen && selectedTenantForEdit && (
         <TenantDrawer

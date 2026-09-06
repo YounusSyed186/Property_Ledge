@@ -94,8 +94,17 @@ export function Navbar() {
       fetchUserData(session?.user || null);
     });
 
+    const handleAvatarUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<{ avatarUrl?: string }>;
+      if (customEvent.detail?.avatarUrl !== undefined) {
+        setUser((prev: any) => (prev ? { ...prev, avatar_url: customEvent.detail.avatarUrl } : prev));
+      }
+    };
+    window.addEventListener('user-avatar-updated', handleAvatarUpdated);
+
     return () => {
       subscription.unsubscribe();
+      window.removeEventListener('user-avatar-updated', handleAvatarUpdated);
     };
   }, []);
 

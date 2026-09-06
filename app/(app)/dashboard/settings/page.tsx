@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getUserProfile } from '@/lib/auth/queries';
 import { ProfileCard } from '@/components/profile/ProfileCard';
+import { WorkspaceCard } from '@/components/settings/WorkspaceCard';
 import { PageContainer } from '@/components/admin/ui';
 
 export const metadata: Metadata = {
@@ -32,8 +33,9 @@ export default async function SettingsPage() {
 
   return (
     <PageContainer>
-      <div className="max-w-2xl">
-        <h2 className="workspace-page-title mb-2">Profile Settings</h2>
+      <div className="w-full space-y-6">
+        <h2 className="workspace-page-title mb-2">Workspace & Account Settings</h2>
+        <WorkspaceCard />
         <ProfileCard user={userPayload} />
       </div>
     </PageContainer>

@@ -19,6 +19,7 @@ interface GlobalNavbarProps {
   themeMode: string;
   userName: string;
   userEmail: string;
+  userAvatarUrl?: string;
   onLogout: () => void;
   onSearchOpen: () => void;
   onMobileMenuToggle: () => void;
@@ -41,6 +42,7 @@ export function GlobalNavbar({
   themeMode,
   userName,
   userEmail,
+  userAvatarUrl,
   onLogout,
   onSearchOpen,
   onMobileMenuToggle,
@@ -145,6 +147,7 @@ export function GlobalNavbar({
         <AccountMenu
           userName={userName}
           userEmail={userEmail}
+          userAvatarUrl={userAvatarUrl}
           onLogout={onLogout}
           settingsHref={settingsHref}
           showWorkspaceSettings={showWorkspaceSettings}

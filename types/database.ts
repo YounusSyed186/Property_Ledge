@@ -403,7 +403,7 @@ export interface Database {
           unit_id: string | null
           status: 'draft' | 'pending' | 'active' | 'expired' | 'terminated' | 'cancelled'
           start_date: string
-          end_date: string
+          end_date: string | null
           rent_amount: number
           security_deposit: number
           payment_due_day: number
@@ -419,7 +419,7 @@ export interface Database {
           unit_id?: string | null
           status?: 'draft' | 'pending' | 'active' | 'expired' | 'terminated' | 'cancelled'
           start_date: string
-          end_date: string
+          end_date?: string | null
           rent_amount: number
           security_deposit?: number
           payment_due_day?: number
@@ -435,7 +435,7 @@ export interface Database {
           unit_id?: string | null
           status?: 'draft' | 'pending' | 'active' | 'expired' | 'terminated' | 'cancelled'
           start_date?: string
-          end_date?: string
+          end_date?: string | null
           rent_amount?: number
           security_deposit?: number
           payment_due_day?: number

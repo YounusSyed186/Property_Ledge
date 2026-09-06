@@ -32,6 +32,7 @@ interface TenantDetailPageProps {
 
 type TenantDetail = {
   id: string;
+  property_id?: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -351,7 +352,12 @@ export function TenantDetailHub({ tenantId }: TenantDetailPageProps) {
         <CreateLeaseWizard
           isOpen={leaseWizardOpen}
           onClose={() => setLeaseWizardOpen(false)}
+          propertyId={tenant?.property_id || selectedProperty?.propertyId}
+          propertyName={selectedProperty?.propertyName}
           preselectedTenantId={tenantId}
+          onSuccess={() => {
+            router.refresh();
+          }}
         />
 
         {isEditDrawerOpen && tenant && selectedProperty && (

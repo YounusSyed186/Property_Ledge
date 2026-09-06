@@ -23,13 +23,13 @@ export async function getUserWorkspaces(userId: string) {
   const supabase = await createClient();
   const { data: owned } = await supabase
     .from('workspaces')
-    .select('id, name, slug, status')
+    .select('id, name, slug, status, avatar_url')
     .eq('owner_id', userId)
     .eq('status', 'active');
 
   const { data: memberOf } = await supabase
     .from('workspace_members')
-    .select('workspace_id, role_id, team_roles(name), workspaces(id, name, slug, status)')
+    .select('workspace_id, role_id, team_roles(name), workspaces(id, name, slug, status, avatar_url)')
     .eq('user_id', userId)
     .eq('status', 'active');
 
@@ -40,11 +40,12 @@ export async function getUserWorkspaces(userId: string) {
     status: string;
     roleName: string | null;
     roleId: string | null;
+    avatarUrl: string | null;
   }>();
 
   for (const ws of owned || []) {
-    const row = ws as { id: string; name: string; slug: string; status: string };
-    map.set(row.id, { ...row, roleName: 'Owner', roleId: null });
+    const row = ws as { id: string; name: string; slug: string; status: string; avatar_url?: string | null };
+    map.set(row.id, { ...row, roleName: 'Owner', roleId: null, avatarUrl: row.avatar_url ?? null });
   }
 
   for (const m of memberOf || []) {
@@ -52,7 +53,7 @@ export async function getUserWorkspaces(userId: string) {
       workspace_id: string;
       role_id: string | null;
       team_roles?: { name?: string } | null;
-      workspaces?: { id: string; name: string; slug: string; status: string } | null;
+      workspaces?: { id: string; name: string; slug: string; status: string; avatar_url?: string | null } | null;
     };
     const ws = row.workspaces;
     if (!ws || ws.status !== 'active') continue;
@@ -64,6 +65,7 @@ export async function getUserWorkspaces(userId: string) {
         status: ws.status,
         roleName: row.team_roles?.name ?? null,
         roleId: row.role_id,
+        avatarUrl: ws.avatar_url ?? null,
       });
     }
   }
