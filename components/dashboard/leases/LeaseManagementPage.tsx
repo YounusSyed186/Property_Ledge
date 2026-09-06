@@ -42,6 +42,7 @@ import { cn } from '@/lib/utils';
 type LeaseRecord = {
   id: string;
   property_id: string;
+  unit_id?: string | null;
   start_date: string;
   end_date: string | null;
   rent_amount: number;
@@ -50,12 +51,20 @@ type LeaseRecord = {
   payment_due_day: number;
   status: string;
   notes: string | null;
+  created_at?: string;
+  updated_at?: string;
   property?: {
     id: string;
     name: string;
     address_line_1: string;
     city: string;
     suburb?: string;
+    state?: string;
+    postal_code?: string;
+  } | null;
+  unit?: {
+    id: string;
+    unit_number: string;
   } | null;
   lease_tenants?: Array<{
     role: string;
@@ -66,6 +75,8 @@ type LeaseRecord = {
       last_name: string;
       email: string;
       phone: string | null;
+      emergency_contact_name?: string | null;
+      emergency_contact_phone?: string | null;
     } | null;
   }>;
 };
@@ -110,12 +121,17 @@ export function LeaseManagementPage() {
       {
         headerName: 'Property',
         flex: 1.5,
-        minWidth: 200,
+        minWidth: 180,
         valueGetter: (p) => {
           const prop = p.data?.property;
           if (!prop) return 'Unassigned';
           return `${prop.name || prop.address_line_1}${prop.city ? `, ${prop.city}` : ''}`;
         },
+      },
+      {
+        headerName: 'Unit',
+        width: 100,
+        valueGetter: (p) => p.data?.unit?.unit_number || '—',
       },
       {
         headerName: 'Tenants',
@@ -131,6 +147,33 @@ export function LeaseManagementPage() {
         },
       },
       {
+        field: 'rent_amount',
+        headerName: 'Rent Amount',
+        width: 130,
+        cellRenderer: 'currencyCell',
+      },
+      {
+        field: 'rent_frequency',
+        headerName: 'Frequency',
+        width: 120,
+        valueGetter: (p) => {
+          const freq = p.data?.rent_frequency || 'monthly';
+          return freq.charAt(0).toUpperCase() + freq.slice(1);
+        },
+      },
+      {
+        field: 'security_deposit',
+        headerName: 'Security Deposit',
+        width: 140,
+        cellRenderer: 'currencyCell',
+      },
+      {
+        field: 'payment_due_day',
+        headerName: 'Due Day',
+        width: 100,
+        valueGetter: (p) => (p.data?.payment_due_day ? `Day ${p.data.payment_due_day}` : '—'),
+      },
+      {
         field: 'start_date',
         headerName: 'Start Date',
         width: 120,
@@ -143,16 +186,23 @@ export function LeaseManagementPage() {
         valueGetter: (p) => p.data?.end_date || 'Periodic',
       },
       {
-        field: 'rent_amount',
-        headerName: 'Rent Amount',
-        width: 130,
-        cellRenderer: 'currencyCell',
-      },
-      {
         field: 'status',
         headerName: 'Status',
         width: 120,
         cellRenderer: 'statusCell',
+      },
+      {
+        field: 'notes',
+        headerName: 'Notes',
+        flex: 1,
+        minWidth: 150,
+        valueGetter: (p) => p.data?.notes || '—',
+      },
+      {
+        field: 'created_at',
+        headerName: 'Created Date',
+        width: 130,
+        cellRenderer: 'dateCell',
       },
       {
         headerName: 'Actions',
@@ -174,7 +224,7 @@ export function LeaseManagementPage() {
               <Pencil className="w-3.5 h-3.5" /> Edit
             </button>
           );
-        }
+        },
       },
     ],
     []

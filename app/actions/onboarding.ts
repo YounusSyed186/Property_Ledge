@@ -150,6 +150,35 @@ export async function completeWelcomeStage(): Promise<void> {
   await completeStage('welcome');
 }
 
+async function ensureUniqueWorkspaceSlug(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  baseSlug: string,
+  excludeWorkspaceId?: string
+): Promise<string> {
+  const sanitized =
+    baseSlug.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'workspace';
+  let candidate = sanitized;
+  let counter = 0;
+
+  while (counter < 10) {
+    let query = (supabase as any).from('workspaces').select('id').eq('slug', candidate);
+    if (excludeWorkspaceId) {
+      query = query.neq('id', excludeWorkspaceId);
+    }
+    const { data: existing } = await query.maybeSingle();
+
+    if (!existing) {
+      return candidate;
+    }
+
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    candidate = `${sanitized}-${randomSuffix}`;
+    counter++;
+  }
+
+  return `${sanitized}-${Date.now()}`;
+}
+
 export async function saveOnboardingWorkspaceSetup(input: {
   fullName: string;
   phone?: string;
@@ -175,25 +204,57 @@ export async function saveOnboardingWorkspaceSetup(input: {
     .eq('status', 'active')
     .maybeSingle();
 
+  const uniqueSlug = await ensureUniqueWorkspaceSlug(
+    supabase,
+    input.workspaceSlug,
+    (existing as { id?: string } | null)?.id
+  );
+
   let workspaceId: string;
 
   if (existing) {
     workspaceId = (existing as { id: string }).id;
-    await supabase
+    const { error: updateError } = await supabase
       .from('workspaces')
-      .update({ name: input.workspaceName, slug: input.workspaceSlug, updated_at: new Date().toISOString() } as never)
+      .update({ name: input.workspaceName, slug: uniqueSlug, updated_at: new Date().toISOString() } as never)
       .eq('id', workspaceId);
+
+    if (updateError) {
+      // Fallback with timestamp slug if collision occurs
+      const fallbackSlug = `${uniqueSlug}-${Date.now()}`;
+      await supabase
+        .from('workspaces')
+        .update({ name: input.workspaceName, slug: fallbackSlug, updated_at: new Date().toISOString() } as never)
+        .eq('id', workspaceId);
+    }
   } else {
-    const { data: workspace, error } = await supabase
+    let { data: workspace, error } = await supabase
       .from('workspaces')
       .insert({
         name: input.workspaceName,
-        slug: input.workspaceSlug,
+        slug: uniqueSlug,
         owner_id: user.id,
         status: 'active',
       } as never)
       .select('id')
       .single();
+
+    if (error && (error.code === '23505' || error.message?.includes('workspaces_slug_key'))) {
+      const fallbackSlug = `${uniqueSlug}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const retryResult = await supabase
+        .from('workspaces')
+        .insert({
+          name: input.workspaceName,
+          slug: fallbackSlug,
+          owner_id: user.id,
+          status: 'active',
+        } as never)
+        .select('id')
+        .single();
+
+      workspace = retryResult.data;
+      error = retryResult.error;
+    }
 
     if (error || !workspace) throw new Error(error?.message ?? 'Failed to create workspace');
     workspaceId = (workspace as { id: string }).id;

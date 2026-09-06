@@ -122,7 +122,7 @@ export async function getTenants(propertyId: string) {
       lease_tenants!lease_tenants_tenant_id_fkey(
         is_primary,
         role,
-        lease:leases!lease_tenants_lease_id_fkey(id, status, start_date, end_date, rent_amount, rent_frequency)
+        lease:leases!lease_tenants_lease_id_fkey(id, status, start_date, end_date, rent_amount, rent_frequency, security_deposit, payment_due_day)
       )
     `)
     .eq('property_id', propertyId)
@@ -145,7 +145,7 @@ export async function getAllWorkspaceTenants() {
       lease_tenants!lease_tenants_tenant_id_fkey(
         is_primary,
         role,
-        lease:leases!lease_tenants_lease_id_fkey(id, status, start_date, end_date, rent_amount, rent_frequency)
+        lease:leases!lease_tenants_lease_id_fkey(id, status, start_date, end_date, rent_amount, rent_frequency, security_deposit, payment_due_day)
       )
     `)
     .order('created_at', { ascending: false });
@@ -166,7 +166,7 @@ export async function getLeases(propertyId: string) {
       property:properties(id, name, address_line_1, city, suburb, postal_code, state),
       lease_tenants!lease_tenants_lease_id_fkey(
         tenant_id, role, is_primary,
-        tenant:tenants!lease_tenants_tenant_id_fkey(id, first_name, last_name, email, phone, status)
+        tenant:tenants!lease_tenants_tenant_id_fkey(id, first_name, last_name, email, phone, status, emergency_contact_name, emergency_contact_phone)
       )
     `)
     .eq('property_id', propertyId)
@@ -188,7 +188,7 @@ export async function getAllWorkspaceLeases() {
       property:properties(id, name, address_line_1, city, suburb, postal_code, state),
       lease_tenants!lease_tenants_lease_id_fkey(
         tenant_id, role, is_primary,
-        tenant:tenants!lease_tenants_tenant_id_fkey(id, first_name, last_name, email, phone, status)
+        tenant:tenants!lease_tenants_tenant_id_fkey(id, first_name, last_name, email, phone, status, emergency_contact_name, emergency_contact_phone)
       )
     `)
     .order('created_at', { ascending: false });

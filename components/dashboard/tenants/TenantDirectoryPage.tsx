@@ -36,7 +36,12 @@ type TenantRecord = {
   email: string;
   phone: string | null;
   status: string;
+  date_of_birth?: string | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
+  notes?: string | null;
   created_at: string;
+  updated_at?: string;
   property_id: string;
   property?: {
     id: string;
@@ -45,6 +50,7 @@ type TenantRecord = {
     city: string;
     suburb?: string;
     state?: string;
+    postal_code?: string;
   } | null;
   lease_tenants?: Array<{
     is_primary: boolean;
@@ -56,6 +62,8 @@ type TenantRecord = {
       end_date: string | null;
       rent_amount: number;
       rent_frequency: string;
+      security_deposit?: number;
+      payment_due_day?: number;
     } | null;
   }>;
 };
@@ -126,7 +134,7 @@ export function TenantDirectoryPage() {
       {
         headerName: 'Assigned Property',
         flex: 1.5,
-        minWidth: 220,
+        minWidth: 200,
         valueGetter: (p) => {
           const prop = p.data?.property;
           if (!prop) return 'Unassigned';
@@ -134,10 +142,49 @@ export function TenantDirectoryPage() {
         },
       },
       {
+        headerName: 'Active Lease Rent',
+        width: 150,
+        valueGetter: (p) => {
+          const activeLease = p.data?.lease_tenants?.find((lt: any) => lt.lease?.status === 'active')?.lease || p.data?.lease_tenants?.[0]?.lease;
+          if (!activeLease) return '—';
+          return `$${Number(activeLease.rent_amount || 0).toLocaleString()}/${activeLease.rent_frequency || 'mo'}`;
+        },
+      },
+      {
+        field: 'date_of_birth',
+        headerName: 'Date of Birth',
+        width: 130,
+        valueGetter: (p) => p.data?.date_of_birth || '—',
+      },
+      {
+        field: 'emergency_contact_name',
+        headerName: 'Emergency Contact',
+        width: 170,
+        valueGetter: (p) => {
+          const name = p.data?.emergency_contact_name;
+          const phone = p.data?.emergency_contact_phone;
+          if (name && phone) return `${name} (${phone})`;
+          return name || phone || '—';
+        },
+      },
+      {
         field: 'status',
         headerName: 'Status',
         width: 130,
         cellRenderer: 'statusCell',
+      },
+      {
+        field: 'notes',
+        headerName: 'Notes',
+        flex: 1,
+        minWidth: 150,
+        valueGetter: (p) => p.data?.notes || '—',
+      },
+      {
+        field: 'created_at',
+        headerName: 'Created Date',
+        width: 130,
+        cellRenderer: 'dateCell',
       },
       {
         headerName: 'Actions',
