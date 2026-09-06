@@ -20,7 +20,9 @@ import {
 } from '@/lib/onboarding/resolver';
 import { getSubscriptionPlans } from '@/lib/subscriptions/queries';
 import { createTrialSubscription } from '@/lib/subscriptions/service';
-import { handleCreateManualCheckoutSession } from '@/app/actions/billing';
+import { handleCreateManualCheckoutSession, handleSubmitManualPayment } from '@/app/actions/billing';
+import { BANK_DETAILS } from '@/lib/billing/types';
+import { getSubscriptionPaymentBySubId, getPaymentProofByPaymentId } from '@/lib/billing/service';
 
 const ONBOARDING_METADATA_KEY = 'onboarding';
 
@@ -280,6 +282,135 @@ export async function selectOnboardingPlan(planId: string, planSlug: string, pri
   }
 
   return { nextRoute: '/onboarding/payment' };
+}
+
+export async function getOnboardingPaymentContext() {
+  const { user, supabase } = await getSupabaseForUser();
+  const progress = await readProgress(user.id, supabase);
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, phone')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const plans = await getSubscriptionPlans();
+  const selectedSlug = (progress.data.planSlug as string) || 'landlord';
+  const selectedPlanId = progress.data.selectedPlanId as string | undefined;
+
+  const targetPlan =
+    plans.find((p) => p.id === selectedPlanId || p.slug === selectedSlug) ||
+    plans[0] || {
+      id: 'landlord',
+      name: 'Landlord',
+      slug: 'landlord',
+      price_cents: 2900,
+      billing_interval: 'monthly',
+      description: 'Up to 5 properties',
+    };
+
+  let session: {
+    subscriptionId: string;
+    paymentId: string;
+    reference: string;
+    expectedAmount: number;
+  } | null = (progress.data.checkoutSession as any) || null;
+
+  const { data: sub } = await (supabase as any)
+    .from('subscriptions')
+    .select('id, status, plan_id')
+    .eq('account_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let paymentStatus: string | null = null;
+  let hasSubmittedProof = Boolean(progress.data.paymentSubmitted);
+
+  if (sub) {
+    const payment = await getSubscriptionPaymentBySubId(sub.id);
+    if (payment) {
+      paymentStatus = payment.status;
+      session = {
+        subscriptionId: payment.subscription_id,
+        paymentId: payment.id,
+        reference: payment.reference,
+        expectedAmount: Number(payment.expected_amount),
+      };
+
+      const proof = await getPaymentProofByPaymentId(payment.id);
+      if (proof || payment.status === 'under_review' || payment.status === 'verified') {
+        hasSubmittedProof = true;
+      }
+    }
+  }
+
+  if (!session) {
+    try {
+      session = await handleCreateManualCheckoutSession(targetPlan.slug, 'monthly');
+      await writeProgress(supabase, user.id, {
+        ...progress,
+        data: {
+          ...progress.data,
+          checkoutSession: session,
+          selectedPlanId: targetPlan.id,
+          planSlug: targetPlan.slug,
+        },
+      });
+    } catch (err) {
+      console.warn('[onboarding.ts] Could not automatically initialize checkout session:', err);
+    }
+  }
+
+  return {
+    plan: {
+      id: targetPlan.id,
+      name: targetPlan.name,
+      slug: targetPlan.slug,
+      priceCents: targetPlan.price_cents ?? 2900,
+      billingInterval: targetPlan.billing_interval ?? 'monthly',
+      description: targetPlan.description,
+    },
+    session,
+    subscriptionStatus: sub?.status ?? null,
+    paymentStatus,
+    hasSubmittedProof,
+    bankDetails: BANK_DETAILS,
+    user: {
+      id: user.id,
+      fullName: (profile as { full_name?: string } | null)?.full_name || user.user_metadata?.full_name || 'User',
+      email: user.email || '',
+      phone: (profile as { phone?: string } | null)?.phone || user.user_metadata?.phone || '',
+    },
+  };
+}
+
+export async function submitOnboardingPaymentProof(input: {
+  paymentId: string;
+  submittedAmount: number;
+  paymentDate: string;
+  transactionId?: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  storagePath: string;
+  filePreviewUrl?: string;
+}) {
+  const { user, supabase } = await getSupabaseForUser();
+  const payment = await handleSubmitManualPayment(input.paymentId, input);
+
+  const progress = await readProgress(user.id, supabase);
+  const updatedProgress = advanceStage(progress, 'subscription', {
+    paymentSubmitted: true,
+    paymentId: input.paymentId,
+    paymentDate: input.paymentDate,
+    transactionId: input.transactionId,
+  });
+
+  await writeProgress(supabase, user.id, updatedProgress);
+  revalidatePath('/onboarding');
+  revalidatePath('/onboarding/payment');
+  return payment;
 }
 
 export async function createOnboardingProperty(input: {

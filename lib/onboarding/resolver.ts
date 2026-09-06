@@ -69,11 +69,16 @@ export async function resolveOnboardingStage(userId: string): Promise<Onboarding
     !!subscription ||
     progress.completedStages.includes('subscription');
 
-  const pendingPayment =
-    subStatus === 'pending_payment' ||
+  const hasSubmittedProof =
+    Boolean(progress.data.paymentSubmitted) ||
     subStatus === 'under_review' ||
-    subStatus === 'draft' ||
-    progress.data.startMode === 'paid';
+    (subStatus ? isSubscriptionActive(subStatus as any) : false);
+
+  const pendingPayment =
+    !hasSubmittedProof &&
+    (subStatus === 'pending_payment' ||
+      subStatus === 'draft' ||
+      progress.data.startMode === 'paid');
 
   const context: OnboardingResolverContext = {
     hasProfile: !!(profile as { full_name?: string } | null)?.full_name?.trim(),
@@ -133,7 +138,7 @@ export async function resolveOnboardingStage(userId: string): Promise<Onboarding
     stage = 'workspace';
   } else if (!context.hasSubscriptionDecision) {
     stage = 'subscription';
-  } else if (pendingPayment && subStatus && !isSubscriptionActive(subStatus)) {
+  } else if (pendingPayment) {
     return {
       stage: 'subscription',
       route: '/onboarding/payment',

@@ -17,11 +17,12 @@ import {
 import { ColDef } from 'ag-grid-community';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button, useToast } from '@/components/admin/ui';
-import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
 import { EntityDrawer } from '@/components/dashboard/EntityDrawer';
 import { PropertyCreationWizard } from '@/components/dashboard/properties/PropertyCreationWizard';
 import { propertyFields, propertyColumns } from '@/components/dashboard/entities/config';
 import { ListPage, ListPageGrid } from '@/components/workspace';
+import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
+import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
 import { cn } from '@/lib/utils';
 import {
   fetchDashboardProperties,
@@ -41,6 +42,7 @@ export default function PropertiesPage() {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Draft' | 'Archived'>('All');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const isNewQueryParam = searchParams.get('new') === 'true' || searchParams.get('action') === 'new';
 
@@ -274,8 +276,8 @@ export default function PropertiesPage() {
               loading={isLoading}
               labelSingular="property"
               labelPlural="properties"
-              onRowClick={(row) => router.push(`/dashboard/properties/${row.id}`)}
-              getRowId={(params) => String(params.data.id)}
+              onRowClick={(row: any) => router.push(`/dashboard/properties/${row.id}`)}
+              getRowId={(params: any) => String(params.data.id)}
               enableColumnChooser
               enableExport
               exportFilename="properties-export"
@@ -284,7 +286,7 @@ export default function PropertiesPage() {
                 <QuickFilterBar
                   options={filterOptions}
                   activeValue={statusFilter}
-                  onChange={(val) => setStatusFilter(val as any)}
+                  onChange={(val: any) => setStatusFilter(val as any)}
                 />
               }
               disablePagination={true}
@@ -333,7 +335,7 @@ export default function PropertiesPage() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto flex-1 p-1">
+          <HoverCardGrid className="overflow-y-auto flex-1 p-1">
             {filteredRows.map((p) => {
               const address = String(p.address_line_1 || p.address || p.name || '—');
               const location = `${p.suburb || p.city || ''}${p.state ? `, ${p.state}` : ''}`.trim() || '—';
@@ -341,25 +343,26 @@ export default function PropertiesPage() {
               const frequency = String(p.payment_frequency || 'Weekly');
 
               return (
-                <div
+                <HoverEffectCardItem
                   key={String(p.id)}
-                  className="bg-admin-surface border border-admin-border rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-3"
+                  onClick={() => router.push(`/dashboard/properties/${p.id}`)}
+                  className="cursor-pointer group/card"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-xl bg-admin-primary/10 text-admin-primary flex items-center justify-center font-bold text-sm shrink-0 border border-admin-primary/20">
                         <Building2 className="w-5 h-5 text-admin-primary" />
                       </div>
-                      <div>
-                        <h4 className="font-bold text-sm text-admin-foreground leading-tight truncate max-w-[180px]">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-sm text-admin-foreground leading-tight truncate group-hover/card:text-admin-primary transition-colors">
                           {String(p.name || address)}
                         </h4>
-                        <p className="text-xs text-admin-muted mt-0.5 truncate max-w-[180px]">{address}</p>
+                        <p className="text-xs text-admin-muted mt-0.5 truncate">{address}</p>
                       </div>
                     </div>
                     <span
                       className={cn(
-                        'px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider',
+                        'px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider shrink-0',
                         String(p.status).toLowerCase() === 'active'
                           ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                           : String(p.status).toLowerCase() === 'draft' || String(p.status).toLowerCase() === 'pending'
@@ -371,51 +374,49 @@ export default function PropertiesPage() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs py-2 border-y border-admin-border my-1">
+                  <div className="grid grid-cols-2 gap-2 text-xs p-3 rounded-xl bg-admin-surface-subtle/50 border border-admin-border/50 my-1">
                     <div>
-                      <span className="text-admin-muted block">Location</span>
-                      <span className="font-bold text-admin-foreground truncate block max-w-[120px]">{location}</span>
+                      <span className="text-admin-muted text-[10px] uppercase font-bold tracking-wider block">Location</span>
+                      <span className="font-semibold text-admin-foreground truncate block">{location}</span>
                     </div>
                     <div>
-                      <span className="text-admin-muted block">Type / Beds</span>
-                      <span className="font-bold text-admin-foreground truncate block max-w-[120px]">
+                      <span className="text-admin-muted text-[10px] uppercase font-bold tracking-wider block">Type / Beds</span>
+                      <span className="font-semibold text-admin-foreground truncate block">
                         {String(p.property_type || 'Residential')} {p.bedrooms ? `(${p.bedrooms} Bed)` : ''}
                       </span>
                     </div>
                     <div>
-                      <span className="text-admin-muted block">Advertised Rent</span>
-                      <span className="font-bold text-admin-foreground truncate block max-w-[120px]">
+                      <span className="text-admin-muted text-[10px] uppercase font-bold tracking-wider block">Advertised Rent</span>
+                      <span className="font-bold text-admin-foreground truncate block">
                         {rent} <span className="text-[10px] text-admin-muted font-normal">/{frequency}</span>
                       </span>
                     </div>
                     <div>
-                      <span className="text-admin-muted block">Total Units</span>
+                      <span className="text-admin-muted text-[10px] uppercase font-bold tracking-wider block">Total Units</span>
                       <span className="font-bold text-admin-foreground">{p.units_count !== undefined && p.units_count !== null ? String(p.units_count) : '1'}</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between mt-1">
+                  <div className="flex items-center justify-between pt-1 border-t border-admin-border/50">
+                    <span className="text-xs font-bold text-admin-primary group-hover/card:underline inline-flex items-center gap-1">
+                      View Details <ArrowUpRight className="w-3.5 h-3.5" />
+                    </span>
                     <button
-                      onClick={() => router.push(`/dashboard/properties/${p.id}`)}
-                      className="text-xs font-bold text-[#008F83] hover:underline"
-                    >
-                      View Details
-                    </button>
-                    <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelected(p);
                         setIsDrawerOpen(true);
                       }}
-                      className="p-1 text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-500/10 rounded transition-colors inline-flex items-center gap-1 font-bold text-xs"
+                      className="px-2 py-1 text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-subtle rounded-lg transition-colors inline-flex items-center gap-1 font-semibold text-xs"
                     >
                       <Pencil className="w-3.5 h-3.5" /> Edit
                     </button>
                   </div>
-                </div>
+                </HoverEffectCardItem>
               );
             })}
-          </div>
+          </HoverCardGrid>
         )}
       </div>
 

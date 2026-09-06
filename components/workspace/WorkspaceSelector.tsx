@@ -134,7 +134,7 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
           title="Click to retry loading workspaces"
           className="flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-xs font-medium hover:bg-red-100 transition-colors"
         >
-          <span>Couldn't load organization</span>
+          <span>Couldn&apos;t load organization</span>
           <span className="underline font-semibold text-[11px]">Try again</span>
         </button>
       </div>

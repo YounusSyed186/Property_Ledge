@@ -8,7 +8,7 @@ interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 export function Skeleton({ className, ...props }: SkeletonProps) {
   return (
     <div
-      className={cn('animate-pulse rounded-md bg-[#EEF2F4] dark:bg-[#152538]', className)}
+      className={cn('rounded-lg skeleton-shimmer', className)}
       {...props}
     />
   );
@@ -20,7 +20,7 @@ export function SkeletonText({ lines = 3, className }: { lines?: number; classNa
       {Array.from({ length: lines }).map((_, i) => (
         <Skeleton
           key={i}
-          className={cn('h-3', i === lines - 1 ? 'w-2/3' : 'w-full')}
+          className={cn('h-3 rounded-md', i === lines - 1 ? 'w-2/3' : 'w-full')}
         />
       ))}
     </div>
@@ -29,21 +29,51 @@ export function SkeletonText({ lines = 3, className }: { lines?: number; classNa
 
 export function SkeletonCard({ className }: { className?: string }) {
   return (
-    <div className={cn('rounded-lg border border-admin-border p-4 space-y-3', className)}>
-      <Skeleton className="h-3 w-24" />
-      <Skeleton className="h-7 w-32" />
-      <Skeleton className="h-3 w-20" />
+    <div className={cn('bg-admin-surface border border-admin-border rounded-2xl p-5 shadow-xs flex flex-col justify-between gap-3', className)}>
+      <div className="flex items-start justify-between">
+        <div className="w-10 h-10 rounded-xl skeleton-shimmer shrink-0" />
+        <Skeleton className="h-5 w-16 rounded-full" />
+      </div>
+      <div className="space-y-1.5 mt-2">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-6 w-28" />
+        <Skeleton className="h-2.5 w-36" />
+      </div>
     </div>
   );
 }
 
-export function SkeletonTable({ rows = 5, className }: { rows?: number; className?: string }) {
+export function SkeletonTable({ rows = 6, className }: { rows?: number; className?: string }) {
   return (
-    <div className={cn('space-y-2', className)}>
-      <Skeleton className="h-8 w-full" />
-      {Array.from({ length: rows }).map((_, i) => (
-        <Skeleton key={i} className="h-10 w-full" />
-      ))}
+    <div className={cn('bg-admin-surface border border-admin-border rounded-2xl overflow-hidden shadow-xs', className)}>
+      {/* Table header */}
+      <div className="flex items-center gap-4 px-5 py-3.5 border-b border-admin-border bg-admin-surface-subtle/50">
+        <Skeleton className="h-4 w-4 rounded shrink-0" />
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-4 w-24 hidden sm:block" />
+        <Skeleton className="h-4 w-28 hidden md:block" />
+        <Skeleton className="h-4 w-20 hidden lg:block" />
+        <Skeleton className="h-4 w-16 ml-auto shrink-0" />
+      </div>
+      {/* Table rows */}
+      <div className="divide-y divide-admin-border/60">
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4 px-5 py-4">
+            <Skeleton className="h-4 w-4 rounded shrink-0" />
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <Skeleton className="w-8 h-8 rounded-lg shrink-0" />
+              <div className="space-y-1.5 flex-1 max-w-[200px]">
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-2.5 w-2/3" />
+              </div>
+            </div>
+            <Skeleton className="h-4 w-24 hidden sm:block" />
+            <Skeleton className="h-5 w-20 rounded-full hidden md:block" />
+            <Skeleton className="h-4 w-20 hidden lg:block" />
+            <Skeleton className="h-7 w-16 rounded-lg ml-auto shrink-0" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

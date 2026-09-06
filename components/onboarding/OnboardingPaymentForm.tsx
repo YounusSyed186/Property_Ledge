@@ -1,38 +1,38 @@
 'use client';
 
 import React from 'react';
-import { useOnboardingNav } from '@/components/onboarding/OnboardingNavContext';
 import { OnboardingContent } from '@/components/onboarding/OnboardingContent';
 import { OnboardingStep } from '@/components/onboarding/OnboardingStep';
-import { OnboardingFooter } from '@/components/onboarding/OnboardingFooter';
-import { SubscriptionCheckout } from '@/components/subscription/SubscriptionCheckout';
-import { completeOnboardingStep } from '@/app/actions/onboarding';
+import {
+  OnboardingPaymentStep,
+  type OnboardingPaymentData,
+} from '@/components/onboarding/OnboardingPaymentStep';
 
-export function OnboardingPaymentForm() {
-  const { navigate } = useOnboardingNav();
+interface OnboardingPaymentFormProps {
+  initialData?: OnboardingPaymentData;
+}
 
-  const handlePaymentSubmitted = async () => {
-    await completeOnboardingStep('subscription', { paymentSubmitted: true });
-    navigate('/onboarding/property');
+export function OnboardingPaymentForm({ initialData }: OnboardingPaymentFormProps) {
+  const fallbackData: OnboardingPaymentData = initialData || {
+    plan: {
+      id: 'landlord',
+      name: 'Landlord',
+      slug: 'landlord',
+      priceCents: 2900,
+      billingInterval: 'monthly',
+      description: 'Up to 5 properties',
+    },
+    session: null,
   };
 
   return (
     <OnboardingContent>
       <OnboardingStep
-        eyebrow="Payment"
-        title="Complete your subscription"
-        description="Submit your payment details. Your subscription will be activated once approved."
+        eyebrow="Step 2 of 4 — Payment"
+        title="Complete your subscription."
+        description="Transfer direct deposit funds and attach your payment receipt to activate your workspace."
       >
-        <SubscriptionCheckout initialPlanSlug="landlord" />
-        <OnboardingFooter
-          onBack={() => navigate('/onboarding/plans')}
-          onContinue={handlePaymentSubmitted}
-          continueType="button"
-          continueLabel="Continue to property setup"
-        />
-        <p className="mt-4 text-xs text-admin-muted">
-          Secure payment — your payment information is securely processed.
-        </p>
+        <OnboardingPaymentStep initialData={fallbackData} />
       </OnboardingStep>
     </OnboardingContent>
   );

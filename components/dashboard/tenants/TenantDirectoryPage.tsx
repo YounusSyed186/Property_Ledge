@@ -26,6 +26,7 @@ import { usePropertyContext } from '@/components/property/PropertyContext';
 import { fetchAllWorkspaceTenants, fetchDashboardProperties } from '@/app/actions/dashboard';
 import { TenancySetupWizard } from '@/components/dashboard/workflows/TenancySetupWizard';
 import { TenantDrawer } from '@/components/dashboard/tenants/TenantDrawer';
+import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
 import { cn } from '@/lib/utils';
 
 type TenantRecord = {
@@ -79,6 +80,7 @@ export function TenantDirectoryPage() {
     'All' | 'Active Resident' | 'Inactive / Past Resident' | 'Prospect / Applicant' | 'Archived'
   >('All');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   // Tenancy Setup Wizard state
   const [isSetupWizardOpen, setIsSetupWizardOpen] = useState(false);
@@ -430,31 +432,32 @@ export function TenantDirectoryPage() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto flex-1 p-1">
+          <HoverCardGrid className="overflow-y-auto flex-1 p-1">
             {filteredTenants.map((t) => {
               const activeLease = t.lease_tenants?.find((lt) => lt.lease?.status === 'active')?.lease;
               const leaseStatus = activeLease ? 'Active' : t.lease_tenants?.length ? 'Past' : t.status === 'pending' ? 'Pending' : 'No Lease';
 
               return (
-                <div
+                <HoverEffectCardItem
                   key={t.id}
-                  className="bg-admin-surface border border-admin-border rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-3"
+                  onClick={() => router.push(`/dashboard/people/${t.id}`)}
+                  className="cursor-pointer group/card"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-xl bg-admin-primary/10 text-admin-primary flex items-center justify-center font-bold text-sm shrink-0 border border-admin-primary/20">
                         {(t.first_name || 'T').charAt(0)}
                       </div>
-                      <div>
-                        <h4 className="font-bold text-sm text-admin-foreground leading-tight">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-sm text-admin-foreground leading-tight truncate group-hover/card:text-admin-primary transition-colors">
                           {t.first_name} {t.last_name}
                         </h4>
-                        <p className="text-xs text-admin-muted mt-0.5">{t.email}</p>
+                        <p className="text-xs text-admin-muted mt-0.5 truncate">{t.email || 'No email'}</p>
                       </div>
                     </div>
                     <span
                       className={cn(
-                        'px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider',
+                        'px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider shrink-0',
                         leaseStatus === 'Active'
                           ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                           : 'bg-admin-surface-subtle text-admin-muted border border-admin-border'
@@ -464,48 +467,46 @@ export function TenantDirectoryPage() {
                     </span>
                   </div>
 
-                  <div className="h-px w-full bg-admin-border" />
-
-                  <div className="space-y-1.5 text-xs text-admin-muted">
+                  <div className="space-y-2 p-3 rounded-xl bg-admin-surface-subtle/50 border border-admin-border/50 text-xs text-admin-muted my-1">
                     <div className="flex items-center gap-2">
-                      <Building className="w-3.5 h-3.5" />
-                      <span className="font-medium text-admin-foreground">
-                        {t.property?.name || t.property?.address_line_1 || 'Unassigned'}
+                      <Building className="w-3.5 h-3.5 text-admin-primary shrink-0" />
+                      <span className="font-semibold text-admin-foreground truncate">
+                        {t.property?.name || t.property?.address_line_1 || 'Unassigned Property'}
                       </span>
                     </div>
-                    {t.phone && (
+                    {t.phone ? (
                       <div className="flex items-center gap-2">
-                        <Phone className="w-3.5 h-3.5" />
-                        <span>{t.phone}</span>
+                        <Phone className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+                        <span className="truncate">{t.phone}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-admin-muted/60 italic">
+                        <Phone className="w-3.5 h-3.5 shrink-0" />
+                        <span>No phone recorded</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="h-px w-full bg-admin-border" />
-
-                  <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center justify-between pt-1 border-t border-admin-border/50">
+                    <span className="text-xs font-bold text-admin-primary group-hover/card:underline inline-flex items-center gap-1">
+                      View Profile <ArrowUpRight className="w-3.5 h-3.5" />
+                    </span>
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setSelectedTenantForEdit(t);
                         setIsEditDrawerOpen(true);
                       }}
-                      className="text-xs font-bold text-admin-muted hover:text-admin-foreground flex items-center gap-1"
+                      className="px-2 py-1 text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-subtle rounded-lg transition-colors inline-flex items-center gap-1 font-semibold text-xs"
                     >
                       <Pencil className="w-3.5 h-3.5" /> Edit
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => router.push(`/dashboard/people/${t.id}`)}
-                      className="text-xs font-bold text-admin-primary hover:underline flex items-center gap-1"
-                    >
-                      View Profile <ArrowUpRight className="w-3.5 h-3.5" />
-                    </button>
                   </div>
-                </div>
+                </HoverEffectCardItem>
               );
             })}
-          </div>
+          </HoverCardGrid>
         )}
       </div>
 

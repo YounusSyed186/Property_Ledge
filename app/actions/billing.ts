@@ -13,8 +13,10 @@ import { createAdminClient } from '@/lib/supabase/server';
 
 export async function handleCreateManualCheckoutSession(planSlug: string, billingInterval: 'monthly' | 'yearly') {
   const user = await getCurrentUser();
-  const accountId = user?.id || 'demo-user';
-  return createManualCheckoutSessionService(accountId, planSlug, billingInterval);
+  if (!user) {
+    throw new Error('UNAUTHORIZED: Please sign in to choose a subscription plan.');
+  }
+  return createManualCheckoutSessionService(user.id, planSlug, billingInterval);
 }
 
 export async function handleSubmitManualPayment(
@@ -37,12 +39,18 @@ export async function handleSubmitManualPayment(
     const supabase = await createAdminClient();
     const { data: payRecord } = await (supabase as any)
       .from('subscription_payments')
-      .select('*, subscriptions!fk_subscription_payments_sub_account(*, subscription_plans(*))')
+      .select('*')
       .eq('id', paymentId)
       .maybeSingle();
 
     if (payRecord) {
       const accountId = payRecord.account_id;
+      const { data: subRecord } = await (supabase as any)
+        .from('subscriptions')
+        .select('*, subscription_plans(*)')
+        .eq('id', payRecord.subscription_id)
+        .maybeSingle();
+
       const { data: profile } = await (supabase as any)
         .from('profiles')
         .select('*')
@@ -61,7 +69,7 @@ export async function handleSubmitManualPayment(
         authUser?.user?.user_metadata?.full_name ||
         'Customer';
 
-      const planName = payRecord.subscriptions?.subscription_plans?.name || 'Landlord';
+      const planName = subRecord?.subscription_plans?.name || 'Landlord';
 
       await notificationService.notifySubscriptionRequested({
         accountName: customerName,
@@ -93,12 +101,18 @@ export async function handleApprovePayment(paymentId: string) {
     const supabase = await createAdminClient();
     const { data: payRecord } = await (supabase as any)
       .from('subscription_payments')
-      .select('*, subscriptions!fk_subscription_payments_sub_account(*, subscription_plans(*))')
+      .select('*')
       .eq('id', paymentId)
       .maybeSingle();
 
     if (payRecord) {
       const accountId = payRecord.account_id;
+      const { data: subRecord } = await (supabase as any)
+        .from('subscriptions')
+        .select('*, subscription_plans(*)')
+        .eq('id', payRecord.subscription_id)
+        .maybeSingle();
+
       const { data: profile } = await (supabase as any)
         .from('profiles')
         .select('*')
@@ -117,7 +131,7 @@ export async function handleApprovePayment(paymentId: string) {
         authUser?.user?.user_metadata?.full_name ||
         'Customer';
 
-      const planName = payRecord.subscriptions?.subscription_plans?.name || 'Landlord';
+      const planName = subRecord?.subscription_plans?.name || 'Landlord';
 
       await notificationService.notifySubscriptionAccepted({
         accountName: customerName,

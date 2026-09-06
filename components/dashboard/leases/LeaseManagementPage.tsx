@@ -36,6 +36,7 @@ import {
 } from '@/app/actions/dashboard';
 import { CreateLeaseWizard } from '@/components/dashboard/workflows/CreateLeaseWizard';
 import { LeaseEditDrawer } from '@/components/dashboard/leases/LeaseEditDrawer';
+import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
 import { cn } from '@/lib/utils';
 
 type LeaseRecord = {
@@ -79,6 +80,7 @@ export function LeaseManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Pending' | 'Expired'>('All');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   // Create / Renew Wizard state
   const [isCreateWizardOpen, setIsCreateWizardOpen] = useState(false);
@@ -513,27 +515,27 @@ export function LeaseManagementPage() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 overflow-y-auto flex-1 p-1">
+          <HoverCardGrid className="overflow-y-auto flex-1 p-1">
             {filteredLeases.map((lease) => {
               const timeRemaining = getLeaseTimeRemaining(lease.end_date, lease.status);
               const isExpiringSoonOrExpired =
                 lease.status === 'expired' || (lease.end_date && new Date(lease.end_date) < new Date());
 
               return (
-                <div
+                <HoverEffectCardItem
                   key={lease.id}
-                  className="bg-admin-surface border border-admin-border rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-4 group"
+                  className="group/card"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-xl bg-admin-primary/10 text-admin-primary flex items-center justify-center shrink-0 border border-admin-primary/20">
-                        <Building className="w-5 h-5" />
+                        <Building className="w-5 h-5 text-admin-primary" />
                       </div>
-                      <div>
-                        <h4 className="font-bold text-sm text-admin-foreground line-clamp-1">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-sm text-admin-foreground line-clamp-1 group-hover/card:text-admin-primary transition-colors">
                           {lease.property?.name || lease.property?.address_line_1 || 'Unassigned Property'}
                         </h4>
-                        <p className="text-xs text-admin-muted">{lease.property?.city || lease.property?.suburb || 'Property'}</p>
+                        <p className="text-xs text-admin-muted truncate">{lease.property?.city || lease.property?.suburb || 'Property'}</p>
                       </div>
                     </div>
 
@@ -551,17 +553,15 @@ export function LeaseManagementPage() {
                     </span>
                   </div>
 
-                  <div className="h-px w-full bg-admin-border" />
-
-                  <div className="space-y-3 flex-1 text-xs text-admin-muted">
+                  <div className="space-y-2.5 p-3 rounded-xl bg-admin-surface-subtle/50 border border-admin-border/50 text-xs text-admin-muted my-1">
                     <div>
                       <div className="text-[10px] font-bold text-admin-muted uppercase tracking-wider mb-1">Tenants</div>
                       <div className="space-y-1">
                         {lease.lease_tenants && lease.lease_tenants.length > 0 ? (
-                          lease.lease_tenants.map((lt, idx) => (
-                            <div key={idx} className="flex items-center gap-1.5 text-xs text-admin-foreground font-semibold">
-                              <User className="w-3.5 h-3.5 text-admin-muted" />
-                              <span>{lt.tenant?.first_name} {lt.tenant?.last_name}</span>
+                          lease.lease_tenants.map((lt, tIdx) => (
+                            <div key={tIdx} className="flex items-center gap-1.5 text-xs text-admin-foreground font-semibold">
+                              <User className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+                              <span className="truncate">{lt.tenant?.first_name} {lt.tenant?.last_name}</span>
                             </div>
                           ))
                         ) : (
@@ -570,13 +570,13 @@ export function LeaseManagementPage() {
                       </div>
                     </div>
 
-                    <div className="h-px w-full bg-admin-border" />
+                    <div className="h-px w-full bg-admin-border/60" />
 
                     <div>
                       <div className="text-[10px] font-bold text-admin-muted uppercase tracking-wider mb-1">Lease Term</div>
                       <div className="flex items-center gap-2 text-admin-foreground font-semibold">
-                        <Calendar className="w-3.5 h-3.5 text-admin-muted" />
-                        <span>
+                        <Calendar className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+                        <span className="truncate">
                           {new Date(lease.start_date).toLocaleDateString()} - {lease.end_date ? new Date(lease.end_date).toLocaleDateString() : 'Periodic'}
                         </span>
                       </div>
@@ -585,13 +585,13 @@ export function LeaseManagementPage() {
                       </div>
                     </div>
 
-                    <div className="h-px w-full bg-admin-border" />
+                    <div className="h-px w-full bg-admin-border/60" />
 
                     <div>
                       <div className="text-[10px] font-bold text-admin-muted uppercase tracking-wider mb-1">Rent Structure</div>
                       <div className="flex items-center gap-2">
-                        <DollarSign className="w-3.5 h-3.5 text-admin-muted" />
-                        <span className="text-admin-foreground font-bold">
+                        <DollarSign className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+                        <span className="text-admin-foreground font-bold text-sm">
                           ${Number(lease.rent_amount).toLocaleString()}
                         </span>
                         <span className="text-[10px] text-admin-muted uppercase">/{lease.rent_frequency}</span>
@@ -599,15 +599,13 @@ export function LeaseManagementPage() {
                     </div>
                   </div>
 
-                  <div className="h-px w-full bg-admin-border" />
-
-                  <div className="flex items-center gap-1.5 pt-1">
+                  <div className="flex items-center gap-1.5 pt-1 border-t border-admin-border/50">
                     {lease.status === 'active' && (
                       <>
                         <button
                           type="button"
                           onClick={() => handleUpdateStatus(lease, 'expired')}
-                          className="text-xs px-2.5 py-1 font-bold text-red-600 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors"
+                          className="text-xs px-2.5 py-1 font-bold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors"
                         >
                           Set Expired
                         </button>
@@ -657,10 +655,10 @@ export function LeaseManagementPage() {
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                </div>
+                </HoverEffectCardItem>
               );
             })}
-          </div>
+          </HoverCardGrid>
         )}
       </div>
 

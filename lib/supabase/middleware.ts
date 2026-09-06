@@ -118,7 +118,10 @@ async function resolveOnboardingRoute(
       .limit(1)
       .maybeSingle();
     const status = (sub as { status?: string } | null)?.status;
-    if (status === 'pending_payment' || status === 'under_review' || status === 'draft') {
+    const paymentSubmitted = Boolean(
+      (onboardingMeta as { data?: { paymentSubmitted?: boolean } } | undefined)?.data?.paymentSubmitted
+    );
+    if ((status === 'pending_payment' || status === 'draft') && !paymentSubmitted) {
       return '/onboarding/payment';
     }
   }
