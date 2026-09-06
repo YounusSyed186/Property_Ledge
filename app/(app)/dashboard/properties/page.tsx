@@ -30,11 +30,13 @@ import {
   handleUpdateProperty,
   handleDeleteProperty,
 } from '@/app/actions/dashboard';
+import { usePropertyContext } from '@/components/property/PropertyContext';
 
 export default function PropertiesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { error: showError } = useToast();
+  const { refreshProperties } = usePropertyContext();
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
@@ -107,6 +109,23 @@ export default function PropertiesPage() {
 
     return { total, active, totalUnits, draft };
   }, [rows]);
+
+  const handleBulkDeleteProperties = async (selected: any[]) => {
+    try {
+      for (const p of selected) {
+        await handleDeleteProperty(p.id);
+      }
+      await loadData();
+      try {
+        await refreshProperties();
+      } catch (e) {
+        console.error('Error refreshing properties context:', e);
+      }
+    } catch (err: any) {
+      console.error('Error deleting properties:', err);
+      showError('Delete Failed', err.message || 'Could not delete selected properties.');
+    }
+  };
 
   const columns = useMemo<ColDef[]>(
     () => [
@@ -282,6 +301,7 @@ export default function PropertiesPage() {
               enableExport
               exportFilename="properties-export"
               searchPlaceholder="Search properties..."
+              onDeleteSelected={handleBulkDeleteProperties}
               leftToolbarContent={
                 <QuickFilterBar
                   options={filterOptions}
@@ -448,9 +468,14 @@ export default function PropertiesPage() {
 
               <PropertyCreationWizard
                 onCancel={closeWizard}
-                onSuccess={() => {
+                onSuccess={async () => {
                   closeWizard();
-                  loadData();
+                  await loadData();
+                  try {
+                    await refreshProperties();
+                  } catch (e) {
+                    console.error('Error refreshing properties context:', e);
+                  }
                 }}
               />
             </motion.div>
@@ -462,9 +487,14 @@ export default function PropertiesPage() {
       <PropertyDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        onSuccess={() => {
+        onSuccess={async () => {
           setIsDrawerOpen(false);
-          loadData();
+          await loadData();
+          try {
+            await refreshProperties();
+          } catch (e) {
+            console.error('Error refreshing properties context:', e);
+          }
         }}
         property={selected as any}
         propertyId={String(selected?.id || '')}

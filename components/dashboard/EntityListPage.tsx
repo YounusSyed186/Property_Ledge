@@ -67,6 +67,8 @@ interface EntityListPageProps<T = Record<string, unknown>> {
     onClose: () => void;
     onSuccess: () => void;
   }) => React.ReactNode;
+  deleteAction?: (propertyId: string, id: string) => Promise<unknown>;
+  onDeleteSelected?: (selectedRows: T[]) => Promise<void> | void;
 }
 
 export function EntityListPage<T extends { id: string }>({
@@ -82,9 +84,11 @@ export function EntityListPage<T extends { id: string }>({
   onRowClick,
   clientFilter,
   renderCreateModal,
+  deleteAction,
+  onDeleteSelected,
 }: EntityListPageProps<T>) {
   const { selectedProperty, availableProperties } = usePropertyContext();
-  const { error: showError, info: showInfo } = useToast();
+  const { error: showError, info: showInfo, success: showSuccess } = useToast();
   const [rows, setRows] = useState<T[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedEntity, setSelectedEntity] = useState<T | null>(null);
@@ -129,6 +133,27 @@ export function EntityListPage<T extends { id: string }>({
     setSelectedEntity(entity);
     setIsCreate(false);
     setIsDrawerOpen(true);
+  };
+
+  const handleBulkDelete = async (selected: T[]) => {
+    if (onDeleteSelected) {
+      await onDeleteSelected(selected);
+      await loadData();
+      return;
+    }
+    if (deleteAction) {
+      try {
+        for (const item of selected) {
+          const propId = (item as any).property_id || (item as any).propertyId || effectivePropertyId;
+          await deleteAction(propId, item.id);
+        }
+        showSuccess?.(`Deleted ${selected.length} ${selected.length === 1 ? entityLabel : entityLabelPlural}`);
+        await loadData();
+      } catch (err: any) {
+        console.error(`Failed to bulk delete ${entityLabelPlural}:`, err);
+        showError('Delete Failed', err.message || `Could not delete selected ${entityLabelPlural}.`);
+      }
+    }
   };
 
   const displayRows = useMemo(
@@ -185,6 +210,7 @@ export function EntityListPage<T extends { id: string }>({
               columnDefs={columns}
               loading={isLoading}
               enableSelection={true}
+              onDeleteSelected={deleteAction || onDeleteSelected ? handleBulkDelete : undefined}
               labelSingular={entityLabel}
               labelPlural={entityLabelPlural}
               searchPlaceholder={`Search ${entityLabelPlural}...`}

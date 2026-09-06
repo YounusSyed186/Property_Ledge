@@ -25,6 +25,7 @@ export default function ExpensesPage() {
       fetchAction={fetchDashboardExpenses}
       columnDefs={expenseColumns}
       DrawerComponent={ExpenseDrawer}
+      deleteAction={handleDeleteExpense}
     />
   );
 }

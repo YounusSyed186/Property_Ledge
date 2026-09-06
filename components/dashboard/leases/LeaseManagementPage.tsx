@@ -393,6 +393,19 @@ export function LeaseManagementPage() {
     return { total: filteredLeases.length, active, periodic, expired, totalRent };
   }, [filteredLeases]);
 
+  const handleBulkDeleteLeases = async (selected: LeaseRecord[]) => {
+    try {
+      for (const l of selected) {
+        await handleDeleteLease(l.property_id, l.id);
+      }
+      showSuccess('Leases Deleted', `Successfully deleted ${selected.length} ${selected.length === 1 ? 'lease' : 'leases'}.`);
+      await loadData();
+    } catch (err: any) {
+      console.error('Error deleting leases:', err);
+      showError('Delete Failed', err.message || 'Could not delete selected leases.');
+    }
+  };
+
   const contextName = selectedProperty ? selectedProperty.propertyName : 'All Properties';
   const pageDescription = `${contextName} · ${filteredLeases.length} ${filteredLeases.length === 1 ? 'lease' : 'leases'}`;
 
@@ -560,6 +573,7 @@ export function LeaseManagementPage() {
               enableExport
               exportFilename="leases-export"
               searchPlaceholder="Search leases..."
+              onDeleteSelected={handleBulkDeleteLeases}
               leftToolbarContent={
                 <QuickFilterBar
                   options={filterOptions}

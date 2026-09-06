@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Building2 } from 'lucide-react';
 import { Button, Input, Select, useToast } from '@/components/admin/ui';
 import { fetchUserWorkspaces, handleCreateProperty } from '@/app/actions/dashboard';
+import { usePropertyContext } from '@/components/property/PropertyContext';
+import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
 
 const steps = ['Property Location', 'Features & Rent', 'Final Review'];
 
@@ -16,9 +18,11 @@ interface PropertyCreationWizardProps {
 
 export function PropertyCreationWizard({ workspaceId: initialWorkspaceId, onCancel, onSuccess }: PropertyCreationWizardProps) {
   const { success: showSuccess, error: showError } = useToast();
+  const { refreshProperties } = usePropertyContext();
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const [activeStep, setActiveStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [workspaceId, setWorkspaceId] = useState(initialWorkspaceId || '');
+  const [workspaceId, setWorkspaceId] = useState(initialWorkspaceId || activeWorkspaceId || '');
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([]);
 
   const [formData, setFormData] = useState({
@@ -39,15 +43,19 @@ export function PropertyCreationWizard({ workspaceId: initialWorkspaceId, onCanc
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!initialWorkspaceId) {
-      fetchUserWorkspaces().then((ws: any) => {
-        setWorkspaces(ws);
-        if (ws && ws.length > 0) {
-          setWorkspaceId(ws[0].id);
-        }
-      });
+    if (activeWorkspaceId && !workspaceId) {
+      setWorkspaceId(activeWorkspaceId);
     }
-  }, [initialWorkspaceId]);
+  }, [activeWorkspaceId, workspaceId]);
+
+  useEffect(() => {
+    fetchUserWorkspaces().then((ws: any) => {
+      setWorkspaces(ws);
+      if (!initialWorkspaceId && !activeWorkspaceId && ws && ws.length > 0) {
+        setWorkspaceId(ws[0].id);
+      }
+    });
+  }, [initialWorkspaceId, activeWorkspaceId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -113,6 +121,12 @@ export function PropertyCreationWizard({ workspaceId: initialWorkspaceId, onCanc
         const result = await handleCreateProperty(payload as any);
         showSuccess('Property Created', 'Your property has been successfully added to your portfolio.');
         
+        try {
+          await refreshProperties();
+        } catch (e) {
+          console.error('Error refreshing properties:', e);
+        }
+
         if (onSuccess) {
           onSuccess(result.data);
         }

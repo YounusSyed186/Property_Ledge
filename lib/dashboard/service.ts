@@ -159,9 +159,33 @@ export async function updateProperty(propertyId: string, input: Tables['properti
 export async function deleteProperty(propertyId: string) {
   await requirePropertyPermission(propertyId, 'property.delete');
   const adminClient = await createAdminClient();
-  const { error } = await adminClient.from('properties').update({ status: 'archived' } as never).eq('id', propertyId);
+
+  try {
+    await recordActivityLog({ propertyId, action: 'deleted', entityType: 'property', entityId: propertyId });
+  } catch (logErr) {
+    console.warn('Failed to record deletion activity log:', logErr);
+  }
+
+  // Nullify activity_logs.property_id before deleting so that append-only logs don't conflict
+  try {
+    await adminClient.from('activity_logs').update({ property_id: null } as never).eq('property_id', propertyId);
+  } catch {}
+
+  // Clean up related rows to ensure smooth deletion even before cascade migrations are run
+  await adminClient.from('lease_tenants').delete().eq('property_id', propertyId);
+  await adminClient.from('leases').delete().eq('property_id', propertyId);
+  await adminClient.from('tenants').delete().eq('property_id', propertyId);
+  await adminClient.from('invoices').delete().eq('property_id', propertyId);
+  await adminClient.from('payments').delete().eq('property_id', propertyId);
+  await adminClient.from('expenses').delete().eq('property_id', propertyId);
+  await adminClient.from('maintenance_requests').delete().eq('property_id', propertyId);
+  await adminClient.from('inspections').delete().eq('property_id', propertyId);
+  await adminClient.from('documents').delete().eq('property_id', propertyId);
+  await adminClient.from('tasks').delete().eq('property_id', propertyId);
+  await adminClient.from('property_members').delete().eq('property_id', propertyId);
+
+  const { error } = await adminClient.from('properties').delete().eq('id', propertyId);
   if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'archived', entityType: 'property', entityId: propertyId });
 }
 
 // Units (Deprecated in Standalone Property Model)
@@ -204,9 +228,13 @@ export async function updateTenant(propertyId: string, tenantId: string, input: 
 export async function deleteTenant(propertyId: string, tenantId: string) {
   await requirePropertyPermission(propertyId, 'tenant.manage');
   const adminClient = await createAdminClient();
-  const { error } = await adminClient.from('tenants').update({ status: 'archived' } as never).eq('id', tenantId).eq('property_id', propertyId);
+
+  // Delete junction rows
+  await adminClient.from('lease_tenants').delete().eq('tenant_id', tenantId);
+
+  const { error } = await adminClient.from('tenants').delete().eq('id', tenantId);
   if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'archived', entityType: 'tenant', entityId: tenantId });
+  await recordActivityLog({ propertyId, action: 'deleted', entityType: 'tenant', entityId: tenantId });
 }
 
 // Leases

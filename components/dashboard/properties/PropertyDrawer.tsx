@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Input, Select, Textarea, useToast, Drawer, ConfirmDialog } from '@/components/admin/ui';
 import { handleUpdateProperty, handleDeleteProperty, handleCreateProperty, fetchUserWorkspaces } from '@/app/actions/dashboard';
+import { usePropertyContext } from '@/components/property/PropertyContext';
 import { Trash2, MapPin, Building2, BedDouble, DollarSign, FileText } from 'lucide-react';
 import { DiceBearIcon } from '@/components/ui/avatar/DiceBearIcon';
 
@@ -44,6 +45,7 @@ export function PropertyDrawer({
   property,
 }: PropertyDrawerProps) {
   const { success, error: showError } = useToast();
+  const { refreshProperties } = usePropertyContext();
   const [name, setName] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
   const [suburb, setSuburb] = useState('');
@@ -152,6 +154,11 @@ export function PropertyDrawer({
         if (!res.success) throw new Error('Could not update property.');
         success('Property Updated', `${payload.name} details have been saved.`);
       }
+      try {
+        await refreshProperties();
+      } catch (e) {
+        console.error('Error refreshing properties context:', e);
+      }
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -170,6 +177,11 @@ export function PropertyDrawer({
       const res = await handleDeleteProperty(targetId);
       if (!res.success) throw new Error('Could not delete property.');
       success('Property Removed', 'The property has been deleted from your portfolio.');
+      try {
+        await refreshProperties();
+      } catch (e) {
+        console.error('Error refreshing properties context:', e);
+      }
       onSuccess();
       onClose();
     } catch (err: any) {

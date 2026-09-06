@@ -25,6 +25,7 @@ export default function InvoicesPage() {
       fetchAction={fetchDashboardInvoices}
       columnDefs={invoiceColumns}
       DrawerComponent={InvoiceDrawer}
+      deleteAction={handleDeleteInvoice}
     />
   );
 }

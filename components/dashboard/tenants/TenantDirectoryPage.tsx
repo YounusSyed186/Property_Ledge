@@ -24,7 +24,7 @@ import { Button, useToast } from '@/components/admin/ui';
 import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
 import { ListPage, ListPageGrid } from '@/components/workspace';
 import { usePropertyContext } from '@/components/property/PropertyContext';
-import { fetchAllWorkspaceTenants, fetchDashboardProperties } from '@/app/actions/dashboard';
+import { fetchAllWorkspaceTenants, fetchDashboardProperties, handleDeleteTenant } from '@/app/actions/dashboard';
 import { TenancySetupWizard } from '@/components/dashboard/workflows/TenancySetupWizard';
 import { TenantDrawer } from '@/components/dashboard/tenants/TenantDrawer';
 import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
@@ -318,6 +318,18 @@ export function TenantDirectoryPage() {
     return { total: filteredTenants.length, active, pending, past, archived };
   }, [filteredTenants]);
 
+  const handleBulkDeleteTenants = async (selected: TenantRecord[]) => {
+    try {
+      for (const t of selected) {
+        await handleDeleteTenant(t.property_id || '', t.id);
+      }
+      await loadData();
+    } catch (err: any) {
+      console.error('Error deleting tenants:', err);
+      showError('Delete Failed', err.message || 'Could not delete selected tenants.');
+    }
+  };
+
   const contextName = selectedProperty ? selectedProperty.propertyName : 'All Properties';
   const pageDescription = `${contextName} · ${filteredTenants.length} ${filteredTenants.length === 1 ? 'resident' : 'residents'}`;
 
@@ -468,6 +480,7 @@ export function TenantDirectoryPage() {
               enableExport
               exportFilename="tenants-export"
               searchPlaceholder="Search tenants..."
+              onDeleteSelected={handleBulkDeleteTenants}
               leftToolbarContent={
                 <QuickFilterBar
                   options={filterOptions}

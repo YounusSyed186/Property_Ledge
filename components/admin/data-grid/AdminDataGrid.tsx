@@ -1,7 +1,7 @@
-'use client';
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AgGridReact } from 'ag-grid-react';
+import { Trash2 } from 'lucide-react';
+import { Button } from '@/components/admin/ui';
 import {
   ColDef,
   GridReadyEvent,
@@ -44,6 +44,7 @@ export interface AdminDataGridProps<TData = any> {
   enableExport?: boolean;
   exportFilename?: string;
   bulkActions?: BulkAction[];
+  onDeleteSelected?: (selectedRows: TData[]) => Promise<void> | void;
   leftToolbarContent?: React.ReactNode;
   rightToolbarContent?: React.ReactNode;
   emptyTitle?: string;
@@ -81,6 +82,7 @@ export function AdminDataGrid<TData = any>({
   enableExport = true,
   exportFilename = 'admin-export',
   bulkActions = [],
+  onDeleteSelected,
   leftToolbarContent,
   rightToolbarContent,
   emptyTitle,
@@ -111,6 +113,8 @@ export function AdminDataGrid<TData = any>({
   const [clientPage, setClientPage] = useState(1);
   const [clientPageSize, setClientPageSize] = useState(defaultPageSize);
   const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const viewportScrollRef = useRef(onViewportScroll);
 
@@ -137,6 +141,36 @@ export function AdminDataGrid<TData = any>({
       workspaceStore.setExpanded(isExpanded);
     }
   }, [isExpanded, workspaceStore]);
+
+  const effectiveBulkActions = useMemo<BulkAction[]>(() => {
+    const list = [...bulkActions];
+    if (onDeleteSelected && !list.some((a) => a.variant === 'destructive' || a.label.toLowerCase().includes('delete'))) {
+      list.push({
+        label: `Delete (${selectedRows.length})`,
+        icon: <Trash2 className="w-3.5 h-3.5" />,
+        variant: 'destructive',
+        onClick: () => setIsDeleteModalOpen(true),
+      });
+    }
+    return list;
+  }, [bulkActions, onDeleteSelected, selectedRows.length]);
+
+  const handleConfirmBulkDelete = async () => {
+    if (!onDeleteSelected || selectedRows.length === 0) return;
+    setIsDeleting(true);
+    try {
+      await onDeleteSelected(selectedRows);
+      if (gridApi) {
+        gridApi.deselectAll();
+      }
+      setSelectedRows([]);
+      setIsDeleteModalOpen(false);
+    } catch (err: any) {
+      console.error('Bulk delete error:', err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   useEffect(() => {
     viewportScrollRef.current = onViewportScroll;
@@ -342,7 +376,7 @@ export function AdminDataGrid<TData = any>({
     searchPlaceholder,
     selectedRows,
     onClearSelection: handleClearSelection,
-    bulkActions,
+    bulkActions: effectiveBulkActions,
     leftContent: leftToolbarContent,
     rightContent: rightToolbarContent,
     enableColumnChooser,
@@ -444,6 +478,47 @@ export function AdminDataGrid<TData = any>({
           labelSingular={labelSingular}
           labelPlural={labelPlural}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="relative w-full max-w-md bg-admin-surface border border-admin-border rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-red-500">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-admin-foreground">
+                  Delete Selected {selectedRows.length === 1 ? labelSingular : labelPlural}
+                </h3>
+                <p className="text-xs text-admin-muted mt-0.5">
+                  Are you sure you want to delete {selectedRows.length} {selectedRows.length === 1 ? labelSingular : labelPlural}? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-admin-border/50">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleConfirmBulkDelete}
+                loading={isDeleting}
+                leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+              >
+                Delete {selectedRows.length} {selectedRows.length === 1 ? labelSingular : labelPlural}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

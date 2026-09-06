@@ -114,7 +114,13 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          const next = !isOpen;
+          setIsOpen(next);
+          if (next) {
+            refreshProperties();
+          }
+        }}
         data-testid="property-selector"
         className={cn(triggerClass)}
         aria-expanded={isOpen}

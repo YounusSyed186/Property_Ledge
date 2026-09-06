@@ -25,6 +25,7 @@ export default function PaymentsPage() {
       fetchAction={fetchDashboardPayments}
       columnDefs={paymentColumns}
       DrawerComponent={PaymentDrawer}
+      deleteAction={handleDeletePayment}
     />
   );
 }
