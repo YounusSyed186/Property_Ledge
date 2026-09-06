@@ -75,7 +75,7 @@ export function AdminDataGrid<TData = any>({
   loading = false,
   searchPlaceholder = 'Search table...',
   defaultPageSize = 10,
-  enableSelection = false,
+  enableSelection = true,
   selectionColumnDef,
   enableColumnChooser = true,
   enableExport = true,

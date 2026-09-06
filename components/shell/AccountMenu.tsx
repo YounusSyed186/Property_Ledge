@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, Settings, CreditCard, Building2 } from 'lucide-react';
+import { Avatar } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
 interface AccountMenuProps {
@@ -47,15 +48,15 @@ export function AccountMenu({
     <div className={cn('relative', className)} ref={ref}>
       <motion.button
         type="button"
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen((v) => !v)}
-        className="flex h-7 w-7 items-center justify-center rounded-md border border-admin-sidebar-border bg-admin-sidebar-surface text-[11px] font-bold text-admin-sidebar-foreground transition-colors hover:bg-admin-sidebar-hover"
+        className="flex h-7 w-7 items-center justify-center rounded-full border border-admin-sidebar-border bg-admin-sidebar-surface transition-all hover:border-[#008F83] focus:outline-none focus:ring-2 focus:ring-[#008F83]/40"
         aria-expanded={isOpen}
         aria-haspopup="menu"
         aria-label="Account menu"
       >
-        {userName.charAt(0).toUpperCase()}
+        <Avatar seed={userEmail || userName || 'user'} name={userName || 'User'} size={24} className="w-full h-full" />
       </motion.button>
 
       <AnimatePresence>
@@ -70,9 +71,7 @@ export function AccountMenu({
           >
             <div className="border-b border-admin-border px-3 py-3">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-admin-border bg-admin-surface-subtle text-sm font-bold text-admin-foreground">
-                  {userName.charAt(0).toUpperCase()}
-                </div>
+                <Avatar seed={userEmail || userName} name={userName} size="md" className="shrink-0" />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-admin-foreground">{userName}</p>
                   <p className="truncate text-xs text-admin-muted">{userEmail}</p>

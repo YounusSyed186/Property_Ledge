@@ -129,14 +129,7 @@
 /* Explicit Selection Header & Cell Perfect Centering */
 .ag-theme-propertyledge .ag-header-cell[col-id="ag-Grid-SelectionColumn"],
 .ag-theme-propertyledge .ag-header-cell[col-id="_selection"],
-.ag-theme-propertyledge .selection-checkbox-header {
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
+.ag-theme-propertyledge .selection-checkbox-header,
 .ag-theme-propertyledge .ag-cell[col-id="ag-Grid-SelectionColumn"],
 .ag-theme-propertyledge .ag-cell[col-id="_selection"],
 .ag-theme-propertyledge .selection-checkbox-cell {
@@ -145,6 +138,17 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  text-align: center !important;
+}
+
+.ag-theme-propertyledge .ag-selection-checkbox,
+.ag-theme-propertyledge .ag-header-select-all {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 auto !important;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 /* Center selection component wrappers inside cell layouts */
@@ -160,7 +164,7 @@
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
-  width: auto !important;
+  width: 100% !important;
   height: 100% !important;
   margin: 0 auto !important;
   padding: 0 !important;

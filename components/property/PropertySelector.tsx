@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronDown, ChevronsUpDown, Building2, Plus, Search } from 'lucide-react';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import type { UserPropertyAccess } from '@/lib/properties/queries';
+import { DiceBearIcon } from '@/components/ui/avatar/DiceBearIcon';
 import { cn } from '@/lib/utils';
 
 interface PropertySelectorProps {
@@ -119,9 +120,7 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-zinc-800 border border-zinc-700/60 text-white shadow-xs">
-          <Building2 className="h-3 w-3 text-white" />
-        </div>
+        <DiceBearIcon name="building" badge variant="red" size={13} />
         <span className="max-w-[130px] truncate text-left font-semibold text-admin-sidebar-foreground" data-testid="current-property">
           {selectedProperty ? selectedProperty.propertyName : 'All Properties'}
         </span>
@@ -163,12 +162,7 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
                   : 'text-admin-foreground hover:bg-admin-surface-subtle'
               )}
             >
-              <div className={cn(
-                'flex items-center justify-center w-6 h-6 rounded-md shrink-0',
-                !selectedProperty ? 'bg-admin-primary text-white' : 'bg-admin-surface-subtle text-admin-muted'
-              )}>
-                <Building2 className="h-3.5 w-3.5" />
-              </div>
+              <DiceBearIcon name="building" badge variant={!selectedProperty ? 'red' : 'neutral'} size={14} />
               <div className="flex-1 text-left min-w-0">
                 <p className="font-medium truncate">All Properties</p>
                 <p className="text-[10px] text-admin-muted truncate">View workspace-wide summary</p>
@@ -191,12 +185,7 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
                       : 'text-foreground hover:bg-admin-surface-subtle'
                   )}
                 >
-                  <div className={cn(
-                    'flex items-center justify-center w-6 h-6 rounded-md shrink-0',
-                    isSelected ? 'bg-admin-primary text-white' : 'bg-admin-surface-subtle text-admin-muted'
-                  )}>
-                    <Building2 className="w-3.5 h-3.5" />
-                  </div>
+                  <DiceBearIcon name="building" badge variant={isSelected ? 'red' : 'neutral'} size={14} />
                   <div className="flex-1 min-w-0 text-left">
                     <p className="font-medium truncate">{property.propertyName}</p>
                     <p className="text-[10px] text-muted truncate">{property.organizationName}</p>

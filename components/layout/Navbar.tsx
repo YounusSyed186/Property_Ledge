@@ -8,6 +8,7 @@ import { Menu, X, ChevronDown, Sparkles, Building2, DollarSign, FileText, Clipbo
 import { ServicesDropdown } from "@/components/marketing/owners/ServicesDropdown";
 import { services } from "@/lib/owners/owner-data";
 import { createClient } from "@/lib/supabase/client";
+import { Avatar } from "@/components/ui/avatar";
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -276,17 +277,13 @@ export function Navbar() {
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
                   className="flex items-center gap-2.5 px-3 py-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-all border border-black/10 dark:border-white/15 focus:outline-none bg-surface-subtle/50 dark:bg-[#1A2226]"
                 >
-                  {user.avatar_url ? (
-                    <img
-                      src={user.avatar_url}
-                      alt={user.full_name || "Profile"}
-                      className="w-7 h-7 rounded-full object-cover border border-accent shadow-sm shrink-0"
-                    />
-                  ) : (
-                    <div className="w-7 h-7 rounded-full bg-foreground text-background font-bold text-xs flex items-center justify-center shadow-sm shrink-0">
-                      {user.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
-                    </div>
-                  )}
+                  <Avatar
+                    seed={user.id || user.email || user.full_name}
+                    name={user.full_name || 'User'}
+                    avatarUrl={user.avatar_url}
+                    size="sm"
+                    decorative
+                  />
                   <span className="text-xs font-bold text-foreground max-w-[140px] truncate">
                     {user.full_name || "Account"}
                   </span>
@@ -297,17 +294,13 @@ export function Navbar() {
                 {profileMenuOpen && (
                   <div className="absolute right-0 mt-2 w-64 bg-surface dark:bg-[#121719] border border-border dark:border-[#2A3032] rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                     <div className="p-3 border-b border-border/70 dark:border-[#2A3032]/70 flex items-center gap-3">
-                      {user.avatar_url ? (
-                        <img
-                          src={user.avatar_url}
-                          alt={user.full_name}
-                          className="w-9 h-9 rounded-full object-cover border border-accent"
-                        />
-                      ) : (
-                        <div className="w-9 h-9 rounded-full bg-foreground text-background font-bold text-xs flex items-center justify-center">
-                          {user.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
-                        </div>
-                      )}
+                      <Avatar
+                        seed={user.id || user.email || user.full_name}
+                        name={user.full_name || 'User'}
+                        avatarUrl={user.avatar_url}
+                        size="md"
+                        decorative
+                      />
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-foreground truncate">{user.full_name || "User"}</p>
                         <p className="text-[10px] text-muted truncate">{user.email}</p>

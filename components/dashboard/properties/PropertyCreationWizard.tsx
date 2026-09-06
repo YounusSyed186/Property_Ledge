@@ -22,6 +22,7 @@ export function PropertyCreationWizard({ workspaceId: initialWorkspaceId, onCanc
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([]);
 
   const [formData, setFormData] = useState({
+    name: '',
     address: '',
     suburb: '',
     postcode: '',
@@ -106,7 +107,7 @@ export function PropertyCreationWizard({ workspaceId: initialWorkspaceId, onCanc
       try {
         const payload = {
           workspace_id: workspaceId,
-          name: formData.address.trim() || 'New Property',
+          name: formData.name.trim() || formData.address.trim() || 'New Property',
           address_line_1: formData.address.trim(),
           address: formData.address.trim(),
           city: formData.suburb.trim(),
@@ -167,6 +168,14 @@ export function PropertyCreationWizard({ workspaceId: initialWorkspaceId, onCanc
                 ))}
               </Select>
             )}
+
+            <Input
+              label="Property Name / Building Title (Optional)"
+              name="name"
+              placeholder="e.g. Sunset Heights or Oak Street Apartments"
+              value={formData.name}
+              onChange={handleChange}
+            />
 
             <Input
               label="Street Address *"

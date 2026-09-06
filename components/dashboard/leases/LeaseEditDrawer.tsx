@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Input, Select, Textarea, useToast, Drawer, ConfirmDialog } from '@/components/admin/ui';
 import { handleUpdateLease, handleDeleteLease, handleConvertToPeriodic } from '@/app/actions/dashboard';
-import { Trash2, Calendar, DollarSign, FileText } from 'lucide-react';
+import { Trash2, Calendar, DollarSign, FileText, User, Building } from 'lucide-react';
+import { Avatar } from '@/components/ui/avatar';
 
 export interface LeaseEditDrawerProps {
   isOpen: boolean;
@@ -21,6 +22,12 @@ export interface LeaseEditDrawerProps {
     status: string;
     notes?: string | null;
     property?: any;
+    unit?: any;
+    lease_tenants?: Array<{
+      role: string;
+      is_primary: boolean;
+      tenant?: any;
+    }>;
   } | null;
 }
 
@@ -168,6 +175,43 @@ export function LeaseEditDrawer({
         }
       >
         <div className="space-y-5 p-1">
+          {/* Tenant Avatar & Lease Property Summary */}
+          {(() => {
+            const primaryTenant = lease?.lease_tenants?.find((lt) => lt.is_primary)?.tenant || lease?.lease_tenants?.[0]?.tenant;
+            const tenantName = primaryTenant ? `${primaryTenant.first_name || ''} ${primaryTenant.last_name || ''}`.trim() : 'Resident';
+            const propName = lease?.property?.name || lease?.property?.address_line_1 || 'Property';
+            const unitInfo = lease?.unit?.unit_number ? ` · Unit ${lease.unit.unit_number}` : '';
+
+            return (
+              <div className="p-4 rounded-2xl bg-admin-surface-subtle border border-admin-border flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Avatar
+                    seed={primaryTenant?.id || lease?.id || 'lease-tenant'}
+                    name={tenantName}
+                    size="lg"
+                    decorative
+                  />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-extrabold text-base text-admin-foreground truncate">
+                      {tenantName}
+                    </h3>
+                    <p className="text-xs text-admin-muted truncate mt-0.5">
+                      {propName}{unitInfo}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs font-black text-admin-primary uppercase tracking-wider block">
+                    ${Number(lease?.rent_amount || 0).toLocaleString()}
+                  </span>
+                  <span className="text-[10px] text-admin-muted capitalize">
+                    {lease?.rent_frequency || 'monthly'}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Terms */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">

@@ -6,6 +6,7 @@ import {
   Users,
   Search,
   Building,
+  Building2,
   Mail,
   Phone,
   ArrowUpRight,
@@ -27,6 +28,7 @@ import { fetchAllWorkspaceTenants, fetchDashboardProperties } from '@/app/action
 import { TenancySetupWizard } from '@/components/dashboard/workflows/TenancySetupWizard';
 import { TenantDrawer } from '@/components/dashboard/tenants/TenantDrawer';
 import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
+import { Avatar, PersonIdentity, JsonIcon, DiceBearIcon } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
 type TenantRecord = {
@@ -115,9 +117,22 @@ export function TenantDirectoryPage() {
       {
         field: 'first_name',
         headerName: 'Tenant Name',
-        flex: 1.2,
-        minWidth: 170,
+        flex: 1.5,
+        minWidth: 220,
         valueGetter: (p) => `${p.data?.first_name || ''} ${p.data?.last_name || ''}`.trim(),
+        cellRenderer: (params: any) => {
+          const tenant = params.data;
+          if (!tenant) return null;
+          const fullName = `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim();
+          return (
+            <PersonIdentity
+              seed={tenant.id}
+              name={fullName || 'Tenant'}
+              subtitle={tenant.email}
+              size="sm"
+            />
+          );
+        },
       },
       {
         field: 'email',
@@ -139,6 +154,21 @@ export function TenantDirectoryPage() {
           const prop = p.data?.property;
           if (!prop) return 'Unassigned';
           return `${prop.name || prop.address_line_1}${prop.city ? `, ${prop.city}` : ''}`;
+        },
+        cellRenderer: (params: any) => {
+          const prop = params.data?.property;
+          if (!prop) return <span className="text-muted text-xs">Unassigned</span>;
+          const name = String(prop.name || prop.address_line_1 || 'Property');
+          const location = prop.city || prop.suburb || prop.state || '';
+          return (
+            <div className="flex items-center gap-2 py-1 min-w-0 max-w-full overflow-hidden" title={name}>
+              <DiceBearIcon name="building" badge variant="red" className="w-3.5 h-3.5" />
+              <div className="flex flex-col min-w-0 leading-tight">
+                <span className="font-semibold text-foreground text-[13px] truncate">{name}</span>
+                {location && <span className="text-[10.5px] text-muted truncate">{location}</span>}
+              </div>
+            </div>
+          );
         },
       },
       {
@@ -492,9 +522,12 @@ export function TenantDirectoryPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-admin-primary/10 text-admin-primary flex items-center justify-center font-bold text-sm shrink-0 border border-admin-primary/20">
-                        {(t.first_name || 'T').charAt(0)}
-                      </div>
+                      <Avatar
+                        seed={t.id}
+                        name={`${t.first_name || ''} ${t.last_name || ''}`.trim()}
+                        size="md"
+                        decorative
+                      />
                       <div className="min-w-0 flex-1">
                         <h4 className="font-bold text-sm text-admin-foreground leading-tight truncate group-hover/card:text-admin-primary transition-colors">
                           {t.first_name} {t.last_name}

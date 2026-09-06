@@ -1,5 +1,10 @@
+import React from 'react';
 import { ColDef } from 'ag-grid-community';
 import type { DrawerField } from '@/components/dashboard/EntityDrawer';
+import { PersonIdentity } from '@/components/ui/avatar/PersonIdentity';
+import { AvatarGroup } from '@/components/ui/avatar/AvatarGroup';
+import { JsonIcon } from '@/components/ui/avatar/JsonIcon';
+import { DiceBearIcon } from '@/components/ui/avatar/DiceBearIcon';
 
 export const unitFields: DrawerField[] = [
   { name: 'name', label: 'Name', type: 'text', required: true },
@@ -25,7 +30,21 @@ export const unitFields: DrawerField[] = [
 ];
 
 export const unitColumns: ColDef[] = [
-  { field: 'name', headerName: 'Name', flex: 1, minWidth: 140 },
+  {
+    field: 'name',
+    headerName: 'Name',
+    flex: 1,
+    minWidth: 140,
+    cellRenderer: (params: { data: Record<string, unknown> }) => {
+      const name = String(params.data?.name || params.data?.unit_number || 'Unit');
+      return (
+        <div className="flex items-center gap-2 py-1 min-w-0 max-w-full overflow-hidden" title={name}>
+          <DiceBearIcon name="doorClosed" badge variant="blue" className="w-3.5 h-3.5" />
+          <span className="font-semibold text-foreground text-[13.5px] truncate min-w-0">{name}</span>
+        </div>
+      );
+    },
+  },
   { field: 'unit_number', headerName: 'Unit #', width: 100 },
   { field: 'unit_type', headerName: 'Type', width: 120 },
   { field: 'status', headerName: 'Status', width: 120, cellRenderer: 'statusCell' },
@@ -57,9 +76,24 @@ export const tenantColumns: ColDef[] = [
   {
     field: 'first_name',
     headerName: 'Name',
-    flex: 1,
-    minWidth: 160,
-    valueGetter: (p) => `${p.data?.first_name || ''} ${p.data?.last_name || ''}`,
+    flex: 1.5,
+    minWidth: 200,
+    valueGetter: (p) => `${p.data?.first_name || ''} ${p.data?.last_name || ''}`.trim(),
+    cellRenderer: (params: { data: Record<string, unknown> }) => {
+      const tenant = params.data;
+      if (!tenant) return '—';
+      const name = `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim() || 'Tenant';
+      const seed = String(tenant.id || tenant.email || name);
+      return (
+        <PersonIdentity
+          seed={seed}
+          avatarUrl={tenant.avatar_url ? String(tenant.avatar_url) : undefined}
+          name={name}
+          subtitle={tenant.email ? String(tenant.email) : undefined}
+          size="sm"
+        />
+      );
+    },
   },
   { field: 'email', headerName: 'Email', flex: 1, minWidth: 180 },
   { field: 'phone', headerName: 'Phone', width: 130 },
@@ -102,19 +136,30 @@ export const leaseFields: DrawerField[] = [
 
 export const leaseColumns: ColDef[] = [
   {
-    headerName: 'Unit',
-    flex: 1,
-    minWidth: 130,
+    headerName: 'Unit / Property',
+    flex: 1.2,
+    minWidth: 160,
     valueGetter: (params) => {
       const unit = params.data?.unit as { name?: string; unit_number?: string } | undefined;
       if (!unit?.name) return '—';
       return unit.unit_number ? `${unit.name} (${unit.unit_number})` : unit.name;
     },
+    cellRenderer: (params: { data: Record<string, unknown> }) => {
+      const unit = params.data?.unit as { name?: string; unit_number?: string } | undefined;
+      const prop = params.data?.property as { name?: string } | undefined;
+      const title = unit?.name ? (unit.unit_number ? `${unit.name} (${unit.unit_number})` : unit.name) : prop?.name || 'Lease Space';
+      return (
+        <div className="flex items-center gap-2 py-1 min-w-0 max-w-full overflow-hidden" title={title}>
+          <DiceBearIcon name="building" badge variant="purple" className="w-3.5 h-3.5" />
+          <span className="font-semibold text-foreground text-[13.5px] truncate min-w-0">{title}</span>
+        </div>
+      );
+    },
   },
   {
     headerName: 'Tenant',
-    flex: 1,
-    minWidth: 140,
+    flex: 1.5,
+    minWidth: 200,
     valueGetter: (params) => {
       const leaseTenants = (params.data?.lease_tenants || []) as Array<{
         is_primary?: boolean;
@@ -126,6 +171,43 @@ export const leaseColumns: ColDef[] = [
       const tenant = primary?.tenant;
       if (!tenant?.first_name && !tenant?.last_name) return '—';
       return `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim();
+    },
+    cellRenderer: (params: { data: Record<string, unknown> }) => {
+      const leaseTenants = (params.data?.lease_tenants || []) as Array<{
+        is_primary?: boolean;
+        tenant_id?: string;
+        tenant?: { id?: string; first_name?: string; last_name?: string; email?: string; avatar_url?: string };
+      }>;
+      if (leaseTenants.length === 0) return <span className="text-muted text-xs">No tenants</span>;
+      const primaryLt = leaseTenants.find((lt) => lt.is_primary) || leaseTenants[0];
+      const tenantObj = primaryLt?.tenant;
+      if (!tenantObj) return <span className="text-muted text-xs">Unassigned</span>;
+      const name = `${tenantObj.first_name || ''} ${tenantObj.last_name || ''}`.trim() || 'Tenant';
+      const tenantId = tenantObj.id || primaryLt.tenant_id || name;
+
+      if (leaseTenants.length > 1) {
+        const avatarItems = leaseTenants.map((lt) => ({
+          id: lt.tenant?.id || lt.tenant_id || 'tenant',
+          name: `${lt.tenant?.first_name || ''} ${lt.tenant?.last_name || ''}`.trim() || 'Tenant',
+          avatarUrl: lt.tenant?.avatar_url,
+        }));
+        return (
+          <div className="flex items-center gap-2 py-1">
+            <AvatarGroup items={avatarItems} size="sm" />
+            <span className="text-xs font-semibold text-foreground truncate">{name} +{leaseTenants.length - 1}</span>
+          </div>
+        );
+      }
+
+      return (
+        <PersonIdentity
+          seed={tenantId}
+          avatarUrl={tenantObj.avatar_url}
+          name={name}
+          subtitle={tenantObj.email}
+          size="sm"
+        />
+      );
     },
   },
   { field: 'start_date', headerName: 'Start', width: 110, cellRenderer: 'dateCell' },
@@ -377,6 +459,7 @@ export const taskColumns: ColDef[] = [
 ];
 
 export const propertyFields: DrawerField[] = [
+  { name: 'name', label: 'Property Name / Building Title', type: 'text', placeholder: 'e.g. Oak Street Apartments' },
   { name: 'address_line_1', label: 'Street Address', type: 'text', required: true },
   { name: 'suburb', label: 'Suburb', type: 'text', required: true },
   { name: 'state', label: 'State/Territory', type: 'text', required: true },
@@ -411,10 +494,33 @@ export const propertyFields: DrawerField[] = [
 
 export const propertyColumns: ColDef[] = [
   {
+    field: 'name',
+    headerName: 'Property Name',
+    flex: 1.5,
+    minWidth: 200,
+    valueGetter: (params) => params.data?.name || params.data?.address_line_1 || '—',
+    cellRenderer: (params: { data: Record<string, unknown> }) => {
+      const name = String(params.data?.name || params.data?.address_line_1 || 'Property');
+      const sub = String(params.data?.suburb || params.data?.city || params.data?.address_line_1 || '');
+      const category = String(params.data?.property_category || '').toLowerCase();
+      const iconName = category === 'commercial' ? 'building' : category === 'residential' ? 'house' : 'building';
+      return (
+        <div className="flex items-center gap-2.5 py-1 min-w-0 max-w-full overflow-hidden" title={name}>
+          <DiceBearIcon name={iconName} badge variant="red" className="w-3.5 h-3.5" />
+          <div className="flex flex-col min-w-0 leading-tight">
+            <span className="font-semibold text-foreground text-[13.5px] truncate">{name}</span>
+            {sub && sub !== name && <span className="text-[11px] text-muted truncate">{sub}</span>}
+          </div>
+        </div>
+      );
+    },
+  },
+  {
     field: 'address_line_1',
     headerName: 'Street Address',
-    minWidth: 190,
-    valueGetter: (params) => params.data?.address_line_1 || params.data?.address || params.data?.name || '—',
+    flex: 1.2,
+    minWidth: 170,
+    valueGetter: (params) => params.data?.address_line_1 || params.data?.address || '—',
   },
   {
     field: 'suburb',

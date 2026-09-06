@@ -20,6 +20,7 @@ import {
 import { toastAuthorizationError } from '@/lib/auth/toast-errors';
 import { AddMemberModal } from './AddMemberModal';
 import { MemberDetailDrawer } from './MemberDetailDrawer';
+import { PersonIdentity } from '@/components/ui/avatar';
 
 export function TeamPageClient() {
   const { workspaceId } = useAppContext();
@@ -80,9 +81,22 @@ export function TeamPageClient() {
     {
       field: 'fullName',
       headerName: 'Name',
-      flex: 1,
-      minWidth: 180,
+      flex: 1.2,
+      minWidth: 200,
       valueGetter: (p) => p.data?.fullName || p.data?.publicId || '—',
+      cellRenderer: (params: { data?: WorkspaceMemberRow }) => {
+        if (!params.data) return null;
+        const member = params.data;
+        const name = member.fullName || member.publicId || 'Team Member';
+        return (
+          <PersonIdentity
+            seed={member.userId}
+            name={name}
+            avatarUrl={member.avatarUrl}
+            size="sm"
+          />
+        );
+      },
     },
     { field: 'roleName', headerName: 'Role', width: 140 },
     {

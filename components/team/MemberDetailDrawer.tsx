@@ -16,6 +16,7 @@ import {
   type TeamRoleOption,
 } from '@/app/actions/workspace-team';
 import type { PermissionItem } from '@/components/rbac/PermissionMatrix';
+import { Avatar } from '@/components/ui/avatar';
 
 interface MemberDetailDrawerProps {
   workspaceId: string;

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, Input, Select, Textarea, useToast, Drawer, ConfirmDialog } from '@/components/admin/ui';
 import { handleCreateTenant, handleUpdateTenant, handleDeleteTenant } from '@/app/actions/dashboard';
 import { Trash2, User, Mail, Phone, Shield } from 'lucide-react';
+import { Avatar } from '@/components/ui/avatar';
 
 export interface TenantDrawerProps {
   isOpen: boolean;
@@ -172,6 +173,24 @@ export function TenantDrawer({
         }
       >
         <div className="space-y-5 p-1">
+          {/* Tenant Avatar Identity Card */}
+          <div className="p-4 rounded-2xl bg-admin-surface-subtle border border-admin-border flex items-center gap-3.5">
+            <Avatar
+              seed={tenant?.id || `${firstName}_${lastName}`}
+              name={`${firstName} ${lastName}`.trim() || 'Tenant Profile'}
+              size="lg"
+              decorative
+            />
+            <div className="min-w-0 flex-1">
+              <h3 className="font-extrabold text-base text-admin-foreground truncate">
+                {`${firstName} ${lastName}`.trim() || 'New Resident'}
+              </h3>
+              <p className="text-xs text-admin-muted truncate mt-0.5">
+                {email || 'No email specified'}
+              </p>
+            </div>
+          </div>
+
           <div className="space-y-4">
             <h4 className="text-xs font-bold uppercase tracking-wider text-admin-muted flex items-center gap-1.5">
               <User className="w-3.5 h-3.5 text-admin-primary" /> Personal Information

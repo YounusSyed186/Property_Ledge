@@ -6,6 +6,7 @@ import {
   FileText,
   Plus,
   Building,
+  Building2,
   User,
   Calendar,
   DollarSign,
@@ -37,6 +38,7 @@ import {
 import { CreateLeaseWizard } from '@/components/dashboard/workflows/CreateLeaseWizard';
 import { LeaseEditDrawer } from '@/components/dashboard/leases/LeaseEditDrawer';
 import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
+import { Avatar, AvatarGroup, PersonIdentity, JsonIcon, DiceBearIcon } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
 type LeaseRecord = {
@@ -127,6 +129,21 @@ export function LeaseManagementPage() {
           if (!prop) return 'Unassigned';
           return `${prop.name || prop.address_line_1}${prop.city ? `, ${prop.city}` : ''}`;
         },
+        cellRenderer: (params: any) => {
+          const prop = params.data?.property;
+          if (!prop) return <span className="text-muted text-xs">Unassigned</span>;
+          const name = String(prop.name || prop.address_line_1 || 'Property');
+          const location = prop.city || prop.suburb || prop.state || '';
+          return (
+            <div className="flex items-center gap-2 py-1 min-w-0 max-w-full overflow-hidden" title={name}>
+              <DiceBearIcon name="building" badge variant="purple" className="w-3.5 h-3.5" />
+              <div className="flex flex-col min-w-0 leading-tight">
+                <span className="font-semibold text-foreground text-[13px] truncate">{name}</span>
+                {location && <span className="text-[10.5px] text-muted truncate">{location}</span>}
+              </div>
+            </div>
+          );
+        },
       },
       {
         headerName: 'Unit',
@@ -135,8 +152,8 @@ export function LeaseManagementPage() {
       },
       {
         headerName: 'Tenants',
-        flex: 1.2,
-        minWidth: 160,
+        flex: 1.5,
+        minWidth: 220,
         valueGetter: (p) => {
           const tenants = p.data?.lease_tenants || [];
           if (tenants.length === 0) return 'No tenants';
@@ -144,6 +161,37 @@ export function LeaseManagementPage() {
             .map((lt: any) => `${lt.tenant?.first_name || ''} ${lt.tenant?.last_name || ''}`.trim())
             .filter(Boolean)
             .join(', ');
+        },
+        cellRenderer: (params: any) => {
+          const leaseTenants = params.data?.lease_tenants || [];
+          if (leaseTenants.length === 0) return <span className="text-muted text-xs">No tenants</span>;
+          const primaryLt = leaseTenants.find((lt: any) => lt.is_primary) || leaseTenants[0];
+          const tenantObj = primaryLt?.tenant;
+          if (!tenantObj) return <span className="text-muted text-xs">Unassigned</span>;
+          const name = `${tenantObj.first_name || ''} ${tenantObj.last_name || ''}`.trim() || 'Tenant';
+          const tenantId = tenantObj.id || primaryLt.tenant_id;
+
+          if (leaseTenants.length > 1) {
+            const avatarItems = leaseTenants.map((lt: any) => ({
+              id: lt.tenant?.id || lt.tenant_id,
+              name: `${lt.tenant?.first_name || ''} ${lt.tenant?.last_name || ''}`.trim(),
+            }));
+            return (
+              <div className="flex items-center gap-2">
+                <AvatarGroup items={avatarItems} size="sm" />
+                <span className="text-xs font-semibold text-foreground truncate">{name} +{leaseTenants.length - 1}</span>
+              </div>
+            );
+          }
+
+          return (
+            <PersonIdentity
+              seed={tenantId}
+              name={name}
+              subtitle={tenantObj.email}
+              size="sm"
+            />
+          );
         },
       },
       {

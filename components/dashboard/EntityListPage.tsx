@@ -184,6 +184,7 @@ export function EntityListPage<T extends { id: string }>({
               rowData={displayRows}
               columnDefs={columns}
               loading={isLoading}
+              enableSelection={true}
               labelSingular={entityLabel}
               labelPlural={entityLabelPlural}
               searchPlaceholder={`Search ${entityLabelPlural}...`}

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { switchWorkspace } from '@/app/actions/workspace-team';
 import { fetchWorkspaceBootstrap } from '@/app/actions/workspace-context';
 import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
+import { Avatar } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
 interface WorkspaceSelectorProps {
@@ -167,9 +168,7 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white shadow-xs">
-          {displayName.charAt(0).toUpperCase()}
-        </div>
+        <Avatar seed={activeWorkspaceId || displayName} name={displayName} size="xs" className="shrink-0" />
         <span className="max-w-[130px] truncate text-left font-semibold text-admin-sidebar-foreground" data-testid="current-workspace">
           {displayName}
         </span>
@@ -220,12 +219,7 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
                         : 'text-foreground hover:bg-admin-surface-subtle'
                     )}
                   >
-                    <div className={cn(
-                      'flex items-center justify-center w-6 h-6 rounded-md shrink-0',
-                      isSelected ? 'bg-admin-primary text-white' : 'bg-admin-surface-subtle text-admin-muted'
-                    )}>
-                      <Briefcase className="h-3.5 w-3.5" />
-                    </div>
+                    <Avatar seed={workspace.id || workspace.name} name={workspace.name} size="xs" className="shrink-0" />
                     <span className="flex-1 truncate text-left">{workspace.name}</span>
                     {workspace.role ? (
                       <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-muted/15 text-muted font-medium">{workspace.role}</span>

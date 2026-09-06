@@ -21,9 +21,11 @@ import {
   Building2,
   Copy,
   Check,
+  Camera,
   Fingerprint,
 } from "lucide-react";
 import { logoutAction, updateProfileAction } from "@/lib/auth/actions";
+import { Avatar, AvatarPickerModal } from "@/components/ui/avatar";
 
 interface ProfileCardProps {
   user: {
@@ -53,6 +55,8 @@ export function ProfileCard({ user, accountContext }: ProfileCardProps) {
   // Form State
   const [fullName, setFullName] = useState(user.fullName || "");
   const [phone, setPhone] = useState(user.phone || "");
+  const [currentAvatarUrl, setCurrentAvatarUrl] = useState(user.avatarUrl || "");
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const [supportAccess, setSupportAccess] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -138,14 +142,23 @@ export function ProfileCard({ user, accountContext }: ProfileCardProps) {
             {/* Avatar with Camera Change Overlay */}
             <div className="relative group shrink-0">
               <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full border-4 border-surface dark:border-[#12181C] overflow-hidden bg-surface-subtle dark:bg-[#1A2328] shadow-lg flex items-center justify-center">
-                {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={fullName} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-[#1C262C] to-[#0E1317] text-white font-heading text-4xl font-extrabold flex items-center justify-center">
-                    {fullName.charAt(0)}
-                  </div>
-                )}
+                <Avatar
+                  seed={user.id || user.email || fullName}
+                  name={fullName}
+                  avatarUrl={currentAvatarUrl}
+                  size={144}
+                  className="w-full h-full border-0 shadow-none"
+                />
               </div>
+              <button
+                type="button"
+                onClick={() => setIsAvatarPickerOpen(true)}
+                className="absolute inset-0 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity text-xs font-bold backdrop-blur-xs shadow-md"
+                title="Change Avatar"
+              >
+                <Camera className="w-6 h-6" />
+                <span>Change</span>
+              </button>
             </div>
 
             {/* Name & Subtitles */}
@@ -409,6 +422,24 @@ export function ProfileCard({ user, accountContext }: ProfileCardProps) {
           </div>
         </div>
       </div>
+
+      {/* Avatar Selection Modal */}
+      <AvatarPickerModal
+        isOpen={isAvatarPickerOpen}
+        onClose={() => setIsAvatarPickerOpen(false)}
+        currentAvatarUrl={currentAvatarUrl}
+        userName={fullName}
+        onSelectAvatar={async (newAvatarUrl) => {
+          setCurrentAvatarUrl(newAvatarUrl);
+          const res = await updateProfileAction({ avatarUrl: newAvatarUrl });
+          if (res.success) {
+            setMessage({ type: "success", text: "Avatar updated successfully." });
+            router.refresh();
+          } else {
+            setMessage({ type: "error", text: res.error || "Failed to update avatar." });
+          }
+        }}
+      />
     </div>
   );
 }

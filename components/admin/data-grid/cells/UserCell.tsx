@@ -2,20 +2,27 @@
 
 import React from 'react';
 import { CustomCellRendererProps } from 'ag-grid-react';
-import { DiceBearAvatar } from '@/components/admin/ui/DiceBearAvatar';
+import { PersonIdentity } from '@/components/ui/avatar/PersonIdentity';
 
 export function UserCell(props: CustomCellRendererProps) {
   const value = props.value;
-  const name = typeof value === 'string'
-    ? value
-    : (props.data?.name || props.data?.userName || props.data?.full_name || value || 'Unknown');
+  const data = props.data || {};
+  const name =
+    typeof value === 'string'
+      ? value
+      : (data.name || data.userName || data.full_name || data.fullName || value || 'Unknown');
+  const userId = data.id || data.userId || data.user_id || data.email || name;
+  const avatarUrl = data.avatar_url || data.avatarUrl || data.image;
+  const subtitle = data.email || data.role || data.subheading;
 
   return (
-    <div className="flex items-center gap-2.5 py-1 min-w-0 max-w-full overflow-hidden" title={name}>
-      <DiceBearAvatar seed={name} size={28} alt={name} />
-      <span className="font-semibold text-admin-foreground text-[13.5px] truncate min-w-0">
-        {name}
-      </span>
-    </div>
+    <PersonIdentity
+      seed={String(userId)}
+      avatarUrl={avatarUrl ? String(avatarUrl) : undefined}
+      name={String(name)}
+      subtitle={subtitle ? String(subtitle) : undefined}
+      size="sm"
+    />
   );
 }
+
