@@ -401,7 +401,7 @@ export interface Database {
           id: string
           property_id: string
           unit_id: string | null
-          status: 'draft' | 'pending' | 'active' | 'expired' | 'terminated' | 'cancelled'
+          status: 'draft' | 'pending' | 'active' | 'expired' | 'terminated' | 'cancelled' | 'renewed'
           start_date: string
           end_date: string | null
           rent_amount: number
@@ -410,6 +410,7 @@ export interface Database {
           rent_frequency: 'weekly' | 'fortnightly' | 'monthly' | 'yearly'
           notes: string | null
           created_by: string | null
+          renewed_from_lease_id: string | null
           created_at: string
           updated_at: string
         }
@@ -417,7 +418,7 @@ export interface Database {
           id?: string
           property_id: string
           unit_id?: string | null
-          status?: 'draft' | 'pending' | 'active' | 'expired' | 'terminated' | 'cancelled'
+          status?: 'draft' | 'pending' | 'active' | 'expired' | 'terminated' | 'cancelled' | 'renewed'
           start_date: string
           end_date?: string | null
           rent_amount: number
@@ -426,6 +427,7 @@ export interface Database {
           rent_frequency?: 'weekly' | 'fortnightly' | 'monthly' | 'yearly'
           notes?: string | null
           created_by?: string | null
+          renewed_from_lease_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -433,7 +435,7 @@ export interface Database {
           id?: string
           property_id?: string
           unit_id?: string | null
-          status?: 'draft' | 'pending' | 'active' | 'expired' | 'terminated' | 'cancelled'
+          status?: 'draft' | 'pending' | 'active' | 'expired' | 'terminated' | 'cancelled' | 'renewed'
           start_date?: string
           end_date?: string | null
           rent_amount?: number
@@ -442,6 +444,7 @@ export interface Database {
           rent_frequency?: 'weekly' | 'fortnightly' | 'monthly' | 'yearly'
           notes?: string | null
           created_by?: string | null
+          renewed_from_lease_id?: string | null
           created_at?: string
           updated_at?: string
         }

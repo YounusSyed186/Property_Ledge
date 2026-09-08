@@ -5,6 +5,8 @@ import { requireAuthenticatedUser, requirePropertyAccess } from '@/lib/dashboard
 import { getActiveWorkspaceId } from '@/lib/auth/authorization';
 import * as queries from '@/lib/dashboard/queries';
 import * as service from '@/lib/dashboard/service';
+import { createServerServices } from '@/composition/services';
+import type { RenewLeaseDTO } from '@/modules/leases/application/dto/lease-dto';
 import type { Database } from '@/types/database';
 
 type Tables = Database['public']['Tables'];
@@ -293,6 +295,77 @@ export async function handleDeleteLease(propertyId: string, leaseId: string) {
   await service.deleteLease(propertyId, leaseId);
   revalidateDashboard('/dashboard/leases', '/dashboard', `/dashboard/properties/${propertyId}`);
   return { success: true };
+}
+
+export async function handleRenewLease(previousLeaseId: string, input: RenewLeaseDTO) {
+  const user = await requireAuthenticatedUser();
+  await requirePropertyAccess(input.propertyId);
+  const workspaceId = await getActiveWorkspaceId();
+
+  const services = await createServerServices();
+  const context = {
+    userId: user.id,
+    workspaceId: workspaceId || undefined,
+  };
+
+  const result = await services.leaseService.renewLease(
+    {
+      ...input,
+      previousLeaseId,
+    },
+    context
+  );
+
+  if (!result.success) {
+    throw new Error(result.error.message);
+  }
+
+  revalidateDashboard(
+    '/dashboard/leases',
+    '/dashboard',
+    `/dashboard/properties/${input.propertyId}`,
+    `/dashboard/leases/${previousLeaseId}`,
+    `/dashboard/leases/${result.data.id}`
+  );
+
+  return { success: true, data: result.data };
+}
+
+export async function handleDoNotRenew(propertyId: string, leaseId: string, notes?: string) {
+  await requirePropertyAccess(propertyId);
+  const existingLease = await queries.getLeases(propertyId);
+  const target: any = (existingLease as any[] || []).find((l: any) => l.id === leaseId);
+
+  const updatedNotes = notes
+    ? (target?.notes ? `${target.notes}\n[Non-Renewal]: ${notes}` : `[Non-Renewal]: ${notes}`)
+    : (target?.notes || null);
+
+  // If expired or end date passed, set status to expired; otherwise append non-renewal note
+  const isPastEnd = target?.end_date && new Date(target.end_date) <= new Date();
+  const newStatus = isPastEnd ? 'expired' : (target?.status || 'active');
+
+  await service.updateLease(propertyId, leaseId, {
+    notes: updatedNotes,
+    status: newStatus,
+  });
+
+  revalidateDashboard(
+    '/dashboard/leases',
+    `/dashboard/properties/${propertyId}`,
+    `/dashboard/leases/${leaseId}`
+  );
+
+  return { success: true };
+}
+
+export async function fetchLeaseRenewalHistory(leaseId: string) {
+  await requireAuthenticatedUser();
+  const services = await createServerServices();
+  const result = await services.leaseService.getRenewalHistory(leaseId);
+  if (!result.success) {
+    return [];
+  }
+  return result.data;
 }
 
 // Invoice CRUD

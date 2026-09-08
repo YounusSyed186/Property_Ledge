@@ -34,11 +34,14 @@ import {
   handleUpdateLeaseStatus,
   handleConvertToPeriodic,
   handleDeleteLease,
+  handleDoNotRenew,
 } from '@/app/actions/dashboard';
 import { CreateLeaseWizard } from '@/components/dashboard/workflows/CreateLeaseWizard';
 import { LeaseEditDrawer } from '@/components/dashboard/leases/LeaseEditDrawer';
+import { RenewLeaseModal } from '@/components/dashboard/leases/RenewLeaseModal';
 import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
 import { Avatar, AvatarGroup, PersonIdentity, JsonIcon, DiceBearIcon } from '@/components/ui/avatar';
+import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 
 type LeaseRecord = {
@@ -91,13 +94,17 @@ export function LeaseManagementPage() {
   const [leases, setLeases] = useState<LeaseRecord[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Pending' | 'Expired'>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Pending' | 'Expired' | 'Renewed'>('All');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  // Create / Renew Wizard state
+  // Create Wizard state
   const [isCreateWizardOpen, setIsCreateWizardOpen] = useState(false);
   const [wizardInitialData, setWizardInitialData] = useState<any>(null);
+
+  // Dedicated Renew Lease Modal state
+  const [selectedLeaseForRenewal, setSelectedLeaseForRenewal] = useState<LeaseRecord | null>(null);
+  const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
 
   // Edit Drawer state
   const [selectedLeaseForEdit, setSelectedLeaseForEdit] = useState<LeaseRecord | null>(null);
@@ -109,6 +116,7 @@ export function LeaseManagementPage() {
       { label: 'Active', value: 'Active' },
       { label: 'Pending', value: 'Pending' },
       { label: 'Expired', value: 'Expired' },
+      { label: 'Renewed', value: 'Renewed' },
     ],
     []
   );
@@ -255,22 +263,38 @@ export function LeaseManagementPage() {
       {
         headerName: 'Actions',
         colId: 'actions',
-        width: 100,
+        width: 140,
         pinned: 'right',
         sortable: false,
         filter: false,
         cellRenderer: (params: any) => {
+          const lease = params.data;
+          const canRenew = lease?.status === 'active';
           return (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedLeaseForEdit(params.data);
-                setIsEditDrawerOpen(true);
-              }}
-              className="p-1 text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-500/10 rounded transition-colors inline-flex items-center gap-1 font-bold text-xs"
-            >
-              <Pencil className="w-3.5 h-3.5" /> Edit
-            </button>
+            <div className="flex items-center gap-1.5 py-1">
+              {canRenew && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRenewLease(lease);
+                  }}
+                  className="px-2 py-0.5 text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-500/10 rounded transition-colors inline-flex items-center gap-1 font-bold text-xs"
+                  title="Renew Lease"
+                >
+                  <RefreshCw className="w-3 h-3" /> Renew
+                </button>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedLeaseForEdit(lease);
+                  setIsEditDrawerOpen(true);
+                }}
+                className="px-2 py-0.5 text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-500/10 rounded transition-colors inline-flex items-center gap-1 font-bold text-xs"
+              >
+                <Pencil className="w-3 h-3" /> Edit
+              </button>
+            </div>
           );
         },
       },
@@ -308,6 +332,7 @@ export function LeaseManagementPage() {
       if (statusFilter === 'All') return true;
       if (statusFilter === 'Active') return l.status === 'active';
       if (statusFilter === 'Pending') return l.status === 'pending';
+      if (statusFilter === 'Renewed') return l.status === 'renewed';
       if (statusFilter === 'Expired') {
         const isExpired = l.status === 'expired' || (l.end_date && new Date(l.end_date) < new Date());
         return isExpired;
@@ -352,18 +377,19 @@ export function LeaseManagementPage() {
     }
   };
 
+  const handleDoNotRenewLease = async (lease: LeaseRecord) => {
+    try {
+      await handleDoNotRenew(lease.property_id, lease.id, 'Non-renewal confirmed by manager.');
+      showSuccess('Non-Renewal Marked', 'Lease marked for completion at end of term without renewal.');
+      loadData();
+    } catch (err: any) {
+      showError('Non-Renewal Failed', err.message || 'An error occurred.');
+    }
+  };
+
   const handleRenewLease = (lease: LeaseRecord) => {
-    setWizardInitialData({
-      property_id: lease.property_id,
-      rent_amount: lease.rent_amount,
-      security_deposit: lease.security_deposit,
-      payment_due_day: lease.payment_due_day,
-      rent_frequency: lease.rent_frequency,
-      isRenewal: true,
-      previousLeaseId: lease.id,
-      tenants: (lease.lease_tenants || []).map((lt) => lt.tenant),
-    });
-    setIsCreateWizardOpen(true);
+    setSelectedLeaseForRenewal(lease);
+    setIsRenewModalOpen(true);
   };
 
   const getLeaseTimeRemaining = (endDateStr: string | null, status: string) => {
@@ -716,30 +742,38 @@ export function LeaseManagementPage() {
                       <>
                         <button
                           type="button"
-                          onClick={() => handleUpdateStatus(lease, 'expired')}
-                          className="text-xs px-2.5 py-1 font-bold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors"
+                          onClick={() => handleRenewLease(lease)}
+                          className="text-xs px-2.5 py-1 font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition-colors flex items-center gap-1"
                         >
-                          Set Expired
+                          <RefreshCw className="w-3 h-3" /> Renew
                         </button>
                         {lease.end_date && (
                           <button
                             type="button"
-                            onClick={() => handleConvertToPeriodicLease(lease)}
-                            className="text-xs px-2.5 py-1 font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors"
+                            onClick={() => handleDoNotRenewLease(lease)}
+                            className="text-xs px-2 py-1 font-medium text-admin-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                            title="Mark this lease as ending without renewal"
                           >
-                            Make Periodic
+                            Do Not Renew
+                          </button>
+                        )}
+                        {lease.end_date && (
+                          <button
+                            type="button"
+                            onClick={() => handleConvertToPeriodicLease(lease)}
+                            className="text-xs px-2 py-1 font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors"
+                          >
+                            Periodic
                           </button>
                         )}
                       </>
                     )}
 
-                    <button
-                      type="button"
-                      onClick={() => handleRenewLease(lease)}
-                      className="text-xs px-2.5 py-1 font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition-colors"
-                    >
-                      Renew
-                    </button>
+                    {lease.status === 'renewed' && (
+                      <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded bg-blue-500/10">
+                        Historical Contract
+                      </span>
+                    )}
 
                     <div className="flex-1" />
 
@@ -774,7 +808,22 @@ export function LeaseManagementPage() {
         )}
       </div>
 
-      {/* Create / Renew Lease Wizard */}
+      {/* Dedicated Renew Lease Modal */}
+      {isRenewModalOpen && selectedLeaseForRenewal && (
+        <RenewLeaseModal
+          isOpen={true}
+          previousLease={selectedLeaseForRenewal}
+          onClose={() => {
+            setIsRenewModalOpen(false);
+            setSelectedLeaseForRenewal(null);
+          }}
+          onSuccess={() => {
+            loadData();
+          }}
+        />
+      )}
+
+      {/* Create Lease Wizard */}
       {isCreateWizardOpen && (
         <CreateLeaseWizard
           isOpen={true}

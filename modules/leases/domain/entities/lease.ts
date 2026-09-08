@@ -3,7 +3,7 @@
  * Pure domain representation - zero Supabase dependencies.
  */
 
-export type LeaseStatus = 'draft' | 'pending' | 'active' | 'expired' | 'terminated' | 'cancelled';
+export type LeaseStatus = 'draft' | 'pending' | 'active' | 'expired' | 'terminated' | 'cancelled' | 'renewed';
 export type RentFrequency = 'weekly' | 'fortnightly' | 'monthly' | 'yearly';
 export type LeaseTenantRole = 'primary' | 'co-tenant' | 'guarantor';
 
@@ -28,6 +28,7 @@ export interface Lease {
   rentFrequency: RentFrequency;
   notes?: string | null;
   createdBy?: string | null;
+  renewedFromLeaseId?: string | null;
   tenants: LeaseTenantAssignment[];
   createdAt: string;
   updatedAt: string;

@@ -21,6 +21,24 @@ export interface UpdateLeaseDTO extends Partial<Omit<CreateLeaseDTO, 'propertyId
   status?: LeaseStatus;
 }
 
+export interface RenewLeaseDTO {
+  previousLeaseId: string;
+  propertyId: string;
+  unitId?: string | null;
+  startDate: string;
+  endDate?: string | null;
+  rentAmount: number;
+  securityDeposit?: number;
+  paymentDueDay?: number;
+  rentFrequency?: RentFrequency;
+  notes?: string | null;
+  tenantAssignments: Array<{
+    tenantId: string;
+    role?: 'primary' | 'co-tenant' | 'guarantor';
+    isPrimary?: boolean;
+  }>;
+}
+
 export interface LeaseListItemDTO {
   id: string;
   propertyId: string;

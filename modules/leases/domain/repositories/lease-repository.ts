@@ -18,6 +18,7 @@ export interface CreateLeaseData {
   rentFrequency?: RentFrequency;
   notes?: string | null;
   status?: LeaseStatus;
+  renewedFromLeaseId?: string | null;
   tenantAssignments?: Array<{
     tenantId: string;
     role?: 'primary' | 'co-tenant' | 'guarantor';
@@ -27,6 +28,23 @@ export interface CreateLeaseData {
 
 export type UpdateLeaseData = Partial<Omit<CreateLeaseData, 'propertyId'>>;
 
+export interface RenewLeaseData {
+  propertyId: string;
+  unitId?: string | null;
+  startDate: string;
+  endDate?: string | null;
+  rentAmount: number;
+  securityDeposit: number;
+  paymentDueDay?: number;
+  rentFrequency?: RentFrequency;
+  notes?: string | null;
+  tenantAssignments: Array<{
+    tenantId: string;
+    role?: 'primary' | 'co-tenant' | 'guarantor';
+    isPrimary?: boolean;
+  }>;
+}
+
 export interface LeaseRepository {
   getById(id: string, context?: RequestContext): Promise<Result<Lease, DomainError>>;
   listByProperty(propertyId: string, context?: RequestContext): Promise<Result<Lease[], DomainError>>;
@@ -34,6 +52,8 @@ export interface LeaseRepository {
   list(filters: LeaseFilters, context?: RequestContext): Promise<Result<Lease[], DomainError>>;
   create(data: CreateLeaseData, context: RequestContext): Promise<Result<Lease, DomainError>>;
   update(id: string, data: UpdateLeaseData, context: RequestContext): Promise<Result<Lease, DomainError>>;
+  renewLease(previousLeaseId: string, data: RenewLeaseData, context: RequestContext): Promise<Result<Lease, DomainError>>;
+  getRenewalHistory(leaseId: string, context?: RequestContext): Promise<Result<Lease[], DomainError>>;
   archive(id: string, context: RequestContext): Promise<Result<void, DomainError>>;
   restore(id: string, context: RequestContext): Promise<Result<Lease, DomainError>>;
   delete(id: string, context: RequestContext): Promise<Result<void, DomainError>>;

@@ -24,6 +24,7 @@ export function mapLeaseRowToDomain(row: LeaseRow, tenants: LeaseTenantAssignmen
     rentFrequency: row.rent_frequency,
     notes: row.notes,
     createdBy: row.created_by,
+    renewedFromLeaseId: row.renewed_from_lease_id,
     tenants,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -42,6 +43,7 @@ export function mapCreateLeaseDataToRow(data: CreateLeaseData, createdBy: string
     rent_frequency: data.rentFrequency || 'monthly',
     notes: data.notes || null,
     status: data.status || 'active',
+    renewed_from_lease_id: data.renewedFromLeaseId || null,
     created_by: createdBy,
   };
 }

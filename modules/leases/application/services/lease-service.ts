@@ -4,11 +4,11 @@
  */
 
 import { Result, ok, err } from '@/shared/domain/result';
-import { DomainError, ValidationError } from '@/shared/domain/errors';
+import { DomainError, ValidationError, ForbiddenError } from '@/shared/domain/errors';
 import { RequestContext } from '@/shared/domain/types';
 import { Lease, LeaseFilters, LeaseTenantAssignment } from '../../domain/entities/lease';
 import { LeaseRepository } from '../../domain/repositories/lease-repository';
-import { CreateLeaseDTO, UpdateLeaseDTO } from '../dto/lease-dto';
+import { CreateLeaseDTO, UpdateLeaseDTO, RenewLeaseDTO } from '../dto/lease-dto';
 
 export class LeaseService {
   constructor(private readonly repository: LeaseRepository) {}
@@ -127,6 +127,68 @@ export class LeaseService {
       return err(new ValidationError('Lease ID is required.'));
     }
     return this.repository.delete(id, context);
+  }
+
+  async renewLease(dto: RenewLeaseDTO, context: RequestContext): Promise<Result<Lease, DomainError>> {
+    // 1. Authorization check
+    const role = context.roleName?.toLowerCase();
+    if (role && ['viewer', 'tenant'].includes(role)) {
+      return err(new ForbiddenError('You do not have permission to renew this lease.'));
+    }
+
+    // 2. Input validation
+    if (!dto.previousLeaseId) {
+      return err(new ValidationError('Previous Lease ID is required.'));
+    }
+    if (!dto.propertyId) {
+      return err(new ValidationError('Property ID is required.'));
+    }
+    if (!dto.startDate) {
+      return err(new ValidationError('Start date is required.'));
+    }
+    if (dto.endDate && new Date(dto.endDate) < new Date(dto.startDate)) {
+      return err(new ValidationError('New end date must be on or after new start date.'));
+    }
+    if (dto.rentAmount === undefined || dto.rentAmount < 0) {
+      return err(new ValidationError('Valid positive rent amount is required.'));
+    }
+    if (dto.securityDeposit !== undefined && dto.securityDeposit < 0) {
+      return err(new ValidationError('Security deposit cannot be negative.'));
+    }
+    if (!dto.tenantAssignments || dto.tenantAssignments.length === 0) {
+      return err(new ValidationError('At least one tenant must be assigned to the renewal lease.'));
+    }
+
+    // Ensure at least one tenant is primary
+    const assignments = [...dto.tenantAssignments];
+    const hasPrimary = assignments.some((a) => a.isPrimary);
+    if (!hasPrimary && assignments.length > 0) {
+      assignments[0] = { ...assignments[0], isPrimary: true, role: 'primary' };
+    }
+
+    return this.repository.renewLease(
+      dto.previousLeaseId,
+      {
+        propertyId: dto.propertyId,
+        unitId: dto.unitId,
+        startDate: dto.startDate,
+        endDate: dto.endDate,
+        rentAmount: dto.rentAmount,
+        securityDeposit: dto.securityDeposit ?? 0,
+        paymentDueDay: dto.paymentDueDay ?? 1,
+        rentFrequency: dto.rentFrequency ?? 'monthly',
+        notes: dto.notes,
+        tenantAssignments: assignments,
+      },
+      context
+    );
+  }
+
+  async getRenewalHistory(leaseId: string, context?: RequestContext): Promise<Result<Lease[], DomainError>> {
+    if (!leaseId) {
+      return err(new ValidationError('Lease ID is required.'));
+    }
+    return this.repository.getRenewalHistory(leaseId, context);
   }
 
   async getLeaseTenants(leaseId: string, context?: RequestContext): Promise<Result<LeaseTenantAssignment[], DomainError>> {

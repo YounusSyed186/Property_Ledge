@@ -271,6 +271,35 @@ class InMemoryLeaseRepository implements LeaseRepository {
     return ok(undefined);
   }
 
+  async renewLease(previousLeaseId: string, data: any) {
+    const prev = this.leases.find((l) => l.id === previousLeaseId);
+    if (!prev) return err(new NotFoundError('Previous Lease', previousLeaseId));
+    prev.status = 'renewed';
+    const newLease: Lease = {
+      id: `lease-renewed-${this.leases.length + 1}`,
+      propertyId: data.propertyId,
+      unitId: data.unitId,
+      status: 'active',
+      startDate: data.startDate,
+      endDate: data.endDate,
+      rentAmount: data.rentAmount,
+      securityDeposit: data.securityDeposit ?? 0,
+      paymentDueDay: data.paymentDueDay ?? 1,
+      rentFrequency: data.rentFrequency || 'monthly',
+      notes: data.notes,
+      renewedFromLeaseId: previousLeaseId,
+      tenants: data.tenantAssignments || [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    this.leases.push(newLease);
+    return ok(newLease);
+  }
+
+  async getRenewalHistory(leaseId: string) {
+    return ok([...this.leases]);
+  }
+
   async getLeaseTenants(leaseId: string) {
     const found = this.leases.find((l) => l.id === leaseId);
     if (!found) return err(new NotFoundError('Lease', leaseId));
