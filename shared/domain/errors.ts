@@ -96,7 +96,13 @@ export function toSafeDomainError(error: unknown): DomainError {
     return error;
   }
 
-  const rawMessage = error instanceof Error ? error.message : String(error);
+  const errObj = error as any;
+  const rawMessage =
+    typeof errObj === 'string'
+      ? errObj
+      : errObj?.message || errObj?.details || errObj?.hint || (error instanceof Error ? error.message : JSON.stringify(error));
+
+  console.error('[toSafeDomainError] Caught error details:', error);
 
   // Common PostgreSQL/Supabase constraint detection
   if (rawMessage.includes('unique constraint') || rawMessage.includes('duplicate key')) {
@@ -115,5 +121,5 @@ export function toSafeDomainError(error: unknown): DomainError {
     return new NotFoundError('Record');
   }
 
-  return new DatabaseError('An internal processing error occurred.');
+  return new DatabaseError(rawMessage || 'An internal processing error occurred.');
 }

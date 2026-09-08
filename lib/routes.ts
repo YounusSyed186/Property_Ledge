@@ -21,8 +21,15 @@ export const routes = {
     new: () => '/dashboard/properties/new',
   },
   money: {
-    invoices: () => '/dashboard/money?tab=invoices',
+    invoices: () => '/dashboard/invoices',
     payments: () => '/dashboard/money?tab=payments',
     expenses: () => '/dashboard/money?tab=expenses',
+  },
+  invoices: {
+    list: () => '/dashboard/invoices',
+    detail: (id: string) => `/dashboard/invoices?id=${id}`,
+  },
+  automations: {
+    list: () => '/dashboard/automations',
   },
 } as const;

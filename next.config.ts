@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  serverExternalPackages: ['@playwright/test', 'playwright', 'playwright-core', 'pdf-lib'],
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -15,7 +16,6 @@ const nextConfig: NextConfig = {
       { source: '/admin/properties/:path*', destination: '/admin', permanent: false },
       { source: '/dashboard/tenants', destination: '/dashboard/people', permanent: false },
       { source: '/dashboard/tenants/:path*', destination: '/dashboard/people/:path*', permanent: false },
-      { source: '/dashboard/invoices', destination: '/dashboard/money?tab=invoices', permanent: false },
       { source: '/dashboard/payments', destination: '/dashboard/money?tab=payments', permanent: false },
       { source: '/dashboard/expenses', destination: '/dashboard/money?tab=expenses', permanent: false },
       { source: '/onboarding/profile', destination: '/onboarding/workspace', permanent: false },

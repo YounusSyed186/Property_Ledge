@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   DotsThree,
   ArrowRight,
+  Lightning,
 } from '@phosphor-icons/react';
 import { AppShell } from '@/components/shell/AppShell';
 import { AppContextProvider } from '@/components/context/AppContextProvider';
@@ -59,8 +60,8 @@ const NAV_GROUPS: { label: string; items: NavItemConfig[] }[] = [
   {
     label: 'Finance',
     items: [
+      { id: 'invoices', label: 'Invoices', href: '/dashboard/invoices', icon: Receipt, comingSoon: false },
       { id: 'finances', label: 'Finances', href: '/dashboard/money', icon: CurrencyDollar, comingSoon: true },
-      { id: 'invoices', label: 'Invoices', href: '/dashboard/money?tab=invoices', icon: Receipt, comingSoon: true },
       { id: 'payments', label: 'Payments', href: '/dashboard/money?tab=payments', icon: CreditCard, comingSoon: true },
       { id: 'expenses', label: 'Expenses', href: '/dashboard/money?tab=expenses', icon: Wallet, comingSoon: true },
     ],
@@ -68,6 +69,7 @@ const NAV_GROUPS: { label: string; items: NavItemConfig[] }[] = [
   {
     label: 'Operations',
     items: [
+      { id: 'automations', label: 'Automations', href: '/dashboard/automations', icon: Lightning, comingSoon: false },
       { id: 'maintenance', label: 'Maintenance', href: '/dashboard/maintenance', icon: Wrench, comingSoon: true },
       { id: 'inspections', label: 'Inspections', href: '/dashboard/inspections', icon: ClipboardText, comingSoon: true },
       { id: 'documents', label: 'Documents', href: '/dashboard/documents', icon: FolderSimple, comingSoon: true },
@@ -83,7 +85,7 @@ const NAV_GROUPS: { label: string; items: NavItemConfig[] }[] = [
 ];
 
 function buildNavSections(persona: Persona, permissions: string[] = []): NavSection[] {
-  const COMING_SOON_SECTIONS = new Set(['Finance', 'Operations', 'Insights']);
+  const COMING_SOON_SECTIONS = new Set(['Insights']);
 
   const sections: NavSection[] = NAV_GROUPS.map((group) => ({
     label: group.label,

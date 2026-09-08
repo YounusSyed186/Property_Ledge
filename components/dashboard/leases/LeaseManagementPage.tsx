@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   RefreshCw,
   Pencil,
+  Zap,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ColDef } from 'ag-grid-community';
@@ -36,9 +37,11 @@ import {
   handleDeleteLease,
   handleDoNotRenew,
 } from '@/app/actions/dashboard';
+import { createLeaseAutomationAction, CreateLeaseAutomationDTO } from '@/app/actions/automations';
 import { CreateLeaseWizard } from '@/components/dashboard/workflows/CreateLeaseWizard';
 import { LeaseEditDrawer } from '@/components/dashboard/leases/LeaseEditDrawer';
 import { RenewLeaseModal } from '@/components/dashboard/leases/RenewLeaseModal';
+import { CreateAutomationModal } from '@/components/automation/CreateAutomationModal';
 import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
 import { Avatar, AvatarGroup, PersonIdentity, JsonIcon, DiceBearIcon } from '@/components/ui/avatar';
 import { routes } from '@/lib/routes';
@@ -109,6 +112,18 @@ export function LeaseManagementPage() {
   // Edit Drawer state
   const [selectedLeaseForEdit, setSelectedLeaseForEdit] = useState<LeaseRecord | null>(null);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
+
+  // Automation Modal state
+  const [selectedLeaseForAutomation, setSelectedLeaseForAutomation] = useState<string | null>(null);
+  const [isAutomationModalOpen, setIsAutomationModalOpen] = useState(false);
+
+  const handleCreateAutomationSubmit = async (dto: CreateLeaseAutomationDTO) => {
+    const res = await createLeaseAutomationAction(dto);
+    if (!res.success) throw new Error(res.error || 'Failed to create automation');
+    showSuccess('Automation Scheduled', 'Lease automation created successfully.');
+    setIsAutomationModalOpen(false);
+    setSelectedLeaseForAutomation(null);
+  };
 
   const filterOptions = useMemo<QuickFilterOption[]>(
     () => [
@@ -263,7 +278,7 @@ export function LeaseManagementPage() {
       {
         headerName: 'Actions',
         colId: 'actions',
-        width: 140,
+        width: 200,
         pinned: 'right',
         sortable: false,
         filter: false,
@@ -271,7 +286,18 @@ export function LeaseManagementPage() {
           const lease = params.data;
           const canRenew = lease?.status === 'active';
           return (
-            <div className="flex items-center gap-1.5 py-1">
+            <div className="flex items-center gap-1 py-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedLeaseForAutomation(lease.id);
+                  setIsAutomationModalOpen(true);
+                }}
+                className="px-2 py-0.5 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 rounded transition-colors inline-flex items-center gap-1 font-bold text-xs"
+                title="Schedule Lease Automation"
+              >
+                <Zap className="w-3 h-3 text-amber-500" /> Automate
+              </button>
               {canRenew && (
                 <button
                   onClick={(e) => {
@@ -853,6 +879,19 @@ export function LeaseManagementPage() {
           onSuccess={() => {
             loadData();
           }}
+        />
+      )}
+
+      {/* Create Lease Automation Modal */}
+      {isAutomationModalOpen && (
+        <CreateAutomationModal
+          isOpen={true}
+          preselectedLeaseId={selectedLeaseForAutomation || undefined}
+          onClose={() => {
+            setIsAutomationModalOpen(false);
+            setSelectedLeaseForAutomation(null);
+          }}
+          onSuccess={loadData}
         />
       )}
 

@@ -25,7 +25,8 @@ export type NavItemId =
   | 'documents'
   | 'reports'
   | 'team'
-  | 'settings';
+  | 'settings'
+  | 'automations';
 
 /** Permission keys required to see each nav item (any one of the listed permissions). */
 export const NAV_PERMISSIONS: Partial<Record<NavItemId, string[]>> = {
@@ -45,6 +46,7 @@ export const NAV_PERMISSIONS: Partial<Record<NavItemId, string[]>> = {
   reports: ['insights.view'],
   team: ['team.member.view'],
   settings: ['team.settings.view'],
+  automations: ['team.settings.view', 'property.view'],
 };
 
 export type QuickActionId =
@@ -75,6 +77,7 @@ const NAV_ACCESS: Record<NavItemId, Persona[]> = {
   reports: ['owner', 'admin', 'manager', 'agent'],
   team: ['owner', 'admin', 'manager'],
   settings: ['owner', 'admin', 'manager', 'agent', 'staff', 'viewer'],
+  automations: ['owner', 'admin', 'manager'],
 };
 
 const QUICK_ACTION_ACCESS: Record<QuickActionId, Persona[]> = {

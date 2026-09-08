@@ -8,6 +8,10 @@ import { TenantService } from '@/modules/tenants/application/services/tenant-ser
 import { LeaseService } from '@/modules/leases/application/services/lease-service';
 import { WorkspaceService } from '@/modules/workspaces/application/services/workspace-service';
 import { AuthService } from '@/modules/auth/application/services/auth-service';
+import { InvoiceService } from '@/modules/invoices/application/services/invoice-service';
+import { InvoiceDocumentService } from '@/modules/invoices/application/services/invoice-document-service';
+import { AutomationService } from '@/modules/automation/application/services/automation-service';
+import { AutomationExecutionService } from '@/modules/automation/application/services/automation-execution-service';
 import { createServerServices } from './services';
 
 type ServiceMap = {
@@ -16,6 +20,10 @@ type ServiceMap = {
   leaseService: LeaseService;
   workspaceService: WorkspaceService;
   authService: AuthService;
+  invoiceService: InvoiceService;
+  invoiceDocumentService: InvoiceDocumentService;
+  automationService: AutomationService;
+  automationExecutionService: AutomationExecutionService;
 };
 
 class Container {

@@ -31,3 +31,7 @@ next-env.d.ts
 # Playwright
 node_modules/
 /playwright/.auth/
+
+# Screenshots & Walkthrough Artifacts
+/screenshots/
+/user_journey_screenshots/

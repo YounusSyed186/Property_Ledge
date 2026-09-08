@@ -14,8 +14,19 @@ interface Toast {
   action?: React.ReactNode;
 }
 
+export interface ToastOptions {
+  title: string;
+  description?: string;
+  message?: string;
+  variant?: 'default' | 'destructive' | 'success' | 'warning' | 'info';
+  action?: React.ReactNode;
+}
+
 interface ToastContextValue {
-  toast: (type: ToastType, title: string, message?: string, action?: React.ReactNode) => void;
+  toast: {
+    (options: ToastOptions): void;
+    (type: ToastType, title: string, message?: string, action?: React.ReactNode): void;
+  };
   success: (title: string, message?: string) => void;
   error: (title: string, message?: string) => void;
   warning: (title: string, message?: string) => void;
@@ -60,9 +71,39 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const toast = useCallback(
-    (type: ToastType, title: string, message?: string, action?: React.ReactNode) => {
+  const triggerToast = useCallback(
+    (
+      arg1: ToastType | ToastOptions,
+      arg2?: string,
+      arg3?: string,
+      arg4?: React.ReactNode
+    ) => {
       const id = Math.random().toString(36).substring(2, 9);
+      let type: ToastType = 'info';
+      let title = '';
+      let message: string | undefined;
+      let action: React.ReactNode | undefined;
+
+      if (typeof arg1 === 'object' && arg1 !== null) {
+        title = arg1.title;
+        message = arg1.description || arg1.message;
+        action = arg1.action;
+        if (arg1.variant === 'destructive') {
+          type = 'error';
+        } else if (arg1.variant === 'success') {
+          type = 'success';
+        } else if (arg1.variant === 'warning') {
+          type = 'warning';
+        } else {
+          type = 'info';
+        }
+      } else {
+        type = arg1 as ToastType;
+        title = arg2 || '';
+        message = arg3;
+        action = arg4;
+      }
+
       setToasts((prev) => [...prev, { id, type, title, message, action }]);
       setTimeout(() => dismiss(id), 5000);
     },
@@ -70,11 +111,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value: ToastContextValue = {
-    toast,
-    success: (title, message) => toast('success', title, message),
-    error: (title, message) => toast('error', title, message),
-    warning: (title, message) => toast('warning', title, message),
-    info: (title, message) => toast('info', title, message),
+    toast: triggerToast as any,
+    success: (title, message) => triggerToast('success', title, message),
+    error: (title, message) => triggerToast('error', title, message),
+    warning: (title, message) => triggerToast('warning', title, message),
+    info: (title, message) => triggerToast('info', title, message),
   };
 
   return (
@@ -82,7 +123,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       <div className="fixed bottom-4 right-4 z-toast flex flex-col gap-2.5 max-w-sm w-full" aria-live="polite">
         {toasts.map((t) => {
-          const style = toastStyles[t.type];
+          const style = toastStyles[t.type] || toastStyles.info;
           return (
             <div
               key={t.id}

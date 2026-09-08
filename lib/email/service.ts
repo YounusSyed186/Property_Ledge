@@ -67,6 +67,17 @@ export function buildEmailHtml(templateType: string, variables: Record<string, a
 </body>
 </html>`;
 
+  // Plain email template for clean invoice delivery (no dark theme wrapper, no complex cards)
+  if (templateType === 'invoice_plain') {
+    return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:24px;background-color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#111827;line-height:1.6;">
+  ${variables.body || ''}
+</body>
+</html>`;
+  }
+
   // Template for Admin Notification when User requests subscription
   if (templateType === 'subscription_requested') {
     const { accountName, accountEmail, planName, amount, reference, requestDate, adminUrl } = variables;
