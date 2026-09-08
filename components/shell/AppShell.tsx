@@ -16,7 +16,7 @@ import {
 import { CommandMenu } from '@/components/admin/CommandMenu';
 import { GlobalSearch } from '@/components/search/GlobalSearch';
 import { GlobalNavbar, SHELL_NAVBAR_HEIGHT } from '@/components/shell/GlobalNavbar';
-import { createClient } from '@/lib/supabase/client';
+import { authClient } from '@/modules/auth';
 import { ToastProvider } from '@/components/admin/ui';
 import { cn } from '@/lib/utils';
 import type { AppShellProps, NavSection } from './types';
@@ -585,8 +585,7 @@ export function AppShell({
   }, [pathname]);
 
   const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await authClient.signOut();
     router.push('/login');
   };
 

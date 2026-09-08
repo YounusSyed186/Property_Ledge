@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Menu, X, ChevronDown, Sparkles, Building2, DollarSign, FileText, ClipboardCheck, BarChart3, User, LogOut, Grid, ShieldCheck, ArrowRight } from "lucide-react";
 import { ServicesDropdown } from "@/components/marketing/owners/ServicesDropdown";
 import { services } from "@/lib/owners/owner-data";
-import { createClient } from "@/lib/supabase/client";
+import { authClient } from "@/modules/auth";
 import { Avatar } from "@/components/ui/avatar";
 
 export function Navbar() {
@@ -34,10 +34,8 @@ export function Navbar() {
     };
   }, []);
 
-  // Fetch Supabase user and subscribe to auth state changes
+  // Fetch user data via decoupled authClient abstraction
   useEffect(() => {
-    const supabase = createClient();
-
     async function fetchUserData(sessionUser: any) {
       if (!sessionUser) {
         setUser(null);
@@ -45,53 +43,43 @@ export function Navbar() {
         return;
       }
       try {
-        const [{ data: profile }, { data: accountContext }] = await Promise.all([
-          (supabase as any)
-            .from("profiles")
-            .select("full_name, avatar_url")
-            .eq("id", sessionUser.id)
-            .maybeSingle(),
-          (supabase as any)
-            .from("account_context")
-            .select("onboarding_status")
-            .eq("user_id", sessionUser.id)
-            .maybeSingle(),
+        const [profile, accountContext] = await Promise.all([
+          authClient.getUserProfile(sessionUser.id),
+          authClient.getAccountContext(sessionUser.id),
         ]);
 
         const onboardingStatus =
-          accountContext?.onboarding_status ??
-          sessionUser.user_metadata?.onboarding?.status ??
+          accountContext?.onboardingStatus ??
+          (sessionUser as any).onboardingStatus ??
           "not_started";
 
         setIsOnboardingPending(onboardingStatus !== "completed");
         setUser({
           id: sessionUser.id,
           email: sessionUser.email,
-          full_name: profile?.full_name || sessionUser.user_metadata?.full_name || sessionUser.email?.split("@")[0],
-          avatar_url: profile?.avatar_url || sessionUser.user_metadata?.avatar_url,
+          full_name: profile?.fullName || sessionUser.fullName || sessionUser.email?.split("@")[0],
+          avatar_url: profile?.avatarUrl || sessionUser.avatarUrl,
           onboardingStatus,
         });
       } catch {
-        const metaStatus = sessionUser.user_metadata?.onboarding?.status ?? "not_started";
-        setIsOnboardingPending(metaStatus !== "completed");
         setUser({
           id: sessionUser.id,
           email: sessionUser.email,
-          full_name: sessionUser.user_metadata?.full_name || sessionUser.email?.split("@")[0],
-          avatar_url: sessionUser.user_metadata?.avatar_url,
-          onboardingStatus: metaStatus,
+          full_name: sessionUser.fullName || sessionUser.email?.split("@")[0],
+          avatar_url: sessionUser.avatarUrl,
+          onboardingStatus: "not_started",
         });
       }
     }
 
-    supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
+    authClient.getCurrentUser().then((currentUser) => {
       if (currentUser) {
         fetchUserData(currentUser);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      fetchUserData(session?.user || null);
+    const unsubscribe = authClient.onAuthStateChange((changedUser) => {
+      fetchUserData(changedUser);
     });
 
     const handleAvatarUpdated = (e: Event) => {
@@ -103,7 +91,7 @@ export function Navbar() {
     window.addEventListener('user-avatar-updated', handleAvatarUpdated);
 
     return () => {
-      subscription.unsubscribe();
+      unsubscribe();
       window.removeEventListener('user-avatar-updated', handleAvatarUpdated);
     };
   }, []);

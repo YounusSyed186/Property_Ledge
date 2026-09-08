@@ -1,8 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { getUserProfile, getAccountContext } from "@/lib/auth/queries";
+import { container } from "@/composition";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { ProfileCard } from "@/components/profile/ProfileCard";
@@ -13,38 +12,43 @@ export const metadata: Metadata = {
 };
 
 export default async function ProfilePage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const authService = await container.resolve('authService');
+  const userRes = await authService.getCurrentUser();
+  const user = userRes.success ? userRes.data : null;
 
   // If unauthenticated, redirect to login
   if (!user) {
     redirect("/login");
   }
 
-  // Fetch profiles table & account_context table data
-  const profile = await getUserProfile(user.id);
-  const accountContext = await getAccountContext(user.id);
+  // Fetch profile & account context via application service
+  const [profileRes, accountContextRes] = await Promise.all([
+    authService.getUserProfile(user.id),
+    authService.getAccountContext(user.id),
+  ]);
+  const profile = profileRes.success ? profileRes.data : null;
+  const accountContext = accountContextRes.success ? accountContextRes.data : null;
 
   const userPayload = {
     id: user.id,
     email: user.email || "user@propertyledge.com.au",
-    fullName: (profile as any)?.full_name || user.user_metadata?.full_name || "Henry Sullivan",
-    phone: (profile as any)?.phone || "",
-    avatarUrl: (profile as any)?.avatar_url || user.user_metadata?.avatar_url || "",
-    createdAt: (profile as any)?.created_at || user.created_at,
-    emailVerified: Boolean(user.email_confirmed_at),
-    provider: user.app_metadata?.provider || "email",
-    publicId: (profile as { public_id?: string })?.public_id || "",
+    fullName: profile?.fullName || user.fullName || "Henry Sullivan",
+    phone: profile?.phone || user.phone || "",
+    avatarUrl: profile?.avatarUrl || user.avatarUrl || "",
+    createdAt: profile?.createdAt || user.createdAt,
+    emailVerified: Boolean(user.emailVerified),
+    provider: user.provider || "email",
+    publicId: profile?.publicId || "",
   };
 
   const accountContextPayload = accountContext
     ? {
-        status: (accountContext as any).status,
-        onboardingStatus: (accountContext as any).onboarding_status,
-        firstLoginAt: (accountContext as any).first_login_at,
-        lastLoginAt: (accountContext as any).last_login_at,
-        createdAt: (accountContext as any).created_at,
-        updatedAt: (accountContext as any).updated_at,
+        status: accountContext.status,
+        onboardingStatus: accountContext.onboardingStatus,
+        firstLoginAt: accountContext.firstLoginAt || undefined,
+        lastLoginAt: accountContext.lastLoginAt || undefined,
+        createdAt: accountContext.createdAt,
+        updatedAt: accountContext.updatedAt,
       }
     : null;
 

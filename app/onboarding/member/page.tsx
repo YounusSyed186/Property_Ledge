@@ -1,37 +1,31 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/auth/queries';
-import { createClient } from '@/lib/supabase/server';
+import { container } from '@/composition';
 import { setActiveWorkspaceCookie } from '@/lib/auth/authorization';
 import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
 import { Button, Card, CardContent } from '@/components/admin/ui';
 
 export default async function MemberOnboardingPage() {
-  const user = await getCurrentUser();
+  const authService = await container.resolve('authService');
+  const userRes = await authService.getCurrentUser();
+  const user = userRes.success ? userRes.data : null;
   if (!user) redirect('/login');
 
-  const supabase = await createClient();
-  const { data: membership } = await supabase
-    .from('workspace_members')
-    .select('workspace_id, team_roles(name), workspaces(name)')
-    .eq('user_id', user.id)
-    .eq('status', 'active')
-    .limit(1)
-    .maybeSingle();
+  const workspaceService = await container.resolve('workspaceService');
+  const wsRes = await workspaceService.listUserWorkspaces(user.id);
+  const workspaces = wsRes.success ? wsRes.data : [];
+  const primaryWs = workspaces[0];
 
-  const workspaceId = (membership as { workspace_id?: string } | null)?.workspace_id;
-
-  const wsName = (membership as { workspaces?: { name?: string } } | null)?.workspaces?.name || 'your workspace';
-  const roleName = (membership as { team_roles?: { name?: string } } | null)?.team_roles?.name || 'Member';
+  const workspaceId = primaryWs?.id;
+  const wsName = primaryWs?.name || 'your workspace';
+  const roleName = primaryWs?.roleName || 'Member';
 
   async function handleContinue() {
     'use server';
-    const client = await createClient();
-    await client.from('account_context').upsert({
-      user_id: user!.id,
-      onboarding_status: 'completed',
-    } as never);
+    const serverAuthService = await container.resolve('authService');
+    await serverAuthService.completeOnboarding(user!.id);
+
     if (workspaceId) {
       await setActiveWorkspaceCookie(workspaceId);
     }

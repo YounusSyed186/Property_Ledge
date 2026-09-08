@@ -123,7 +123,7 @@ const MOBILE_NAV_ITEMS = [
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
+import { authClient } from '@/modules/auth';
 import type { AccessibleWorkspace } from '@/lib/stores/useWorkspaceStore';
 
 interface DashboardClientLayoutProps {
@@ -152,18 +152,10 @@ function DashboardShellInner({
   const [isOnboardingPending, setIsOnboardingPending] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    authClient.getCurrentUser().then(async (user) => {
       if (user) {
-        const { data: accountContext } = await (supabase as any)
-          .from('account_context')
-          .select('onboarding_status')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        const status =
-          accountContext?.onboarding_status ??
-          user.user_metadata?.onboarding?.status ??
-          'not_started';
+        const accountContext = await authClient.getAccountContext(user.id);
+        const status = accountContext?.onboardingStatus ?? 'not_started';
         setIsOnboardingPending(status !== 'completed');
       }
     });

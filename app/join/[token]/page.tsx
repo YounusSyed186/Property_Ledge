@@ -88,14 +88,10 @@ export default async function JoinPage({ params }: JoinPageProps) {
   }
 
   if (invitation.status === 'pending') {
-    const supabase = await import('@/lib/supabase/server').then((m) => m.createClient());
-    const { data: existing } = await supabase
-      .from('workspace_members')
-      .select('id')
-      .eq('workspace_id', invitation.workspaceId)
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .maybeSingle();
+    const { container } = await import('@/composition');
+    const workspaceService = await container.resolve('workspaceService');
+    const existingRes = await workspaceService.getMembership(invitation.workspaceId, user.id);
+    const existing = existingRes.success ? existingRes.data : null;
 
     if (existing) {
       return (
