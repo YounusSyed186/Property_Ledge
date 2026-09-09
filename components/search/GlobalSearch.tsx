@@ -19,7 +19,6 @@ import { cn } from '@/lib/utils';
 
 const TYPE_ICONS: Record<SearchResultType, React.ComponentType<{ className?: string }>> = {
   property: Building2,
-  unit: Home,
   tenant: Users,
   lease: FileText,
   invoice: Receipt,
@@ -29,7 +28,6 @@ const TYPE_ICONS: Record<SearchResultType, React.ComponentType<{ className?: str
 
 const TYPE_LABELS: Record<SearchResultType, string> = {
   property: 'Properties',
-  unit: 'Units',
   tenant: 'Tenants',
   lease: 'Leases',
   invoice: 'Invoices',

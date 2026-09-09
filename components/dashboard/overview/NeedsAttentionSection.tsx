@@ -20,7 +20,7 @@ export function buildAttentionItems(
     overdueInvoices: Array<{ id: string; invoice_number: string; balance_due: number; due_date: string }>;
     openMaintenance: Array<{ id: string; title: string; priority: string; status: string }>;
     outstandingInvoices: Array<{ id: string; invoice_number: string; balance_due: number; due_date: string }>;
-    vacantUnits: Array<{ id: string; name: string; unit_number: string }>;
+    vacantUnits?: Array<{ id: string; name: string; unit_number: string }>;
   } | null
 ): AttentionItem[] {
   if (!needsAttention) return [];
@@ -55,16 +55,6 @@ export function buildAttentionItems(
       sublabel: `Balance: ${formatCurrency(invoice.balance_due)}`,
       href: '/dashboard/money?tab=invoices',
       variant: 'warning',
-    });
-  }
-
-  for (const unit of needsAttention.vacantUnits) {
-    items.push({
-      id: `vacant-${unit.id}`,
-      label: `Vacant unit: ${unit.name}`,
-      sublabel: `Unit ${unit.unit_number} is vacant`,
-      href: '/dashboard/properties',
-      variant: 'info',
     });
   }
 

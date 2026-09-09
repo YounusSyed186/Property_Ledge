@@ -28,7 +28,7 @@ export default function OnboardingWelcomePage() {
   const setupItems = [
     'Set up your management workspace',
     'Choose a pricing plan to fit your goals',
-    'Add your first property and units',
+    'Add your first property',
   ];
 
   return (

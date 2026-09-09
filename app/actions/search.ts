@@ -5,7 +5,6 @@ import { getCurrentUser } from '@/lib/auth/queries';
 
 export type SearchResultType =
   | 'property'
-  | 'unit'
   | 'tenant'
   | 'lease'
   | 'invoice'
@@ -22,7 +21,6 @@ export interface SearchResult {
 
 const TYPE_ROUTES: Record<SearchResultType, string> = {
   property: '/dashboard/properties',
-  unit: '/dashboard/units',
   tenant: '/dashboard/tenants',
   lease: '/dashboard/leases',
   invoice: '/dashboard/invoices',
@@ -43,7 +41,6 @@ export async function searchDashboardEntities(query: string): Promise<SearchResu
 
   const [
     propertiesResult,
-    unitsResult,
     tenantsResult,
     leasesResult,
     invoicesResult,
@@ -55,11 +52,6 @@ export async function searchDashboardEntities(query: string): Promise<SearchResu
       .select('id, name, city')
       .ilike('name', pattern)
       .eq('status', 'active')
-      .limit(5),
-    supabase
-      .from('units')
-      .select('id, unit_number, property_id, properties(name)')
-      .ilike('unit_number', pattern)
       .limit(5),
     supabase
       .from('tenants')
@@ -100,20 +92,6 @@ export async function searchDashboardEntities(query: string): Promise<SearchResu
     });
   }
 
-  for (const unit of (unitsResult.data || []) as Array<{
-    id: string;
-    unit_number: string;
-    properties: { name?: string } | null;
-  }>) {
-    const propertyName = unit.properties?.name ?? 'Property';
-    results.push({
-      id: unit.id,
-      type: 'unit',
-      title: `Unit ${unit.unit_number}`,
-      subtitle: propertyName,
-      href: TYPE_ROUTES.unit,
-    });
-  }
 
   for (const tenant of (tenantsResult.data || []) as Array<{
     id: string;

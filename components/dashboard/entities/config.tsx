@@ -136,18 +136,18 @@ export const leaseFields: DrawerField[] = [
 
 export const leaseColumns: ColDef[] = [
   {
-    headerName: 'Unit / Property',
+    headerName: 'Property',
     flex: 1.2,
     minWidth: 160,
     valueGetter: (params) => {
-      const unit = params.data?.unit as { name?: string; unit_number?: string } | undefined;
-      if (!unit?.name) return '—';
-      return unit.unit_number ? `${unit.name} (${unit.unit_number})` : unit.name;
+      const prop = params.data?.property as { name?: string } | undefined;
+      const unit = params.data?.unit as { name?: string } | undefined;
+      return prop?.name || unit?.name || '—';
     },
     cellRenderer: (params: { data: Record<string, unknown> }) => {
-      const unit = params.data?.unit as { name?: string; unit_number?: string } | undefined;
       const prop = params.data?.property as { name?: string } | undefined;
-      const title = unit?.name ? (unit.unit_number ? `${unit.name} (${unit.unit_number})` : unit.name) : prop?.name || 'Lease Space';
+      const unit = params.data?.unit as { name?: string } | undefined;
+      const title = prop?.name || unit?.name || 'Property';
       return (
         <div className="flex items-center gap-2 py-1 min-w-0 max-w-full overflow-hidden" title={title}>
           <DiceBearIcon name="building" badge variant="purple" className="w-3.5 h-3.5" />

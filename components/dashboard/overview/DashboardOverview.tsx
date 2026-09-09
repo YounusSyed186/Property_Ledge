@@ -182,7 +182,7 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
                 </Link>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <CompactKpiCard label={selectedProperty ? "Units" : "Properties"} value={selectedProperty ? (stats?.totalUnits ?? 0) : availableProperties.length} href={selectedProperty ? "/dashboard/units" : "/dashboard/properties"} icon={Building2} accent="blue" />
+                <CompactKpiCard label="Properties" value={availableProperties.length} href="/dashboard/properties" icon={Building2} accent="blue" />
                 <CompactKpiCard label="Tenants" value={stats?.activeTenants ?? 0} href="/dashboard/tenants" icon={Users} accent="indigo" />
                 <CompactKpiCard label="Active Leases" value={stats?.activeLeases ?? 0} href="/dashboard/leases" icon={Percent} accent="teal" />
                 <CompactKpiCard label="Rent collected" value={formatCurrency(collected)} href="/dashboard/money" icon={Wallet} accent="blue" hint={outstanding > 0 ? `${formatCurrency(outstanding)} to collect` : undefined} />

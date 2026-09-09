@@ -55,7 +55,7 @@ export function normalizeActionKey(action: string): string {
 
 // Resource category groupings
 export const RESOURCE_CATEGORIES: Record<string, string[]> = {
-  'Property Management': ['property', 'unit', 'tenant', 'lease', 'applicant', 'contract'],
+  'Property Management': ['property', 'tenant', 'lease', 'applicant', 'contract'],
   'Financial Operations': ['invoice', 'payment', 'expense', 'billing', 'subscription', 'payout', 'tax'],
   'Operations & Maintenance': ['maintenance', 'inspection', 'document', 'task', 'insights', 'work_order'],
   'Team & Access': ['team.member', 'team.role', 'team.settings', 'team', 'team_role', 'invitation'],
@@ -65,7 +65,6 @@ export const RESOURCE_CATEGORIES: Record<string, string[]> = {
 // Resource display names mapping
 export const RESOURCE_NAME_OVERRIDES: Record<string, string> = {
   property: 'Properties',
-  unit: 'Units',
   tenant: 'Tenants',
   lease: 'Leases',
   invoice: 'Invoices',
@@ -93,7 +92,6 @@ export const RESOURCE_NAME_OVERRIDES: Record<string, string> = {
 // Resource descriptions mapping
 export const RESOURCE_DESCRIPTIONS: Record<string, string> = {
   property: 'Manage property profiles, addresses, configurations and portfolios',
-  unit: 'Configure units, layouts, amenities, pricing and unit availability',
   tenant: 'Manage tenant profiles, leases, communications and history',
   lease: 'Create, review, renew, execute and terminate lease agreements',
   invoice: 'Generate, send, track and reconcile invoices and fee structures',

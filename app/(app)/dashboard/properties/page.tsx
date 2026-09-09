@@ -101,13 +101,12 @@ export default function PropertiesPage() {
   const stats = useMemo(() => {
     const total = rows.length;
     const active = rows.filter((r) => String(r.status || '').toLowerCase() === 'active').length;
-    const totalUnits = rows.reduce((sum, r) => sum + Number(r.units_count ?? 1), 0);
     const draft = rows.filter((r) => {
       const status = String(r.status || '').toLowerCase();
       return status === 'draft' || status === 'pending';
     }).length;
 
-    return { total, active, totalUnits, draft };
+    return { total, active, draft };
   }, [rows]);
 
   const handleBulkDeleteProperties = async (selected: any[]) => {
@@ -210,7 +209,7 @@ export default function PropertiesPage() {
             </div>
             <div>
               <h3 className="text-base font-black mb-0.5">Add Property</h3>
-              <p className="text-xs text-white/80 font-medium">Register properties & configure units.</p>
+              <p className="text-xs text-white/80 font-medium">Register and manage real estate assets.</p>
             </div>
           </div>
 
@@ -233,20 +232,20 @@ export default function PropertiesPage() {
             </div>
           </div>
 
-          {/* Total Units */}
+          {/* Draft Properties */}
           <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
             <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
-                <Home className="w-5 h-5" />
+              <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500">
+                <Building className="w-5 h-5" />
               </div>
             </div>
             <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Residential Units</p>
+              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Draft / Pending</p>
               <h3 className="text-2xl font-black text-admin-foreground">
                 {isLoading ? (
                   <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
                 ) : (
-                  stats.totalUnits
+                  stats.draft
                 )}
               </h3>
             </div>

@@ -28,7 +28,7 @@ export function PropertyRequired({ children, message, allowAllProperties = false
       <EmptyState
         icon={<Building2 className="w-8 h-8" />}
         title="No properties yet"
-        description="Create a property to start managing units, tenants, and more."
+        description="Create a property to start managing leases, tenants, and payments."
         action={
           <Button href="/dashboard/properties?new=true" size="sm">
             Add property

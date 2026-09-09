@@ -12,18 +12,19 @@ export class SupabaseAutomationExecutionRepository implements IAutomationExecuti
   constructor(private supabase: SupabaseClient) {}
 
   private mapRowToEntity(row: any): AutomationExecution {
+    const summary = row.result_summary || {};
     return {
       id: row.id,
       automationId: row.automation_id,
       workspaceId: row.workspace_id,
       triggerSource: row.trigger_source,
-      sourceEntityType: row.source_entity_type,
-      sourceEntityId: row.source_entity_id,
+      sourceEntityType: row.source_entity_type || null,
+      sourceEntityId: row.source_entity_id || null,
       status: row.status,
-      conditionsEvaluated: row.conditions_evaluated || {},
-      actionsExecuted: row.actions_executed || [],
+      conditionsEvaluated: row.conditions_evaluated || summary.conditionsEvaluated || {},
+      actionsExecuted: row.actions_executed || summary.actionsExecuted || [],
       errorMessage: row.error_message,
-      executionDurationMs: row.execution_duration_ms,
+      executionDurationMs: row.execution_duration_ms || null,
       idempotencyKey: row.idempotency_key,
       createdAt: row.created_at,
     };
@@ -101,24 +102,47 @@ export class SupabaseAutomationExecutionRepository implements IAutomationExecuti
   }
 
   async create(props: CreateExecutionProps): Promise<AutomationExecution> {
-    const { data, error } = await (this.supabase as any)
+    const payload: Record<string, any> = {
+      automation_id: props.automationId,
+      workspace_id: props.workspaceId,
+      trigger_source: props.triggerSource,
+      source_entity_type: props.sourceEntityType || null,
+      source_entity_id: props.sourceEntityId || null,
+      status: props.status,
+      conditions_evaluated: props.conditionsEvaluated || {},
+      actions_executed: props.actionsExecuted || [],
+      error_message: props.errorMessage || null,
+      execution_duration_ms: props.executionDurationMs || null,
+      idempotency_key: props.idempotencyKey || null,
+      result_summary: {
+        actionsExecuted: props.actionsExecuted || [],
+        conditionsEvaluated: props.conditionsEvaluated || {},
+      },
+      created_at: new Date().toISOString(),
+    };
+
+    let { data, error } = await (this.supabase as any)
       .from('automation_executions')
-      .insert({
-        automation_id: props.automationId,
-        workspace_id: props.workspaceId,
-        trigger_source: props.triggerSource,
-        source_entity_type: props.sourceEntityType || null,
-        source_entity_id: props.sourceEntityId || null,
-        status: props.status,
-        conditions_evaluated: props.conditionsEvaluated || {},
-        actions_executed: props.actionsExecuted || [],
-        error_message: props.errorMessage || null,
-        execution_duration_ms: props.executionDurationMs || null,
-        idempotency_key: props.idempotencyKey || null,
-        created_at: new Date().toISOString(),
-      })
+      .insert(payload)
       .select('*')
       .single();
+
+    if (error && (error.message?.includes("'actions_executed'") || error.message?.includes("'source_entity_type'"))) {
+      // Fallback for database schema cache before migration 0076 is applied
+      delete payload.source_entity_type;
+      delete payload.source_entity_id;
+      delete payload.conditions_evaluated;
+      delete payload.actions_executed;
+      delete payload.execution_duration_ms;
+
+      const fallback = await (this.supabase as any)
+        .from('automation_executions')
+        .insert(payload)
+        .select('*')
+        .single();
+      data = fallback.data;
+      error = fallback.error;
+    }
 
     if (error) {
       throw new Error(`Failed to create execution log: ${error.message}`);
@@ -133,16 +157,33 @@ export class SupabaseAutomationExecutionRepository implements IAutomationExecuti
   ): Promise<AutomationExecution> {
     const payload: Record<string, any> = {};
     if (updates.status !== undefined) payload.status = updates.status;
-    if (updates.actionsExecuted !== undefined) payload.actions_executed = updates.actionsExecuted;
+    if (updates.actionsExecuted !== undefined) {
+      payload.actions_executed = updates.actionsExecuted;
+      payload.result_summary = { actionsExecuted: updates.actionsExecuted };
+    }
     if (updates.errorMessage !== undefined) payload.error_message = updates.errorMessage;
     if (updates.executionDurationMs !== undefined) payload.execution_duration_ms = updates.executionDurationMs;
 
-    const { data, error } = await (this.supabase as any)
+    let { data, error } = await (this.supabase as any)
       .from('automation_executions')
       .update(payload)
       .eq('id', id)
       .select('*')
       .single();
+
+    if (error && error.message?.includes("'actions_executed'")) {
+      delete payload.actions_executed;
+      delete payload.execution_duration_ms;
+
+      const fallback = await (this.supabase as any)
+        .from('automation_executions')
+        .update(payload)
+        .eq('id', id)
+        .select('*')
+        .single();
+      data = fallback.data;
+      error = fallback.error;
+    }
 
     if (error) {
       throw new Error(`Failed to update execution log ${id}: ${error.message}`);
