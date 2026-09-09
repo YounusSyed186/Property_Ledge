@@ -53,7 +53,7 @@ export async function fetchInvoicesAction(filters?: {
 
     const res = await invoiceService.listInvoices(queryFilters);
     if (!res.success || !res.data || res.data.length === 0) {
-      const demoItems: InvoiceDTO[] = [
+      const demoItems: any[] = [
         {
           id: 'inv-101',
           invoiceNumber: 'INV-2026-0042',

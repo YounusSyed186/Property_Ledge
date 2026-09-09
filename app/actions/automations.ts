@@ -24,10 +24,10 @@ export interface AutomationItem {
   id: string;
   workspaceId: string;
   automationType: AutomationType;
-  leaseId: string | null;
-  invoiceTemplateId: string | null;
+  leaseId?: string | null;
+  invoiceTemplateId?: string | null;
   name: string;
-  description: string | null;
+  description?: string | null;
   actionType: string;
   scheduleType: AutomationScheduleType;
   scheduleConfig: ScheduleConfig;
@@ -105,6 +105,8 @@ export async function fetchAutomationsAction(filters?: {
           workspaceId: context.workspaceId,
           automationType: 'lease',
           leaseId: 'lease-101',
+          invoiceTemplateId: null,
+          description: null,
           name: 'Monthly Rent Invoice Dispatch - Suburban House',
           actionType: 'generate_and_send_invoice',
           scheduleType: 'monthly',
@@ -129,6 +131,9 @@ export async function fetchAutomationsAction(filters?: {
           id: 'auto-102',
           workspaceId: context.workspaceId,
           automationType: 'invoice',
+          leaseId: null,
+          invoiceTemplateId: null,
+          description: null,
           name: 'Monthly Property Maintenance & Facility Billing',
           actionType: 'generate_and_send_invoice',
           scheduleType: 'monthly',
@@ -150,6 +155,8 @@ export async function fetchAutomationsAction(filters?: {
           workspaceId: context.workspaceId,
           automationType: 'lease',
           leaseId: 'lease-102',
+          invoiceTemplateId: null,
+          description: null,
           name: 'Lease Renewal Agreement Notice',
           actionType: 'send_lease',
           scheduleType: 'monthly',
