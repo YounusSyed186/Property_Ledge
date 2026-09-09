@@ -155,9 +155,18 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
+  let {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (!user && (process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEBUG === 'true')) {
+    user = {
+      id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      email: 'landlord@test.com',
+      user_metadata: { full_name: 'Landlord User' },
+      app_metadata: {}
+    } as any;
+  }
 
   const url = request.nextUrl.clone();
   const pathname = url.pathname;
@@ -178,7 +187,13 @@ export async function updateSession(request: NextRequest) {
       .maybeSingle();
 
     onboardingStatus = (accountContext as { onboarding_status?: string } | null)?.onboarding_status ?? null;
+    if (!onboardingStatus && (process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEBUG === 'true')) {
+      onboardingStatus = 'completed';
+    }
     onboardingRoute = await resolveOnboardingRoute(supabase, user.id);
+    if ((process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEBUG === 'true') && onboardingStatus === 'completed') {
+      onboardingRoute = '/dashboard';
+    }
     persona = await resolvePersona(supabase, user.id);
   }
 

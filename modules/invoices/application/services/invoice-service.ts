@@ -114,6 +114,7 @@ export class InvoiceService {
       notes: dto.notes || null,
       paymentInstructions: dto.paymentInstructions || null,
       templateId: dto.templateId || null,
+      automationId: dto.automationId || null,
       status: dto.autoIssue ? ('issued' as const) : ('draft' as const),
       items: calculation.items.map((item, idx) => ({
         description: dto.items[idx].description || 'Item',

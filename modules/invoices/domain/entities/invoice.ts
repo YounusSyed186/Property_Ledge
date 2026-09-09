@@ -92,6 +92,7 @@ export interface Invoice {
   paymentInstructions?: string | null;
   cancellationReason?: string | null;
   templateId?: string | null;
+  automationId?: string | null;
   snapshot?: InvoiceSnapshot | null;
 
   // Normalized Line Items
@@ -107,6 +108,7 @@ export interface InvoiceFilters {
   propertyId?: string;
   leaseId?: string;
   tenantId?: string;
+  automationId?: string;
   status?: InvoiceStatus | 'all';
   searchQuery?: string;
   search?: string;

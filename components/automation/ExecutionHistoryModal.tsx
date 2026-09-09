@@ -221,19 +221,56 @@ export function ExecutionHistoryModal({
                               exec.actionsExecuted.map((act, idx) => (
                                 <div
                                   key={idx}
-                                  className="p-2.5 bg-admin-surface-subtle border border-admin-border rounded-lg flex items-center justify-between"
+                                  className="p-3 bg-admin-surface-subtle border border-admin-border rounded-lg space-y-2"
                                 >
-                                  <div>
-                                    <span className="font-mono text-admin-foreground font-semibold">{act.actionType}</span>
-                                    {act.error && <div className="text-rose-500 text-[11px] mt-0.5">{act.error}</div>}
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-mono text-admin-foreground font-semibold">{act.actionType}</span>
+                                      {act.output?.invoiceNumber && (
+                                        <a
+                                          href={`/dashboard/invoices`}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-xs font-mono font-bold text-admin-primary bg-admin-primary/10 hover:bg-admin-primary/20 px-2 py-0.5 rounded border border-admin-primary/20 transition-colors"
+                                        >
+                                          #{act.output.invoiceNumber}
+                                        </a>
+                                      )}
+                                    </div>
+                                    <span
+                                      className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                                        act.success ? 'text-emerald-500 bg-emerald-500/10' : 'text-rose-500 bg-rose-500/10'
+                                      }`}
+                                    >
+                                      {act.success ? 'SUCCESS' : 'FAILED'}
+                                    </span>
                                   </div>
-                                  <span
-                                    className={`text-[10px] px-2 py-0.5 rounded font-bold ${
-                                      act.success ? 'text-emerald-500 bg-emerald-500/10' : 'text-rose-500 bg-rose-500/10'
-                                    }`}
-                                  >
-                                    {act.success ? 'SUCCESS' : 'FAILED'}
-                                  </span>
+
+                                  {act.output && (
+                                    <div className="text-[11px] text-admin-muted flex flex-wrap items-center gap-3 pt-1 border-t border-admin-border/50">
+                                      {act.output.sentTo && (
+                                        <span>Recipient: <strong className="text-admin-foreground">{act.output.sentTo}</strong></span>
+                                      )}
+                                      {act.output.total !== undefined && (
+                                        <span>Total: <strong className="text-admin-foreground">${Number(act.output.total).toLocaleString()}</strong></span>
+                                      )}
+                                      {act.output.dueDate && (
+                                        <span>Due: <strong className="text-admin-foreground">{act.output.dueDate}</strong></span>
+                                      )}
+                                      {act.output.downloadUrl && (
+                                        <a
+                                          href={act.output.downloadUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-admin-primary underline hover:text-admin-primary-hover"
+                                        >
+                                          View Generated PDF
+                                        </a>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {act.error && <div className="text-rose-500 text-[11px] font-medium mt-1">{act.error}</div>}
                                 </div>
                               ))
                             ) : (

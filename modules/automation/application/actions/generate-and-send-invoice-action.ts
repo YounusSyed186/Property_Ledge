@@ -90,6 +90,16 @@ export class GenerateAndSendInvoiceAction implements IActionHandler {
         const rentFrequency = lease.rent_frequency || 'monthly';
         const monthName = today.toLocaleString('default', { month: 'long', year: 'numeric' });
 
+        // Resolve due date based on lease.payment_due_day if not explicitly passed
+        let leaseDueDate = params.dueDate;
+        if (!leaseDueDate) {
+          const dueDay = Math.min(Math.max(Number(lease.payment_due_day) || 1, 1), 28);
+          const currentYear = today.getFullYear();
+          const currentMonth = today.getMonth();
+          const calculatedDate = new Date(currentYear, currentMonth, dueDay);
+          leaseDueDate = calculatedDate.toISOString().split('T')[0];
+        }
+
         createDto = {
           workspaceId: context.workspaceId,
           propertyId: lease.property_id || lease.property?.id,
@@ -100,7 +110,7 @@ export class GenerateAndSendInvoiceAction implements IActionHandler {
           recipientName: tenantName,
           recipientEmail: tenantEmail,
           issueDate,
-          dueDate,
+          dueDate: leaseDueDate,
           billingPeriodStart: params.billingPeriodStart || startOfMonth,
           billingPeriodEnd: params.billingPeriodEnd || endOfMonth,
           currency: params.currency || lease.currency || 'AUD',
@@ -113,6 +123,7 @@ export class GenerateAndSendInvoiceAction implements IActionHandler {
             },
           ],
           templateId: templateId || undefined,
+          automationId: context.automationId || undefined,
           notes: params.notes || lease.notes || undefined,
           paymentInstructions: params.paymentInstructions || undefined,
         };
@@ -156,6 +167,7 @@ export class GenerateAndSendInvoiceAction implements IActionHandler {
                 },
               ],
           templateId: templateId || undefined,
+          automationId: context.automationId || undefined,
           notes: params.notes || undefined,
           paymentInstructions: params.paymentInstructions || undefined,
         };
@@ -176,45 +188,94 @@ export class GenerateAndSendInvoiceAction implements IActionHandler {
       }
 
       // 3. Generate fresh PDF document for the new invoice
-      const docResult = await this.invoiceDocumentService.generateDocument({
-        invoiceId: invoice.id,
-        format: 'pdf',
-      });
+      let documentUrl: string | undefined;
+      let pdfBuffer: Buffer | undefined;
+      try {
+        const docResult = await this.invoiceDocumentService.generateDocument({
+          invoiceId: invoice.id,
+          format: 'pdf',
+        });
+        documentUrl = docResult.documentUrl;
+        pdfBuffer = docResult.buffer;
+      } catch (docErr: any) {
+        console.warn(`[GenerateAndSendInvoiceAction] PDF Generation warning for invoice ${invoice.id}:`, docErr);
+      }
 
       const recipientEmail = createDto.recipientEmail || invoice.customerEmail;
       if (!recipientEmail) {
-        throw new Error(`Invoice #${invoice.invoiceNumber} has no valid recipient email.`);
+        return {
+          success: false,
+          actionType: this.actionType,
+          error: `Invoice ${invoice.invoiceNumber} created, but recipient email is missing.`,
+          output: {
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            total: invoice.total,
+            dueDate: invoice.dueDate,
+          },
+          durationMs: Date.now() - startTime,
+        };
       }
 
       // 4. Render and send invoice email with PDF attached
-      const renderDto = await this.invoiceService.getInvoiceRenderData(invoice.id);
-      const emailResult = await this.emailAdapter.sendInvoice({
-        to: recipientEmail,
-        recipientName: createDto.recipientName || 'Customer',
-        invoice: renderDto,
-        downloadUrl: docResult.documentUrl,
-        pdfBuffer: docResult.buffer,
-        customMessage: params.customMessage,
-      });
+      try {
+        const renderDto = await this.invoiceService.getInvoiceRenderData(invoice.id);
+        const emailResult = await this.emailAdapter.sendInvoice({
+          to: recipientEmail,
+          recipientName: createDto.recipientName || 'Customer',
+          invoice: renderDto,
+          downloadUrl: documentUrl,
+          pdfBuffer,
+          customMessage: params.customMessage,
+        });
 
-      if (!emailResult.success) {
-        throw new Error(emailResult.error?.message || 'Failed to deliver invoice email');
+        if (!emailResult.success) {
+          return {
+            success: false,
+            actionType: this.actionType,
+            error: `Invoice ${invoice.invoiceNumber} generated successfully, but email delivery failed: ${emailResult.error?.message || 'Email delivery failed'}`,
+            output: {
+              invoiceId: invoice.id,
+              invoiceNumber: invoice.invoiceNumber,
+              total: invoice.total,
+              dueDate: invoice.dueDate,
+              sentTo: recipientEmail,
+              documentUrl,
+            },
+            durationMs: Date.now() - startTime,
+          };
+        }
+
+        return {
+          success: true,
+          actionType: this.actionType,
+          output: {
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            total: invoice.total,
+            dueDate: invoice.dueDate,
+            sentTo: recipientEmail,
+            messageId: emailResult.messageId,
+            downloadUrl: documentUrl,
+          },
+          durationMs: Date.now() - startTime,
+        };
+      } catch (emailErr: any) {
+        return {
+          success: false,
+          actionType: this.actionType,
+          error: `Invoice ${invoice.invoiceNumber} generated, but email sending encountered an error: ${emailErr.message}`,
+          output: {
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            total: invoice.total,
+            dueDate: invoice.dueDate,
+            sentTo: recipientEmail,
+            documentUrl,
+          },
+          durationMs: Date.now() - startTime,
+        };
       }
-
-      return {
-        success: true,
-        actionType: this.actionType,
-        output: {
-          invoiceId: invoice.id,
-          invoiceNumber: invoice.invoiceNumber,
-          total: invoice.total,
-          dueDate: invoice.dueDate,
-          sentTo: recipientEmail,
-          messageId: emailResult.messageId,
-          downloadUrl: docResult.documentUrl,
-        },
-        durationMs: Date.now() - startTime,
-      };
     } catch (err: any) {
       return {
         success: false,

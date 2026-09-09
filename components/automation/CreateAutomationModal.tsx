@@ -20,6 +20,8 @@ import {
   MapPin,
   HelpCircle,
   Sparkles,
+  Pencil,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/admin/ui';
 import { fetchAllWorkspaceLeases } from '@/app/actions/dashboard';
@@ -57,6 +59,13 @@ export function CreateAutomationModal({
   const [selectedLeaseId, setSelectedLeaseId] = useState<string>(preselectedLeaseId || '');
   const [leaseActionType, setLeaseActionType] = useState<string>('generate_and_send_invoice');
 
+  // Custom Recipient Overrides for Lease Automation
+  const [isEditingRecipient, setIsEditingRecipient] = useState<boolean>(false);
+  const [customTenantName, setCustomTenantName] = useState<string>('');
+  const [customTenantEmail, setCustomTenantEmail] = useState<string>('');
+  const [customTenantPhone, setCustomTenantPhone] = useState<string>('');
+  const [customRentAmount, setCustomRentAmount] = useState<number | ''>('');
+
   // Standalone Invoice Automation Fields
   const [customerName, setCustomerName] = useState<string>('');
   const [customerEmail, setCustomerEmail] = useState<string>('');
@@ -79,6 +88,7 @@ export function CreateAutomationModal({
     if (isOpen) {
       setCurrentStep(preselectedLeaseId ? 1 : 0);
       setError(null);
+      setIsEditingRecipient(false);
 
       // Load leases
       fetchAllWorkspaceLeases().then((res: any) => {
@@ -102,10 +112,22 @@ export function CreateAutomationModal({
     }
   }, [isOpen, preselectedLeaseId]);
 
-  if (!isOpen) return null;
-
   const selectedLease = leases.find((l) => l.id === selectedLeaseId);
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
+
+  // Sync lease defaults when selected lease changes
+  useEffect(() => {
+    if (selectedLease) {
+      const tRel = selectedLease.lease_tenants?.[0]?.tenant || selectedLease.tenants?.[0]?.tenant || selectedLease.tenants?.[0];
+      const tName = tRel ? `${tRel.first_name || ''} ${tRel.last_name || ''}`.trim() : '';
+      setCustomTenantName(tName);
+      setCustomTenantEmail(tRel?.email || '');
+      setCustomTenantPhone(tRel?.phone || '');
+      setCustomRentAmount(selectedLease.rent_amount ? Number(selectedLease.rent_amount) : '');
+    }
+  }, [selectedLeaseId, leases]);
+
+  if (!isOpen) return null;
 
   // Resolved Lease Tenant / Recipient Details
   const resolvedTenant = selectedLease?.lease_tenants?.[0]?.tenant || selectedLease?.tenants?.[0]?.tenant || selectedLease?.tenants?.[0];
@@ -124,6 +146,18 @@ export function CreateAutomationModal({
   const resolvedDates = selectedLease?.start_date
     ? `${new Date(selectedLease.start_date).toLocaleDateString()} – ${selectedLease.end_date ? new Date(selectedLease.end_date).toLocaleDateString() : 'Periodic'}`
     : 'N/A';
+
+  // Effective recipient values (considering custom overrides)
+  const effectiveTenantName = customTenantName.trim() || resolvedTenantName;
+  const effectiveTenantEmail = customTenantEmail.trim();
+  const effectiveTenantPhone = customTenantPhone.trim() || (resolvedTenant?.phone || '');
+  const effectiveRent = customRentAmount !== '' ? `$${Number(customRentAmount).toLocaleString()} / ${selectedLease?.rent_frequency || 'monthly'}` : resolvedRent;
+  const hasCustomOverrides = Boolean(
+    (customTenantEmail && customTenantEmail !== resolvedTenant?.email) ||
+    (customTenantName && customTenantName !== resolvedTenantName) ||
+    (customTenantPhone && customTenantPhone !== resolvedTenant?.phone) ||
+    (customRentAmount !== '' && Number(customRentAmount) !== Number(selectedLease?.rent_amount))
+  );
 
   const handleCreate = async () => {
     setError(null);
@@ -147,6 +181,9 @@ export function CreateAutomationModal({
         if (!selectedLeaseId) {
           throw new Error('Please select a target lease.');
         }
+        if (!effectiveTenantEmail) {
+          throw new Error('Please provide a recipient email address for lease automation.');
+        }
 
         const res = await createLeaseAutomationAction({
           leaseId: selectedLeaseId,
@@ -154,6 +191,14 @@ export function CreateAutomationModal({
           invoiceTemplateId: leaseActionType === 'generate_and_send_invoice' ? selectedTemplateId || undefined : undefined,
           scheduleType,
           scheduleConfig,
+          recipientOverride: hasCustomOverrides
+            ? {
+                tenantName: effectiveTenantName,
+                tenantEmail: effectiveTenantEmail,
+                tenantPhone: effectiveTenantPhone || undefined,
+                rentAmount: customRentAmount !== '' ? Number(customRentAmount) : undefined,
+              }
+            : undefined,
         });
 
         if (!res.success) throw new Error(res.error || 'Failed to create lease automation');
@@ -324,45 +369,156 @@ export function CreateAutomationModal({
                   })}
                 </select>
 
-                {/* Resolved Recipient Information Card */}
+                {/* Resolved / Editable Recipient Information Card */}
                 {selectedLease && (
                   <div className="mt-2.5 p-3.5 bg-admin-surface-subtle/80 border border-admin-border rounded-xl space-y-2.5 animate-in fade-in">
                     <div className="flex items-center justify-between border-b border-admin-border pb-2">
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4 text-admin-primary" />
-                        <span className="text-xs font-bold text-admin-foreground">Resolved Recipient & Lease Context</span>
+                        <span className="text-xs font-bold text-admin-foreground">
+                          {hasCustomOverrides ? 'Customized Recipient & Billing Context' : 'Resolved Recipient & Lease Context'}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                        Auto-Detected
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {hasCustomOverrides ? (
+                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                            Customized
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                            Auto-Detected
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingRecipient(!isEditingRecipient)}
+                          className="text-[11px] font-bold px-2 py-0.5 rounded-lg text-admin-primary bg-admin-primary/10 hover:bg-admin-primary/20 transition-colors inline-flex items-center gap-1"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          {isEditingRecipient ? 'Done' : 'Edit Details'}
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-admin-muted font-medium">Tenant:</span>
-                        <strong className="text-admin-foreground">{resolvedTenantName}</strong>
+                    {isEditingRecipient ? (
+                      <div className="space-y-3 pt-1 animate-in fade-in text-xs">
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                              Recipient / Tenant Name
+                            </label>
+                            <input
+                              type="text"
+                              value={customTenantName}
+                              onChange={(e) => setCustomTenantName(e.target.value)}
+                              placeholder="e.g. John Smith"
+                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                              Recipient Email Address <span className="text-rose-500">*</span>
+                            </label>
+                            <input
+                              type="email"
+                              value={customTenantEmail}
+                              onChange={(e) => setCustomTenantEmail(e.target.value)}
+                              placeholder="e.g. tenant@example.com"
+                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                              Contact Phone (Optional)
+                            </label>
+                            <input
+                              type="tel"
+                              value={customTenantPhone}
+                              onChange={(e) => setCustomTenantPhone(e.target.value)}
+                              placeholder="e.g. +61 400 000 000"
+                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                              Rent Amount ($)
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              value={customRentAmount}
+                              onChange={(e) => setCustomRentAmount(e.target.value === '' ? '' : Number(e.target.value))}
+                              placeholder="Rent Amount"
+                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1 border-t border-admin-border/50">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const tRel = selectedLease.lease_tenants?.[0]?.tenant || selectedLease.tenants?.[0]?.tenant || selectedLease.tenants?.[0];
+                              const tName = tRel ? `${tRel.first_name || ''} ${tRel.last_name || ''}`.trim() : '';
+                              setCustomTenantName(tName);
+                              setCustomTenantEmail(tRel?.email || '');
+                              setCustomTenantPhone(tRel?.phone || '');
+                              setCustomRentAmount(selectedLease.rent_amount ? Number(selectedLease.rent_amount) : '');
+                            }}
+                            className="text-[11px] text-admin-muted hover:text-admin-foreground underline"
+                          >
+                            Reset to Lease Defaults
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingRecipient(false)}
+                            className="text-xs font-bold px-3 py-1 bg-admin-primary text-white rounded-lg hover:bg-admin-primary-hover"
+                          >
+                            Done Editing
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Mail className="w-3.5 h-3.5 text-admin-muted shrink-0" />
-                        <span className="font-mono text-admin-primary font-medium truncate" title={resolvedTenantEmail}>
-                          {resolvedTenantEmail}
-                        </span>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-admin-muted font-medium">Tenant:</span>
+                          <strong className="text-admin-foreground">{effectiveTenantName}</strong>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+                          {effectiveTenantEmail ? (
+                            <span className="font-mono text-admin-primary font-medium truncate" title={effectiveTenantEmail}>
+                              {effectiveTenantEmail}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingRecipient(true)}
+                              className="text-amber-500 font-bold hover:underline flex items-center gap-1 text-[11px]"
+                            >
+                              No email on record · Click to edit
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+                          <span className="text-admin-foreground font-mono">{effectiveTenantPhone || 'Not provided'}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          <span className="text-admin-foreground font-semibold">{effectiveRent}</span>
+                        </div>
+                        <div className="col-span-2 flex items-start gap-1.5 pt-0.5 border-t border-admin-border/50">
+                          <MapPin className="w-3.5 h-3.5 text-admin-muted shrink-0 mt-0.5" />
+                          <span className="text-[11px] text-admin-muted truncate" title={`${resolvedPropertyName} — ${resolvedPropertyAddress}`}>
+                            <strong className="text-admin-foreground">{resolvedPropertyName}</strong> • {resolvedPropertyAddress}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Phone className="w-3.5 h-3.5 text-admin-muted shrink-0" />
-                        <span className="text-admin-foreground font-mono">{resolvedTenantPhone}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                        <span className="text-admin-foreground font-semibold">{resolvedRent}</span>
-                      </div>
-                      <div className="col-span-2 flex items-start gap-1.5 pt-0.5 border-t border-admin-border/50">
-                        <MapPin className="w-3.5 h-3.5 text-admin-muted shrink-0 mt-0.5" />
-                        <span className="text-[11px] text-admin-muted truncate" title={`${resolvedPropertyName} — ${resolvedPropertyAddress}`}>
-                          <strong className="text-admin-foreground">{resolvedPropertyName}</strong> • {resolvedPropertyAddress}
-                        </span>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -682,20 +838,31 @@ export function CreateAutomationModal({
                 {automationType === 'lease' ? (
                   <>
                     <div className="space-y-1.5 bg-admin-surface p-3 rounded-lg border border-admin-border text-xs">
-                      <div className="font-bold text-admin-foreground flex items-center gap-1.5 mb-1 text-[11px] uppercase tracking-wider text-admin-primary">
-                        <User className="w-3.5 h-3.5" /> Recipient Details (From Lease)
+                      <div className="font-bold text-admin-foreground flex items-center justify-between mb-1 text-[11px] uppercase tracking-wider text-admin-primary">
+                        <span className="flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5" /> Recipient Details
+                        </span>
+                        {hasCustomOverrides && (
+                          <span className="text-[10px] lowercase font-normal bg-amber-500/10 text-amber-500 px-1.5 py-0.2 rounded border border-amber-500/20">
+                            (customized)
+                          </span>
+                        )}
                       </div>
                       <div className="flex justify-between">
                         <span className="text-admin-muted">Recipient Tenant:</span>
-                        <strong className="text-admin-foreground">{resolvedTenantName}</strong>
+                        <strong className="text-admin-foreground">{effectiveTenantName}</strong>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-admin-muted">Email Address:</span>
-                        <span className="font-mono text-admin-primary font-bold">{resolvedTenantEmail}</span>
+                        <span className="font-mono text-admin-primary font-bold">{effectiveTenantEmail || 'No email provided'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-admin-muted">Phone Number:</span>
-                        <span className="font-mono text-admin-foreground">{resolvedTenantPhone}</span>
+                        <span className="font-mono text-admin-foreground">{effectiveTenantPhone || 'Not provided'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-admin-muted">Rent Amount:</span>
+                        <span className="font-bold text-emerald-500">{effectiveRent}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-admin-muted">Property & Address:</span>

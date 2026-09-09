@@ -61,6 +61,7 @@ export function mapInvoiceRowToDomain(row: any, items: InvoiceItem[] = []): Invo
     paymentInstructions: row.payment_instructions || null,
     cancellationReason: row.cancellation_reason || null,
     templateId: row.template_id || null,
+    automationId: row.automation_id || null,
     snapshot: row.snapshot || null,
     items,
     createdBy: row.created_by || null,

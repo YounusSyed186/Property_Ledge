@@ -29,7 +29,7 @@ async function handleCronEvaluation(request: NextRequest) {
     const supabase = await createAdminClient();
     const nowIso = new Date().toISOString();
 
-    // Query active automations due for execution
+    // Query active automations due for execution (bounded batch of 100)
     const { data: dueAutomations, error: fetchErr } = await (supabase as any)
       .from('automations')
       .select(`
@@ -37,7 +37,8 @@ async function handleCronEvaluation(request: NextRequest) {
         lease:leases(*)
       `)
       .eq('status', 'active')
-      .lte('next_run_at', nowIso);
+      .lte('next_run_at', nowIso)
+      .limit(100);
 
     if (fetchErr) {
       console.error('[CronEvaluation] DB Fetch Error:', fetchErr);

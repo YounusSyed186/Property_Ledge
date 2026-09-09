@@ -1,5 +1,6 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { requireAuthenticatedUser, requirePropertyPermission } from './authorization';
+import { createServerServices } from '@/composition/services';
 import type { Database } from '@/types/database';
 
 type Tables = Database['public']['Tables'];
@@ -241,28 +242,44 @@ export async function deleteTenant(propertyId: string, tenantId: string) {
 export async function createLease(propertyId: string, input: Omit<Tables['leases']['Insert'], 'property_id'>, tenantIds?: string[]) {
   const user = await requirePropertyPermission(propertyId, 'lease.create');
   const adminClient = await createAdminClient();
-  const { data, error } = await adminClient
-    .from('leases')
-    .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
-  const leaseRow = data as { id: string };
 
-  if (tenantIds?.length) {
-    await adminClient.from('lease_tenants').insert(
-      tenantIds.map((tenantId, idx) => ({
-        lease_id: leaseRow.id,
-        tenant_id: tenantId,
-        property_id: propertyId,
-        role: idx === 0 ? 'primary' : 'co-tenant',
-        is_primary: idx === 0,
-      })) as never
-    );
+  const { data: propData } = await adminClient
+    .from('properties')
+    .select('workspace_id')
+    .eq('id', propertyId)
+    .single();
+  const workspaceId = (propData as any)?.workspace_id || '';
+
+  const { leaseService } = await createServerServices();
+  const createResult = await leaseService.createLease(
+    {
+      propertyId,
+      unitId: input.unit_id || undefined,
+      startDate: input.start_date,
+      endDate: input.end_date || undefined,
+      rentAmount: Number(input.rent_amount) || 0,
+      securityDeposit: Number(input.security_deposit) || 0,
+      paymentDueDay: Number(input.payment_due_day) || 1,
+      rentFrequency: (input.rent_frequency as any) || 'monthly',
+      notes: input.notes || undefined,
+      tenantIds: tenantIds || [],
+    },
+    { workspaceId, userId: user.id }
+  );
+
+  if (!createResult.success) {
+    throw new Error(createResult.error.message);
   }
 
-  await recordActivityLog({ propertyId, action: 'created', entityType: 'lease', entityId: leaseRow.id });
-  return data;
+  // Fetch created row for exact legacy return shape
+  const { data: rawLease } = await adminClient
+    .from('leases')
+    .select('*')
+    .eq('id', createResult.data.id)
+    .single();
+
+  await recordActivityLog({ propertyId, action: 'created', entityType: 'lease', entityId: createResult.data.id });
+  return rawLease;
 }
 
 export interface TenancySetupInput {

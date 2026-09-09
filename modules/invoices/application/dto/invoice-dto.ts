@@ -60,6 +60,7 @@ export interface CreateInvoiceDTO {
   notes?: string | null;
   paymentInstructions?: string | null;
   templateId?: string | null;
+  automationId?: string | null;
   autoIssue?: boolean; // if true, issues immediately upon creation
 }
 
@@ -87,6 +88,7 @@ export interface UpdateInvoiceDraftDTO {
   notes?: string | null;
   paymentInstructions?: string | null;
   templateId?: string | null;
+  automationId?: string | null;
 }
 
 export type UpdateInvoiceDTO = UpdateInvoiceDraftDTO;

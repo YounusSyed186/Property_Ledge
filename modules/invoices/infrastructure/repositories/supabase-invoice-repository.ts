@@ -87,6 +87,9 @@ export class SupabaseInvoiceRepository implements InvoiceRepository {
       if (filters.tenantId) {
         query = query.eq('tenant_id', filters.tenantId);
       }
+      if (filters.automationId) {
+        query = query.eq('automation_id', filters.automationId);
+      }
       if (filters.status && filters.status !== 'all') {
         query = query.eq('status', filters.status);
       }
@@ -173,6 +176,7 @@ export class SupabaseInvoiceRepository implements InvoiceRepository {
         notes: data.notes || null,
         payment_instructions: data.paymentInstructions || null,
         template_id: data.templateId || null,
+        automation_id: data.automationId || null,
         status: data.status || 'draft',
         created_by: context?.userId || null,
       };
@@ -240,6 +244,7 @@ export class SupabaseInvoiceRepository implements InvoiceRepository {
       if (data.notes !== undefined) updatePayload.notes = data.notes;
       if (data.paymentInstructions !== undefined) updatePayload.payment_instructions = data.paymentInstructions;
       if (data.templateId !== undefined) updatePayload.template_id = data.templateId;
+      if (data.automationId !== undefined) updatePayload.automation_id = data.automationId;
       updatePayload.updated_at = new Date().toISOString();
 
       const { data: updatedInv, error: updateError } = await this.client
