@@ -173,17 +173,19 @@ export function CompactKpiCard({ label, value, hint, trend, href, icon: Icon, ac
   const inner = (
     <div
       className={cn(
-        'rounded-xl border border-admin-border bg-admin-surface px-4 py-4 transition-colors w-full',
+        'rounded-xl border border-admin-border bg-admin-surface px-4 py-4 transition-colors w-full h-full min-h-[96px] flex flex-col justify-between',
         href && 'hover:border-admin-primary-border hover:shadow-sm',
         className
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-metadata font-semibold uppercase tracking-wider text-admin-muted">{label}</p>
-          <p className="mt-1.5 font-heading text-display font-semibold tabular-nums tracking-tight text-admin-foreground">
-            {value}
-          </p>
+      <div className="flex items-start justify-between gap-3 flex-1">
+        <div className="min-w-0 flex-1 flex flex-col justify-between h-full">
+          <div>
+            <p className="text-metadata font-semibold uppercase tracking-wider text-admin-muted">{label}</p>
+            <p className="mt-1.5 font-heading text-display font-semibold tabular-nums tracking-tight text-admin-foreground">
+              {value}
+            </p>
+          </div>
           {trend && (
             <p className={cn('mt-1 text-caption font-medium', trend.positive ? 'text-admin-success' : 'text-admin-muted')}>
               {trend.value}
@@ -200,7 +202,7 @@ export function CompactKpiCard({ label, value, hint, trend, href, icon: Icon, ac
     </div>
   );
 
-  if (href) return <Link href={href}>{inner}</Link>;
+  if (href) return <Link href={href} className="h-full flex flex-col">{inner}</Link>;
   return inner;
 }
 

@@ -181,7 +181,7 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
                   View properties →
                 </Link>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
                 <CompactKpiCard label="Properties" value={availableProperties.length} href="/dashboard/properties" icon={Building2} accent="blue" />
                 <CompactKpiCard label="Tenants" value={stats?.activeTenants ?? 0} href="/dashboard/tenants" icon={Users} accent="indigo" />
                 <CompactKpiCard label="Active Leases" value={stats?.activeLeases ?? 0} href="/dashboard/leases" icon={Percent} accent="teal" />
