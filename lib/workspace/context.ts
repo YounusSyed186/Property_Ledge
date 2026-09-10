@@ -83,18 +83,6 @@ export async function resolveWorkspaceContext(
   if (!wsId) {
     const workspaces = await getUserWorkspaces(user.id);
     if (workspaces.length === 0) {
-      if (process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEBUG === 'true') {
-        return {
-          workspaceId: '44444444-4444-4444-4444-444444444444',
-          workspaceName: 'Test Property Management',
-          roleId: 'role-owner',
-          roleName: 'Owner',
-          permissions: ['*'],
-          entitlements: {},
-          billingAccountId: 'billing-123',
-          isOwner: true,
-        };
-      }
       return null;
     }
     const first = workspaces[0];

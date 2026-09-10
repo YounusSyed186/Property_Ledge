@@ -9,14 +9,6 @@ export async function getCurrentUser() {
     if (!error && user) return user;
   } catch (e) {}
 
-  if (process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEBUG === 'true') {
-    return {
-      id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-      email: 'landlord@test.com',
-      user_metadata: { full_name: 'Landlord User' },
-      app_metadata: {}
-    } as any;
-  }
   return null;
 }
 

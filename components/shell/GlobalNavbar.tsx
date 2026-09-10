@@ -106,12 +106,6 @@ export function GlobalNavbar({
       <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
         {headerExtras}
 
-        {/* Environment Indicator: Production Hub */}
-        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F5FAF9] dark:bg-[#071526] border border-[#DCEDE9] dark:border-[#17283A] text-[#3E5C58] dark:text-[#AEB8C3] text-[11px] font-medium select-none">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#13A26B]" />
-          <span>Production Hub</span>
-        </div>
-
         <motion.button
           type="button"
           whileHover={{ scale: 1.01 }}
