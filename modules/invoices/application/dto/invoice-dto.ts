@@ -2,7 +2,7 @@
  * Invoice Application DTOs.
  */
 
-import { Invoice, InvoiceItem, InvoiceStatus } from '../../domain/entities/invoice';
+import { Invoice, InvoiceItem, InvoiceStatus, InvoiceSnapshotParty } from '../../domain/entities/invoice';
 import {
   InvoiceTemplate,
   InvoiceLayoutStyle,
@@ -50,6 +50,11 @@ export interface CreateInvoiceDTO {
   senderTaxNumber?: string | null;
   senderEmail?: string | null;
   senderPhone?: string | null;
+  issuer?: InvoiceSnapshotParty | null;
+  issuerName?: string | null;
+  issuerEmail?: string | null;
+  issuerPhone?: string | null;
+  issuerAddress?: string | null;
 
   issueDate?: string;
   dueDate: string;

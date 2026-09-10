@@ -26,15 +26,15 @@ export function TriggerConfirmationModal({
   const isLease = automation.automationType === 'lease';
 
   const recipientName = isLease
-    ? automation.lease?.tenantName || 'Tenant'
-    : automation.metadata?.customerName || 'Customer';
+    ? automation.lease?.tenantName || automation.metadata?.customerName || automation.metadata?.tenantName || 'Tenant'
+    : automation.metadata?.customerName || automation.metadata?.recipientName || 'Customer';
 
   const recipientEmail = isLease
-    ? automation.lease?.tenantEmail || 'No email on record'
-    : automation.metadata?.customerEmail || 'No email on record';
+    ? automation.lease?.tenantEmail || automation.metadata?.customerEmail || automation.metadata?.tenantEmail || automation.metadata?.recipientEmail || 'No email on record'
+    : automation.metadata?.customerEmail || automation.metadata?.recipientEmail || 'No email on record';
 
   const sourceName = isLease
-    ? automation.lease?.propertyName || 'Property'
+    ? automation.lease?.propertyName || automation.metadata?.propertyName || 'Property'
     : automation.metadata?.description || 'Service Invoice';
 
   return (

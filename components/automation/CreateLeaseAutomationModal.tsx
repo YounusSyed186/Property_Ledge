@@ -29,7 +29,6 @@ export function CreateLeaseAutomationModal({
   // Schedule parameters
   const [dayOfMonth, setDayOfMonth] = useState<number>(1);
   const [offsetMonths, setOffsetMonths] = useState<number>(12);
-  const [timeOfDay, setTimeOfDay] = useState<string>('09:00');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,12 +64,10 @@ export function CreateLeaseAutomationModal({
       if (scheduleType === 'monthly') {
         scheduleConfig = {
           dayOfMonth: Number(dayOfMonth) || 1,
-          timeOfDay,
         };
       } else if (scheduleType === 'after_start') {
         scheduleConfig = {
           offsetMonths: Number(offsetMonths) || 12,
-          timeOfDay,
         };
       }
 
@@ -210,54 +207,44 @@ export function CreateLeaseAutomationModal({
 
             {/* Schedule Options Inputs */}
             {scheduleType === 'monthly' && (
-              <div className="grid grid-cols-2 gap-3 p-3.5 bg-admin-surface-subtle border border-admin-border rounded-xl">
+              <div className="p-3.5 bg-admin-surface-subtle border border-admin-border rounded-xl space-y-2.5">
                 <div>
                   <label className="block text-xs font-bold text-admin-muted mb-1">Day of Month</label>
                   <select
                     value={dayOfMonth}
                     onChange={(e) => setDayOfMonth(Number(e.target.value))}
-                    className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs font-bold text-admin-foreground"
+                    className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-2 text-xs font-bold text-admin-foreground"
                   >
                     {[...Array(28)].map((_, i) => (
                       <option key={i + 1} value={i + 1}>
-                        {i + 1}
+                        {i + 1}{i === 0 ? 'st' : i === 1 ? 'nd' : i === 2 ? 'rd' : 'th'} of every month
                       </option>
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-admin-muted mb-1">Delivery Time</label>
-                  <input
-                    type="time"
-                    value={timeOfDay}
-                    onChange={(e) => setTimeOfDay(e.target.value)}
-                    className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs font-bold text-admin-foreground"
-                  />
+                <div className="p-2.5 bg-admin-primary/10 border border-admin-primary/20 rounded-lg text-admin-primary text-[11px] leading-relaxed flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span>Evaluated and dispatched automatically in the <strong>7:00 AM AU</strong> daily morning queue.</span>
                 </div>
               </div>
             )}
 
             {scheduleType === 'after_start' && (
-              <div className="grid grid-cols-2 gap-3 p-3.5 bg-admin-surface-subtle border border-admin-border rounded-xl">
+              <div className="p-3.5 bg-admin-surface-subtle border border-admin-border rounded-xl space-y-2.5">
                 <div>
-                  <label className="block text-xs font-bold text-admin-muted mb-1">Months After Start</label>
+                  <label className="block text-xs font-bold text-admin-muted mb-1">Months After Lease Start</label>
                   <input
                     type="number"
                     min={1}
                     max={60}
                     value={offsetMonths}
                     onChange={(e) => setOffsetMonths(Number(e.target.value))}
-                    className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs font-bold text-admin-foreground"
+                    className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-2 text-xs font-bold text-admin-foreground"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-admin-muted mb-1">Delivery Time</label>
-                  <input
-                    type="time"
-                    value={timeOfDay}
-                    onChange={(e) => setTimeOfDay(e.target.value)}
-                    className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs font-bold text-admin-foreground"
-                  />
+                <div className="p-2.5 bg-admin-primary/10 border border-admin-primary/20 rounded-lg text-admin-primary text-[11px] leading-relaxed flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span>Evaluated and dispatched automatically in the <strong>7:00 AM AU</strong> daily morning queue.</span>
                 </div>
               </div>
             )}

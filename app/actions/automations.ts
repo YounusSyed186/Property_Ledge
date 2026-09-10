@@ -9,6 +9,10 @@ import { SendLeaseAction } from '@/modules/automation/application/actions/send-l
 import { ScheduleCalculator } from '@/modules/automation/domain/services/schedule-calculator';
 import { createServerServices } from '@/composition/services';
 import { AutomationType, AutomationScheduleType, ScheduleConfig } from '@/modules/automation';
+import { getAuDateParts, DEFAULT_AU_TIMEZONE } from '@/lib/format/australian-time';
+
+const isUuid = (val?: string | null): boolean =>
+  typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
 actionRegistry.register(new SendLeaseAction());
 
@@ -98,93 +102,23 @@ export async function fetchAutomationsAction(filters?: {
     }
 
     const { data, error } = await query;
-    if (error || !data || data.length === 0) {
-      return [
-        {
-          id: 'auto-101',
-          workspaceId: context.workspaceId,
-          automationType: 'lease',
-          leaseId: 'lease-101',
-          invoiceTemplateId: null,
-          description: null,
-          name: 'Monthly Rent Invoice Dispatch - Suburban House',
-          actionType: 'generate_and_send_invoice',
-          scheduleType: 'monthly',
-          scheduleConfig: { dayOfMonth: 1, timeOfDay: '09:00' },
-          status: 'active',
-          lastRunAt: '2026-09-01T09:00:00Z',
-          nextRunAt: '2026-10-01T09:00:00Z',
-          createdAt: '2026-08-01T10:00:00Z',
-          lease: {
-            id: 'lease-101',
-            propertyName: 'Suburban House - Unit 4B',
-            propertyAddress: '124 Smith Street, Sydney NSW',
-            tenantName: 'John Smith',
-            tenantEmail: 'john.smith@tenant.com',
-            startDate: '2026-01-01',
-            endDate: '2026-12-31',
-            rentAmount: 2450,
-            rentFrequency: 'monthly',
-          },
-        },
-        {
-          id: 'auto-102',
-          workspaceId: context.workspaceId,
-          automationType: 'invoice',
-          leaseId: null,
-          invoiceTemplateId: null,
-          description: null,
-          name: 'Monthly Property Maintenance & Facility Billing',
-          actionType: 'generate_and_send_invoice',
-          scheduleType: 'monthly',
-          scheduleConfig: { dayOfMonth: 15, timeOfDay: '10:00' },
-          status: 'active',
-          lastRunAt: '2026-08-15T10:00:00Z',
-          nextRunAt: '2026-09-15T10:00:00Z',
-          createdAt: '2026-07-01T08:00:00Z',
-          metadata: {
-            customerName: 'Sarah Connor Facilities Inc',
-            customerEmail: 'sarah.connor@example.com',
-            description: 'Monthly Maintenance & HVAC Servicing',
-            amount: 1850,
-            currency: 'AUD',
-          },
-        },
-        {
-          id: 'auto-103',
-          workspaceId: context.workspaceId,
-          automationType: 'lease',
-          leaseId: 'lease-102',
-          invoiceTemplateId: null,
-          description: null,
-          name: 'Lease Renewal Agreement Notice',
-          actionType: 'send_lease',
-          scheduleType: 'monthly',
-          scheduleConfig: { dayOfMonth: 1, timeOfDay: '08:00' },
-          status: 'paused',
-          lastRunAt: '2026-07-01T08:00:00Z',
-          nextRunAt: null,
-          createdAt: '2026-06-01T09:00:00Z',
-          lease: {
-            id: 'lease-102',
-            propertyName: 'City Center Tower - Suite 801',
-            propertyAddress: '88 George Street, Sydney NSW',
-            tenantName: 'Sarah Johnson',
-            tenantEmail: 'sarah.johnson@tenant.com',
-            startDate: '2025-09-01',
-            endDate: '2026-09-01',
-            rentAmount: 3950,
-            rentFrequency: 'monthly',
-          },
-        },
-      ];
+    if (error) {
+      console.error('[fetchAutomationsAction] Query Error:', error);
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      return [];
     }
 
     return (data || []).map((row: any) => {
       const l = row.lease;
       const tRel = l?.lease_tenants?.[0];
       const t = tRel?.tenant;
-      const tenantName = t ? `${t.first_name || ''} ${t.last_name || ''}`.trim() : 'Tenant';
+      const metaName = row.metadata?.customerName || row.actions?.[0]?.params?.customerName;
+      const metaEmail = row.metadata?.customerEmail || row.metadata?.tenantEmail || row.actions?.[0]?.params?.customerEmail || row.actions?.[0]?.params?.recipientEmail;
+      const tenantName = t ? `${t.first_name || ''} ${t.last_name || ''}`.trim() : (metaName || 'Tenant');
+      const tenantEmail = t?.email || metaEmail || undefined;
 
       return {
         id: row.id,
@@ -208,7 +142,7 @@ export async function fetchAutomationsAction(filters?: {
               propertyName: l.property?.name || 'Property',
               propertyAddress: l.property?.address_line1 || l.property?.address,
               tenantName,
-              tenantEmail: t?.email,
+              tenantEmail,
               startDate: l.start_date,
               endDate: l.end_date,
               rentAmount: Number(l.rent_amount || 0),
@@ -234,6 +168,14 @@ export async function fetchAutomationsAction(filters?: {
 export const fetchLeaseAutomationsAction = fetchAutomationsAction;
 export type LeaseAutomationItem = AutomationItem;
 
+export interface IssuerDetailsDTO {
+  issuerName?: string;
+  issuerEmail?: string;
+  issuerPhone?: string;
+  issuerAddress?: string;
+  issuerTaxId?: string;
+}
+
 export interface CreateLeaseAutomationDTO {
   leaseId: string;
   actionType: string;
@@ -246,6 +188,12 @@ export interface CreateLeaseAutomationDTO {
     tenantPhone?: string;
     rentAmount?: number;
   };
+  issuedByOverride?: IssuerDetailsDTO;
+  paymentDueDays?: number;
+  emailSubject?: string;
+  customMessage?: string;
+  emailMessage?: string;
+  driveFolderUrl?: string;
 }
 
 export async function createLeaseAutomationAction(dto: CreateLeaseAutomationDTO) {
@@ -306,12 +254,20 @@ export async function createLeaseAutomationAction(dto: CreateLeaseAutomationDTO)
       lease.end_date
     );
 
+    const emailBodyMsg = dto.customMessage || dto.emailMessage;
+
     const metadata: Record<string, any> = {
       ...(dto.recipientOverride || {}),
       customerName: tenantName,
       customerEmail: tenantEmail,
       customerPhone: dto.recipientOverride?.tenantPhone || t?.phone,
       amount: dto.recipientOverride?.rentAmount !== undefined ? dto.recipientOverride.rentAmount : Number(lease.rent_amount || 0),
+      issuedBy: dto.issuedByOverride || undefined,
+      paymentDueDays: dto.paymentDueDays || 14,
+      emailSubject: dto.emailSubject || undefined,
+      customMessage: emailBodyMsg || undefined,
+      emailMessage: emailBodyMsg || undefined,
+      driveFolderUrl: dto.driveFolderUrl || undefined,
     };
 
     const { data: inserted, error: insertErr } = await (supabase as any)
@@ -320,7 +276,7 @@ export async function createLeaseAutomationAction(dto: CreateLeaseAutomationDTO)
         workspace_id: context.workspaceId,
         automation_type: 'lease',
         lease_id: dto.leaseId,
-        invoice_template_id: dto.invoiceTemplateId || null,
+        invoice_template_id: isUuid(dto.invoiceTemplateId) ? dto.invoiceTemplateId : null,
         name,
         description: `Automated ${dto.actionType} for ${propName}`,
         trigger_type: 'schedule',
@@ -337,6 +293,12 @@ export async function createLeaseAutomationAction(dto: CreateLeaseAutomationDTO)
               customerEmail: tenantEmail,
               customerPhone: metadata.customerPhone,
               amount: metadata.amount,
+              issuedBy: dto.issuedByOverride || undefined,
+              dueDays: dto.paymentDueDays || 14,
+              emailSubject: dto.emailSubject || undefined,
+              customMessage: emailBodyMsg || undefined,
+              emailMessage: emailBodyMsg || undefined,
+              driveFolderUrl: dto.driveFolderUrl || undefined,
             },
           },
         ],
@@ -372,6 +334,12 @@ export interface CreateStandaloneInvoiceAutomationDTO {
   invoiceTemplateId?: string;
   scheduleType: AutomationScheduleType;
   scheduleConfig: ScheduleConfig;
+  issuedByOverride?: IssuerDetailsDTO;
+  paymentDueDays?: number;
+  emailSubject?: string;
+  customMessage?: string;
+  emailMessage?: string;
+  driveFolderUrl?: string;
 }
 
 export async function createStandaloneInvoiceAutomationAction(dto: CreateStandaloneInvoiceAutomationDTO) {
@@ -395,13 +363,15 @@ export async function createStandaloneInvoiceAutomationAction(dto: CreateStandal
       dto.scheduleConfig
     );
 
+    const emailBodyMsg = dto.customMessage || dto.emailMessage;
+
     const { data: inserted, error: insertErr } = await (supabase as any)
       .from('automations')
       .insert({
         workspace_id: context.workspaceId,
         automation_type: 'invoice',
         lease_id: null,
-        invoice_template_id: dto.invoiceTemplateId || null,
+        invoice_template_id: isUuid(dto.invoiceTemplateId) ? dto.invoiceTemplateId : null,
         name,
         description: `Automated recurring invoice for ${dto.customerName}`,
         trigger_type: 'schedule',
@@ -415,6 +385,12 @@ export async function createStandaloneInvoiceAutomationAction(dto: CreateStandal
           description: dto.description,
           amount: dto.amount,
           currency: dto.currency || 'AUD',
+          issuedBy: dto.issuedByOverride || undefined,
+          paymentDueDays: dto.paymentDueDays || 14,
+          emailSubject: dto.emailSubject || undefined,
+          customMessage: emailBodyMsg || undefined,
+          emailMessage: emailBodyMsg || undefined,
+          driveFolderUrl: dto.driveFolderUrl || undefined,
         },
         actions: [
           {
@@ -427,6 +403,12 @@ export async function createStandaloneInvoiceAutomationAction(dto: CreateStandal
               amount: dto.amount,
               currency: dto.currency || 'AUD',
               templateId: dto.invoiceTemplateId || undefined,
+              issuedBy: dto.issuedByOverride || undefined,
+              dueDays: dto.paymentDueDays || 14,
+              emailSubject: dto.emailSubject || undefined,
+              customMessage: emailBodyMsg || undefined,
+              emailMessage: emailBodyMsg || undefined,
+              driveFolderUrl: dto.driveFolderUrl || undefined,
             },
           },
         ],
@@ -566,6 +548,27 @@ export async function deleteAutomationAction(id: string) {
   }
 }
 
+export async function bulkDeleteAutomationsAction(ids: string[]) {
+  try {
+    if (!ids || ids.length === 0) return { success: true, count: 0 };
+    const { context } = await getContext();
+    const supabase = await createAdminClient();
+
+    const { error } = await (supabase as any)
+      .from('automations')
+      .delete()
+      .in('id', ids)
+      .eq('workspace_id', context.workspaceId);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath('/dashboard/automations');
+    return { success: true, count: ids.length };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
 export async function fetchAutomationExecutionsAction(automationId: string) {
   try {
     const { context } = await getContext();
@@ -669,5 +672,86 @@ export async function fetchInvoiceTemplatesAction() {
     return data || [];
   } catch (err: any) {
     return [];
+  }
+}
+
+/**
+ * Evaluates and executes any automations that are active and whose next_run_at is in the past (due).
+ * Can be called automatically by the UI or cron to ensure reliable dispatch without manual triggers.
+ */
+export async function evaluateDueAutomationsAction() {
+  try {
+    const { context } = await getContext();
+    const supabase = await createAdminClient();
+    const nowIso = new Date().toISOString();
+
+    const { data: dueAutomations, error: fetchErr } = await (supabase as any)
+      .from('automations')
+      .select(`
+        *,
+        lease:leases(*)
+      `)
+      .eq('workspace_id', context.workspaceId)
+      .eq('status', 'active')
+      .lte('next_run_at', nowIso)
+      .limit(20);
+
+    if (fetchErr || !dueAutomations || dueAutomations.length === 0) {
+      return { success: true, evaluated: 0 };
+    }
+
+    const { automationExecutionService } = await createServerServices();
+    let executedCount = 0;
+
+    for (const rawAuto of dueAutomations) {
+      const auto = rawAuto as any;
+      const scheduledFor = auto.next_run_at || nowIso;
+      const idempotencyKey = `auto_${auto.id}_${new Date(scheduledFor).getTime()}`;
+
+      try {
+        await automationExecutionService.executeAutomation({
+          automationId: auto.id,
+          triggerSource: 'scheduled',
+          context: {
+            leaseId: auto.lease_id,
+            invoiceTemplateId: auto.invoice_template_id,
+            workspaceId: auto.workspace_id,
+            scheduledFor,
+            ...(auto.metadata || {}),
+          },
+          idempotencyKey,
+          sourceEntityType: auto.automation_type === 'lease' ? 'lease' : 'invoice',
+          sourceEntityId: auto.lease_id || auto.id,
+        });
+
+        const nextRunAt = ScheduleCalculator.calculateNextRun(
+          auto.schedule_type || 'monthly',
+          auto.schedule_config || {},
+          auto.lease?.start_date,
+          auto.lease?.end_date
+        );
+
+        await (supabase as any)
+          .from('automations')
+          .update({
+            last_run_at: nowIso,
+            next_run_at: nextRunAt,
+            status: nextRunAt ? 'active' : 'completed',
+            updated_at: nowIso,
+          })
+          .eq('id', auto.id);
+
+        executedCount++;
+      } catch (err: any) {
+        console.error(`[evaluateDueAutomationsAction] Error executing automation ${auto.id}:`, err);
+      }
+    }
+
+    revalidatePath('/dashboard/automations');
+    revalidatePath('/dashboard/invoices');
+    return { success: true, evaluated: executedCount };
+  } catch (err: any) {
+    console.error('[evaluateDueAutomationsAction] General error:', err);
+    return { success: false, error: err.message };
   }
 }

@@ -11,6 +11,7 @@ import {
   handleCreateTenant,
 } from '@/app/actions/dashboard';
 import { NextActionDialog, type NextAction } from '@/components/dashboard/NextActionDialog';
+import { getAuTodayString } from '@/lib/format/australian-time';
 import { cn } from '@/lib/utils';
 
 interface CreateLeaseWizardProps {
@@ -141,7 +142,7 @@ export function CreateLeaseWizard({
       setNewTenant({ firstName: '', lastName: '', email: '', phone: '' });
 
       if (initialData) {
-        setStartDate(initialData.startDate || new Date().toISOString().split('T')[0]);
+        setStartDate(initialData.startDate || getAuTodayString());
         setEndDate(initialData.endDate || '');
         setIsPeriodic(initialData.isPeriodic || !initialData.endDate);
         setRentAmount(initialData.rentAmount?.toString() || '');
@@ -158,7 +159,7 @@ export function CreateLeaseWizard({
           setTenantMode('new');
         }
       } else {
-        setStartDate(new Date().toISOString().split('T')[0]);
+        setStartDate(getAuTodayString());
         setEndDate('');
         setIsPeriodic(false);
         setRentAmount('');

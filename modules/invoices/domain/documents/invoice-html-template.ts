@@ -466,8 +466,10 @@ export function renderInvoiceHtml(dto: InvoiceRenderDTO): string {
     <div class="invoice-header">
       <div class="header-branding">
         <div class="doc-type-label">Tax Invoice</div>
-        <h1 class="company-title">${dto.headerText || 'PROPERTY LEDGE'}</h1>
-        <p class="company-subtext">${dto.issuer.name || 'Property Ledge Management'} • ${dto.issuer.email || 'manager@propertyledge.com.au'}</p>
+        <h1 class="company-title">${dto.issuer.name || dto.headerText || 'PROPERTY LEDGE'}</h1>
+        <p class="company-subtext">
+          ${dto.issuer.email || 'billing@propertyledge.com.au'}${dto.issuer.phone ? ` • ${dto.issuer.phone}` : ''}${dto.issuer.taxId ? ` • ${dto.issuer.taxId}` : ''}
+        </p>
       </div>
 
       <div class="header-metadata">
@@ -485,7 +487,9 @@ export function renderInvoiceHtml(dto: InvoiceRenderDTO): string {
         <div class="section-title">Bill To</div>
         <div class="party-name">${dto.billTo.name || 'Customer'}</div>
         ${dto.billTo.email ? `<div class="party-detail">${dto.billTo.email}</div>` : ''}
+        ${dto.billTo.phone ? `<div class="party-detail">${dto.billTo.phone}</div>` : ''}
         ${dto.billTo.address ? `<div class="party-detail">${dto.billTo.address}</div>` : ''}
+        ${dto.billTo.taxId ? `<div class="party-detail"><strong>Tax ID:</strong> ${dto.billTo.taxId}</div>` : ''}
       </div>
 
       <div class="billing-col" style="text-align: right;">
@@ -494,6 +498,7 @@ export function renderInvoiceHtml(dto: InvoiceRenderDTO): string {
         ${dto.issuer.email ? `<div class="party-detail">${dto.issuer.email}</div>` : ''}
         ${dto.issuer.phone ? `<div class="party-detail">${dto.issuer.phone}</div>` : ''}
         ${dto.issuer.address ? `<div class="party-detail">${dto.issuer.address}</div>` : ''}
+        ${dto.issuer.taxId ? `<div class="party-detail"><strong>ABN / Tax ID:</strong> ${dto.issuer.taxId}</div>` : ''}
       </div>
     </div>
 

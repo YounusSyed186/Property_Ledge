@@ -21,6 +21,7 @@ import {
 import { Button, ConfirmDialog } from '@/components/admin/ui';
 import { InvoiceDTO } from '@/modules/invoices';
 import { formatCurrency } from '@/modules/invoices/domain/value-objects/currency';
+import { formatAuDisplayDate, formatAuDisplayDateTime } from '@/lib/format/australian-time';
 
 interface InvoiceDetailModalProps {
   invoice: InvoiceDTO | null;
@@ -30,7 +31,7 @@ interface InvoiceDetailModalProps {
   onRecordPayment: (id: string, amount: number, method: string, reference?: string) => Promise<void>;
   onCancel: (id: string, reason: string) => Promise<void>;
   onDownload: (id: string, format: 'pdf' | 'docx') => Promise<void>;
-  onSendEmail: (id: string, customMessage?: string, driveFolderUrl?: string) => Promise<void>;
+  onSendEmail: (id: string, customMessage?: string, driveFolderUrl?: string, subject?: string) => Promise<void>;
   onDeleteDraft?: (id: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   onEdit?: (invoice: InvoiceDTO) => void;
@@ -57,6 +58,7 @@ export function InvoiceDetailModal({
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
 
+  const [emailSubject, setEmailSubject] = useState('');
   const [emailMessage, setEmailMessage] = useState('');
   const [driveFolderUrl, setDriveFolderUrl] = useState('');
   const [showEmailForm, setShowEmailForm] = useState(false);
@@ -116,7 +118,7 @@ export function InvoiceDetailModal({
   const handleSendEmailSubmit = async () => {
     setActionLoading(true);
     try {
-      await onSendEmail(invoice.id, emailMessage, driveFolderUrl);
+      await onSendEmail(invoice.id, emailMessage, driveFolderUrl, emailSubject);
       setShowEmailForm(false);
       setActionSuccess('Invoice email dispatched successfully.');
       setTimeout(() => setActionSuccess(null), 3000);
@@ -147,7 +149,7 @@ export function InvoiceDetailModal({
               </div>
               <p className="text-xs text-admin-muted mt-0.5">
                 Currency: <strong className="text-admin-foreground">{invoice.currency}</strong> • Created{' '}
-                {new Date(invoice.createdAt).toLocaleDateString()}
+                {formatAuDisplayDateTime(invoice.createdAt)}
               </p>
             </div>
           </div>
@@ -229,16 +231,6 @@ export function InvoiceDetailModal({
                 <DollarSign className="w-3.5 h-3.5" /> Record Payment
               </Button>
             )}
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowEmailForm(true)}
-              disabled={actionLoading || !invoice.recipient.email}
-              className="gap-1.5 border-admin-border hover:bg-admin-surface text-admin-foreground"
-            >
-              <Mail className="w-3.5 h-3.5" /> Send via Email
-            </Button>
 
             {invoice.status !== 'cancelled' && invoice.status !== 'paid' && (
               <Button
@@ -369,49 +361,6 @@ export function InvoiceDetailModal({
             </div>
           )}
 
-          {/* Email Invoice Sub-form */}
-          {showEmailForm && (
-            <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl space-y-3">
-              <h4 className="font-bold text-blue-500 text-sm flex items-center gap-1.5">
-                <Mail className="w-4 h-4" /> Email Invoice to {invoice.recipient.email}
-              </h4>
-              <div>
-                <label className="text-xs font-bold text-admin-muted block mb-1">Email Message Note (optional override)</label>
-                <textarea
-                  rows={5}
-                  value={emailMessage}
-                  onChange={(e) => setEmailMessage(e.target.value)}
-                  placeholder={`Hi ${invoice.recipient.name.split(' ')[0]},\n\nHope everything is going smoothly.\n\nI've attached invoice ${invoice.invoiceNumber}.\n\nCould you please review the invoice and confirm that all details are correct on your end?\n\nPlease let me know if you have any questions.\n\nKind regards,\nProperty Ledge Management`}
-                  className="w-full bg-admin-surface border border-admin-border rounded-xl p-3 text-admin-foreground text-xs focus:outline-none focus:border-admin-primary leading-relaxed"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-admin-muted block mb-1">Google Drive Folder Link (optional)</label>
-                <input
-                  type="url"
-                  value={driveFolderUrl}
-                  onChange={(e) => setDriveFolderUrl(e.target.value)}
-                  placeholder="https://drive.google.com/drive/folders/..."
-                  className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-xs focus:outline-none focus:border-admin-primary"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-1">
-                <Button variant="ghost" size="sm" onClick={() => setShowEmailForm(false)} className="text-admin-muted hover:text-admin-foreground">
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleSendEmailSubmit}
-                  disabled={actionLoading}
-                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold"
-                >
-                  Dispatch Email
-                </Button>
-              </div>
-            </div>
-          )}
-
           {/* Party Details & Dates */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Sender & Recipient Box */}
@@ -447,16 +396,16 @@ export function InvoiceDetailModal({
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <span className="text-admin-muted block mb-0.5 font-bold">Issue Date:</span>
-                  <span className="text-admin-foreground font-semibold">{invoice.issueDate}</span>
+                  <span className="text-admin-foreground font-semibold">{formatAuDisplayDate(invoice.issueDate)}</span>
                 </div>
                 <div>
                   <span className="text-admin-muted block mb-0.5 font-bold">Due Date:</span>
-                  <span className="text-admin-foreground font-semibold">{invoice.dueDate}</span>
+                  <span className="text-admin-foreground font-semibold">{formatAuDisplayDate(invoice.dueDate)}</span>
                 </div>
                 {invoice.paidAt && (
                   <div>
                     <span className="text-emerald-500 block mb-0.5 font-bold">Paid Date:</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{new Date(invoice.paidAt).toLocaleDateString()}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{formatAuDisplayDateTime(invoice.paidAt)}</span>
                   </div>
                 )}
                 {invoice.cancellationReason && (

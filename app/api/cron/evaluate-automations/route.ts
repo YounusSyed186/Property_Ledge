@@ -9,132 +9,185 @@ import { createServerServices } from '@/composition/services';
 actionRegistry.register(new SendLeaseAction());
 
 export async function GET(request: NextRequest) {
-  return handleCronEvaluation(request);
+  return handleAutomationQueueProcessing(request);
 }
 
 export async function POST(request: NextRequest) {
-  return handleCronEvaluation(request);
+  return handleAutomationQueueProcessing(request);
 }
 
-async function handleCronEvaluation(request: NextRequest) {
-  // Validate Cron secret if configured
+export async function handleAutomationQueueProcessing(request: NextRequest) {
+  const startTime = Date.now();
+
+  // Validate Cron secret if configured or Vercel Cron header
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
+  const isVercelCron = request.headers.get('x-vercel-cron') === '1';
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (cronSecret && !isVercelCron && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized cron trigger' }, { status: 401 });
   }
 
   try {
     const supabase = await createAdminClient();
     const nowIso = new Date().toISOString();
-
-    // Query active automations due for execution (bounded batch of 100)
-    const { data: dueAutomations, error: fetchErr } = await (supabase as any)
-      .from('automations')
-      .select(`
-        *,
-        lease:leases(*)
-      `)
-      .eq('status', 'active')
-      .lte('next_run_at', nowIso)
-      .limit(100);
-
-    if (fetchErr) {
-      console.error('[CronEvaluation] DB Fetch Error:', fetchErr);
-      return NextResponse.json({ success: false, error: fetchErr.message }, { status: 500 });
-    }
-
-    if (!dueAutomations || dueAutomations.length === 0) {
-      return NextResponse.json({
-        success: true,
-        evaluated: 0,
-        message: 'No automations due for execution',
-      });
-    }
-
     const { automationExecutionService } = await createServerServices();
-    const results = [];
 
-    for (const rawAuto of dueAutomations) {
-      const auto = rawAuto as any;
-      const scheduledFor = auto.next_run_at || nowIso;
-      const idempotencyKey = `cron_${auto.id}_${new Date(scheduledFor).getTime()}`;
+    let totalFound = 0;
+    let totalProcessed = 0;
+    let totalSent = 0;
+    let totalFailed = 0;
+    let totalSkipped = 0;
+    const results: Array<{ automationId: string; status: string; error?: string; nextRunAt?: string | null }> = [];
 
-      try {
-        // Idempotency check: see if execution record exists
-        const { data: existingExec } = await (supabase as any)
-          .from('automation_executions')
-          .select('id')
-          .eq('automation_id', auto.id)
-          .eq('idempotency_key', idempotencyKey)
-          .maybeSingle();
+    const BATCH_SIZE = 50;
+    let hasMore = true;
+    let page = 0;
+    const MAX_PAGES = 10; // Safety cap to avoid function timeouts
 
-        if (existingExec) {
-          console.log(`[CronEvaluation] Skipping already claimed execution for automation ${auto.id}`);
-          continue;
+    while (hasMore && page < MAX_PAGES) {
+      page++;
+
+      // Query active automations due for execution (next_run_at <= nowIso)
+      const { data: batch, error: fetchErr } = await (supabase as any)
+        .from('automations')
+        .select(`
+          *,
+          lease:leases(*)
+        `)
+        .eq('status', 'active')
+        .lte('next_run_at', nowIso)
+        .order('next_run_at', { ascending: true })
+        .limit(BATCH_SIZE);
+
+      if (fetchErr) {
+        console.error('[AutomationCron] DB Fetch Error:', fetchErr);
+        throw new Error(fetchErr.message);
+      }
+
+      if (!batch || batch.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      totalFound += batch.length;
+
+      for (const rawAuto of batch) {
+        const auto = rawAuto as any;
+        const scheduledFor = auto.next_run_at || nowIso;
+        const dateKey = new Date(scheduledFor).toISOString().slice(0, 10);
+        const idempotencyKey = `cron_${auto.id}_${dateKey}`;
+
+        try {
+          // 1. Atomic Idempotency Check / Claim
+          const { data: existingExec } = await (supabase as any)
+            .from('automation_executions')
+            .select('id, status')
+            .eq('automation_id', auto.id)
+            .eq('idempotency_key', idempotencyKey)
+            .maybeSingle();
+
+          if (existingExec && (existingExec.status === 'completed' || existingExec.status === 'running')) {
+            console.log(`[AutomationCron] Skipping already processed execution for automation ${auto.id}`);
+            totalSkipped++;
+            continue;
+          }
+
+          totalProcessed++;
+
+          // 2. Execute Automation Workflow
+          const execRes = await automationExecutionService.executeAutomation({
+            automationId: auto.id,
+            triggerSource: 'daily_cron',
+            context: {
+              leaseId: auto.lease_id,
+              invoiceTemplateId: auto.invoice_template_id,
+              workspaceId: auto.workspace_id,
+              scheduledFor,
+              ...(auto.metadata || {}),
+            },
+            idempotencyKey,
+            sourceEntityType: auto.automation_type === 'lease' ? 'lease' : 'invoice',
+            sourceEntityId: auto.lease_id || auto.id,
+          });
+
+          // 3. Calculate Next Run Date (7:00 AM AU on next period)
+          const leaseStart = auto.lease?.start_date;
+          const leaseEnd = auto.lease?.end_date;
+
+          const nextRunAt = ScheduleCalculator.calculateNextRun(
+            auto.schedule_type || 'monthly',
+            auto.schedule_config || {},
+            leaseStart,
+            leaseEnd
+          );
+
+          // 4. Update Automation Record
+          await (supabase as any)
+            .from('automations')
+            .update({
+              last_run_at: nowIso,
+              next_run_at: nextRunAt,
+              status: nextRunAt ? 'active' : 'completed',
+              updated_at: nowIso,
+            })
+            .eq('id', auto.id);
+
+          if (execRes.status === 'completed') {
+            totalSent++;
+            results.push({
+              automationId: auto.id,
+              status: 'sent',
+              nextRunAt,
+            });
+          } else {
+            totalFailed++;
+            results.push({
+              automationId: auto.id,
+              status: 'failed',
+              error: execRes.errorMessage || 'Execution returned non-completed status',
+            });
+          }
+        } catch (itemErr: any) {
+          totalFailed++;
+          console.error(`[AutomationCron] Error processing automation ${auto.id}:`, itemErr);
+          results.push({
+            automationId: auto.id,
+            status: 'failed',
+            error: itemErr.message || String(itemErr),
+          });
         }
+      }
 
-        // Execute automation
-        const execRes = await automationExecutionService.executeAutomation({
-          automationId: auto.id,
-          triggerSource: 'scheduled',
-          context: {
-            leaseId: auto.lease_id,
-            invoiceTemplateId: auto.invoice_template_id,
-            workspaceId: auto.workspace_id,
-            scheduledFor,
-            ...(auto.metadata || {}),
-          },
-          idempotencyKey,
-          sourceEntityType: auto.automation_type === 'lease' ? 'lease' : 'invoice',
-          sourceEntityId: auto.lease_id || auto.id,
-        });
-
-        // Calculate next run time
-        const leaseStart = auto.lease?.start_date;
-        const leaseEnd = auto.lease?.end_date;
-
-        const nextRunAt = ScheduleCalculator.calculateNextRun(
-          auto.schedule_type || 'monthly',
-          auto.schedule_config || {},
-          leaseStart,
-          leaseEnd
-        );
-
-        // Update automation record
-        await (supabase as any)
-          .from('automations')
-          .update({
-            last_run_at: nowIso,
-            next_run_at: nextRunAt,
-            status: nextRunAt ? 'active' : 'completed',
-            updated_at: nowIso,
-          })
-          .eq('id', auto.id);
-
-        results.push({
-          automationId: auto.id,
-          status: execRes.status,
-          nextRunAt,
-        });
-      } catch (err: any) {
-        console.error(`[CronEvaluation] Failed automation ${auto.id}:`, err);
-        results.push({
-          automationId: auto.id,
-          status: 'failed',
-          error: err.message || String(err),
-        });
+      if (batch.length < BATCH_SIZE) {
+        hasMore = false;
       }
     }
 
+    const durationMs = Date.now() - startTime;
+
     return NextResponse.json({
       success: true,
-      evaluated: dueAutomations.length,
+      timestamp: nowIso,
+      summary: {
+        totalFound,
+        totalProcessed,
+        totalSent,
+        totalFailed,
+        totalSkipped,
+        durationMs,
+      },
       results,
     });
   } catch (err: any) {
-    console.error('[CronEvaluation] Unhandled Exception:', err);
-    return NextResponse.json({ success: false, error: err.message || 'Internal error' }, { status: 500 });
+    console.error('[AutomationCron] Unhandled Queue Processing Exception:', err);
+    return NextResponse.json(
+      {
+        success: false,
+        error: err.message || 'Internal queue processing error',
+        durationMs: Date.now() - startTime,
+      },
+      { status: 500 }
+    );
   }
 }

@@ -3,10 +3,17 @@
  * Pure Application Layer - Orchestrates domain calculation, numbering, immutability, and persistence.
  */
 
+import {
+  formatAuDisplayDate,
+  getAuTodayString,
+  getAuDateParts,
+  createAuDate,
+  formatAuDateIso,
+} from '@/lib/format/australian-time';
 import { Result, ok, err } from '@/shared/domain/result';
 import { DomainError, ValidationError, NotFoundError, ConflictError } from '@/shared/domain/errors';
 import { RequestContext } from '@/shared/domain/types';
-import { Invoice, InvoiceFilters, InvoiceSnapshot } from '../../domain/entities/invoice';
+import { Invoice, InvoiceFilters, InvoiceSnapshot, InvoiceSnapshotParty } from '../../domain/entities/invoice';
 import { InvoiceTemplate } from '../../domain/entities/invoice-template';
 import { InvoiceRepository } from '../../domain/repositories/invoice-repository';
 import { InvoiceTemplateRepository } from '../../domain/repositories/invoice-template-repository';
@@ -15,6 +22,10 @@ import { InvoiceStateMachine } from '../../domain/services/invoice-state-machine
 import { CreateInvoiceDTO, UpdateInvoiceDraftDTO, UpdateInvoiceDTO, BulkInvoiceDTO } from '../dto/invoice-dto';
 import { InvoiceRenderDTO } from '../dto/invoice-render-dto';
 import { formatInvoiceAmount } from '../../domain/value-objects/currency';
+import { getPredefinedTemplateById } from '../../domain/constants/predefined-templates';
+
+const isUuid = (val?: string | null): boolean =>
+  typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
 export class InvoiceService {
   constructor(
@@ -80,8 +91,10 @@ export class InvoiceService {
     const customerEmail = dto.customerEmail || dto.recipientEmail || null;
     const customerAddress = dto.customerAddress || dto.recipientAddress || null;
 
-    // Generate atomic, concurrency-safe invoice number
-    const year = dto.issueDate ? new Date(dto.issueDate).getFullYear() : new Date().getFullYear();
+    // Generate atomic, concurrency-safe invoice number in AU timezone
+    const year = dto.issueDate
+      ? getAuDateParts(new Date(dto.issueDate)).year
+      : getAuDateParts(new Date()).year;
     const numberResult = await this.repository.getNextInvoiceNumber(finalWorkspaceId, 'INV', year);
     if (!numberResult.success) {
       return err(numberResult.error);
@@ -90,7 +103,52 @@ export class InvoiceService {
 
     // Calculate totals using floating-point safe calculator
     const calculation = InvoiceCalculator.calculateTotals(dto.items, 0);
-    const issueDate = dto.issueDate || new Date().toISOString().split('T')[0];
+    const issueDate = dto.issueDate || getAuTodayString();
+
+    const rawDtoIssuer = (dto.issuer as any) || {};
+    const hasIssuerInput = Boolean(
+      dto.issuer ||
+      dto.issuerName ||
+      dto.senderCompanyName ||
+      dto.issuerEmail ||
+      dto.senderEmail ||
+      rawDtoIssuer.name ||
+      rawDtoIssuer.issuerName
+    );
+
+    const issuerData: InvoiceSnapshotParty = hasIssuerInput ? {
+      name: rawDtoIssuer.name || rawDtoIssuer.issuerName || dto.issuerName || dto.senderCompanyName || 'Property Ledge Management',
+      email: rawDtoIssuer.email || rawDtoIssuer.issuerEmail || dto.issuerEmail || dto.senderEmail || 'billing@propertyledge.com.au',
+      phone: rawDtoIssuer.phone || rawDtoIssuer.issuerPhone || dto.issuerPhone || dto.senderPhone || null,
+      address: rawDtoIssuer.address || rawDtoIssuer.issuerAddress || dto.issuerAddress || dto.senderCompanyAddress || null,
+      taxId: rawDtoIssuer.taxId || rawDtoIssuer.issuerTaxId || (dto as any).issuerTaxId || dto.senderTaxNumber || null,
+    } : {
+      name: 'Property Ledge Management',
+      email: 'billing@propertyledge.com.au',
+      phone: '+61 2 9000 0000',
+      address: null,
+      taxId: null,
+    };
+
+    const predefinedTmpl = getPredefinedTemplateById(dto.templateId);
+
+    const initialSnapshot: InvoiceSnapshot = {
+      billTo: {
+        name: customerName,
+        email: customerEmail,
+        address: customerAddress,
+      },
+      issuer: issuerData,
+      propertyAddress: customerAddress,
+      paymentInstructions: dto.paymentInstructions || null,
+      capturedAt: new Date().toISOString(),
+      ...(predefinedTmpl ? {
+        layoutStyle: predefinedTmpl.layoutStyle,
+        brandColor: predefinedTmpl.brandColor,
+        accentColor: predefinedTmpl.accentColor,
+        templateId: predefinedTmpl.id,
+      } : {}),
+    } as any;
 
     const createData = {
       workspaceId: finalWorkspaceId,
@@ -113,9 +171,10 @@ export class InvoiceService {
       billingPeriodEnd: dto.billingPeriodEnd || null,
       notes: dto.notes || null,
       paymentInstructions: dto.paymentInstructions || null,
-      templateId: dto.templateId || null,
+      templateId: isUuid(dto.templateId) ? dto.templateId : null,
       automationId: dto.automationId || null,
       status: dto.autoIssue ? ('issued' as const) : ('draft' as const),
+      snapshot: initialSnapshot,
       items: calculation.items.map((item, idx) => ({
         description: dto.items[idx].description || 'Item',
         quantity: item.quantity,
@@ -211,18 +270,21 @@ export class InvoiceService {
     }
 
     // Build minimal immutable billing snapshot to freeze historical details
+    const existingSnapshot = invoice.snapshot;
+    const issuer = existingSnapshot?.issuer || {
+      name: 'Property Ledge Management',
+      email: 'billing@propertyledge.com.au',
+    };
+
     const snapshot: InvoiceSnapshot = {
-      billTo: {
+      billTo: existingSnapshot?.billTo || {
         name: invoice.customerName || invoice.recipient?.name || 'Customer',
         email: invoice.customerEmail || invoice.recipient?.email || null,
         address: invoice.customerAddress || invoice.recipient?.address || null,
       },
-      issuer: {
-        name: 'Property Ledge Management',
-        email: 'billing@propertyledge.com.au',
-      },
-      propertyAddress: invoice.customerAddress || invoice.recipient?.address || null,
-      paymentInstructions: invoice.paymentInstructions,
+      issuer,
+      propertyAddress: existingSnapshot?.propertyAddress || invoice.customerAddress || invoice.recipient?.address || null,
+      paymentInstructions: existingSnapshot?.paymentInstructions || invoice.paymentInstructions,
       capturedAt: new Date().toISOString(),
     };
 
@@ -500,17 +562,25 @@ export class InvoiceService {
     const currency = invoice.currency || 'AUD';
     const amountPaid = invoice.totalAmount - invoice.balanceDue;
 
+    const snapshot = (invoice.snapshot as any) || {};
+    const snapshotStyle = snapshot.layoutStyle || snapshot.templateStyle || snapshot.templateId;
+    const predefined = getPredefinedTemplateById(snapshotStyle || invoice.templateId || template?.layoutStyle || 'classic');
+
+    const layoutStyle = template?.layoutStyle || snapshot.layoutStyle || predefined.layoutStyle || 'classic';
+    const brandColor = template?.brandColor || snapshot.brandColor || predefined.brandColor || '#22333b';
+    const accentColor = template?.accentColor || snapshot.accentColor || predefined.accentColor || '#a9927d';
+
     return {
       invoiceId: invoice.id,
       invoiceNumber: invoice.invoiceNumber,
       status: invoice.status,
       currencyCode: currency,
       currencySymbol: currency === 'INR' ? '₹' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$',
-      issueDateFormatted: invoice.issueDate,
-      dueDateFormatted: invoice.dueDate,
+      issueDateFormatted: formatAuDisplayDate(invoice.issueDate),
+      dueDateFormatted: formatAuDisplayDate(invoice.dueDate),
       billingPeriodFormatted:
         invoice.billingPeriodStart && invoice.billingPeriodEnd
-          ? `${invoice.billingPeriodStart} to ${invoice.billingPeriodEnd}`
+          ? `${formatAuDisplayDate(invoice.billingPeriodStart)} – ${formatAuDisplayDate(invoice.billingPeriodEnd)}`
           : null,
       billTo: invoice.snapshot?.billTo || {
         name: invoice.customerName || invoice.recipient?.name || 'Customer',
@@ -540,10 +610,10 @@ export class InvoiceService {
       paymentInstructions: invoice.paymentInstructions || template?.paymentInstructions || null,
       headerText: template?.headerText || null,
       footerText: template?.footerText || null,
-      brandColor: template?.brandColor || '#22333b',
-      accentColor: template?.accentColor || '#a9927d',
+      brandColor,
+      accentColor,
       logoUrl: template?.logoUrl || null,
-      layoutStyle: template?.layoutStyle || 'classic',
+      layoutStyle,
     };
   }
 }

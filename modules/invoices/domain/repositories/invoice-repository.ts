@@ -42,6 +42,7 @@ export interface CreateInvoiceData {
   templateId?: string | null;
   automationId?: string | null;
   status?: InvoiceStatus;
+  snapshot?: InvoiceSnapshot | null;
   items: InvoiceLineItemCreateInput[];
 }
 
@@ -66,6 +67,7 @@ export interface UpdateInvoiceData {
   paymentInstructions?: string | null;
   templateId?: string | null;
   automationId?: string | null;
+  snapshot?: InvoiceSnapshot | null;
   items?: InvoiceLineItemCreateInput[];
 }
 

@@ -1,8 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Layers, Calendar, Check, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/admin/ui';
+import {
+  getAuTodayString,
+  getAuDateParts,
+  createAuDate,
+  formatAuDateIso,
+  formatAuDisplayDateTime,
+  formatAuDisplayDate,
+} from '@/lib/format/australian-time';
 
 interface BulkInvoiceModalProps {
   isOpen: boolean;
@@ -14,11 +22,25 @@ interface BulkInvoiceModalProps {
 }
 
 export function BulkInvoiceModal({ isOpen, onClose, onGenerate }: BulkInvoiceModalProps) {
-  const [issueDate, setIssueDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [auCurrentTimeStr, setAuCurrentTimeStr] = useState<string>(() =>
+    formatAuDisplayDateTime(new Date(), true)
+  );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const updateTimer = () => {
+      setAuCurrentTimeStr(formatAuDisplayDateTime(new Date(), true));
+    };
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [isOpen]);
+
+  const [issueDate, setIssueDate] = useState(() => getAuTodayString());
   const [dueDate, setDueDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    return d.toISOString().split('T')[0];
+    const p = getAuDateParts(new Date());
+    const dueObj = createAuDate(p.year, p.month, p.day + 7);
+    return formatAuDateIso(dueObj);
   });
   const [autoIssue, setAutoIssue] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -97,20 +119,39 @@ export function BulkInvoiceModal({ isOpen, onClose, onGenerate }: BulkInvoiceMod
                 tenant's scheduled rent amount, and creates formal invoices with proper sequential numbers.
               </p>
 
+              {/* Live AU Eastern Time Indicator Banner */}
+              <div className="flex items-center justify-between p-2.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl text-xs">
+                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span>AU Time (Sydney):</span>
+                  <span className="font-mono bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded text-[11px]">
+                    {auCurrentTimeStr}
+                  </span>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-admin-muted mb-1.5">Issue Date</label>
+                  <label className="block text-xs font-bold text-admin-muted mb-1.5">Issue Date (AU)</label>
                   <input
                     type="date"
                     value={issueDate}
-                    onChange={(e) => setIssueDate(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setIssueDate(val);
+                      if (dueDate && val > dueDate) setDueDate(val);
+                    }}
                     className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary focus:ring-1 focus:ring-admin-primary"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-admin-muted mb-1.5">Payment Due Date</label>
+                  <label className="block text-xs font-bold text-admin-muted mb-1.5">Payment Due Date (AU)</label>
                   <input
                     type="date"
+                    min={issueDate}
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
                     className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary focus:ring-1 focus:ring-admin-primary"

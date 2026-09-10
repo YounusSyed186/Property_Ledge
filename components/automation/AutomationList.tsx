@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { ColDef } from 'ag-grid-community';
 import { Button, useToast, ConfirmDialog } from '@/components/admin/ui';
-import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
+import { AdminDataGrid, QuickFilterBar, QuickFilterOption, BulkAction } from '@/components/admin/data-grid';
 import { ListPage, ListPageGrid } from '@/components/workspace';
 import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
 import { PersonIdentity } from '@/components/ui/avatar';
@@ -31,9 +31,12 @@ import {
   togglePauseAutomationAction,
   triggerAutomationNowAction,
   deleteAutomationAction,
+  bulkDeleteAutomationsAction,
+  evaluateDueAutomationsAction,
   AutomationItem,
 } from '@/app/actions/automations';
 import { ScheduleCalculator } from '@/modules/automation/domain/services/schedule-calculator';
+import { formatAuDisplayDateTime } from '@/lib/format/australian-time';
 import { CreateAutomationModal } from './CreateAutomationModal';
 import { TriggerConfirmationModal } from './TriggerConfirmationModal';
 import { ExecutionHistoryModal } from './ExecutionHistoryModal';
@@ -57,6 +60,15 @@ export function AutomationList() {
   const [automationToDelete, setAutomationToDelete] = useState<AutomationItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Live Australian Time Clock
+  const [auTime, setAuTime] = useState(() => formatAuDisplayDateTime(new Date(), true));
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setAuTime(formatAuDisplayDateTime(new Date(), true));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const filterOptions = useMemo<QuickFilterOption[]>(
     () => [
       { label: 'All Automations', value: 'all' },
@@ -71,6 +83,9 @@ export function AutomationList() {
   const loadAutomations = async () => {
     setLoading(true);
     try {
+      // Check and execute any due automations automatically
+      await evaluateDueAutomationsAction();
+
       const typeFilter = activeFilter === 'lease' || activeFilter === 'invoice' ? activeFilter : undefined;
       const statusFilter = activeFilter === 'active' || activeFilter === 'paused' ? activeFilter : undefined;
 
@@ -92,6 +107,23 @@ export function AutomationList() {
 
   useEffect(() => {
     loadAutomations();
+
+    // Periodic automatic background check every 20 seconds
+    const interval = setInterval(async () => {
+      const evalRes = await evaluateDueAutomationsAction();
+      if (evalRes?.success && evalRes.evaluated && evalRes.evaluated > 0) {
+        toast({
+          title: 'Automated Invoice Dispatched',
+          description: `Successfully executed ${evalRes.evaluated} scheduled automation(s).`,
+        });
+        const typeFilter = activeFilter === 'lease' || activeFilter === 'invoice' ? activeFilter : undefined;
+        const statusFilter = activeFilter === 'active' || activeFilter === 'paused' ? activeFilter : undefined;
+        const fresh = await fetchAutomationsAction({ type: typeFilter as any, status: statusFilter });
+        setAutomations(fresh);
+      }
+    }, 20000);
+
+    return () => clearInterval(interval);
   }, [activeFilter]);
 
   const handleTogglePause = async (id: string) => {
@@ -144,10 +176,90 @@ export function AutomationList() {
     }
   };
 
+  const handleBulkDelete = async (selectedRows: AutomationItem[]) => {
+    if (!selectedRows || selectedRows.length === 0) return;
+    try {
+      const ids = selectedRows.map((r) => r.id);
+      const res = await bulkDeleteAutomationsAction(ids);
+      if (!res.success) {
+        toast({
+          title: 'Bulk Delete Failed',
+          description: res.error || 'Failed to delete selected automations',
+          variant: 'destructive',
+        });
+        return;
+      }
+      toast({
+        title: 'Automations Deleted',
+        description: `Successfully deleted ${res.count || ids.length} automation(s).`,
+      });
+      loadAutomations();
+    } catch (err: any) {
+      toast({
+        title: 'Delete Error',
+        description: err.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const bulkActions = useMemo<BulkAction[]>(
+    () => [
+      {
+        label: 'Pause Selected',
+        icon: <Pause className="w-3.5 h-3.5" />,
+        onClick: async (selectedRows: AutomationItem[]) => {
+          const activeRows = selectedRows.filter((a) => a.status === 'active');
+          if (activeRows.length === 0) {
+            toast({
+              title: 'No Active Automations Selected',
+              description: 'Selected automations are already paused.',
+            });
+            return;
+          }
+          let count = 0;
+          for (const auto of activeRows) {
+            const res = await togglePauseAutomationAction(auto.id);
+            if (res.success) count++;
+          }
+          toast({
+            title: 'Automations Paused',
+            description: `Successfully paused ${count} automation(s).`,
+          });
+          loadAutomations();
+        },
+      },
+      {
+        label: 'Resume Selected',
+        icon: <Play className="w-3.5 h-3.5" />,
+        onClick: async (selectedRows: AutomationItem[]) => {
+          const pausedRows = selectedRows.filter((a) => a.status === 'paused');
+          if (pausedRows.length === 0) {
+            toast({
+              title: 'No Paused Automations Selected',
+              description: 'Selected automations are already active.',
+            });
+            return;
+          }
+          let count = 0;
+          for (const auto of pausedRows) {
+            const res = await togglePauseAutomationAction(auto.id);
+            if (res.success) count++;
+          }
+          toast({
+            title: 'Automations Activated',
+            description: `Successfully activated ${count} automation(s).`,
+          });
+          loadAutomations();
+        },
+      },
+    ],
+    []
+  );
+
   const formatNextDelivery = (dateStr: string | null) => {
     if (!dateStr) return 'Not Scheduled';
-    const d = new Date(dateStr);
-    return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+    return formatAuDisplayDateTime(dateStr);
   };
 
   // AG Grid columns definition
@@ -251,15 +363,29 @@ export function AutomationList() {
         },
       },
       {
-        headerName: 'Next Delivery',
-        width: 190,
+        headerName: 'Next Due',
+        width: 175,
         cellRenderer: (params: any) => {
           const auto = params.data as AutomationItem;
           if (!auto) return null;
           return (
             <div className="flex items-center gap-1.5 text-xs py-1">
-              <Clock className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+              <Clock className="w-3.5 h-3.5 text-admin-primary shrink-0" />
               <span className="font-semibold text-admin-foreground">{formatNextDelivery(auto.nextRunAt)}</span>
+            </div>
+          );
+        },
+      },
+      {
+        headerName: 'Last Processed',
+        width: 175,
+        cellRenderer: (params: any) => {
+          const auto = params.data as AutomationItem;
+          if (!auto) return null;
+          return (
+            <div className="flex items-center gap-1.5 text-xs py-1 text-admin-muted">
+              <History className="w-3.5 h-3.5 shrink-0" />
+              <span>{auto.lastRunAt ? formatAuDisplayDateTime(auto.lastRunAt) : 'Never'}</span>
             </div>
           );
         },
@@ -355,6 +481,13 @@ export function AutomationList() {
       breadcrumb={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Automations' }]}
       actions={
         <div className="flex items-center gap-2">
+          {/* Live AU Time Clock Indicator */}
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-admin-surface-subtle border border-admin-border rounded-xl text-xs shadow-xs">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-admin-muted font-medium">AU Time (Sydney):</span>
+            <span className="font-mono font-bold text-admin-foreground">{auTime}</span>
+          </div>
+
           {/* View Switcher */}
           <div className="flex items-center bg-admin-surface-subtle border border-admin-border p-0.5 rounded-xl">
             <button
@@ -440,7 +573,22 @@ export function AutomationList() {
         </div>
       }
     >
-      <div className="flex-1 flex flex-col min-h-0 bg-admin-surface border border-admin-border rounded-2xl p-4 shadow-sm overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 bg-admin-surface border border-admin-border rounded-2xl p-4 shadow-sm overflow-hidden gap-3">
+        {/* Daily Queue Processing Notice Banner */}
+        <div className="bg-admin-primary/5 border border-admin-primary/20 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5 text-admin-foreground">
+            <div className="p-1 rounded-md bg-admin-primary/10 text-admin-primary">
+              <Clock className="w-3.5 h-3.5" />
+            </div>
+            <span>
+              <strong>Daily Queue Processing:</strong> Property Ledge evaluates and dispatches all eligible pending automations every morning at <strong>7:00 AM AU</strong> (Sydney).
+            </span>
+          </div>
+          <span className="hidden md:inline-flex text-[11px] font-medium text-admin-primary bg-admin-primary/10 px-2 py-0.5 rounded-md border border-admin-primary/20">
+            Daily Vercel Cron Active
+          </span>
+        </div>
+
         {automations.length === 0 && !loading ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
             <div className="w-12 h-12 rounded-2xl bg-admin-primary/10 text-admin-primary flex items-center justify-center mb-3">
@@ -463,6 +611,9 @@ export function AutomationList() {
               labelSingular="automation"
               labelPlural="automations"
               getRowId={(p) => p.data.id}
+              enableSelection={true}
+              onDeleteSelected={handleBulkDelete}
+              bulkActions={bulkActions}
               enableColumnChooser
               enableExport
               exportFilename="automations-export"
@@ -533,8 +684,12 @@ export function AutomationList() {
                         <span className="text-admin-foreground font-medium">{scheduleText}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-admin-muted">Next Delivery:</span>
+                        <span className="text-admin-muted">Next Due:</span>
                         <strong className="text-admin-primary">{formatNextDelivery(auto.nextRunAt)}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-admin-muted">Last Processed:</span>
+                        <span className="text-admin-muted font-medium">{auto.lastRunAt ? formatAuDisplayDateTime(auto.lastRunAt) : 'Never'}</span>
                       </div>
                     </div>
                   </div>

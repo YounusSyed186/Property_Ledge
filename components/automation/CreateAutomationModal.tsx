@@ -22,15 +22,19 @@ import {
   Sparkles,
   Pencil,
   RotateCcw,
+  Briefcase,
+  CreditCard,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/admin/ui';
 import { fetchAllWorkspaceLeases } from '@/app/actions/dashboard';
 import {
   createLeaseAutomationAction,
   createStandaloneInvoiceAutomationAction,
-  fetchInvoiceTemplatesAction,
 } from '@/app/actions/automations';
+import { PREDEFINED_INVOICE_TEMPLATES, getPredefinedTemplateById } from '@/modules/invoices/domain/constants/predefined-templates';
 import { AutomationScheduleType, AutomationType } from '@/modules/automation';
+import { formatAuDisplayDateTime } from '@/lib/format/australian-time';
 import { cn } from '@/lib/utils';
 
 interface CreateAutomationModalProps {
@@ -52,8 +56,7 @@ export function CreateAutomationModal({
 
   // Shared Data
   const [leases, setLeases] = useState<any[]>([]);
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('template_classic');
 
   // Lease Automation Fields
   const [selectedLeaseId, setSelectedLeaseId] = useState<string>(preselectedLeaseId || '');
@@ -79,16 +82,43 @@ export function CreateAutomationModal({
   const [scheduleType, setScheduleType] = useState<AutomationScheduleType>('monthly');
   const [dayOfMonth, setDayOfMonth] = useState<number>(1);
   const [offsetMonths, setOffsetMonths] = useState<number>(12);
-  const [timeOfDay, setTimeOfDay] = useState<string>('09:00');
+
+  // Issued By / Issuer Profile Fields
+  const [isEditingIssuer, setIsEditingIssuer] = useState<boolean>(false);
+  const [issuerName, setIssuerName] = useState<string>('Property Ledge Management');
+  const [issuerEmail, setIssuerEmail] = useState<string>('billing@propertyledge.com.au');
+  const [issuerPhone, setIssuerPhone] = useState<string>('+61 2 9000 0000');
+  const [issuerAddress, setIssuerAddress] = useState<string>('');
+  const [issuerTaxId, setIssuerTaxId] = useState<string>('');
+  const [paymentDueDays, setPaymentDueDays] = useState<number>(14);
+
+  // Email Template & Body Customization Fields
+  const [isEditingEmailTemplate, setIsEditingEmailTemplate] = useState<boolean>(false);
+  const [emailSubject, setEmailSubject] = useState<string>('Invoice {invoice_number} from {issuer_name}');
+  const [emailMessage, setEmailMessage] = useState<string>(
+    'Hi {first_name},\n\nHope everything is going smoothly.\n\nPlease find attached invoice {invoice_number} for {amount} (due {due_date}).\n\nCould you please review the invoice and confirm that all details are correct on your end?\n\nPlease let me know if you have any questions.\n\nKind regards,\n{issuer_name}'
+  );
+  const [driveFolderUrl, setDriveFolderUrl] = useState<string>('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Live Australian Time Clock
+  const [auTime, setAuTime] = useState(() => formatAuDisplayDateTime(new Date(), true));
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setInterval(() => {
+      setAuTime(formatAuDisplayDateTime(new Date(), true));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
       setCurrentStep(preselectedLeaseId ? 1 : 0);
       setError(null);
       setIsEditingRecipient(false);
+      setIsEditingIssuer(false);
 
       // Load leases
       fetchAllWorkspaceLeases().then((res: any) => {
@@ -102,18 +132,11 @@ export function CreateAutomationModal({
           setSelectedLeaseId(list[0].id);
         }
       });
-
-      // Load invoice templates
-      fetchInvoiceTemplatesAction().then((tpls: any[]) => {
-        setTemplates(tpls || []);
-        const defaultTpl = tpls.find((t) => t.is_default);
-        if (defaultTpl) setSelectedTemplateId(defaultTpl.id);
-      });
     }
   }, [isOpen, preselectedLeaseId]);
 
   const selectedLease = leases.find((l) => l.id === selectedLeaseId);
-  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
+  const selectedTemplate = getPredefinedTemplateById(selectedTemplateId);
 
   // Sync lease defaults when selected lease changes
   useEffect(() => {
@@ -159,6 +182,15 @@ export function CreateAutomationModal({
     (customRentAmount !== '' && Number(customRentAmount) !== Number(selectedLease?.rent_amount))
   );
 
+  const hasCustomIssuer = Boolean(
+    (issuerName && issuerName !== 'Property Ledge Management') ||
+    (issuerEmail && issuerEmail !== 'billing@propertyledge.com.au') ||
+    (issuerPhone && issuerPhone !== '+61 2 9000 0000') ||
+    issuerAddress.trim() ||
+    issuerTaxId.trim() ||
+    paymentDueDays !== 14
+  );
+
   const handleCreate = async () => {
     setError(null);
     setLoading(true);
@@ -168,14 +200,25 @@ export function CreateAutomationModal({
       if (scheduleType === 'monthly') {
         scheduleConfig = {
           dayOfMonth: Number(dayOfMonth) || 1,
-          timeOfDay,
         };
       } else if (scheduleType === 'after_start') {
         scheduleConfig = {
           offsetMonths: Number(offsetMonths) || 12,
-          timeOfDay,
         };
       }
+
+      const issuedByPayload = {
+        name: issuerName.trim() || 'Property Ledge Management',
+        email: issuerEmail.trim() || 'billing@propertyledge.com.au',
+        phone: issuerPhone.trim() || undefined,
+        address: issuerAddress.trim() || undefined,
+        taxId: issuerTaxId.trim() || undefined,
+        issuerName: issuerName.trim() || 'Property Ledge Management',
+        issuerEmail: issuerEmail.trim() || 'billing@propertyledge.com.au',
+        issuerPhone: issuerPhone.trim() || undefined,
+        issuerAddress: issuerAddress.trim() || undefined,
+        issuerTaxId: issuerTaxId.trim() || undefined,
+      };
 
       if (automationType === 'lease') {
         if (!selectedLeaseId) {
@@ -199,6 +242,11 @@ export function CreateAutomationModal({
                 rentAmount: customRentAmount !== '' ? Number(customRentAmount) : undefined,
               }
             : undefined,
+          issuedByOverride: issuedByPayload,
+          paymentDueDays: Number(paymentDueDays) || 14,
+          emailSubject: emailSubject.trim() || undefined,
+          customMessage: emailMessage.trim() || undefined,
+          driveFolderUrl: driveFolderUrl.trim() || undefined,
         });
 
         if (!res.success) throw new Error(res.error || 'Failed to create lease automation');
@@ -220,6 +268,11 @@ export function CreateAutomationModal({
           invoiceTemplateId: selectedTemplateId || undefined,
           scheduleType,
           scheduleConfig,
+          issuedByOverride: issuedByPayload,
+          paymentDueDays: Number(paymentDueDays) || 14,
+          emailSubject: emailSubject.trim() || undefined,
+          customMessage: emailMessage.trim() || undefined,
+          driveFolderUrl: driveFolderUrl.trim() || undefined,
         });
 
         if (!res.success) throw new Error(res.error || 'Failed to create invoice automation');
@@ -565,32 +618,303 @@ export function CreateAutomationModal({
                 </div>
               </div>
 
-              {/* 3. Invoice Reference Template (if invoice action) */}
+              {/* 3. Invoice Reference Template & Issued By Details (if invoice action) */}
               {leaseActionType === 'generate_and_send_invoice' && (
-                <div>
-                  <label className="block text-xs font-bold text-admin-foreground mb-1.5">
-                    3. Invoice Template / Reference
-                  </label>
-                  <select
-                    value={selectedTemplateId}
-                    onChange={(e) => setSelectedTemplateId(e.target.value)}
-                    className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary"
-                  >
-                    <option value="">Default Rental Invoice Template</option>
-                    {templates.map((tpl) => (
-                      <option key={tpl.id} value={tpl.id}>
-                        {tpl.name} {tpl.is_default ? '(Default)' : ''}
-                      </option>
-                    ))}
-                  </select>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-admin-foreground mb-1.5">
+                      3. Fixed Invoice Template
+                    </label>
+                    <select
+                      value={selectedTemplateId}
+                      onChange={(e) => setSelectedTemplateId(e.target.value)}
+                      className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary font-medium"
+                    >
+                      {PREDEFINED_INVOICE_TEMPLATES.map((tpl) => (
+                        <option key={tpl.id} value={tpl.id}>
+                          {tpl.name} ({tpl.badge})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Issued By Card */}
+                  <div className="p-3.5 bg-admin-surface-subtle/80 border border-admin-border rounded-xl space-y-2.5">
+                    <div className="flex items-center justify-between border-b border-admin-border pb-2">
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="w-4 h-4 text-admin-primary" />
+                        <span className="text-xs font-bold text-admin-foreground">
+                          Issued By Details (Sender & Landlord Profile)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {hasCustomIssuer ? (
+                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                            Custom Issuer
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-admin-muted bg-admin-surface px-2 py-0.5 rounded-full border border-admin-border">
+                            Default Profile
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingIssuer(!isEditingIssuer)}
+                          className="text-[11px] font-bold px-2 py-0.5 rounded-lg text-admin-primary bg-admin-primary/10 hover:bg-admin-primary/20 transition-colors inline-flex items-center gap-1"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          {isEditingIssuer ? 'Done' : 'Edit Issued By'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {isEditingIssuer ? (
+                      <div className="space-y-3 pt-1 animate-in fade-in text-xs">
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                              Issuer / Company Name
+                            </label>
+                            <input
+                              type="text"
+                              value={issuerName}
+                              onChange={(e) => setIssuerName(e.target.value)}
+                              placeholder="e.g. Property Ledge Management"
+                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                              Billing / Issuer Email
+                            </label>
+                            <input
+                              type="email"
+                              value={issuerEmail}
+                              onChange={(e) => setIssuerEmail(e.target.value)}
+                              placeholder="billing@propertyledge.com.au"
+                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                              Issuer Phone (Optional)
+                            </label>
+                            <input
+                              type="tel"
+                              value={issuerPhone}
+                              onChange={(e) => setIssuerPhone(e.target.value)}
+                              placeholder="+61 2 9000 0000"
+                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                              Payment Due Terms
+                            </label>
+                            <select
+                              value={paymentDueDays}
+                              onChange={(e) => setPaymentDueDays(Number(e.target.value))}
+                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
+                            >
+                              <option value={0}>Due on Issue Date (Same Day)</option>
+                              <option value={7}>Net 7 Days (Due in 7 days)</option>
+                              <option value={14}>Net 14 Days (Default - Due in 14 days)</option>
+                              <option value={21}>Net 21 Days (Due in 21 days)</option>
+                              <option value={30}>Net 30 Days (Due in 30 days)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                              Issuer Address (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={issuerAddress}
+                              onChange={(e) => setIssuerAddress(e.target.value)}
+                              placeholder="Level 5, 100 George St, Sydney NSW"
+                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                              ABN / Tax ID (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={issuerTaxId}
+                              onChange={(e) => setIssuerTaxId(e.target.value)}
+                              placeholder="ABN 12 345 678 901"
+                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1 border-t border-admin-border/50">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIssuerName('Property Ledge Management');
+                              setIssuerEmail('billing@propertyledge.com.au');
+                              setIssuerPhone('+61 2 9000 0000');
+                              setIssuerAddress('');
+                              setIssuerTaxId('');
+                              setPaymentDueDays(14);
+                            }}
+                            className="text-[11px] text-admin-muted hover:text-admin-foreground underline"
+                          >
+                            Reset to Default Profile
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingIssuer(false)}
+                            className="text-xs font-bold px-3 py-1 bg-admin-primary text-white rounded-lg hover:bg-admin-primary-hover"
+                          >
+                            Done Editing
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-admin-muted font-medium">Issued By:</span>
+                          <strong className="text-admin-foreground">{issuerName || 'Property Ledge Management'}</strong>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+                          <span className="font-mono text-admin-primary font-medium truncate" title={issuerEmail}>
+                            {issuerEmail || 'billing@propertyledge.com.au'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+                          <span className="text-admin-foreground font-mono">{issuerPhone || 'Not provided'}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-admin-primary shrink-0" />
+                          <span className="text-admin-foreground">
+                            {paymentDueDays === 0 ? 'Due on issue date' : `Due in ${paymentDueDays} days`}
+                          </span>
+                        </div>
+                        {(issuerAddress || issuerTaxId) && (
+                          <div className="col-span-2 flex items-start gap-1.5 pt-0.5 border-t border-admin-border/50 text-[11px] text-admin-muted truncate">
+                            <Building className="w-3.5 h-3.5 text-admin-muted shrink-0 mt-0.5" />
+                            <span>
+                              {issuerAddress} {issuerTaxId ? `• ${issuerTaxId}` : ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
+              {/* ─── EMAIL TEMPLATE & BODY SECTION (LEASE) ─── */}
+              <div className="p-3.5 bg-admin-surface-subtle/80 border border-admin-border rounded-xl space-y-2.5">
+                <div className="flex items-center justify-between border-b border-admin-border pb-2">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-admin-primary" />
+                    <span className="text-xs font-bold text-admin-foreground">
+                      Email Template & Message Body
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingEmailTemplate(!isEditingEmailTemplate)}
+                    className="text-[11px] font-bold px-2 py-0.5 rounded-lg text-admin-primary bg-admin-primary/10 hover:bg-admin-primary/20 transition-colors inline-flex items-center gap-1"
+                  >
+                    <Pencil className="w-3 h-3" />
+                    {isEditingEmailTemplate ? 'Done' : 'Customize Email'}
+                  </button>
+                </div>
+
+                {isEditingEmailTemplate ? (
+                  <div className="space-y-3 pt-1 animate-in fade-in text-xs">
+                    <div>
+                      <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                        Email Subject
+                      </label>
+                      <input
+                        type="text"
+                        value={emailSubject}
+                        onChange={(e) => setEmailSubject(e.target.value)}
+                        placeholder="Invoice {invoice_number} from {issuer_name}"
+                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-bold text-admin-muted">
+                          Email Message Body
+                        </label>
+                        <span className="text-[10px] text-admin-muted font-mono">Placeholders supported</span>
+                      </div>
+                      <textarea
+                        rows={4}
+                        value={emailMessage}
+                        onChange={(e) => setEmailMessage(e.target.value)}
+                        placeholder="Enter email body message..."
+                        className="w-full bg-admin-surface border border-admin-border rounded-lg p-2.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none leading-relaxed"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                        Google Drive Folder Link (Optional)
+                      </label>
+                      <input
+                        type="url"
+                        value={driveFolderUrl}
+                        onChange={(e) => setDriveFolderUrl(e.target.value)}
+                        placeholder="https://drive.google.com/drive/folders/..."
+                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="p-2 bg-admin-surface border border-admin-border rounded-lg text-[10.5px] text-admin-muted space-y-1">
+                      <span className="font-bold text-admin-foreground block">Available Placeholders:</span>
+                      <div className="flex flex-wrap gap-1 font-mono text-[9.5px]">
+                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{first_name}'}</span>
+                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{tenant_name}'}</span>
+                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{invoice_number}'}</span>
+                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{amount}'}</span>
+                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{due_date}'}</span>
+                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{issuer_name}'}</span>
+                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{property_address}'}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-admin-muted font-medium">Subject:</span>
+                      <span className="text-admin-foreground font-semibold truncate">{emailSubject}</span>
+                    </div>
+                    <p className="text-[11px] text-admin-muted line-clamp-2 bg-admin-surface p-2 rounded-lg border border-admin-border italic">
+                      &quot;{emailMessage.split('\n')[0]}...&quot;
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* 4. Schedule Options */}
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-admin-foreground">
-                  4. Schedule Options
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-admin-foreground">
+                    4. Schedule Options (Australian Timezone)
+                  </label>
+                  <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Sydney: {auTime}</span>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -628,9 +952,9 @@ export function CreateAutomationModal({
                 </div>
 
                 {scheduleType === 'monthly' && (
-                  <div className="grid grid-cols-2 gap-3 p-3 bg-admin-surface-subtle border border-admin-border rounded-xl">
+                  <div className="p-3 bg-admin-surface-subtle border border-admin-border rounded-xl space-y-2">
                     <div>
-                      <label className="block text-xs font-bold text-admin-muted mb-1">Day of Month</label>
+                      <label className="block text-xs font-bold text-admin-muted mb-1">Billing / Issue Day of Month</label>
                       <select
                         value={dayOfMonth}
                         onChange={(e) => setDayOfMonth(Number(e.target.value))}
@@ -638,27 +962,22 @@ export function CreateAutomationModal({
                       >
                         {[...Array(28)].map((_, i) => (
                           <option key={i + 1} value={i + 1}>
-                            {i + 1}
+                            Day {i + 1} of each month
                           </option>
                         ))}
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-admin-muted mb-1">Delivery Time</label>
-                      <input
-                        type="time"
-                        value={timeOfDay}
-                        onChange={(e) => setTimeOfDay(e.target.value)}
-                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs font-bold text-admin-foreground"
-                      />
+                    <div className="text-[11px] text-admin-muted flex items-center gap-1.5 pt-1 border-t border-admin-border/50">
+                      <Clock className="w-3.5 h-3.5 text-admin-primary shrink-0" />
+                      <span>Evaluated & dispatched automatically in the <strong>7:00 AM AU</strong> daily morning queue.</span>
                     </div>
                   </div>
                 )}
 
                 {scheduleType === 'after_start' && (
-                  <div className="grid grid-cols-2 gap-3 p-3 bg-admin-surface-subtle border border-admin-border rounded-xl">
+                  <div className="p-3 bg-admin-surface-subtle border border-admin-border rounded-xl space-y-2">
                     <div>
-                      <label className="block text-xs font-bold text-admin-muted mb-1">Months After Start</label>
+                      <label className="block text-xs font-bold text-admin-muted mb-1">Months After Lease Start</label>
                       <input
                         type="number"
                         min={1}
@@ -668,14 +987,9 @@ export function CreateAutomationModal({
                         className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs font-bold text-admin-foreground"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-admin-muted mb-1">Delivery Time</label>
-                      <input
-                        type="time"
-                        value={timeOfDay}
-                        onChange={(e) => setTimeOfDay(e.target.value)}
-                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs font-bold text-admin-foreground"
-                      />
+                    <div className="text-[11px] text-admin-muted flex items-center gap-1.5 pt-1 border-t border-admin-border/50">
+                      <Clock className="w-3.5 h-3.5 text-admin-primary shrink-0" />
+                      <span>Evaluated & dispatched automatically in the <strong>7:00 AM AU</strong> daily morning queue.</span>
                     </div>
                   </div>
                 )}
@@ -691,17 +1005,16 @@ export function CreateAutomationModal({
               {/* 1. Select Template */}
               <div>
                 <label className="block text-xs font-bold text-admin-foreground mb-1.5">
-                  1. Select Invoice Template / Reference
+                  1. Fixed Invoice Template
                 </label>
                 <select
                   value={selectedTemplateId}
                   onChange={(e) => setSelectedTemplateId(e.target.value)}
-                  className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary"
+                  className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary font-medium"
                 >
-                  <option value="">Default Commercial Template</option>
-                  {templates.map((tpl) => (
+                  {PREDEFINED_INVOICE_TEMPLATES.map((tpl) => (
                     <option key={tpl.id} value={tpl.id}>
-                      {tpl.name} {tpl.is_default ? '(Default)' : ''}
+                      {tpl.name} ({tpl.badge})
                     </option>
                   ))}
                 </select>
@@ -783,14 +1096,277 @@ export function CreateAutomationModal({
                 </div>
               </div>
 
-              {/* 3. Schedule Options */}
+              {/* 3. Issued By Details (Sender Profile) */}
+              <div className="p-3.5 bg-admin-surface-subtle/80 border border-admin-border rounded-xl space-y-2.5">
+                <div className="flex items-center justify-between border-b border-admin-border pb-2">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-emerald-500" />
+                    <span className="text-xs font-bold text-admin-foreground">
+                      3. Issued By Details (Sender & Business Profile)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {hasCustomIssuer ? (
+                      <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                        Custom Issuer
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-admin-muted bg-admin-surface px-2 py-0.5 rounded-full border border-admin-border">
+                        Default Profile
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingIssuer(!isEditingIssuer)}
+                      className="text-[11px] font-bold px-2 py-0.5 rounded-lg text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors inline-flex items-center gap-1"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      {isEditingIssuer ? 'Done' : 'Edit Issued By'}
+                    </button>
+                  </div>
+                </div>
+
+                {isEditingIssuer ? (
+                  <div className="space-y-3 pt-1 animate-in fade-in text-xs">
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                          Issuer / Company Name
+                        </label>
+                        <input
+                          type="text"
+                          value={issuerName}
+                          onChange={(e) => setIssuerName(e.target.value)}
+                          placeholder="e.g. Property Ledge Management"
+                          className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                          Billing / Issuer Email
+                        </label>
+                        <input
+                          type="email"
+                          value={issuerEmail}
+                          onChange={(e) => setIssuerEmail(e.target.value)}
+                          placeholder="billing@propertyledge.com.au"
+                          className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                          Issuer Phone (Optional)
+                        </label>
+                        <input
+                          type="tel"
+                          value={issuerPhone}
+                          onChange={(e) => setIssuerPhone(e.target.value)}
+                          placeholder="+61 2 9000 0000"
+                          className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                          Payment Due Terms
+                        </label>
+                        <select
+                          value={paymentDueDays}
+                          onChange={(e) => setPaymentDueDays(Number(e.target.value))}
+                          className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
+                        >
+                          <option value={0}>Due on Issue Date (Same Day)</option>
+                          <option value={7}>Net 7 Days (Due in 7 days)</option>
+                          <option value={14}>Net 14 Days (Default - Due in 14 days)</option>
+                          <option value={21}>Net 21 Days (Due in 21 days)</option>
+                          <option value={30}>Net 30 Days (Due in 30 days)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                          Issuer Address (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={issuerAddress}
+                          onChange={(e) => setIssuerAddress(e.target.value)}
+                          placeholder="Level 5, 100 George St, Sydney NSW"
+                          className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                          ABN / Tax ID (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={issuerTaxId}
+                          onChange={(e) => setIssuerTaxId(e.target.value)}
+                          placeholder="ABN 12 345 678 901"
+                          className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-admin-border/50">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIssuerName('Property Ledge Management');
+                          setIssuerEmail('billing@propertyledge.com.au');
+                          setIssuerPhone('+61 2 9000 0000');
+                          setIssuerAddress('');
+                          setIssuerTaxId('');
+                          setPaymentDueDays(14);
+                        }}
+                        className="text-[11px] text-admin-muted hover:text-admin-foreground underline"
+                      >
+                        Reset to Default Profile
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingIssuer(false)}
+                        className="text-xs font-bold px-3 py-1 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"
+                      >
+                        Done Editing
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-admin-muted font-medium">Issued By:</span>
+                      <strong className="text-admin-foreground">{issuerName || 'Property Ledge Management'}</strong>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+                      <span className="font-mono text-emerald-500 font-medium truncate" title={issuerEmail}>
+                        {issuerEmail || 'billing@propertyledge.com.au'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+                      <span className="text-admin-foreground font-mono">{issuerPhone || 'Not provided'}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span className="text-admin-foreground">
+                        {paymentDueDays === 0 ? 'Due on issue date' : `Due in ${paymentDueDays} days`}
+                      </span>
+                    </div>
+                    {(issuerAddress || issuerTaxId) && (
+                      <div className="col-span-2 flex items-start gap-1.5 pt-0.5 border-t border-admin-border/50 text-[11px] text-admin-muted truncate">
+                        <Building className="w-3.5 h-3.5 text-admin-muted shrink-0 mt-0.5" />
+                        <span>
+                          {issuerAddress} {issuerTaxId ? `• ${issuerTaxId}` : ''}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ─── EMAIL TEMPLATE & BODY SECTION (STANDALONE) ─── */}
+              <div className="p-3.5 bg-admin-surface-subtle border border-admin-border rounded-xl space-y-2.5">
+                <div className="flex items-center justify-between border-b border-admin-border pb-2">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-emerald-500" />
+                    <span className="text-xs font-bold text-admin-foreground">
+                      Email Template & Message Body
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingEmailTemplate(!isEditingEmailTemplate)}
+                    className="text-[11px] font-bold px-2 py-0.5 rounded-lg text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors inline-flex items-center gap-1"
+                  >
+                    <Pencil className="w-3 h-3" />
+                    {isEditingEmailTemplate ? 'Done' : 'Customize Email'}
+                  </button>
+                </div>
+
+                {isEditingEmailTemplate ? (
+                  <div className="space-y-3 pt-1 animate-in fade-in text-xs">
+                    <div>
+                      <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                        Email Subject
+                      </label>
+                      <input
+                        type="text"
+                        value={emailSubject}
+                        onChange={(e) => setEmailSubject(e.target.value)}
+                        placeholder="Invoice {invoice_number} from {issuer_name}"
+                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-bold text-admin-muted">
+                          Email Message Body
+                        </label>
+                        <span className="text-[10px] text-admin-muted font-mono">Placeholders supported</span>
+                      </div>
+                      <textarea
+                        rows={4}
+                        value={emailMessage}
+                        onChange={(e) => setEmailMessage(e.target.value)}
+                        placeholder="Enter email body message..."
+                        className="w-full bg-admin-surface border border-admin-border rounded-lg p-2.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none leading-relaxed"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-admin-muted mb-1">
+                        Google Drive Folder Link (Optional)
+                      </label>
+                      <input
+                        type="url"
+                        value={driveFolderUrl}
+                        onChange={(e) => setDriveFolderUrl(e.target.value)}
+                        placeholder="https://drive.google.com/drive/folders/..."
+                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="p-2 bg-admin-surface border border-admin-border rounded-lg text-[10.5px] text-admin-muted space-y-1">
+                      <span className="font-bold text-admin-foreground block">Available Placeholders:</span>
+                      <div className="flex flex-wrap gap-1 font-mono text-[9.5px]">
+                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{first_name}'}</span>
+                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{recipient_name}'}</span>
+                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{invoice_number}'}</span>
+                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{amount}'}</span>
+                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{due_date}'}</span>
+                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{issuer_name}'}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-admin-muted font-medium">Subject:</span>
+                      <span className="text-admin-foreground font-semibold truncate">{emailSubject}</span>
+                    </div>
+                    <p className="text-[11px] text-admin-muted line-clamp-2 bg-admin-surface p-2 rounded-lg border border-admin-border italic">
+                      &quot;{emailMessage.split('\n')[0]}...&quot;
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* 4. Schedule Options */}
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-admin-foreground">
-                  3. Schedule Options
+                  4. Schedule Options
                 </label>
-                <div className="grid grid-cols-2 gap-3 p-3 bg-admin-surface-subtle border border-admin-border rounded-xl">
+                <div className="p-3 bg-admin-surface-subtle border border-admin-border rounded-xl space-y-2">
                   <div>
-                    <label className="block text-xs font-bold text-admin-muted mb-1">Day of Month</label>
+                    <label className="block text-xs font-bold text-admin-muted mb-1">Billing / Issue Day of Month</label>
                     <select
                       value={dayOfMonth}
                       onChange={(e) => setDayOfMonth(Number(e.target.value))}
@@ -798,19 +1374,14 @@ export function CreateAutomationModal({
                     >
                       {[...Array(28)].map((_, i) => (
                         <option key={i + 1} value={i + 1}>
-                          {i + 1}
+                          Day {i + 1} of each month
                         </option>
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-admin-muted mb-1">Delivery Time</label>
-                    <input
-                      type="time"
-                      value={timeOfDay}
-                      onChange={(e) => setTimeOfDay(e.target.value)}
-                      className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs font-bold text-admin-foreground"
-                    />
+                  <div className="text-[11px] text-admin-muted flex items-center gap-1.5 pt-1 border-t border-admin-border/50">
+                    <Clock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <span>Evaluated & dispatched automatically in the <strong>7:00 AM AU</strong> daily morning queue.</span>
                   </div>
                 </div>
               </div>
@@ -840,7 +1411,7 @@ export function CreateAutomationModal({
                     <div className="space-y-1.5 bg-admin-surface p-3 rounded-lg border border-admin-border text-xs">
                       <div className="font-bold text-admin-foreground flex items-center justify-between mb-1 text-[11px] uppercase tracking-wider text-admin-primary">
                         <span className="flex items-center gap-1.5">
-                          <User className="w-3.5 h-3.5" /> Recipient Details
+                          <User className="w-3.5 h-3.5" /> Recipient Details (Bill To)
                         </span>
                         {hasCustomOverrides && (
                           <span className="text-[10px] lowercase font-normal bg-amber-500/10 text-amber-500 px-1.5 py-0.2 rounded border border-amber-500/20">
@@ -870,6 +1441,54 @@ export function CreateAutomationModal({
                       </div>
                     </div>
 
+                    {/* Issued By Review Card */}
+                    {leaseActionType === 'generate_and_send_invoice' && (
+                      <div className="space-y-1.5 bg-admin-surface p-3 rounded-lg border border-admin-border text-xs">
+                        <div className="font-bold text-admin-foreground flex items-center justify-between mb-1 text-[11px] uppercase tracking-wider text-admin-primary">
+                          <span className="flex items-center gap-1.5">
+                            <Briefcase className="w-3.5 h-3.5" /> Issued By Details (Sender & Landlord)
+                          </span>
+                          {hasCustomIssuer && (
+                            <span className="text-[10px] lowercase font-normal bg-amber-500/10 text-amber-500 px-1.5 py-0.2 rounded border border-amber-500/20">
+                              (customized)
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-admin-muted">Issuer Name:</span>
+                          <strong className="text-admin-foreground">{issuerName}</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-admin-muted">Billing Email:</span>
+                          <span className="font-mono text-admin-primary font-bold">{issuerEmail}</span>
+                        </div>
+                        {issuerPhone && (
+                          <div className="flex justify-between">
+                            <span className="text-admin-muted">Phone Number:</span>
+                            <span className="font-mono text-admin-foreground">{issuerPhone}</span>
+                          </div>
+                        )}
+                        {issuerAddress && (
+                          <div className="flex justify-between">
+                            <span className="text-admin-muted">Address:</span>
+                            <span className="text-admin-foreground">{issuerAddress}</span>
+                          </div>
+                        )}
+                        {issuerTaxId && (
+                          <div className="flex justify-between">
+                            <span className="text-admin-muted">ABN / Tax ID:</span>
+                            <span className="font-mono text-admin-foreground">{issuerTaxId}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-admin-muted">Payment Terms:</span>
+                          <strong className="text-admin-foreground">
+                            {paymentDueDays === 0 ? 'Due on issue date' : `Due in ${paymentDueDays} days`}
+                          </strong>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between text-xs pt-1">
                       <span className="text-admin-muted font-medium">Scheduled Action:</span>
                       <strong className="text-admin-foreground">
@@ -888,7 +1507,7 @@ export function CreateAutomationModal({
                   <>
                     <div className="space-y-1.5 bg-admin-surface p-3 rounded-lg border border-admin-border text-xs">
                       <div className="font-bold text-admin-foreground flex items-center gap-1.5 mb-1 text-[11px] uppercase tracking-wider text-emerald-500">
-                        <User className="w-3.5 h-3.5" /> Customer & Billing Information
+                        <User className="w-3.5 h-3.5" /> Customer & Billing Information (Bill To)
                       </div>
                       <div className="flex justify-between">
                         <span className="text-admin-muted">Customer Name:</span>
@@ -920,6 +1539,52 @@ export function CreateAutomationModal({
                       </div>
                     </div>
 
+                    {/* Standalone Issued By Review Card */}
+                    <div className="space-y-1.5 bg-admin-surface p-3 rounded-lg border border-admin-border text-xs">
+                      <div className="font-bold text-admin-foreground flex items-center justify-between mb-1 text-[11px] uppercase tracking-wider text-emerald-500">
+                        <span className="flex items-center gap-1.5">
+                          <Briefcase className="w-3.5 h-3.5" /> Issued By Details (Sender & Business)
+                        </span>
+                        {hasCustomIssuer && (
+                          <span className="text-[10px] lowercase font-normal bg-amber-500/10 text-amber-500 px-1.5 py-0.2 rounded border border-amber-500/20">
+                            (customized)
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-admin-muted">Issuer Name:</span>
+                        <strong className="text-admin-foreground">{issuerName}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-admin-muted">Billing Email:</span>
+                        <span className="font-mono text-emerald-500 font-bold">{issuerEmail}</span>
+                      </div>
+                      {issuerPhone && (
+                        <div className="flex justify-between">
+                          <span className="text-admin-muted">Phone Number:</span>
+                          <span className="font-mono text-admin-foreground">{issuerPhone}</span>
+                        </div>
+                      )}
+                      {issuerAddress && (
+                        <div className="flex justify-between">
+                          <span className="text-admin-muted">Address:</span>
+                          <span className="text-admin-foreground">{issuerAddress}</span>
+                        </div>
+                      )}
+                      {issuerTaxId && (
+                        <div className="flex justify-between">
+                          <span className="text-admin-muted">ABN / Tax ID:</span>
+                          <span className="font-mono text-admin-foreground">{issuerTaxId}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-admin-muted">Payment Terms:</span>
+                        <strong className="text-admin-foreground">
+                          {paymentDueDays === 0 ? 'Due on issue date' : `Due in ${paymentDueDays} days`}
+                        </strong>
+                      </div>
+                    </div>
+
                     <div className="flex items-center justify-between text-xs pt-1">
                       <span className="text-admin-muted font-medium">Invoice Template:</span>
                       <span className="font-bold text-admin-foreground">{selectedTemplate?.name || 'Default Commercial Template'}</span>
@@ -927,12 +1592,34 @@ export function CreateAutomationModal({
                   </>
                 )}
 
+                {/* Email Delivery Review Box */}
+                <div className="space-y-1.5 bg-admin-surface p-3 rounded-lg border border-admin-border text-xs">
+                  <div className="font-bold text-admin-foreground flex items-center justify-between mb-1 text-[11px] uppercase tracking-wider text-admin-primary">
+                    <span className="flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5" /> Email Delivery & Template
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-admin-muted">Subject:</span>
+                    <strong className="text-admin-foreground truncate max-w-[260px]">{emailSubject}</strong>
+                  </div>
+                  {driveFolderUrl && (
+                    <div className="flex justify-between">
+                      <span className="text-admin-muted">Drive Link:</span>
+                      <span className="font-mono text-admin-primary truncate max-w-[260px]">{driveFolderUrl}</span>
+                    </div>
+                  )}
+                  <div className="pt-1 border-t border-admin-border/50 text-[11px] text-admin-muted line-clamp-2 italic">
+                    &quot;{emailMessage.split('\n')[0]}...&quot;
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between text-xs border-t border-admin-border pt-2.5">
                   <span className="text-admin-muted font-medium">Recurring Schedule:</span>
                   <span className="font-bold text-admin-foreground">
                     {scheduleType === 'monthly'
-                      ? `Every month on the ${dayOfMonth} at ${timeOfDay}`
-                      : `${offsetMonths} months after lease start at ${timeOfDay}`}
+                      ? `Every month on the ${dayOfMonth}${dayOfMonth === 1 ? 'st' : dayOfMonth === 2 ? 'nd' : dayOfMonth === 3 ? 'rd' : 'th'} (7:00 AM AU Daily Run)`
+                      : `${offsetMonths} month${offsetMonths > 1 ? 's' : ''} after lease start (7:00 AM AU Daily Run)`}
                   </span>
                 </div>
               </div>

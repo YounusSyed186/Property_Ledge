@@ -55,7 +55,7 @@ export function normalizeActionKey(action: string): string {
 
 // Resource category groupings
 export const RESOURCE_CATEGORIES: Record<string, string[]> = {
-  'Property Management': ['property', 'tenant', 'lease', 'applicant', 'contract'],
+  'Property Management': ['property', 'unit', 'tenant', 'lease', 'applicant', 'contract'],
   'Financial Operations': ['invoice', 'payment', 'expense', 'billing', 'subscription', 'payout', 'tax'],
   'Operations & Maintenance': ['maintenance', 'inspection', 'document', 'task', 'insights', 'work_order'],
   'Team & Access': ['team.member', 'team.role', 'team.settings', 'team', 'team_role', 'invitation'],

@@ -12,8 +12,10 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { InvoiceLayoutStyle } from '@/modules/invoices';
+import { PREDEFINED_INVOICE_TEMPLATES } from '@/modules/invoices/domain/constants/predefined-templates';
 import { InvoiceRenderDTO } from '@/modules/invoices/application/dto/invoice-render-dto';
 import { renderInvoiceHtml } from '@/modules/invoices/domain/documents/invoice-html-template';
+import { formatAuDisplayDate, getAuTodayString } from '@/lib/format/australian-time';
 import { Button } from '@/components/admin/ui';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +33,7 @@ export interface LiveInvoiceData {
   issuerEmail?: string;
   issuerAddress?: string;
   issuerPhone?: string;
+  issuerTaxId?: string;
   propertyAddress?: string;
   items: Array<{
     description: string;
@@ -115,8 +118,8 @@ export function LiveInvoiceRenderer({
       status: d.status || 'draft',
       currencyCode: currency,
       currencySymbol: symbol,
-      issueDateFormatted: d.issueDate || new Date().toISOString().split('T')[0],
-      dueDateFormatted: d.dueDate || 'Upon Receipt',
+      issueDateFormatted: d.issueDate ? formatAuDisplayDate(d.issueDate) : formatAuDisplayDate(getAuTodayString()),
+      dueDateFormatted: d.dueDate ? formatAuDisplayDate(d.dueDate) : 'Upon Receipt',
       billingPeriodFormatted: null,
       billTo: {
         name: d.customerName || 'Valued Resident / Customer',
@@ -128,6 +131,7 @@ export function LiveInvoiceRenderer({
         email: d.issuerEmail || 'manager@propertyledge.com.au',
         phone: d.issuerPhone || '+61 2 9000 0000',
         address: d.issuerAddress || null,
+        taxId: d.issuerTaxId || null,
       },
       propertyAddress: d.propertyAddress || null,
       items,
@@ -165,15 +169,7 @@ export function LiveInvoiceRenderer({
     }
   };
 
-  const themes: Array<{ id: InvoiceLayoutStyle; name: string; color: string }> = [
-    { id: 'classic', name: 'Classic', color: '#22333b' },
-    { id: 'modern', name: 'Modern', color: '#0f172a' },
-    { id: 'minimalist', name: 'Minimalist', color: '#ffffff' },
-    { id: 'corporate', name: 'Corporate', color: '#1e3a8a' },
-    { id: 'elegant', name: 'Elegant', color: '#292524' },
-    { id: 'creative', name: 'Creative', color: '#4f46e5' },
-    { id: 'monochrome', name: 'Monochrome', color: '#000000' },
-  ];
+  const themes = PREDEFINED_INVOICE_TEMPLATES;
 
   return (
     <div className="flex flex-col space-y-3">
@@ -196,18 +192,18 @@ export function LiveInvoiceRenderer({
             {themes.map((t) => (
               <button
                 key={t.id}
-                onClick={() => handleThemeSelect(t.id)}
+                onClick={() => handleThemeSelect(t.layoutStyle)}
                 className={cn(
                   'px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border',
-                  activeTheme === t.id
+                  activeTheme === t.layoutStyle
                     ? 'bg-admin-primary text-white border-admin-primary shadow-xs'
                     : 'bg-admin-surface-subtle text-admin-muted border-admin-border hover:text-admin-foreground'
                 )}
-                title={`${t.name} Theme`}
+                title={`${t.name} (${t.badge})`}
               >
                 <span
                   className="w-2.5 h-2.5 rounded-full border border-black/10"
-                  style={{ backgroundColor: t.color }}
+                  style={{ backgroundColor: t.brandColor }}
                 />
                 {t.name}
               </button>

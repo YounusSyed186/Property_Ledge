@@ -15,6 +15,7 @@ import {
   UpdateInvoiceDraftDTO,
 } from '@/modules/invoices';
 import { InvoiceStatus } from '@/modules/invoices/domain/entities/invoice';
+import { getAuTodayString, getAuDateParts, DEFAULT_AU_TIMEZONE } from '@/lib/format/australian-time';
 
 async function getContextAndService() {
   const [user, context, invoiceService, invoiceDocService] = await Promise.all([
@@ -52,94 +53,11 @@ export async function fetchInvoicesAction(filters?: {
     };
 
     const res = await invoiceService.listInvoices(queryFilters);
-    if (!res.success || !res.data || res.data.length === 0) {
-      const demoItems: any[] = [
-        {
-          id: 'inv-101',
-          invoiceNumber: 'INV-2026-0042',
-          workspaceId: context.workspaceId,
-          status: 'issued' as any,
-          customerName: 'Sarah Connor (Tenant)',
-          customerEmail: 'sarah.connor@example.com',
-          issueDate: '2026-09-01',
-          dueDate: '2026-09-15',
-          subtotal: 2450.00,
-          taxTotal: 245.00,
-          total: 2695.00,
-          amountPaid: 0.00,
-          balanceRemaining: 2695.00,
-          currency: 'AUD',
-          lineItems: [
-            { id: 'item-1', invoiceId: 'inv-101', description: 'Monthly Residential Rent - Unit 4B', quantity: 1, unitPrice: 2450.00, amount: 2450.00 } as any
-          ],
-          createdAt: '2026-09-01T08:00:00Z',
-          updatedAt: '2026-09-01T08:00:00Z'
-        },
-        {
-          id: 'inv-102',
-          invoiceNumber: 'INV-2026-0041',
-          workspaceId: context.workspaceId,
-          status: 'paid' as any,
-          customerName: 'John Smith',
-          customerEmail: 'john.smith@tenant.com',
-          issueDate: '2026-08-01',
-          dueDate: '2026-08-15',
-          subtotal: 1800.00,
-          taxTotal: 180.00,
-          total: 1980.00,
-          amountPaid: 1980.00,
-          balanceRemaining: 0.00,
-          currency: 'AUD',
-          lineItems: [
-            { id: 'item-2', invoiceId: 'inv-102', description: 'Monthly Rent - Suburban House', quantity: 1, unitPrice: 1800.00, amount: 1800.00 } as any
-          ],
-          createdAt: '2026-08-01T08:00:00Z',
-          updatedAt: '2026-08-05T14:20:00Z'
-        },
-        {
-          id: 'inv-103',
-          invoiceNumber: 'INV-2026-0039',
-          workspaceId: context.workspaceId,
-          status: 'overdue' as any,
-          customerName: 'Michael Brown',
-          customerEmail: 'michael.brown@tenant.com',
-          issueDate: '2026-07-15',
-          dueDate: '2026-07-30',
-          subtotal: 3100.00,
-          taxTotal: 310.00,
-          total: 3410.00,
-          amountPaid: 1000.00,
-          balanceRemaining: 2410.00,
-          currency: 'AUD',
-          lineItems: [
-            { id: 'item-3', invoiceId: 'inv-103', description: 'Commercial Lease Rent - Suite 801', quantity: 1, unitPrice: 3100.00, amount: 3100.00 } as any
-          ],
-          createdAt: '2026-07-15T08:00:00Z',
-          updatedAt: '2026-08-01T09:00:00Z'
-        },
-        {
-          id: 'inv-104',
-          invoiceNumber: 'INV-2026-0038',
-          workspaceId: context.workspaceId,
-          status: 'draft' as any,
-          customerName: 'Apex Commercial Partners',
-          customerEmail: 'billing@apexcommercial.com',
-          issueDate: '2026-09-09',
-          dueDate: '2026-09-23',
-          subtotal: 5200.00,
-          taxTotal: 520.00,
-          total: 5720.00,
-          amountPaid: 0.00,
-          balanceRemaining: 5720.00,
-          currency: 'AUD',
-          lineItems: [
-            { id: 'item-4', invoiceId: 'inv-104', description: 'Q3 Facility Maintenance & Security Services', quantity: 1, unitPrice: 5200.00, amount: 5200.00 } as any
-          ],
-          createdAt: '2026-09-09T10:00:00Z',
-          updatedAt: '2026-09-09T10:00:00Z'
-        }
-      ];
-      return { items: demoItems, total: demoItems.length };
+    if (!res.success || !res.data) {
+      if (!res.success) {
+        console.error('[fetchInvoicesAction] Error:', res.error);
+      }
+      return { items: [], total: 0 };
     }
     return { items: res.data, total: res.data.length };
   } catch (err: any) {
@@ -293,7 +211,12 @@ export async function generateInvoiceDocumentAction(invoiceId: string, format: '
   }
 }
 
-export async function sendInvoiceEmailAction(invoiceId: string, customMessage?: string, driveFolderUrl?: string) {
+export async function sendInvoiceEmailAction(
+  invoiceId: string,
+  customMessage?: string,
+  driveFolderUrl?: string,
+  subject?: string
+) {
   try {
     const { invoiceService, invoiceDocService } = await getContextAndService();
     const invoice = await invoiceService.getInvoiceById(invoiceId);
@@ -321,6 +244,7 @@ export async function sendInvoiceEmailAction(invoiceId: string, customMessage?: 
       pdfBuffer: docResult.buffer,
       customMessage,
       driveFolderUrl,
+      subject,
     });
 
     if (!res.success) {
@@ -496,8 +420,15 @@ export async function runInvoiceTemplateNowAction(templateId: string, overrides?
     const documentService = await container.resolve('invoiceDocumentService');
     const reqContext = { workspaceId: context.workspaceId, userId: user.id };
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    const dueDate = overrides?.dueDate || new Date(Date.now() + (template.paymentTermsDays || 14) * 86400000).toISOString().split('T')[0];
+    const todayStr = getAuTodayString();
+    let dueDate = overrides?.dueDate;
+    if (!dueDate) {
+      const dueDays = template.paymentTermsDays || 14;
+      const d = new Date();
+      d.setDate(d.getDate() + dueDays);
+      const parts = getAuDateParts(d, DEFAULT_AU_TIMEZONE);
+      dueDate = `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+    }
 
     const customerName = overrides?.recipientName || template.defaultCustomerName || 'Customer';
     const customerEmail = overrides?.recipientEmail || template.defaultCustomerEmail || null;
@@ -644,7 +575,7 @@ export async function bulkGenerateRentInvoicesAction(options?: {
     const generatedInvoices: InvoiceDTO[] = [];
     const errors: string[] = [];
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getAuTodayString();
     const targetIssueDate = options?.issueDate || todayStr;
     const targetDueDate = options?.dueDate || todayStr;
 

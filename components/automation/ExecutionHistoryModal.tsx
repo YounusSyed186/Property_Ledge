@@ -19,6 +19,7 @@ import {
   fetchExecutionHistoryAction,
   retryExecutionAction,
 } from '@/app/actions/automations';
+import { formatAuDisplayDateTime } from '@/lib/format/australian-time';
 
 interface ExecutionHistoryModalProps {
   isOpen: boolean;
@@ -185,7 +186,7 @@ export function ExecutionHistoryModal({
                             {getStatusBadge(exec.status)}
                           </div>
                           <div className="text-[11px] text-admin-muted mt-0.5">
-                            {new Date(exec.createdAt).toLocaleString()} • Duration: {exec.executionDurationMs || 0}ms
+                            {formatAuDisplayDateTime(exec.createdAt)} • Duration: {exec.executionDurationMs || 0}ms
                           </div>
                         </div>
                       </div>

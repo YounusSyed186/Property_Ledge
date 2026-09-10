@@ -9,16 +9,33 @@ export interface SendInvoiceEmailOptions {
   pdfBuffer?: Buffer;
   customMessage?: string;
   driveFolderUrl?: string;
+  subject?: string;
 }
 
 export class InvoiceEmailAdapter {
   async sendInvoice(options: SendInvoiceEmailOptions): Promise<EmailResult> {
-    const { to, recipientName, invoice, pdfBuffer, customMessage, driveFolderUrl } = options;
-
-    const subject = `Invoice ${invoice.invoiceNumber} from ${invoice.issuer.name || 'Property Ledge'}`;
+    const { to, recipientName, invoice, pdfBuffer, customMessage, driveFolderUrl, subject: customSubject } = options;
 
     const rawName = recipientName || invoice.billTo.name || 'Customer';
     const firstName = rawName.trim().split(' ')[0] || rawName;
+    const issuerName = invoice.issuer?.name || 'Property Ledge Management';
+
+    // Interpolation Helper
+    const interpolate = (text: string): string => {
+      return text
+        .replace(/\{tenant_name\}|\{recipient_name\}|\{name\}/gi, rawName)
+        .replace(/\{first_name\}/gi, firstName)
+        .replace(/\{invoice_number\}/gi, invoice.invoiceNumber)
+        .replace(/\{due_date\}/gi, invoice.dueDateFormatted || '')
+        .replace(/\{issue_date\}/gi, invoice.issueDateFormatted || '')
+        .replace(/\{amount\}|\{total\}/gi, invoice.totalAmountFormatted || '')
+        .replace(/\{issuer_name\}|\{business_name\}/gi, issuerName)
+        .replace(/\{property_address\}|\{property_name\}/gi, invoice.propertyAddress || '');
+    };
+
+    const finalSubject = customSubject
+      ? interpolate(customSubject)
+      : `Invoice ${invoice.invoiceNumber} from ${issuerName}`;
 
     const attachments: Array<{ filename: string; content: string }> = [];
     if (pdfBuffer) {
@@ -29,14 +46,14 @@ export class InvoiceEmailAdapter {
     }
 
     const bodyMessageHtml = customMessage
-      ? customMessage.replace(/\n/g, '<br/>')
+      ? interpolate(customMessage).replace(/\n/g, '<br/>')
       : `Hi ${firstName},<br/><br/>
          Hope everything is going smoothly.<br/><br/>
          Please find attached invoice <strong>${invoice.invoiceNumber}</strong> (due <strong>${invoice.dueDateFormatted}</strong>).<br/><br/>
          Could you please review the invoice and confirm that all details are correct on your end?<br/><br/>
          Please let me know if you have any questions.<br/><br/>
          Kind regards,<br/>
-         ${invoice.issuer.name || 'Property Ledge Management'}`;
+         ${issuerName}`;
 
     const driveLinkHtml = driveFolderUrl
       ? `<br/><br/>
@@ -53,7 +70,7 @@ export class InvoiceEmailAdapter {
 
     return emailService.sendEmail({
       to,
-      subject,
+      subject: finalSubject,
       templateType: 'invoice_plain',
       variables: {
         title: `Invoice ${invoice.invoiceNumber}`,

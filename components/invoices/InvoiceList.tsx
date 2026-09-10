@@ -11,8 +11,6 @@ import {
   Download,
   Mail,
   DollarSign,
-  Layers,
-  LayoutTemplate,
   RefreshCw,
   ArrowUpDown,
   AlertCircle,
@@ -50,11 +48,10 @@ import {
   getInvoiceDownloadUrlAction,
   generateInvoiceDocumentAction,
   sendInvoiceEmailAction,
-  bulkGenerateRentInvoicesAction,
 } from '@/app/actions/invoices';
 import { CreateInvoiceModal } from './CreateInvoiceModal';
 import { InvoiceDetailModal } from './InvoiceDetailModal';
-import { BulkInvoiceModal } from './BulkInvoiceModal';
+import { formatAuDisplayDate, formatAuDisplayDateTime } from '@/lib/format/australian-time';
 import { cn } from '@/lib/utils';
 
 export function InvoiceList() {
@@ -68,7 +65,6 @@ export function InvoiceList() {
   // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [invoiceToEdit, setInvoiceToEdit] = useState<InvoiceDTO | null>(null);
-  const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDTO | null>(null);
   const [invoiceToDelete, setInvoiceToDelete] = useState<InvoiceDTO | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -129,7 +125,11 @@ export function InvoiceList() {
   }, [invoices]);
 
   // Actions
-  const handleCreateSubmit = async (dto: CreateInvoiceDTO, issueImmediately = false) => {
+  const handleCreateSubmit = async (
+    dto: CreateInvoiceDTO,
+    issueImmediately = false,
+    emailOptions?: { subject?: string; customMessage?: string; driveFolderUrl?: string }
+  ) => {
     const res = await createInvoiceAction(dto);
     if (!res.success || !res.invoice) {
       throw new Error(res.error || 'Failed to create invoice');
@@ -139,6 +139,19 @@ export function InvoiceList() {
       const issueRes = await issueInvoiceAction(res.invoice.id);
       if (!issueRes.success) {
         throw new Error(issueRes.error || 'Failed to issue invoice');
+      }
+
+      if (emailOptions && (emailOptions.subject || emailOptions.customMessage || emailOptions.driveFolderUrl || dto.recipientEmail)) {
+        try {
+          await sendInvoiceEmailAction(
+            res.invoice.id,
+            emailOptions.customMessage,
+            emailOptions.driveFolderUrl,
+            emailOptions.subject
+          );
+        } catch (emailErr: any) {
+          console.warn('[InvoiceList] Email send warning:', emailErr);
+        }
       }
     }
 
@@ -324,18 +337,6 @@ export function InvoiceList() {
     loadInvoices();
   };
 
-  const handleBulkGenerate = async (options: { dueDate: string; issueDate: string; autoIssue: boolean }) => {
-    const res = await bulkGenerateRentInvoicesAction(options);
-    if (!res.success) {
-      throw new Error(res.error || 'Failed to bulk generate');
-    }
-    loadInvoices();
-    return {
-      count: res.count || 0,
-      errors: res.errors,
-    };
-  };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'paid':
@@ -399,20 +400,28 @@ export function InvoiceList() {
       {
         headerName: 'Issue Date',
         field: 'issueDate',
-        width: 120,
-        cellRenderer: 'dateCell',
+        width: 130,
+        cellRenderer: (params: any) => {
+          const inv = params.data as InvoiceDTO;
+          if (!inv) return null;
+          return (
+            <span className="text-xs text-admin-muted font-medium">
+              {formatAuDisplayDate(inv.issueDate)}
+            </span>
+          );
+        },
       },
       {
         headerName: 'Due Date',
         field: 'dueDate',
-        width: 120,
+        width: 130,
         cellRenderer: (params: any) => {
           const inv = params.data as InvoiceDTO;
           if (!inv) return null;
           const isOverdue = inv.status === 'overdue' || (inv.balance > 0 && new Date(inv.dueDate) < new Date());
           return (
             <span className={cn('text-xs font-medium', isOverdue && inv.balance > 0 ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-admin-foreground')}>
-              {inv.dueDate}
+              {formatAuDisplayDate(inv.dueDate)}
             </span>
           );
         },
@@ -557,27 +566,6 @@ export function InvoiceList() {
             </button>
           </div>
 
-          <Link href="/dashboard/invoices/templates">
-            <Button
-              variant="outline"
-              size="sm"
-              className="font-bold border-admin-border hover:bg-admin-surface-subtle text-admin-foreground text-xs"
-            >
-              <LayoutTemplate className="w-3.5 h-3.5 mr-1.5 text-admin-primary" />
-              Recurring Templates
-            </Button>
-          </Link>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsBulkOpen(true)}
-            className="font-bold border-admin-border hover:bg-admin-surface-subtle text-admin-foreground text-xs"
-          >
-            <Layers className="w-3.5 h-3.5 mr-1.5 text-admin-primary" />
-            Bulk Rent
-          </Button>
-
           <Button
             onClick={() => {
               setInvoiceToEdit(null);
@@ -667,17 +655,12 @@ export function InvoiceList() {
             </div>
             <h3 className="text-lg font-black text-admin-foreground mb-1">No invoices yet</h3>
             <p className="text-xs text-admin-muted max-w-sm mx-auto mb-5 font-medium">
-              Create your first standalone invoice, set up an automated recurring rent blueprint, or generate bulk rent invoices.
+              Create your first standalone invoice or manage automated invoices through the Automations tab.
             </p>
             <div className="flex items-center gap-2">
               <Button onClick={() => setIsCreateOpen(true)} className="font-bold">
                 <Plus className="w-4 h-4 mr-1.5" /> Create First Invoice
               </Button>
-              <Link href="/dashboard/invoices/templates">
-                <Button variant="outline" className="font-bold border-admin-border">
-                  <LayoutTemplate className="w-4 h-4 mr-1.5" /> Setup Templates
-                </Button>
-              </Link>
             </div>
           </div>
         ) : viewMode === 'table' ? (
@@ -775,12 +758,12 @@ export function InvoiceList() {
                     </div>
                     <div>
                       <p className="text-[10.5px] text-admin-muted font-medium">Issue Date</p>
-                      <p className="text-admin-foreground mt-0.5">{inv.issueDate}</p>
+                      <p className="text-admin-foreground mt-0.5">{formatAuDisplayDate(inv.issueDate)}</p>
                     </div>
                     <div>
                       <p className="text-[10.5px] text-admin-muted font-medium">Due Date</p>
                       <p className={cn('mt-0.5', isOverdue && inv.balance > 0 ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-admin-foreground')}>
-                        {inv.dueDate}
+                        {formatAuDisplayDate(inv.dueDate)}
                       </p>
                     </div>
                   </div>
@@ -841,13 +824,6 @@ export function InvoiceList() {
         onSubmit={handleCreateSubmit}
         invoiceToEdit={invoiceToEdit}
         onUpdate={handleUpdateSubmit}
-      />
-
-      {/* Bulk Generate Modal */}
-      <BulkInvoiceModal
-        isOpen={isBulkOpen}
-        onClose={() => setIsBulkOpen(false)}
-        onGenerate={handleBulkGenerate}
       />
 
       {/* Detail Modal */}

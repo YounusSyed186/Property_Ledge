@@ -19,6 +19,7 @@ import {
 import { Button, Input, Select, Textarea, useToast } from '@/components/admin/ui';
 import { handleRenewLease, fetchAllWorkspaceTenants } from '@/app/actions/dashboard';
 import { formatCurrency } from '@/lib/format/currency';
+import { getAuTodayString } from '@/lib/format/australian-time';
 import { cn } from '@/lib/utils';
 import type { LeaseStatus, RentFrequency } from '@/modules/leases/domain/entities/lease';
 
@@ -125,7 +126,7 @@ export function RenewLeaseModal({
       prevEnd.setDate(prevEnd.getDate() + 1);
       calculatedStart = prevEnd.toISOString().split('T')[0];
     } else {
-      calculatedStart = new Date().toISOString().split('T')[0];
+      calculatedStart = getAuTodayString();
     }
     setStartDate(calculatedStart);
 

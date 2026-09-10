@@ -13,6 +13,7 @@ export class SupabaseAutomationExecutionRepository implements IAutomationExecuti
 
   private mapRowToEntity(row: any): AutomationExecution {
     const summary = row.result_summary || {};
+    const status = row.status === 'succeeded' ? 'completed' : row.status;
     return {
       id: row.id,
       automationId: row.automation_id,
@@ -20,7 +21,7 @@ export class SupabaseAutomationExecutionRepository implements IAutomationExecuti
       triggerSource: row.trigger_source,
       sourceEntityType: row.source_entity_type || null,
       sourceEntityId: row.source_entity_id || null,
-      status: row.status,
+      status,
       conditionsEvaluated: row.conditions_evaluated || summary.conditionsEvaluated || {},
       actionsExecuted: row.actions_executed || summary.actionsExecuted || [],
       errorMessage: row.error_message,
@@ -127,6 +128,19 @@ export class SupabaseAutomationExecutionRepository implements IAutomationExecuti
       .select('*')
       .single();
 
+    if (error && error.message?.includes('automation_executions_status_check')) {
+      if (payload.status === 'completed') payload.status = 'succeeded';
+      else if (payload.status === 'succeeded') payload.status = 'completed';
+
+      const fallbackStatus = await (this.supabase as any)
+        .from('automation_executions')
+        .insert(payload)
+        .select('*')
+        .single();
+      data = fallbackStatus.data;
+      error = fallbackStatus.error;
+    }
+
     if (error && (error.message?.includes("'actions_executed'") || error.message?.includes("'source_entity_type'"))) {
       // Fallback for database schema cache before migration 0076 is applied
       delete payload.source_entity_type;
@@ -170,6 +184,20 @@ export class SupabaseAutomationExecutionRepository implements IAutomationExecuti
       .eq('id', id)
       .select('*')
       .single();
+
+    if (error && error.message?.includes('automation_executions_status_check')) {
+      if (payload.status === 'completed') payload.status = 'succeeded';
+      else if (payload.status === 'succeeded') payload.status = 'completed';
+
+      const fallbackStatus = await (this.supabase as any)
+        .from('automation_executions')
+        .update(payload)
+        .eq('id', id)
+        .select('*')
+        .single();
+      data = fallbackStatus.data;
+      error = fallbackStatus.error;
+    }
 
     if (error && error.message?.includes("'actions_executed'")) {
       delete payload.actions_executed;

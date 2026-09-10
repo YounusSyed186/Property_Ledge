@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle2, User, Plus, Pencil, Trash2, Calendar, DollarSign, ArrowRight, Sparkles } from 'lucide-react';
 import { Button, Input, Select, useToast } from '@/components/admin/ui';
 import { handleSetupTenancy } from '@/app/actions/dashboard';
+import { getAuTodayString } from '@/lib/format/australian-time';
 import { cn } from '@/lib/utils';
 
 export interface TenancySetupWizardProps {
@@ -80,7 +81,7 @@ export function TenancySetupWizard({
       setEditingId(null);
       setTenantForm({ firstName: '', lastName: '', email: '', phone: '' });
       setLeaseDetails({
-        startDate: new Date().toISOString().split('T')[0],
+        startDate: getAuTodayString(),
         endDate: '',
         leaseType: 'Fixed Term',
         rentAmount: defaultRentAmount > 0 ? defaultRentAmount.toString() : '',
@@ -89,7 +90,7 @@ export function TenancySetupWizard({
       setBondDetails({
         amount: defaultRentAmount > 0 ? (defaultRentAmount * 4).toString() : '',
         isPaid: false,
-        dueDate: new Date().toISOString().split('T')[0],
+        dueDate: getAuTodayString(),
       });
       setSubmitError(null);
       setShowSuccessPopup(false);

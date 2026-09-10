@@ -171,22 +171,20 @@ test.describe('V2 Automation & Invoice Traceability Suite', () => {
   test('ScheduleCalculator correctly formats human readable schedule descriptions', () => {
     const monthlyText = ScheduleCalculator.formatHumanSchedule('monthly', {
       dayOfMonth: 1,
-      timeOfDay: '09:00',
     });
-    expect(monthlyText).toBe('Every month on the 1st at 09:00');
+    expect(monthlyText).toBe('Monthly on the 1st (7:00 AM AU)');
 
     const offsetText = ScheduleCalculator.formatHumanSchedule('after_start', {
       offsetMonths: 12,
-      timeOfDay: '09:00',
     });
-    expect(offsetText).toBe('12 months after lease start at 09:00');
+    expect(offsetText).toBe('12 months after lease start (7:00 AM AU)');
   });
 
   test('ScheduleCalculator calculates deterministic next run date rolling forward to next month', () => {
     const baseDate = new Date('2026-01-15T12:00:00Z');
     const nextRunIso = ScheduleCalculator.calculateNextRun(
       'monthly',
-      { dayOfMonth: 1, timeOfDay: '09:00' },
+      { dayOfMonth: 1 },
       undefined,
       undefined,
       baseDate

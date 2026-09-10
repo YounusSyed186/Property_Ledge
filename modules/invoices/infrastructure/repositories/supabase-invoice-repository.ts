@@ -15,6 +15,9 @@ import {
 } from '../../domain/repositories/invoice-repository';
 import { mapInvoiceRowToDomain, mapInvoiceItemRowToDomain } from '../mappers/invoice-mapper';
 
+const isUuid = (val?: string | null): boolean =>
+  typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
 export class SupabaseInvoiceRepository implements InvoiceRepository {
   constructor(private readonly client: TypedSupabaseClient) {}
 
@@ -172,23 +175,37 @@ export class SupabaseInvoiceRepository implements InvoiceRepository {
         total_amount: data.totalAmount,
         balance_due: data.balanceDue,
         issue_date: data.issueDate,
-        due_date: data.dueDate,
+        due_date: (data.dueDate && data.issueDate && data.dueDate < data.issueDate) ? data.issueDate : data.dueDate,
         notes: data.notes || null,
         payment_instructions: data.paymentInstructions || null,
-        template_id: data.templateId || null,
-        automation_id: data.automationId || null,
+        template_id: isUuid(data.templateId) ? data.templateId : null,
+        automation_id: isUuid(data.automationId) ? data.automationId : null,
         status: data.status || 'draft',
+        snapshot: data.snapshot || null,
         created_by: context?.userId || null,
       };
 
       if (data.billingPeriodStart) invPayload.billing_period_start = data.billingPeriodStart;
       if (data.billingPeriodEnd) invPayload.billing_period_end = data.billingPeriodEnd;
 
-      const { data: insertedInv, error: invError } = await this.client
+      let { data: insertedInv, error: invError } = await this.client
         .from('invoices')
         .insert(invPayload)
         .select()
         .single();
+
+      // Gracefully retry if the remote database does not yet have billing_period columns
+      if (invError && (invError.message?.includes('billing_period') || invError.message?.includes('schema cache'))) {
+        delete invPayload.billing_period_start;
+        delete invPayload.billing_period_end;
+        const retryResult = await this.client
+          .from('invoices')
+          .insert(invPayload)
+          .select()
+          .single();
+        insertedInv = retryResult.data;
+        invError = retryResult.error;
+      }
 
       if (invError) return err(toSafeDomainError(invError));
 
@@ -243,16 +260,30 @@ export class SupabaseInvoiceRepository implements InvoiceRepository {
       if (data.billingPeriodEnd !== undefined) updatePayload.billing_period_end = data.billingPeriodEnd;
       if (data.notes !== undefined) updatePayload.notes = data.notes;
       if (data.paymentInstructions !== undefined) updatePayload.payment_instructions = data.paymentInstructions;
-      if (data.templateId !== undefined) updatePayload.template_id = data.templateId;
-      if (data.automationId !== undefined) updatePayload.automation_id = data.automationId;
+      if (data.templateId !== undefined) updatePayload.template_id = isUuid(data.templateId) ? data.templateId : null;
+      if (data.automationId !== undefined) updatePayload.automation_id = isUuid(data.automationId) ? data.automationId : null;
       updatePayload.updated_at = new Date().toISOString();
 
-      const { data: updatedInv, error: updateError } = await this.client
+      let { data: updatedInv, error: updateError } = await this.client
         .from('invoices')
         .update(updatePayload)
         .eq('id', id)
         .select()
         .single();
+
+      // Gracefully retry if the remote database does not yet have billing_period columns
+      if (updateError && (updateError.message?.includes('billing_period') || updateError.message?.includes('schema cache'))) {
+        delete updatePayload.billing_period_start;
+        delete updatePayload.billing_period_end;
+        const retryResult = await this.client
+          .from('invoices')
+          .update(updatePayload)
+          .eq('id', id)
+          .select()
+          .single();
+        updatedInv = retryResult.data;
+        updateError = retryResult.error;
+      }
 
       if (updateError) return err(toSafeDomainError(updateError));
 
