@@ -8,6 +8,7 @@ interface PropertyContextType {
   availableProperties: UserPropertyAccess[];
   selectedProperty: UserPropertyAccess | null;
   isLoading: boolean;
+  isRefreshing: boolean;
   error: string | null;
   setSelectedProperty: (property: UserPropertyAccess | null) => void;
   refreshProperties: () => Promise<void>;
@@ -48,13 +49,28 @@ function resolveSelection(
 
 const PropertyContext = createContext<PropertyContextType | undefined>(undefined);
 
-export function PropertyProvider({ children }: { children: ReactNode }) {
+interface PropertyProviderProps {
+  children: ReactNode;
+  initialProperties?: UserPropertyAccess[];
+}
+
+export function PropertyProvider({ children, initialProperties }: PropertyProviderProps) {
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
-  const [availableProperties, setAvailableProperties] = useState<UserPropertyAccess[]>([]);
-  const [selectedProperty, setSelectedPropertyState] = useState<UserPropertyAccess | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const isHydratedRef = useRef<boolean>(initialProperties !== undefined);
+  const prevWorkspaceIdRef = useRef<string | null>(activeWorkspaceId ?? null);
+
+  const [availableProperties, setAvailableProperties] = useState<UserPropertyAccess[]>(
+    initialProperties || []
+  );
+  const [selectedProperty, setSelectedPropertyState] = useState<UserPropertyAccess | null>(() => {
+    if (activeWorkspaceId && initialProperties && initialProperties.length > 0) {
+      return resolveSelection(initialProperties, activeWorkspaceId);
+    }
+    return null;
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(initialProperties === undefined);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const prevWorkspaceIdRef = useRef<string | null>(null);
 
   const setSelectedProperty = useCallback(
     (property: UserPropertyAccess | null) => {
@@ -74,12 +90,17 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       setAvailableProperties([]);
       setSelectedPropertyState(null);
       setIsLoading(false);
+      setIsRefreshing(false);
       setError(null);
       return;
     }
 
     try {
-      setIsLoading(true);
+      if (availableProperties.length === 0 && !isHydratedRef.current) {
+        setIsLoading(true);
+      } else {
+        setIsRefreshing(true);
+      }
       setError(null);
 
       const response = await fetch(
@@ -100,6 +121,8 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       console.error('Error fetching properties:', err);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
+      isHydratedRef.current = true;
     }
   }, [activeWorkspaceId]);
 
@@ -109,13 +132,32 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    if (prevWorkspaceIdRef.current !== activeWorkspaceId) {
-      setSelectedPropertyState(null);
-      setAvailableProperties([]);
+    const prev = prevWorkspaceIdRef.current;
+    if (prev !== activeWorkspaceId) {
       prevWorkspaceIdRef.current = activeWorkspaceId;
+      // Only re-fetch if this is an actual workspace switch after initial mount
+      if (prev !== null && activeWorkspaceId) {
+        setSelectedPropertyState(null);
+        fetchProperties();
+        return;
+      }
     }
-    fetchProperties();
+
+    if (!isHydratedRef.current && activeWorkspaceId) {
+      fetchProperties();
+    }
   }, [activeWorkspaceId, fetchProperties]);
+
+  useEffect(() => {
+    if (initialProperties !== undefined) {
+      setAvailableProperties(initialProperties);
+      if (activeWorkspaceId) {
+        setSelectedPropertyState(resolveSelection(initialProperties, activeWorkspaceId));
+      }
+      setIsLoading(false);
+      isHydratedRef.current = true;
+    }
+  }, [initialProperties, activeWorkspaceId]);
 
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -140,6 +182,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
         availableProperties,
         selectedProperty,
         isLoading,
+        isRefreshing,
         error,
         setSelectedProperty,
         refreshProperties: fetchProperties,

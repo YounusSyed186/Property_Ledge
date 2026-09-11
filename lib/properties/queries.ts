@@ -20,30 +20,25 @@ export interface UserPropertyAccess {
   organizationName: string;
 }
 
-export async function getUserProperties(userId: string): Promise<UserPropertyAccess[]> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user || user.id !== userId) {
-    return [];
-  }
+import { cache } from 'react';
 
+export const getUserProperties = cache(async function getUserProperties(
+  userId: string,
+  workspaceId?: string | null
+): Promise<UserPropertyAccess[]> {
   const supabase = await createAdminClient();
 
-  const { data: ownedProperties, error: ownedError } = await supabase
+  let ownedQuery = supabase
     .from('properties')
     .select('id, name, workspace_id')
     .eq('owner_id', userId)
     .eq('status', 'active');
 
-  if (ownedError) {
-    console.error(
-      'Error fetching owned properties:',
-      ownedError.message ?? ownedError.code ?? ownedError
-    );
-    return [];
+  if (workspaceId) {
+    ownedQuery = ownedQuery.eq('workspace_id', workspaceId);
   }
 
-  const { data: memberProperties, error: memberError } = await supabase
+  let memberQuery = supabase
     .from('property_members')
     .select(`
       property_id,
@@ -60,12 +55,27 @@ export async function getUserProperties(userId: string): Promise<UserPropertyAcc
     .eq('status', 'active')
     .eq('properties.status', 'active');
 
+  if (workspaceId) {
+    memberQuery = memberQuery.eq('properties.workspace_id', workspaceId);
+  }
+
+  const [{ data: ownedProperties, error: ownedError }, { data: memberProperties, error: memberError }] = await Promise.all([
+    ownedQuery,
+    memberQuery,
+  ]);
+
+  if (ownedError) {
+    console.error(
+      'Error fetching owned properties:',
+      ownedError.message ?? ownedError.code ?? ownedError
+    );
+  }
+
   if (memberError) {
     console.error(
       'Error fetching member properties:',
       memberError.message ?? memberError.code ?? memberError
     );
-    return [];
   }
 
   const typedOwnedProperties = (ownedProperties || []) as Array<{ id: string; name: string; workspace_id: string }>;
@@ -122,7 +132,7 @@ export async function getUserProperties(userId: string): Promise<UserPropertyAcc
   }
 
   return Array.from(propertyMap.values());
-}
+});
 
 export async function getUserOrganizations(userId: string): Promise<(Workspace & { membership?: WorkspaceMember })[]> {
   const supabase = await createClient();

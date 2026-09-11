@@ -75,7 +75,14 @@ export class SupabaseInvoiceRepository implements InvoiceRepository {
     try {
       let query = this.client
         .from('invoices')
-        .select('*, invoice_items(*)')
+        .select(`
+          id, property_id, unit_id, lease_id, tenant_id, invoice_number,
+          status, issue_date, due_date, subtotal, tax_amount, total_amount,
+          balance_due, description, created_by, created_at, updated_at,
+          workspace_id, currency, customer_name, customer_email, customer_address,
+          template_id, notes, payment_instructions, cancellation_reason,
+          issued_at, paid_at, automation_id
+        `)
         .order('created_at', { ascending: false });
 
       if (filters.workspaceId) {
@@ -113,8 +120,7 @@ export class SupabaseInvoiceRepository implements InvoiceRepository {
       if (error) return err(toSafeDomainError(error));
 
       const invoices: Invoice[] = (data || []).map((row: any) => {
-        const items = (row.invoice_items || []).map(mapInvoiceItemRowToDomain);
-        return mapInvoiceRowToDomain(row, items);
+        return mapInvoiceRowToDomain(row, []);
       });
 
       // Filter by search query if present

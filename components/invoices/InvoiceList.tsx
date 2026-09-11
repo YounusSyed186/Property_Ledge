@@ -62,11 +62,20 @@ const InvoiceDetailModal = dynamic(
   { ssr: false }
 );
 
+import { useEntityCacheStore } from '@/lib/stores/useEntityCacheStore';
+import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
+
 export function InvoiceList() {
   const router = useRouter();
   const { toast } = useToast();
-  const [invoices, setInvoices] = useState<InvoiceDTO[]>([]);
-  const [loading, setLoading] = useState(true);
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const cachedInvoices = useEntityCacheStore((s) => s.invoices);
+  const setCachedInvoices = useEntityCacheStore((s) => s.setInvoices);
+
+  const hasMatchingCache = cachedInvoices && cachedInvoices.workspaceId === activeWorkspaceId;
+
+  const [invoices, setInvoices] = useState<InvoiceDTO[]>(() => hasMatchingCache ? cachedInvoices.data : []);
+  const [loading, setLoading] = useState(() => !hasMatchingCache);
   const [statusFilter, setStatusFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
@@ -90,14 +99,19 @@ export function InvoiceList() {
     []
   );
 
+  const displayedInvoices = useMemo(() => {
+    if (statusFilter === 'all') return invoices;
+    return invoices.filter((inv) => inv.status === statusFilter);
+  }, [invoices, statusFilter]);
+
   const loadInvoices = async () => {
-    setLoading(true);
+    if (!hasMatchingCache) setLoading(true);
     try {
       const res = await fetchInvoicesAction({
-        status: statusFilter === 'all' ? undefined : statusFilter,
-        limit: 100,
+        limit: 150,
       });
       setInvoices(res.items);
+      setCachedInvoices(res.items, activeWorkspaceId);
     } catch (err: any) {
       toast({
         title: 'Error loading invoices',
@@ -111,7 +125,7 @@ export function InvoiceList() {
 
   useEffect(() => {
     loadInvoices();
-  }, [statusFilter]);
+  }, [activeWorkspaceId]);
 
   // KPIs
   const stats = useMemo(() => {
@@ -674,7 +688,7 @@ export function InvoiceList() {
         ) : viewMode === 'table' ? (
           <ListPageGrid>
             <AdminDataGrid
-              rowData={invoices}
+              rowData={displayedInvoices}
               columnDefs={agGridColumns}
               loading={loading}
               labelSingular="invoice"
@@ -722,7 +736,7 @@ export function InvoiceList() {
           </div>
         ) : (
           <HoverCardGrid className="overflow-y-auto flex-1 p-1">
-            {invoices.map((inv) => {
+            {displayedInvoices.map((inv) => {
               const name = inv.recipient?.name || inv.customerName || 'Customer';
               const email = inv.recipient?.email || inv.customerEmail || '';
               const isOverdue = inv.status === 'overdue' || (inv.balance > 0 && new Date(inv.dueDate) < new Date());

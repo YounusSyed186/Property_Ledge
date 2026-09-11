@@ -38,6 +38,8 @@ import {
 } from '@/app/actions/automations';
 import { ScheduleCalculator } from '@/modules/automation/domain/services/schedule-calculator';
 import { formatAuDisplayDateTime } from '@/lib/format/australian-time';
+import { useEntityCacheStore } from '@/lib/stores/useEntityCacheStore';
+import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
 import { cn } from '@/lib/utils';
 
 // Lazy-loaded modals to minimize initial route bundle
@@ -56,8 +58,16 @@ const ExecutionHistoryModal = dynamic(
 
 export function AutomationList() {
   const { toast } = useToast();
-  const [automations, setAutomations] = useState<AutomationItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const cachedAutomations = useEntityCacheStore((s) => s.automations);
+  const setCachedAutomations = useEntityCacheStore((s) => s.setAutomations);
+
+  const hasMatchingCache = cachedAutomations && cachedAutomations.workspaceId === activeWorkspaceId;
+
+  const [automations, setAutomations] = useState<AutomationItem[]>(() =>
+    hasMatchingCache ? (cachedAutomations.data as AutomationItem[]) : []
+  );
+  const [loading, setLoading] = useState(() => !hasMatchingCache);
   const [activeFilter, setActiveFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
@@ -84,16 +94,13 @@ export function AutomationList() {
   );
 
   const loadAutomations = async () => {
-    setLoading(true);
+    if (!hasMatchingCache) {
+      setLoading(true);
+    }
     try {
-      const typeFilter = activeFilter === 'lease' || activeFilter === 'invoice' ? activeFilter : undefined;
-      const statusFilter = activeFilter === 'active' || activeFilter === 'paused' ? activeFilter : undefined;
-
-      const data = await fetchAutomationsAction({
-        type: typeFilter as any,
-        status: statusFilter,
-      });
+      const data = await fetchAutomationsAction();
       setAutomations(data);
+      setCachedAutomations(data, activeWorkspaceId);
     } catch (err: any) {
       toast({
         title: 'Error loading automations',
@@ -107,7 +114,18 @@ export function AutomationList() {
 
   useEffect(() => {
     loadAutomations();
-  }, [activeFilter]);
+  }, [activeWorkspaceId]);
+
+  const filteredAutomations = useMemo(() => {
+    return automations.filter((auto) => {
+      if (activeFilter === 'all') return true;
+      if (activeFilter === 'lease') return auto.automationType === 'lease';
+      if (activeFilter === 'invoice') return auto.automationType === 'invoice';
+      if (activeFilter === 'active') return auto.status === 'active';
+      if (activeFilter === 'paused') return auto.status === 'paused';
+      return true;
+    });
+  }, [automations, activeFilter]);
 
   const handleTogglePause = async (id: string) => {
     const res = await togglePauseAutomationAction(id);
@@ -584,7 +602,7 @@ export function AutomationList() {
         ) : viewMode === 'table' ? (
           <ListPageGrid>
             <AdminDataGrid
-              rowData={automations}
+              rowData={filteredAutomations}
               columnDefs={agGridColumns}
               loading={loading}
               labelSingular="automation"
@@ -609,7 +627,7 @@ export function AutomationList() {
           </ListPageGrid>
         ) : (
           <HoverCardGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto p-1">
-            {automations.map((auto) => {
+            {filteredAutomations.map((auto) => {
               const isLease = auto.automationType === 'lease';
               const title = isLease ? auto.lease?.propertyName || 'Property' : auto.metadata?.customerName || 'Customer';
               const subtitle = isLease ? auto.lease?.tenantName || 'Tenant' : auto.metadata?.description || 'Service';

@@ -29,6 +29,8 @@ import { Button, useToast, ConfirmDialog } from '@/components/admin/ui';
 import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
 import { ListPage, ListPageGrid } from '@/components/workspace';
 import { usePropertyContext } from '@/components/property/PropertyContext';
+import { useEntityCacheStore } from '@/lib/stores/useEntityCacheStore';
+import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
 import dynamic from 'next/dynamic';
 import {
   fetchAllWorkspaceLeases,
@@ -107,10 +109,33 @@ export function LeaseManagementPage() {
   const router = useRouter();
   const { success: showSuccess, error: showError } = useToast();
   const { selectedProperty, availableProperties } = usePropertyContext();
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const cachedLeases = useEntityCacheStore((s) => s.leases);
+  const setCachedLeases = useEntityCacheStore((s) => s.setLeases);
+  const cachedProperties = useEntityCacheStore((s) => s.properties);
+  const setCachedProperties = useEntityCacheStore((s) => s.setProperties);
 
-  const [leases, setLeases] = useState<LeaseRecord[]>([]);
-  const [properties, setProperties] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const activePropertyId = selectedProperty?.propertyId ?? null;
+  const hasMatchingCache = cachedLeases &&
+    cachedLeases.workspaceId === activeWorkspaceId &&
+    cachedLeases.propertyId === activePropertyId;
+
+  const [leases, setLeases] = useState<LeaseRecord[]>(() => hasMatchingCache ? (cachedLeases.data as LeaseRecord[]) : []);
+  const [properties, setProperties] = useState<any[]>(() => {
+    if (cachedProperties && cachedProperties.workspaceId === activeWorkspaceId) {
+      return cachedProperties.data;
+    }
+    if (availableProperties && availableProperties.length > 0) {
+      return availableProperties.map((p) => ({
+        id: p.propertyId,
+        name: p.propertyName,
+        address_line_1: p.propertyName,
+        city: '',
+      }));
+    }
+    return [];
+  });
+  const [isLoading, setIsLoading] = useState(() => !hasMatchingCache);
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Pending' | 'Expired' | 'Renewed'>('All');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -292,38 +317,14 @@ export function LeaseManagementPage() {
       {
         headerName: 'Actions',
         colId: 'actions',
-        width: 200,
+        width: 100,
         pinned: 'right',
         sortable: false,
         filter: false,
         cellRenderer: (params: any) => {
           const lease = params.data;
-          const canRenew = lease?.status === 'active';
           return (
             <div className="flex items-center gap-1 py-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedLeaseForAutomation(lease.id);
-                  setIsAutomationModalOpen(true);
-                }}
-                className="px-2 py-0.5 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 rounded transition-colors inline-flex items-center gap-1 font-bold text-xs"
-                title="Schedule Lease Automation"
-              >
-                <Zap className="w-3 h-3 text-amber-500" /> Automate
-              </button>
-              {canRenew && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRenewLease(lease);
-                  }}
-                  className="px-2 py-0.5 text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-500/10 rounded transition-colors inline-flex items-center gap-1 font-bold text-xs"
-                  title="Renew Lease"
-                >
-                  <RefreshCw className="w-3 h-3" /> Renew
-                </button>
-              )}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -343,7 +344,9 @@ export function LeaseManagementPage() {
   );
 
   const loadData = async () => {
-    setIsLoading(true);
+    if (!hasMatchingCache) {
+      setIsLoading(true);
+    }
     try {
       const activePropertyId = selectedProperty?.propertyId ?? null;
       const [leasesData, propertiesData] = await Promise.all([
@@ -352,6 +355,8 @@ export function LeaseManagementPage() {
       ]);
       setLeases(leasesData as unknown as LeaseRecord[]);
       setProperties(propertiesData);
+      setCachedLeases(leasesData, activeWorkspaceId, activePropertyId);
+      setCachedProperties(propertiesData, activeWorkspaceId);
     } catch (err: any) {
       console.error('Error loading leases:', err);
       showError('Failed to load leases', err.message || 'Could not fetch lease agreements.');
@@ -362,7 +367,7 @@ export function LeaseManagementPage() {
 
   useEffect(() => {
     loadData();
-  }, [selectedProperty?.propertyId]);
+  }, [selectedProperty?.propertyId, activeWorkspaceId]);
 
   const filteredLeases = useMemo(() => {
     return leases.filter((l) => {

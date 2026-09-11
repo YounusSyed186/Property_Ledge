@@ -7,6 +7,8 @@ import { useWorkspaceStore, type AccessibleWorkspace } from '@/lib/stores/useWor
 import type { EntitlementMap } from '@/types/subscriptions';
 import type { Persona } from '@/lib/auth/permissions';
 
+import type { UserPropertyAccess } from '@/lib/properties/queries';
+
 interface AppContextValue {
   persona: Persona;
   workspaceId: string | null;
@@ -27,6 +29,7 @@ interface AppContextProviderProps {
   permissions?: string[];
   entitlements?: EntitlementMap;
   workspaces?: AccessibleWorkspace[];
+  initialProperties?: UserPropertyAccess[];
 }
 
 export function AppContextProvider({
@@ -38,6 +41,7 @@ export function AppContextProvider({
   permissions = [],
   entitlements = {},
   workspaces = [],
+  initialProperties,
 }: AppContextProviderProps) {
   const hydrate = useWorkspaceStore((s) => s.hydrate);
   const storeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
@@ -86,7 +90,7 @@ export function AppContextProvider({
       <PermissionContext.Provider
         value={{ permissions: effectivePermissions, platformPermissions: [], entitlements: effectiveEntitlements }}
       >
-        <PropertyProvider>{children}</PropertyProvider>
+        <PropertyProvider initialProperties={initialProperties}>{children}</PropertyProvider>
       </PermissionContext.Provider>
     </AppContext.Provider>
   );

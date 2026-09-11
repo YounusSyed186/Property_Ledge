@@ -86,14 +86,40 @@ type PropertyOption = {
   rent_amount?: number;
 };
 
+import { useEntityCacheStore } from '@/lib/stores/useEntityCacheStore';
+import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
+
 export function TenantDirectoryPage() {
   const router = useRouter();
   const { error: showError } = useToast();
   const { selectedProperty, availableProperties } = usePropertyContext();
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const cachedTenants = useEntityCacheStore((s) => s.tenants);
+  const setCachedTenants = useEntityCacheStore((s) => s.setTenants);
+  const cachedProperties = useEntityCacheStore((s) => s.properties);
+  const setCachedProperties = useEntityCacheStore((s) => s.setProperties);
 
-  const [tenants, setTenants] = useState<TenantRecord[]>([]);
-  const [properties, setProperties] = useState<PropertyOption[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const activePropertyId = selectedProperty?.propertyId ?? null;
+  const hasMatchingCache = cachedTenants &&
+    cachedTenants.workspaceId === activeWorkspaceId &&
+    cachedTenants.propertyId === activePropertyId;
+
+  const [tenants, setTenants] = useState<TenantRecord[]>(() => hasMatchingCache ? (cachedTenants.data as TenantRecord[]) : []);
+  const [properties, setProperties] = useState<PropertyOption[]>(() => {
+    if (cachedProperties && cachedProperties.workspaceId === activeWorkspaceId) {
+      return cachedProperties.data as PropertyOption[];
+    }
+    if (availableProperties && availableProperties.length > 0) {
+      return availableProperties.map((p) => ({
+        id: p.propertyId,
+        name: p.propertyName,
+        address_line_1: p.propertyName,
+        city: '',
+      }));
+    }
+    return [];
+  });
+  const [isLoading, setIsLoading] = useState(() => !hasMatchingCache);
   const [statusFilter, setStatusFilter] = useState<
     'All' | 'Active Resident' | 'Inactive / Past Resident' | 'Prospect / Applicant' | 'Archived'
   >('All');
@@ -251,7 +277,9 @@ export function TenantDirectoryPage() {
   );
 
   const loadData = async () => {
-    setIsLoading(true);
+    if (!hasMatchingCache) {
+      setIsLoading(true);
+    }
     try {
       const activePropertyId = selectedProperty?.propertyId ?? null;
       const [tenantsData, propertiesData] = await Promise.all([
@@ -260,6 +288,8 @@ export function TenantDirectoryPage() {
       ]);
       setTenants(tenantsData as unknown as TenantRecord[]);
       setProperties(propertiesData as unknown as PropertyOption[]);
+      setCachedTenants(tenantsData, activeWorkspaceId, activePropertyId);
+      setCachedProperties(propertiesData, activeWorkspaceId);
     } catch (err: any) {
       console.error('Error loading tenants directory:', err);
       showError('Failed to load tenants', err.message || 'Could not fetch tenant directory.');
@@ -270,7 +300,7 @@ export function TenantDirectoryPage() {
 
   useEffect(() => {
     loadData();
-  }, [selectedProperty?.propertyId]);
+  }, [selectedProperty?.propertyId, activeWorkspaceId]);
 
   const handleStartTenancySetup = () => {
     if (properties.length === 0) {

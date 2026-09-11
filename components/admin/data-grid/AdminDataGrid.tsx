@@ -191,20 +191,38 @@ export function AdminDataGrid<TData = any>({
     []
   );
 
-  // Handle Quick Search in AG Grid
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, []);
+
+  // Handle Quick Search in AG Grid with 150ms debounce
   const handleSearchChange = useCallback(
     (query: string) => {
       setSearchValue(query);
-      if (gridApi && !isServerSide) {
-        gridApi.setGridOption('quickFilterText', query);
-        setIsFiltered(Boolean(query || gridApi.isAnyFilterPresent()));
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
       }
+      searchDebounceRef.current = setTimeout(() => {
+        if (gridApi && !isServerSide) {
+          gridApi.setGridOption('quickFilterText', query);
+          setIsFiltered(Boolean(query || gridApi.isAnyFilterPresent()));
+        }
+      }, 150);
     },
     [gridApi, isServerSide]
   );
 
   // Clear all filters
   const handleClearFilters = useCallback(() => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
     setSearchValue('');
     if (gridApi) {
       gridApi.setFilterModel(null);

@@ -1,0 +1,354 @@
+{
+  "timestamp": "2026-09-11T02:00:49.924Z",
+  "pageMetrics": [
+    {
+      "pageName": "Dashboard (Initial Load)",
+      "url": "http://localhost:3000/dashboard",
+      "firstUiMs": 2097,
+      "dataLoadedMs": 2180,
+      "interactiveMs": 7187,
+      "totalNavigationMs": 7187,
+      "requestCount": 50,
+      "duplicateRequests": [
+        "http://localhost:3000/_next/static/chunks/1301-e95a14ea13ecd882.js (2x)",
+        "http://localhost:3000/_next/static/chunks/9448-ff509aab7434bd00.js (2x)",
+        "http://localhost:3000/_next/static/chunks/6147-bec5a7e2b7df3e67.js (2x)",
+        "http://localhost:3000/_next/static/chunks/app/(app)/dashboard/page-8b0ff7b731ad3c24.js (2x)",
+        "http://localhost:3000/_next/static/chunks/433-f11191e49e420b80.js (2x)",
+        "http://localhost:3000/_next/static/chunks/5458-93682a639352c13a.js (2x)",
+        "http://localhost:3000/_next/static/chunks/app/(app)/layout-0921d34f2b0e2245.js (2x)",
+        "http://localhost:3000/_next/static/chunks/3937-0f0e0ab31c8f9fa9.js (2x)",
+        "http://localhost:3000/_next/static/chunks/app/(app)/error-b21c189c31dec26f.js (2x)",
+        "https://api.dicebear.com/9.x/lorelei/svg (2x)"
+      ],
+      "totalPayloadKb": 54,
+      "domNodeCount": 720,
+      "jsHeapUsedMb": 14,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "pageName": "Properties Page",
+      "url": "http://localhost:3000/dashboard/properties",
+      "firstUiMs": 138,
+      "dataLoadedMs": 1478,
+      "interactiveMs": 2753,
+      "totalNavigationMs": 2753,
+      "requestCount": 12,
+      "duplicateRequests": [],
+      "totalPayloadKb": 0,
+      "domNodeCount": 978,
+      "jsHeapUsedMb": 14,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "pageName": "Tenants Page",
+      "url": "http://localhost:3000/dashboard/people",
+      "firstUiMs": 1139,
+      "dataLoadedMs": 2001,
+      "interactiveMs": 2002,
+      "totalNavigationMs": 2002,
+      "requestCount": 3,
+      "duplicateRequests": [],
+      "totalPayloadKb": 0,
+      "domNodeCount": 885,
+      "jsHeapUsedMb": 14,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "pageName": "Leases Page",
+      "url": "http://localhost:3000/dashboard/leases",
+      "firstUiMs": 107,
+      "dataLoadedMs": 4031,
+      "interactiveMs": 4031,
+      "totalNavigationMs": 4031,
+      "requestCount": 4,
+      "duplicateRequests": [],
+      "totalPayloadKb": 0,
+      "domNodeCount": 925,
+      "jsHeapUsedMb": 14,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "pageName": "Invoices Page",
+      "url": "http://localhost:3000/dashboard/invoices",
+      "firstUiMs": 1126,
+      "dataLoadedMs": 4592,
+      "interactiveMs": 4593,
+      "totalNavigationMs": 4593,
+      "requestCount": 7,
+      "duplicateRequests": [
+        "http://localhost:3000/dashboard/invoices (2x)"
+      ],
+      "totalPayloadKb": 0,
+      "domNodeCount": 886,
+      "jsHeapUsedMb": 14,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "pageName": "Automations Page",
+      "url": "http://localhost:3000/dashboard/automations",
+      "firstUiMs": 1206,
+      "dataLoadedMs": 5654,
+      "interactiveMs": 5654,
+      "totalNavigationMs": 5654,
+      "requestCount": 11,
+      "duplicateRequests": [
+        "http://localhost:3000/dashboard/automations (4x)"
+      ],
+      "totalPayloadKb": 528,
+      "domNodeCount": 878,
+      "jsHeapUsedMb": 14,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "pageName": "Settings Page",
+      "url": "http://localhost:3000/dashboard/settings",
+      "firstUiMs": 2620,
+      "dataLoadedMs": 2634,
+      "interactiveMs": 2634,
+      "totalNavigationMs": 2634,
+      "requestCount": 8,
+      "duplicateRequests": [],
+      "totalPayloadKb": 0,
+      "domNodeCount": 605,
+      "jsHeapUsedMb": 14,
+      "errors": [],
+      "warnings": []
+    }
+  ],
+  "interactionMetrics": [
+    {
+      "interaction": "Hover Properties Link",
+      "page": "Dashboard",
+      "durationMs": 51
+    },
+    {
+      "interaction": "Open Property Modal/Wizard",
+      "page": "Properties",
+      "durationMs": 58
+    },
+    {
+      "interaction": "Search Input Interaction",
+      "page": "Tenants",
+      "durationMs": 245
+    },
+    {
+      "interaction": "Quick Filter Click (Draft)",
+      "page": "Invoices",
+      "durationMs": 373
+    },
+    {
+      "interaction": "Open Create Invoice Modal",
+      "page": "Invoices",
+      "durationMs": 123
+    }
+  ],
+  "warmTimings": {
+    "Dashboard": [
+      66,
+      49,
+      58
+    ],
+    "Properties": [
+      2400,
+      50,
+      15098
+    ],
+    "Tenants": [
+      57,
+      46,
+      1387
+    ],
+    "Leases": [
+      62,
+      50,
+      2975
+    ],
+    "Invoices": [
+      60,
+      58,
+      36
+    ],
+    "Automations": [
+      51,
+      42,
+      57
+    ]
+  },
+  "memoryStats": {
+    "finalDomCount": 1083,
+    "finalHeapMb": 14
+  },
+  "totalRequests": 155,
+  "requestsByDomain": {
+    "localhost:3000": 145,
+    "api.dicebear.com": 8,
+    "oyupwjqrctcszmgzsurf.supabase.co": 2
+  },
+  "slowRequests": [
+    {
+      "url": "http://localhost:3000/login",
+      "method": "POST",
+      "durationMs": 1506,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard",
+      "method": "GET",
+      "durationMs": 1970,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/people?_rsc=skeWG7NtMazuEXLq",
+      "method": "GET",
+      "durationMs": 1700,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/invoices?_rsc=skeWG7NtMazuEXLq",
+      "method": "GET",
+      "durationMs": 1721,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/inspections?_rsc=skeWG7NtMazuEXLq",
+      "method": "GET",
+      "durationMs": 1049,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/reports?_rsc=skeWG7NtMazuEXLq",
+      "method": "GET",
+      "durationMs": 1103,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/settings?_rsc=skeWG7NtMazuEXLq",
+      "method": "GET",
+      "durationMs": 1714,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/leases",
+      "method": "POST",
+      "durationMs": 1424,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/people",
+      "method": "POST",
+      "durationMs": 1951,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/leases",
+      "method": "POST",
+      "durationMs": 1119,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/invoices?_rsc=OhsQ6X3ACa1noXwd",
+      "method": "GET",
+      "durationMs": 1037,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/invoices",
+      "method": "POST",
+      "durationMs": 1090,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/automations?_rsc=y7tzVrWlBWycz6J_",
+      "method": "GET",
+      "durationMs": 1137,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/automations",
+      "method": "POST",
+      "durationMs": 1152,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/automations",
+      "method": "POST",
+      "durationMs": 1397,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/automations",
+      "method": "POST",
+      "durationMs": 1634,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/settings/subscription?_rsc=ujR_R4spMSLQvysO",
+      "method": "GET",
+      "durationMs": 1102,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/settings/security?_rsc=ujR_R4spMSLQvysO",
+      "method": "GET",
+      "durationMs": 1131,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard?_rsc=ujR_R4spMSLQvysO",
+      "method": "GET",
+      "durationMs": 1378,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/properties?_rsc=ujR_R4spMSLQvysO",
+      "method": "GET",
+      "durationMs": 1449,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/properties",
+      "method": "POST",
+      "durationMs": 1129,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/people?_rsc=PA1_sR8GK_2i88i8",
+      "method": "GET",
+      "durationMs": 1061,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/leases?_rsc=PA1_sR8GK_2i88i8",
+      "method": "GET",
+      "durationMs": 1029,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/properties",
+      "method": "POST",
+      "durationMs": 1869,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/leases",
+      "method": "POST",
+      "durationMs": 1124,
+      "sizeBytes": 0
+    },
+    {
+      "url": "http://localhost:3000/dashboard/leases?_rsc=TS6alYgwAcyOM9Ah",
+      "method": "GET",
+      "durationMs": 1143,
+      "sizeBytes": 0
+    }
+  ],
+  "errors": [],
+  "warnings": []
+}

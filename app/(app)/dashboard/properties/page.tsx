@@ -31,14 +31,36 @@ import {
   handleDeleteProperty,
 } from '@/app/actions/dashboard';
 import { usePropertyContext } from '@/components/property/PropertyContext';
+import { useEntityCacheStore } from '@/lib/stores/useEntityCacheStore';
+import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
 
 export default function PropertiesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { error: showError } = useToast();
-  const { refreshProperties } = usePropertyContext();
-  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { availableProperties, refreshProperties } = usePropertyContext();
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const cachedProperties = useEntityCacheStore((s) => s.properties);
+  const setCachedProperties = useEntityCacheStore((s) => s.setProperties);
+
+  const hasMatchingCache = cachedProperties && cachedProperties.workspaceId === activeWorkspaceId;
+
+  const [rows, setRows] = useState<Record<string, unknown>[]>(() => {
+    if (hasMatchingCache && cachedProperties.data.length > 0) {
+      return cachedProperties.data;
+    }
+    if (availableProperties && availableProperties.length > 0) {
+      return availableProperties.map((p) => ({
+        id: p.propertyId,
+        name: p.propertyName,
+        address_line_1: p.propertyName,
+        city: '',
+        status: p.status || 'active',
+      }));
+    }
+    return [];
+  });
+  const [isLoading, setIsLoading] = useState(() => !hasMatchingCache && (!availableProperties || availableProperties.length === 0));
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
@@ -62,10 +84,13 @@ export default function PropertiesPage() {
   };
 
   const loadData = async () => {
-    setIsLoading(true);
+    if (!hasMatchingCache && (!availableProperties || availableProperties.length === 0)) {
+      setIsLoading(true);
+    }
     try {
       const data = await fetchDashboardProperties();
       setRows(data);
+      setCachedProperties(data, activeWorkspaceId);
     } catch {
       showError('Load failed', 'Could not load properties.');
     } finally {
@@ -75,7 +100,7 @@ export default function PropertiesPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [activeWorkspaceId]);
 
   const filterOptions = useMemo<QuickFilterOption[]>(
     () => [

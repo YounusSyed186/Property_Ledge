@@ -33,10 +33,12 @@ import {
   CompactKpiCard,
   SectionPanel,
   ProgressBar,
-  ActivityTimeline,
   PageSkeleton,
+  ActivityTimeline,
   WORKSPACE_PAGE_HEADER,
 } from '@/components/workspace';
+import { useEntityCacheStore } from '@/lib/stores/useEntityCacheStore';
+import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
 import { cn } from '@/lib/utils';
 
 function QuickAction({ label, href, icon: Icon, description, onClick }: {
@@ -72,11 +74,22 @@ function QuickAction({ label, href, icon: Icon, description, onClick }: {
 
 function OwnerDashboard({ userName, setupProgress }: { userName: string; setupProgress?: SetupProgress }) {
   const { selectedProperty, availableProperties, isLoading: propertyLoading } = usePropertyContext();
-  const [overview, setOverview] = useState<any>(null);
-  const [reports, setReports] = useState<any>(null);
-  const [needsAttention, setNeedsAttention] = useState<any>(null);
-  const [leases, setLeases] = useState<Array<{ id: string; end_date: string | null; status: string; unit?: { name?: string; unit_number?: string } }>>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const cachedDashboard = useEntityCacheStore((s) => s.dashboard);
+  const setCachedDashboard = useEntityCacheStore((s) => s.setDashboard);
+
+  const propertyId = selectedProperty?.propertyId ?? null;
+  const hasMatchingCache = cachedDashboard && 
+    cachedDashboard.workspaceId === activeWorkspaceId && 
+    cachedDashboard.propertyId === propertyId;
+
+  const [overview, setOverview] = useState<any>(() => hasMatchingCache ? cachedDashboard.data.overview : null);
+  const [reports, setReports] = useState<any>(() => hasMatchingCache ? cachedDashboard.data.reports : null);
+  const [needsAttention, setNeedsAttention] = useState<any>(() => hasMatchingCache ? cachedDashboard.data.needsAttention : null);
+  const [leases, setLeases] = useState<Array<{ id: string; end_date: string | null; status: string; unit?: { name?: string; unit_number?: string } }>>(
+    () => hasMatchingCache ? (cachedDashboard.data.leases as any[]) : []
+  );
+  const [isLoading, setIsLoading] = useState(() => !hasMatchingCache);
   const [leaseWizardOpen, setLeaseWizardOpen] = useState(false);
 
   const hour = new Date().getHours();
@@ -84,20 +97,22 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
   const showSetup = setupProgress && !setupProgress.allComplete;
 
   useEffect(() => {
-    setIsLoading(true);
-    const propertyId = selectedProperty?.propertyId ?? null;
+    if (!hasMatchingCache) {
+      setIsLoading(true);
+    }
     fetchDashboardDataAction(propertyId)
       .then((data) => {
         setOverview(data.overview);
         setNeedsAttention(data.needsAttention);
         setReports(data.reports);
         setLeases(data.leases as typeof leases);
+        setCachedDashboard(data, activeWorkspaceId, propertyId);
       })
       .catch((err) => {
         console.error('Error fetching dashboard data:', err);
       })
       .finally(() => setIsLoading(false));
-  }, [selectedProperty?.propertyId]);
+  }, [propertyId, activeWorkspaceId]);
 
   const stats = overview?.stats;
   const hasProperties = availableProperties.length > 0;

@@ -32,9 +32,10 @@ export async function getWorkspaceBillingAccountId(workspaceId: string): Promise
 }
 
 export async function resolveWorkspaceBilling(
-  workspaceId: string
+  workspaceId: string,
+  knownOwnerId?: string
 ): Promise<WorkspaceBillingContext> {
-  const ownerId = await getWorkspaceBillingAccountId(workspaceId);
+  const ownerId = knownOwnerId ?? (await getWorkspaceBillingAccountId(workspaceId));
   const entitlements = await getEntitlements(ownerId);
 
   return {

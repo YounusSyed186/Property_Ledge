@@ -128,6 +128,8 @@ import Link from 'next/link';
 import { authClient } from '@/modules/auth';
 import type { AccessibleWorkspace } from '@/lib/stores/useWorkspaceStore';
 
+import type { UserPropertyAccess } from '@/lib/properties/queries';
+
 interface DashboardClientLayoutProps {
   children: React.ReactNode;
   userEmail?: string;
@@ -140,6 +142,7 @@ interface DashboardClientLayoutProps {
   permissions?: string[];
   entitlements?: import('@/types/subscriptions').EntitlementMap;
   workspaces?: AccessibleWorkspace[];
+  initialProperties?: UserPropertyAccess[];
 }
 
 function DashboardShellInner({
@@ -223,6 +226,7 @@ export function DashboardClientLayout({
   permissions = [],
   entitlements = {},
   workspaces = [],
+  initialProperties,
 }: DashboardClientLayoutProps) {
   return (
     <AppContextProvider
@@ -233,6 +237,7 @@ export function DashboardClientLayout({
       permissions={permissions}
       entitlements={entitlements}
       workspaces={workspaces}
+      initialProperties={initialProperties}
     >
       <DashboardShellInner
         userEmail={userEmail}

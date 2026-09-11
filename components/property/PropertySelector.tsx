@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronsUpDown, Building2, Plus, Search } from 'lucide-react';
+import { ChevronDown, ChevronsUpDown, Building2, Plus, Search, Loader2 } from 'lucide-react';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import type { UserPropertyAccess } from '@/lib/properties/queries';
 import { DiceBearIcon } from '@/components/ui/avatar/DiceBearIcon';
@@ -17,7 +17,7 @@ interface PropertySelectorProps {
 
 export function PropertySelector({ className, showCreateLink = true, onCreateClick, variant = 'sidebar' }: PropertySelectorProps) {
   const router = useRouter();
-  const { availableProperties, selectedProperty, setSelectedProperty, isLoading, error, refreshProperties, hasPropertyAccess } = usePropertyContext();
+  const { availableProperties, selectedProperty, setSelectedProperty, isLoading, isRefreshing, error, refreshProperties, hasPropertyAccess } = usePropertyContext();
 
   const handleCreate = () => {
     if (onCreateClick) {
@@ -76,39 +76,6 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className={cn('relative', className)}>
-        <button
-          ref={buttonRef}
-          type="button"
-          disabled
-          className={cn(triggerClass, 'text-admin-sidebar-muted opacity-60')}
-        >
-          <div className="h-4 w-4 rounded-md bg-admin-sidebar-border animate-pulse" />
-          <span className="w-20 h-3.5 rounded bg-admin-sidebar-border animate-pulse inline-block" />
-        </button>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className={cn('relative', className)}>
-        <button
-          ref={buttonRef}
-          type="button"
-          onClick={() => refreshProperties()}
-          title="Click to retry loading properties"
-          className="flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-xs font-medium hover:bg-red-100 transition-colors"
-        >
-          <span>Couldn&apos;t load properties</span>
-          <span className="underline font-semibold text-[11px]">Try again</span>
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className={cn('relative', className)} ref={dropdownRef}>
       <button
@@ -140,9 +107,14 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
         )}>
           <div className="border-b border-admin-border px-3 py-2 flex items-center justify-between">
             <p className="text-[11px] font-semibold text-admin-foreground">Select Property</p>
-            <span className="text-[10px] text-admin-muted font-normal">
-              {availableProperties.length} available
-            </span>
+            <div className="flex items-center gap-1.5">
+              {isRefreshing && (
+                <Loader2 className="h-3 w-3 animate-spin text-admin-primary shrink-0" />
+              )}
+              <span className="text-[10px] text-admin-muted font-normal">
+                {availableProperties.length} available
+              </span>
+            </div>
           </div>
           <div className="border-b border-admin-border p-2">
             <div className="relative">
@@ -157,58 +129,82 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
             </div>
           </div>
 
-          <div className="max-h-72 overflow-y-auto p-1.5 space-y-0.5">
-            <button
-              type="button"
-              onClick={handleSelectAll}
-              className={cn(
-                'flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-colors',
-                !selectedProperty
-                  ? 'bg-admin-primary-soft font-semibold text-admin-primary border border-admin-primary/20'
-                  : 'text-admin-foreground hover:bg-admin-surface-subtle'
-              )}
-            >
-              <DiceBearIcon name="building" badge variant={!selectedProperty ? 'red' : 'neutral'} size={14} />
-              <div className="flex-1 text-left min-w-0">
-                <p className="font-medium truncate">All Properties</p>
-                <p className="text-[10px] text-admin-muted truncate">View workspace-wide summary</p>
+          {isLoading && availableProperties.length === 0 ? (
+            <div className="p-3 space-y-2">
+              <div className="flex items-center gap-2 px-2 py-1.5 animate-pulse">
+                <div className="h-4 w-4 rounded bg-admin-border" />
+                <div className="h-3.5 w-24 rounded bg-admin-border" />
               </div>
-              {!selectedProperty && (
-                <span className="text-[10px] font-semibold text-admin-primary">Active</span>
-              )}
-            </button>
-
-            {filteredProperties.map((property) => {
-              const isSelected = selectedProperty?.propertyId === property.propertyId;
-              return (
-                <button
-                  key={property.propertyId}
-                  onClick={() => handleSelect(property)}
-                  className={cn(
-                    'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition-colors',
-                    isSelected
-                      ? 'bg-admin-primary-soft text-admin-primary font-semibold border border-admin-primary/20'
-                      : 'text-foreground hover:bg-admin-surface-subtle'
-                  )}
-                >
-                  <DiceBearIcon name="building" badge variant={isSelected ? 'red' : 'neutral'} size={14} />
-                  <div className="flex-1 min-w-0 text-left">
-                    <p className="font-medium truncate">{property.propertyName}</p>
-                    <p className="text-[10px] text-muted truncate">{property.organizationName}</p>
-                  </div>
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted/15 text-muted capitalize shrink-0">
-                    {property.role}
-                  </span>
-                </button>
-              );
-            })}
-
-            {filteredProperties.length === 0 && searchQuery && (
-              <div className="p-3 text-center text-xs text-admin-muted">
-                No properties matching &quot;{searchQuery}&quot;
+              <div className="flex items-center gap-2 px-2 py-1.5 animate-pulse">
+                <div className="h-4 w-4 rounded bg-admin-border" />
+                <div className="h-3.5 w-32 rounded bg-admin-border" />
               </div>
-            )}
-          </div>
+            </div>
+          ) : error ? (
+            <div className="p-3 text-center">
+              <p className="text-xs text-red-500 mb-1">Couldn&apos;t load properties</p>
+              <button
+                type="button"
+                onClick={() => refreshProperties()}
+                className="text-xs text-admin-primary underline font-semibold"
+              >
+                Try again
+              </button>
+            </div>
+          ) : (
+            <div className="max-h-72 overflow-y-auto p-1.5 space-y-0.5">
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className={cn(
+                  'flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-colors',
+                  !selectedProperty
+                    ? 'bg-admin-primary-soft font-semibold text-admin-primary border border-admin-primary/20'
+                    : 'text-admin-foreground hover:bg-admin-surface-subtle'
+                )}
+              >
+                <DiceBearIcon name="building" badge variant={!selectedProperty ? 'red' : 'neutral'} size={14} />
+                <div className="flex-1 text-left min-w-0">
+                  <p className="font-medium truncate">All Properties</p>
+                  <p className="text-[10px] text-admin-muted truncate">View workspace-wide summary</p>
+                </div>
+                {!selectedProperty && (
+                  <span className="text-[10px] font-semibold text-admin-primary">Active</span>
+                )}
+              </button>
+
+              {filteredProperties.map((property) => {
+                const isSelected = selectedProperty?.propertyId === property.propertyId;
+                return (
+                  <button
+                    key={property.propertyId}
+                    onClick={() => handleSelect(property)}
+                    className={cn(
+                      'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition-colors',
+                      isSelected
+                        ? 'bg-admin-primary-soft text-admin-primary font-semibold border border-admin-primary/20'
+                        : 'text-foreground hover:bg-admin-surface-subtle'
+                    )}
+                  >
+                    <DiceBearIcon name="building" badge variant={isSelected ? 'red' : 'neutral'} size={14} />
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="font-medium truncate">{property.propertyName}</p>
+                      <p className="text-[10px] text-muted truncate">{property.organizationName}</p>
+                    </div>
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted/15 text-muted capitalize shrink-0">
+                      {property.role}
+                    </span>
+                  </button>
+                );
+              })}
+
+              {filteredProperties.length === 0 && searchQuery && (
+                <div className="p-3 text-center text-xs text-admin-muted">
+                  No properties matching &quot;{searchQuery}&quot;
+                </div>
+              )}
+            </div>
+          )}
 
           {showCreateLink && (
             <div className="border-t border-admin-border p-1.5">

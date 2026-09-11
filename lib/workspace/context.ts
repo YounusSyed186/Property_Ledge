@@ -20,6 +20,8 @@ export interface WorkspaceContext {
   isOwner: boolean;
 }
 
+let cachedOwnerRole: { id: string; name: string } | null = null;
+
 export const getUserWorkspaces = cache(async function getUserWorkspaces(userId: string) {
   const supabase = await createClient();
   const { data: owned } = await supabase
@@ -118,20 +120,27 @@ export const resolveWorkspaceContext = cache(async function resolveWorkspaceCont
     roleId = m.role_id;
     roleName = m.team_roles?.name ?? null;
   } else {
-    const { data: ownerRole } = await supabase
-      .from('team_roles')
-      .select('id, name')
-      .is('workspace_id', null)
-      .ilike('name', 'owner')
-      .maybeSingle();
-    if (ownerRole) {
-      roleId = (ownerRole as { id: string }).id;
-      roleName = (ownerRole as { name: string }).name;
+    if (!cachedOwnerRole) {
+      const { data: ownerRole } = await supabase
+        .from('team_roles')
+        .select('id, name')
+        .is('workspace_id', null)
+        .ilike('name', 'owner')
+        .maybeSingle();
+      if (ownerRole) {
+        cachedOwnerRole = { id: (ownerRole as { id: string }).id, name: (ownerRole as { name: string }).name };
+      }
+    }
+    if (cachedOwnerRole) {
+      roleId = cachedOwnerRole.id;
+      roleName = cachedOwnerRole.name;
     }
   }
 
-  const permissions = await getEffectiveWorkspacePermissions(wsId, user.id);
-  const billing = await resolveWorkspaceBilling(wsId);
+  const [permissions, billing] = await Promise.all([
+    getEffectiveWorkspacePermissions(wsId, user.id),
+    resolveWorkspaceBilling(wsId, (ws as { owner_id: string }).owner_id),
+  ]);
 
   return {
     workspaceId: wsId,
