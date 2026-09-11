@@ -135,13 +135,13 @@ export async function getTenants(propertyId: string) {
   return data || [];
 }
 
-export async function getAllWorkspaceTenants() {
+export async function getAllWorkspaceTenants(workspaceId?: string | null) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from('tenants')
     .select(`
       *,
-      property:properties(id, name, address_line_1, city, suburb, postal_code, state),
+      property:properties!inner(id, name, address_line_1, city, suburb, postal_code, state, workspace_id),
       lease_tenants!lease_tenants_tenant_id_fkey(
         is_primary,
         role,
@@ -149,6 +149,12 @@ export async function getAllWorkspaceTenants() {
       )
     `)
     .order('created_at', { ascending: false });
+
+  if (workspaceId) {
+    query = query.eq('properties.workspace_id', workspaceId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('Error fetching all workspace tenants:', error);
@@ -179,19 +185,25 @@ export async function getLeases(propertyId: string) {
   return data || [];
 }
 
-export async function getAllWorkspaceLeases() {
+export async function getAllWorkspaceLeases(workspaceId?: string | null) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from('leases')
     .select(`
       *,
-      property:properties(id, name, address_line_1, city, suburb, postal_code, state),
+      property:properties!inner(id, name, address_line_1, city, suburb, postal_code, state, workspace_id),
       lease_tenants!lease_tenants_lease_id_fkey(
         tenant_id, role, is_primary,
         tenant:tenants!lease_tenants_tenant_id_fkey(id, first_name, last_name, email, phone, status, emergency_contact_name, emergency_contact_phone)
       )
     `)
     .order('created_at', { ascending: false });
+
+  if (workspaceId) {
+    query = query.eq('properties.workspace_id', workspaceId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('Error fetching all workspace leases:', error);

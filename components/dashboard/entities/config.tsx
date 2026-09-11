@@ -496,54 +496,25 @@ export const propertyColumns: ColDef[] = [
   {
     field: 'name',
     headerName: 'Property Name',
-    flex: 1.5,
+    width: 220,
     minWidth: 200,
     valueGetter: (params) => params.data?.name || params.data?.address_line_1 || '—',
     cellRenderer: (params: { data: Record<string, unknown> }) => {
       const name = String(params.data?.name || params.data?.address_line_1 || 'Property');
-      const sub = String(params.data?.suburb || params.data?.city || params.data?.address_line_1 || '');
       const category = String(params.data?.property_category || '').toLowerCase();
       const iconName = category === 'commercial' ? 'building' : category === 'residential' ? 'house' : 'building';
       return (
         <div className="flex items-center gap-2.5 py-1 min-w-0 max-w-full overflow-hidden" title={name}>
-          <DiceBearIcon name={iconName} badge variant="red" className="w-3.5 h-3.5" />
-          <div className="flex flex-col min-w-0 leading-tight">
-            <span className="font-semibold text-foreground text-[13.5px] truncate">{name}</span>
-            {sub && sub !== name && <span className="text-[11px] text-muted truncate">{sub}</span>}
-          </div>
+          <DiceBearIcon name={iconName} badge variant="red" className="w-3.5 h-3.5 shrink-0" />
+          <span className="font-semibold text-foreground text-[13.5px] truncate">{name}</span>
         </div>
       );
     },
   },
   {
-    field: 'address_line_1',
-    headerName: 'Street Address',
-    flex: 1.2,
-    minWidth: 170,
-    valueGetter: (params) => params.data?.address_line_1 || params.data?.address || '—',
-  },
-  {
-    field: 'suburb',
-    headerName: 'Suburb',
-    minWidth: 130,
-    valueGetter: (params) => params.data?.suburb || params.data?.city || '—',
-  },
-  {
-    field: 'state',
-    headerName: 'State / Territory',
-    width: 120,
-    valueGetter: (params) => params.data?.state || '—',
-  },
-  {
-    field: 'postal_code',
-    headerName: 'Postcode',
-    width: 100,
-    valueGetter: (params) => params.data?.postal_code || params.data?.postcode || '—',
-  },
-  {
     field: 'property_category',
     headerName: 'Category',
-    width: 130,
+    width: 140,
     valueGetter: (params) => params.data?.property_category || 'Residential',
   },
   {
@@ -553,20 +524,45 @@ export const propertyColumns: ColDef[] = [
     valueGetter: (params) => params.data?.property_type || '—',
   },
   {
+    field: 'address_line_1',
+    headerName: 'Street Address',
+    width: 220,
+    minWidth: 180,
+    valueGetter: (params) => params.data?.address_line_1 || params.data?.address || '—',
+  },
+  {
+    field: 'suburb',
+    headerName: 'Suburb / City',
+    width: 150,
+    valueGetter: (params) => params.data?.suburb || params.data?.city || '—',
+  },
+  {
+    field: 'state',
+    headerName: 'State',
+    width: 110,
+    valueGetter: (params) => params.data?.state || '—',
+  },
+  {
+    field: 'postal_code',
+    headerName: 'Postcode',
+    width: 110,
+    valueGetter: (params) => params.data?.postal_code || params.data?.postcode || '—',
+  },
+  {
     field: 'bedrooms',
-    headerName: 'Bedrooms',
+    headerName: 'Beds',
     width: 100,
     valueGetter: (params) => (params.data?.bedrooms !== undefined && params.data?.bedrooms !== null ? params.data?.bedrooms : '—'),
   },
   {
     field: 'bathrooms',
-    headerName: 'Bathrooms',
-    width: 110,
+    headerName: 'Baths',
+    width: 100,
     valueGetter: (params) => (params.data?.bathrooms !== undefined && params.data?.bathrooms !== null ? params.data?.bathrooms : '—'),
   },
   {
     field: 'parking_spaces',
-    headerName: 'Car Spaces',
+    headerName: 'Parking',
     width: 110,
     valueGetter: (params) =>
       params.data?.parking_spaces !== undefined && params.data?.parking_spaces !== null
@@ -575,8 +571,8 @@ export const propertyColumns: ColDef[] = [
   },
   {
     field: 'rent_amount',
-    headerName: 'Advertised Rent ($)',
-    width: 150,
+    headerName: 'Advertised Rent',
+    width: 160,
     cellRenderer: (params: { data: Record<string, unknown> }) => {
       const rent = params.data?.rent_amount;
       if (rent === undefined || rent === null || rent === '') return '—';
@@ -585,16 +581,9 @@ export const propertyColumns: ColDef[] = [
   },
   {
     field: 'payment_frequency',
-    headerName: 'Payment Frequency',
-    width: 150,
+    headerName: 'Frequency',
+    width: 140,
     valueGetter: (params) => params.data?.payment_frequency || params.data?.rent_frequency || 'Weekly',
   },
-  {
-    field: 'description',
-    headerName: 'Description',
-    minWidth: 200,
-    flex: 1.5,
-    valueGetter: (params) => params.data?.description || '—',
-  },
-  { field: 'status', headerName: 'Status', width: 110, cellRenderer: 'statusCell' },
+  { field: 'status', headerName: 'Status', width: 120, cellRenderer: 'statusCell' },
 ];

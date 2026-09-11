@@ -1,8 +1,9 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { Profile, AccountContext } from '@/types/auth';
 import { logAuthEvent } from '@/lib/debug/logger';
 
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async function getCurrentUser() {
   try {
     const supabase = await createClient();
     const { data: { user }, error } = await supabase.auth.getUser();
@@ -10,9 +11,9 @@ export async function getCurrentUser() {
   } catch (e) {}
 
   return null;
-}
+});
 
-export async function getUserProfile(userId: string): Promise<Profile | null> {
+export const getUserProfile = cache(async function getUserProfile(userId: string): Promise<Profile | null> {
   logAuthEvent('PROFILE_LOAD_STARTED', { userId });
   try {
     const supabase = await createClient();
@@ -33,9 +34,9 @@ export async function getUserProfile(userId: string): Promise<Profile | null> {
     logAuthEvent('PROFILE_LOAD_FAILED', { userId, err });
     return null;
   }
-}
+});
 
-export async function getAccountContext(userId: string): Promise<AccountContext | null> {
+export const getAccountContext = cache(async function getAccountContext(userId: string): Promise<AccountContext | null> {
   logAuthEvent('ACCOUNT_CONTEXT_LOAD_STARTED', { userId });
   try {
     const supabase = await createClient();
@@ -56,4 +57,4 @@ export async function getAccountContext(userId: string): Promise<AccountContext 
     logAuthEvent('ACCOUNT_CONTEXT_LOAD_FAILED', { userId, err });
     return null;
   }
-}
+});

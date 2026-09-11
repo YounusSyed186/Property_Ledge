@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/admin/authorization';
 import type { Persona } from '@/lib/auth/permissions';
@@ -31,7 +32,7 @@ function mapTeamRoleNameToPersona(roleName: string | null | undefined): Persona 
   }
 }
 
-export async function getPersonaForUser(userId: string): Promise<PersonaContext> {
+export const getPersonaForUser = cache(async function getPersonaForUser(userId: string): Promise<PersonaContext> {
   if (await isAdmin(userId)) {
     return { persona: 'platform_admin' };
   }
@@ -89,7 +90,7 @@ export async function getPersonaForUser(userId: string): Promise<PersonaContext>
   }
 
   return { persona: 'owner', workspaceRole: null };
-}
+});
 
 export function getDefaultHomeForPersona(persona: Persona): string {
   switch (persona) {

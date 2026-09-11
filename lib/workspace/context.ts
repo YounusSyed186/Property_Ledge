@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/auth/queries';
 import {
@@ -19,7 +20,7 @@ export interface WorkspaceContext {
   isOwner: boolean;
 }
 
-export async function getUserWorkspaces(userId: string) {
+export const getUserWorkspaces = cache(async function getUserWorkspaces(userId: string) {
   const supabase = await createClient();
   const { data: owned } = await supabase
     .from('workspaces')
@@ -71,9 +72,9 @@ export async function getUserWorkspaces(userId: string) {
   }
 
   return Array.from(map.values());
-}
+});
 
-export async function resolveWorkspaceContext(
+export const resolveWorkspaceContext = cache(async function resolveWorkspaceContext(
   workspaceId?: string | null
 ): Promise<WorkspaceContext | null> {
   const user = await getCurrentUser();
@@ -142,6 +143,6 @@ export async function resolveWorkspaceContext(
     billingAccountId: billing.billingAccountId,
     isOwner,
   };
-}
+});
 
 export { WORKSPACE_COOKIE };

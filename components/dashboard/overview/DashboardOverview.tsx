@@ -18,7 +18,7 @@ import { Button } from '@/components/admin/ui/Button';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import { useAppContext } from '@/components/context/AppContextProvider';
 import { formatCurrency } from '@/lib/format/currency';
-import { fetchDashboardOverview, fetchNeedsAttention, fetchDashboardReports, fetchDashboardLeases } from '@/app/actions/dashboard';
+import { fetchDashboardDataAction } from '@/app/actions/dashboard';
 import { ManagerDashboard } from '@/components/dashboard/overview/ManagerDashboard';
 import { StaffDashboard } from '@/components/dashboard/overview/StaffDashboard';
 import { NeedsAttentionSection, buildAttentionItems, buildUpcomingItems } from '@/components/dashboard/overview/NeedsAttentionSection';
@@ -72,9 +72,9 @@ function QuickAction({ label, href, icon: Icon, description, onClick }: {
 
 function OwnerDashboard({ userName, setupProgress }: { userName: string; setupProgress?: SetupProgress }) {
   const { selectedProperty, availableProperties, isLoading: propertyLoading } = usePropertyContext();
-  const [overview, setOverview] = useState<Awaited<ReturnType<typeof fetchDashboardOverview>> | null>(null);
-  const [reports, setReports] = useState<Awaited<ReturnType<typeof fetchDashboardReports>> | null>(null);
-  const [needsAttention, setNeedsAttention] = useState<Awaited<ReturnType<typeof fetchNeedsAttention>> | null>(null);
+  const [overview, setOverview] = useState<any>(null);
+  const [reports, setReports] = useState<any>(null);
+  const [needsAttention, setNeedsAttention] = useState<any>(null);
   const [leases, setLeases] = useState<Array<{ id: string; end_date: string | null; status: string; unit?: { name?: string; unit_number?: string } }>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [leaseWizardOpen, setLeaseWizardOpen] = useState(false);
@@ -86,20 +86,15 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
   useEffect(() => {
     setIsLoading(true);
     const propertyId = selectedProperty?.propertyId ?? null;
-    Promise.all([
-      fetchDashboardOverview(propertyId),
-      fetchNeedsAttention(propertyId),
-      fetchDashboardReports(propertyId),
-      fetchDashboardLeases(propertyId),
-    ])
-      .then(([overviewData, attentionData, reportsData, leasesData]) => {
-        setOverview(overviewData);
-        setNeedsAttention(attentionData);
-        setReports(reportsData);
-        setLeases(leasesData as typeof leases);
+    fetchDashboardDataAction(propertyId)
+      .then((data) => {
+        setOverview(data.overview);
+        setNeedsAttention(data.needsAttention);
+        setReports(data.reports);
+        setLeases(data.leases as typeof leases);
       })
       .catch((err) => {
-        console.error('Error fetching dashboard overview data:', err);
+        console.error('Error fetching dashboard data:', err);
       })
       .finally(() => setIsLoading(false));
   }, [selectedProperty?.propertyId]);
@@ -116,8 +111,8 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
   const expected = collected + outstanding;
   const collectionPct = expected > 0 ? Math.round((collected / expected) * 100) : 0;
 
-  const activityItems = (overview?.recentActivity || []).slice(0, 6).map((log) => {
-    const action = String((log as { action: string }).action);
+  const activityItems = (overview?.recentActivity || []).slice(0, 6).map((log: Record<string, unknown>) => {
+    const action = String(log.action || '');
     const lower = action.toLowerCase();
     let tone: 'default' | 'success' | 'warning' | 'danger' = 'default';
     if (lower.includes('delete') || lower.includes('remove')) tone = 'danger';

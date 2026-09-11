@@ -127,12 +127,7 @@ export function AdminDataGrid<TData = any>({
     } else {
       setInternalExpanded(next);
     }
-    if (gridApi) {
-      requestAnimationFrame(() => {
-        gridApi.sizeColumnsToFit();
-      });
-    }
-  }, [isExpanded, onExpandedChange, gridApi]);
+  }, [isExpanded, onExpandedChange]);
 
   const workspaceStore = useCollapsibleWorkspaceOptional();
 
@@ -230,10 +225,8 @@ export function AdminDataGrid<TData = any>({
   const onGridReady = useCallback(
     (params: GridReadyEvent) => {
       setGridApi(params.api);
-      params.api.sizeColumnsToFit();
       requestAnimationFrame(() => {
         syncPaginationFromGrid(params.api);
-        params.api.sizeColumnsToFit();
       });
     },
     [syncPaginationFromGrid]
@@ -271,11 +264,10 @@ export function AdminDataGrid<TData = any>({
     }
   }, [gridApi]);
 
-  // Adjust column sizes and pagination on window resize
+  // Adjust pagination on window resize
   useEffect(() => {
     const handleResize = () => {
       if (gridApi) {
-        gridApi.sizeColumnsToFit();
         syncPaginationFromGrid(gridApi);
       }
     };
@@ -290,7 +282,6 @@ export function AdminDataGrid<TData = any>({
 
     const observer = new ResizeObserver(() => {
       requestAnimationFrame(() => {
-        gridApi.sizeColumnsToFit();
         syncPaginationFromGrid(gridApi);
       });
     });
@@ -409,10 +400,7 @@ export function AdminDataGrid<TData = any>({
           isExpanded ? 'h-full min-h-[200px] flex-1' : 'h-[240px] min-h-[240px] max-h-[240px] flex-none'
         )}
       >
-        {isLoadingState && (!isDataLoaded || rowData.length === 0) ? (
-          /* Initial data fetching: Render Row Skeleton Table */
-          <AdminDataGridLoading />
-        ) : isEmpty ? (
+        {isEmpty ? (
           /* Confirmed empty state */
           <AdminDataGridEmpty
             isFiltered={isFiltered}
@@ -422,11 +410,15 @@ export function AdminDataGrid<TData = any>({
             icon={emptyIcon}
           />
         ) : (
-          /* Render AG Grid with overlay if refetching */
+          /* Render AG Grid with concurrent background initialization */
           <div className="ag-theme-propertyledge w-full h-full min-h-[380px] flex-1 relative">
-            {loading && <AdminDataGridLoading overlay />}
+            {isLoadingState && (
+              <div className="absolute inset-0 z-20 pointer-events-none">
+                <AdminDataGridLoading overlay={Boolean(isDataLoaded && rowData.length > 0)} />
+              </div>
+            )}
             <AgGridReact<TData>
-              rowData={rowData}
+              rowData={rowData || []}
               columnDefs={effectiveColDefs}
               defaultColDef={defaultGridColDef}
               gridOptions={defaultGridOptions}
@@ -436,9 +428,6 @@ export function AdminDataGrid<TData = any>({
               paginationPageSize={isServerSide ? effectivePageSize : undefined}
               suppressPaginationPanel={true}
               onGridReady={onGridReady}
-              onFirstDataRendered={(params) => {
-                params.api.sizeColumnsToFit();
-              }}
               onPaginationChanged={onPaginationChanged}
               onSelectionChanged={onSelectionChanged}
               onFilterChanged={onFilterChanged}

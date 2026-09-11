@@ -29,6 +29,7 @@ import { Button, useToast, ConfirmDialog } from '@/components/admin/ui';
 import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
 import { ListPage, ListPageGrid } from '@/components/workspace';
 import { usePropertyContext } from '@/components/property/PropertyContext';
+import dynamic from 'next/dynamic';
 import {
   fetchAllWorkspaceLeases,
   fetchDashboardProperties,
@@ -38,11 +39,24 @@ import {
   handleDoNotRenew,
 } from '@/app/actions/dashboard';
 import { createLeaseAutomationAction, CreateLeaseAutomationDTO } from '@/app/actions/automations';
-import { CreateLeaseWizard } from '@/components/dashboard/workflows/CreateLeaseWizard';
-import { LeaseEditDrawer } from '@/components/dashboard/leases/LeaseEditDrawer';
-import { RenewLeaseModal } from '@/components/dashboard/leases/RenewLeaseModal';
-import { CreateAutomationModal } from '@/components/automation/CreateAutomationModal';
 import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
+
+const CreateLeaseWizard = dynamic(
+  () => import('@/components/dashboard/workflows/CreateLeaseWizard').then((m) => m.CreateLeaseWizard),
+  { ssr: false }
+);
+const LeaseEditDrawer = dynamic(
+  () => import('@/components/dashboard/leases/LeaseEditDrawer').then((m) => m.LeaseEditDrawer),
+  { ssr: false }
+);
+const RenewLeaseModal = dynamic(
+  () => import('@/components/dashboard/leases/RenewLeaseModal').then((m) => m.RenewLeaseModal),
+  { ssr: false }
+);
+const CreateAutomationModal = dynamic(
+  () => import('@/components/automation/CreateAutomationModal').then((m) => m.CreateAutomationModal),
+  { ssr: false }
+);
 import { Avatar, AvatarGroup, PersonIdentity, JsonIcon, DiceBearIcon } from '@/components/ui/avatar';
 import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';

@@ -23,13 +23,21 @@ import { LayoutGrid, List } from 'lucide-react';
 import { Button, useToast } from '@/components/admin/ui';
 import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
 import { ListPage, ListPageGrid } from '@/components/workspace';
+import dynamic from 'next/dynamic';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import { fetchAllWorkspaceTenants, fetchDashboardProperties, handleDeleteTenant } from '@/app/actions/dashboard';
-import { TenancySetupWizard } from '@/components/dashboard/workflows/TenancySetupWizard';
-import { TenantDrawer } from '@/components/dashboard/tenants/TenantDrawer';
 import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
 import { Avatar, PersonIdentity, JsonIcon, DiceBearIcon } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+
+const TenancySetupWizard = dynamic(
+  () => import('@/components/dashboard/workflows/TenancySetupWizard').then((m) => m.TenancySetupWizard),
+  { ssr: false }
+);
+const TenantDrawer = dynamic(
+  () => import('@/components/dashboard/tenants/TenantDrawer').then((m) => m.TenantDrawer),
+  { ssr: false }
+);
 
 type TenantRecord = {
   id: string;

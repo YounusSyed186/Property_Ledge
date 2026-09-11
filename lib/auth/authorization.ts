@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/auth/queries';
 import { cookies } from 'next/headers';
@@ -30,11 +31,12 @@ export type PlatformPermission =
 
 export const WORKSPACE_COOKIE = 'pl_workspace_id';
 
-export async function requireAuthenticatedUser() {
+export const requireAuthenticatedUser = cache(async function requireAuthenticatedUser() {
   const user = await getCurrentUser();
   if (!user) throw new AuthorizationError('NOT_AUTHENTICATED', 'You must be signed in.');
   return user;
-}
+});
+
 export async function hasPlatformPermission(permission: PlatformPermission, userId?: string): Promise<boolean> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc(
@@ -95,7 +97,7 @@ export async function requireWorkspacePermission(workspaceId: string, permission
   return user;
 }
 
-export async function getEffectiveWorkspacePermissions(
+export const getEffectiveWorkspacePermissions = cache(async function getEffectiveWorkspacePermissions(
   workspaceId: string,
   userId?: string
 ): Promise<string[]> {
@@ -106,12 +108,12 @@ export async function getEffectiveWorkspacePermissions(
   );
   if (error || !data) return [];
   return data as string[];
-}
+});
 
-export async function getActiveWorkspaceId(): Promise<string | null> {
+export const getActiveWorkspaceId = cache(async function getActiveWorkspaceId(): Promise<string | null> {
   const cookieStore = await cookies();
   return cookieStore.get(WORKSPACE_COOKIE)?.value ?? null;
-}
+});
 
 export async function setActiveWorkspaceCookie(workspaceId: string) {
   const cookieStore = await cookies();

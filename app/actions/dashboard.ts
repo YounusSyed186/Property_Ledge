@@ -16,6 +16,32 @@ function revalidateDashboard(...paths: string[]) {
 }
 
 // Reads
+export async function fetchDashboardDataAction(propertyId?: string | null) {
+  if (propertyId) {
+    await requirePropertyAccess(propertyId);
+    const [overview, needsAttention, reports, leases] = await Promise.all([
+      queries.getDashboardOverview(propertyId),
+      queries.getNeedsAttention(propertyId),
+      queries.getReportsSummary(propertyId),
+      queries.getLeases(propertyId),
+    ]);
+    return { overview, needsAttention, reports, leases };
+  }
+
+  await requireAuthenticatedUser();
+  const workspaceId = await getActiveWorkspaceId();
+  if (!workspaceId) throw new Error('No active workspace selected.');
+
+  const [overview, needsAttention, reports, leases] = await Promise.all([
+    queries.getWorkspaceDashboardOverview(workspaceId),
+    queries.getWorkspaceNeedsAttention(workspaceId),
+    queries.getWorkspaceReportsSummary(workspaceId),
+    queries.getAllWorkspaceLeases(),
+  ]);
+
+  return { overview, needsAttention, reports, leases };
+}
+
 export async function fetchDashboardOverview(propertyId?: string | null) {
   if (propertyId) {
     await requirePropertyAccess(propertyId);
@@ -224,7 +250,8 @@ export async function fetchAllWorkspaceTenants(propertyId?: string | null) {
     return queries.getTenants(propertyId);
   }
   await requireAuthenticatedUser();
-  return queries.getAllWorkspaceTenants();
+  const workspaceId = await getActiveWorkspaceId();
+  return queries.getAllWorkspaceTenants(workspaceId);
 }
 
 export async function fetchAllWorkspaceLeases(propertyId?: string | null) {
@@ -233,7 +260,8 @@ export async function fetchAllWorkspaceLeases(propertyId?: string | null) {
     return queries.getLeases(propertyId);
   }
   await requireAuthenticatedUser();
-  return queries.getAllWorkspaceLeases();
+  const workspaceId = await getActiveWorkspaceId();
+  return queries.getAllWorkspaceLeases(workspaceId);
 }
 
 // Tenancy Setup (Atomic Tenant + Lease + Bond creation)

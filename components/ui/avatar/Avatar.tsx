@@ -59,8 +59,6 @@ export function Avatar({
     : SIZE_MAP[size] || SIZE_MAP.md;
 
   const px = sizeConfig.px;
-
-  // Determine final image source URL
   const effectiveSeed = seed || name || 'person';
   const src = avatarUrl && avatarUrl.trim()
     ? avatarUrl
@@ -70,21 +68,6 @@ export function Avatar({
   const initials = getInitials(displayName);
   const colorScheme = getInitialsBgColor(effectiveSeed);
   const accessibleAlt = alt || displayName;
-
-  // Reset error state if src changes and check if image is already cached
-  useEffect(() => {
-    setHasError(false);
-    setIsLoading(true);
-
-    if (imgRef.current) {
-      if (imgRef.current.complete) {
-        if (imgRef.current.naturalWidth === 0 && imgRef.current.naturalHeight === 0) {
-          setHasError(true);
-        }
-        setIsLoading(false);
-      }
-    }
-  }, [src]);
 
   return (
     <div
@@ -100,11 +83,13 @@ export function Avatar({
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            ref={imgRef}
+            key={src}
             src={src}
             alt={accessibleAlt}
             width={px}
             height={px}
+            loading="lazy"
+            decoding="async"
             onLoad={() => setIsLoading(false)}
             onError={() => {
               setHasError(true);

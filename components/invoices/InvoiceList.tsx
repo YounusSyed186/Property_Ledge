@@ -49,10 +49,18 @@ import {
   generateInvoiceDocumentAction,
   sendInvoiceEmailAction,
 } from '@/app/actions/invoices';
-import { CreateInvoiceModal } from './CreateInvoiceModal';
-import { InvoiceDetailModal } from './InvoiceDetailModal';
+import dynamic from 'next/dynamic';
 import { formatAuDisplayDate, formatAuDisplayDateTime } from '@/lib/format/australian-time';
 import { cn } from '@/lib/utils';
+
+const CreateInvoiceModal = dynamic(
+  () => import('./CreateInvoiceModal').then((mod) => mod.CreateInvoiceModal),
+  { ssr: false }
+);
+const InvoiceDetailModal = dynamic(
+  () => import('./InvoiceDetailModal').then((mod) => mod.InvoiceDetailModal),
+  { ssr: false }
+);
 
 export function InvoiceList() {
   const router = useRouter();

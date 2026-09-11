@@ -26,6 +26,7 @@ import { AdminDataGrid, QuickFilterBar, QuickFilterOption, BulkAction } from '@/
 import { ListPage, ListPageGrid } from '@/components/workspace';
 import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
 import { PersonIdentity } from '@/components/ui/avatar';
+import dynamic from 'next/dynamic';
 import {
   fetchAutomationsAction,
   togglePauseAutomationAction,
@@ -37,10 +38,21 @@ import {
 } from '@/app/actions/automations';
 import { ScheduleCalculator } from '@/modules/automation/domain/services/schedule-calculator';
 import { formatAuDisplayDateTime } from '@/lib/format/australian-time';
-import { CreateAutomationModal } from './CreateAutomationModal';
-import { TriggerConfirmationModal } from './TriggerConfirmationModal';
-import { ExecutionHistoryModal } from './ExecutionHistoryModal';
 import { cn } from '@/lib/utils';
+
+// Lazy-loaded modals to minimize initial route bundle
+const CreateAutomationModal = dynamic(
+  () => import('./CreateAutomationModal').then((m) => m.CreateAutomationModal),
+  { ssr: false }
+);
+const TriggerConfirmationModal = dynamic(
+  () => import('./TriggerConfirmationModal').then((m) => m.TriggerConfirmationModal),
+  { ssr: false }
+);
+const ExecutionHistoryModal = dynamic(
+  () => import('./ExecutionHistoryModal').then((m) => m.ExecutionHistoryModal),
+  { ssr: false }
+);
 
 export function AutomationList() {
   const { toast } = useToast();
@@ -60,15 +72,6 @@ export function AutomationList() {
   const [automationToDelete, setAutomationToDelete] = useState<AutomationItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Live Australian Time Clock
-  const [auTime, setAuTime] = useState(() => formatAuDisplayDateTime(new Date(), true));
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setAuTime(formatAuDisplayDateTime(new Date(), true));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   const filterOptions = useMemo<QuickFilterOption[]>(
     () => [
       { label: 'All Automations', value: 'all' },
@@ -83,9 +86,6 @@ export function AutomationList() {
   const loadAutomations = async () => {
     setLoading(true);
     try {
-      // Check and execute any due automations automatically
-      await evaluateDueAutomationsAction();
-
       const typeFilter = activeFilter === 'lease' || activeFilter === 'invoice' ? activeFilter : undefined;
       const statusFilter = activeFilter === 'active' || activeFilter === 'paused' ? activeFilter : undefined;
 
@@ -107,23 +107,6 @@ export function AutomationList() {
 
   useEffect(() => {
     loadAutomations();
-
-    // Periodic automatic background check every 20 seconds
-    const interval = setInterval(async () => {
-      const evalRes = await evaluateDueAutomationsAction();
-      if (evalRes?.success && evalRes.evaluated && evalRes.evaluated > 0) {
-        toast({
-          title: 'Automated Invoice Dispatched',
-          description: `Successfully executed ${evalRes.evaluated} scheduled automation(s).`,
-        });
-        const typeFilter = activeFilter === 'lease' || activeFilter === 'invoice' ? activeFilter : undefined;
-        const statusFilter = activeFilter === 'active' || activeFilter === 'paused' ? activeFilter : undefined;
-        const fresh = await fetchAutomationsAction({ type: typeFilter as any, status: statusFilter });
-        setAutomations(fresh);
-      }
-    }, 20000);
-
-    return () => clearInterval(interval);
   }, [activeFilter]);
 
   const handleTogglePause = async (id: string) => {
@@ -481,12 +464,8 @@ export function AutomationList() {
       breadcrumb={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Automations' }]}
       actions={
         <div className="flex items-center gap-2">
-          {/* Live AU Time Clock Indicator */}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-admin-surface-subtle border border-admin-border rounded-xl text-xs shadow-xs">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-admin-muted font-medium">AU Time (Sydney):</span>
-            <span className="font-mono font-bold text-admin-foreground">{auTime}</span>
-          </div>
+          {/* Live AU Time Clock Indicator (isolated to avoid parent grid re-renders) */}
+          <LiveAuClockBadge />
 
           {/* View Switcher */}
           <div className="flex items-center bg-admin-surface-subtle border border-admin-border p-0.5 rounded-xl">
@@ -776,5 +755,24 @@ export function AutomationList() {
         loading={isDeleting}
       />
     </ListPage>
+  );
+}
+
+function LiveAuClockBadge() {
+  const [auTime, setAuTime] = useState(() => formatAuDisplayDateTime(new Date(), true));
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setAuTime(formatAuDisplayDateTime(new Date(), true));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-admin-surface-subtle border border-admin-border rounded-xl text-xs shadow-xs">
+      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+      <span className="text-admin-muted font-medium">AU Time (Sydney):</span>
+      <span className="font-mono font-bold text-admin-foreground">{auTime}</span>
+    </div>
   );
 }
