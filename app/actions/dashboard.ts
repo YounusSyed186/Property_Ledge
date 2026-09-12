@@ -85,7 +85,7 @@ export async function fetchDashboardLeases(propertyId?: string | null) {
   await requireAuthenticatedUser();
   const workspaceId = await getActiveWorkspaceId();
   if (!workspaceId) throw new Error('No active workspace selected.');
-  return queries.getAllWorkspaceLeases();
+  return queries.getAllWorkspaceLeases(workspaceId);
 }
 
 export async function fetchDashboardLease(propertyId: string, leaseId: string) {

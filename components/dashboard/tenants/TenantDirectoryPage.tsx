@@ -643,24 +643,24 @@ export function TenantDirectoryPage() {
 
       {/* Property Select Modal for Tenancy Setup */}
       {isPropertySelectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setIsPropertySelectModalOpen(false)} />
-          <div className="relative w-full max-w-md bg-admin-surface border border-admin-border rounded-2xl p-6 shadow-2xl z-10 space-y-4">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-lg font-black text-admin-foreground">Select Property</h3>
-                <p className="text-xs text-admin-muted mt-0.5">Choose a property to set up tenancy for.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsPropertySelectModalOpen(false)}
-                className="p-1 text-admin-muted hover:text-admin-foreground"
-              >
-                <X className="w-5 h-5" />
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto font-sans" role="dialog" aria-modal="true">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsPropertySelectModalOpen(false)} />
+          <div className="relative w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-6 sm:p-7 shadow-2xl z-10 space-y-4">
+            <button
+              type="button"
+              onClick={() => setIsPropertySelectModalOpen(false)}
+              aria-label="Close dialog"
+              className="absolute top-5 right-5 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center pb-1">
+              <h3 className="text-xl font-bold font-heading tracking-tight text-slate-900 dark:text-white">Select Property</h3>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">Choose a property to set up tenancy for.</p>
             </div>
 
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
               {properties.map((p) => (
                 <div
                   key={p.id}
@@ -669,10 +669,10 @@ export function TenantDirectoryPage() {
                     setIsPropertySelectModalOpen(false);
                     setIsSetupWizardOpen(true);
                   }}
-                  className="p-3 rounded-xl border border-admin-border hover:border-admin-primary hover:bg-admin-primary/5 cursor-pointer transition-all"
+                  className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-[#008F83] hover:bg-[#008F83]/5 dark:hover:bg-[#008F83]/10 cursor-pointer transition-all group"
                 >
-                  <div className="text-sm font-bold text-admin-foreground">{p.name || p.address_line_1}</div>
-                  <div className="text-xs text-admin-muted">{p.city || p.address_line_1}</div>
+                  <div className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-[#008F83] transition-colors">{p.name || p.address_line_1}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{p.city || p.address_line_1}</div>
                 </div>
               ))}
             </div>

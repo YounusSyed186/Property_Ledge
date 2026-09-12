@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Button, Input, Select, Textarea, useToast, Drawer, ConfirmDialog } from '@/components/admin/ui';
+import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
+import { Input, Select, useToast, ConfirmDialog } from '@/components/admin/ui';
 import { handleUpdateProperty, handleDeleteProperty, handleCreateProperty, fetchUserWorkspaces } from '@/app/actions/dashboard';
 import { usePropertyContext } from '@/components/property/PropertyContext';
-import { Trash2, MapPin, Building2, BedDouble, DollarSign, FileText } from 'lucide-react';
-import { DiceBearIcon } from '@/components/ui/avatar/DiceBearIcon';
+import { cn } from '@/lib/utils';
 
 export interface PropertyDrawerProps {
   isOpen: boolean;
@@ -46,17 +47,18 @@ export function PropertyDrawer({
 }: PropertyDrawerProps) {
   const { success, error: showError } = useToast();
   const { refreshProperties } = usePropertyContext();
+
   const [name, setName] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
   const [suburb, setSuburb] = useState('');
-  const [state, setState] = useState('NSW');
+  const [state, setState] = useState('VIC');
   const [postalCode, setPostalCode] = useState('');
   const [propertyCategory, setPropertyCategory] = useState<'Residential' | 'Commercial'>('Residential');
-  const [propertyType, setPropertyType] = useState('House');
-  const [bedrooms, setBedrooms] = useState('');
-  const [bathrooms, setBathrooms] = useState('');
-  const [carSpaces, setCarSpaces] = useState('');
-  const [rentAmount, setRentAmount] = useState('');
+  const [propertyType, setPropertyType] = useState('Apartment');
+  const [bedrooms, setBedrooms] = useState('2');
+  const [bathrooms, setBathrooms] = useState('2');
+  const [carSpaces, setCarSpaces] = useState('1');
+  const [rentAmount, setRentAmount] = useState('650');
   const [paymentFrequency, setPaymentFrequency] = useState('Weekly');
   const [status, setStatus] = useState('active');
   const [description, setDescription] = useState('');
@@ -64,6 +66,36 @@ export function PropertyDrawer({
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [mounted, setMounted] = useState(isOpen);
+  const [animateIn, setAnimateIn] = useState(false);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    let animFrame: number;
+    if (isOpen) {
+      setMounted(true);
+      setAnimateIn(false);
+      animFrame = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setAnimateIn(true));
+      });
+    } else {
+      setAnimateIn(false);
+      timer = setTimeout(() => setMounted(false), 280);
+    }
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(animFrame);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     if (isOpen) {
@@ -71,10 +103,10 @@ export function PropertyDrawer({
         setName(property.name || '');
         setAddressLine1(property.address_line_1 || property.address || '');
         setSuburb(property.suburb || property.city || '');
-        setState(property.state || 'NSW');
+        setState(property.state || 'VIC');
         setPostalCode(property.postal_code || property.postcode || '');
         setPropertyCategory((property.property_category as any) || 'Residential');
-        setPropertyType(property.property_type || (property.property_category === 'Commercial' ? 'Office' : 'House'));
+        setPropertyType(property.property_type || (property.property_category === 'Commercial' ? 'Office' : 'Apartment'));
         setBedrooms(property.bedrooms !== undefined && property.bedrooms !== null ? String(property.bedrooms) : '');
         setBathrooms(property.bathrooms !== undefined && property.bathrooms !== null ? String(property.bathrooms) : '');
         setCarSpaces(
@@ -92,10 +124,10 @@ export function PropertyDrawer({
         setName('');
         setAddressLine1('');
         setSuburb('');
-        setState('NSW');
+        setState('VIC');
         setPostalCode('');
         setPropertyCategory('Residential');
-        setPropertyType('House');
+        setPropertyType('Apartment');
         setBedrooms('');
         setBathrooms('');
         setCarSpaces('');
@@ -111,9 +143,9 @@ export function PropertyDrawer({
   const handleSave = async () => {
     const errors: Record<string, string> = {};
     if (!addressLine1.trim()) errors.addressLine1 = 'Street address is required.';
-    if (!suburb.trim()) errors.suburb = 'Suburb / city is required.';
+    if (!suburb.trim()) errors.suburb = 'Suburb is required.';
     if (!postalCode.trim()) errors.postalCode = 'Postcode is required.';
-    if (!state) errors.state = 'State / Territory is required.';
+    if (!state) errors.state = 'State is required.';
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -123,7 +155,7 @@ export function PropertyDrawer({
     setIsSaving(true);
     try {
       const payload: Record<string, any> = {
-        name: name.trim() || addressLine1.trim(),
+        name: name.trim() || addressLine1.trim() || 'Property',
         address_line_1: addressLine1.trim(),
         city: suburb.trim(),
         state,
@@ -193,281 +225,263 @@ export function PropertyDrawer({
     }
   };
 
-  const displayName = name.trim() || addressLine1.trim() || 'Property Details';
-  const subtitleAddress = addressLine1 ? `${addressLine1}, ${suburb} ${state}` : 'New Property Asset';
+  if (!mounted || typeof document === 'undefined') return null;
 
-  return (
-    <>
-      <Drawer
-        isOpen={isOpen}
-        onClose={onClose}
-        title={isCreate ? 'Add Property' : `Edit ${displayName}`}
-        description={isCreate ? 'Add a new real estate asset to your portfolio' : 'Update property location, features, and advertised terms'}
-        footer={
-          <div className="flex items-center justify-between w-full">
-            {!isCreate && (property?.id || propertyId) && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowDeleteConfirm(true)}
-                disabled={isSaving}
-                className="text-red-500 hover:text-red-600 hover:bg-red-500/10 border-red-200"
-              >
-                <Trash2 className="w-4 h-4 mr-1.5" /> Delete Property
-              </Button>
-            )}
-            <div className="flex items-center gap-2 ml-auto">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={handleSave} disabled={isSaving}>
-                {isSaving ? 'Saving...' : isCreate ? 'Add Property' : 'Save Changes'}
-              </Button>
-            </div>
-          </div>
-        }
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto font-sans"
+      role="dialog"
+      aria-modal="true"
+    >
+      {/* Backdrop */}
+      <div
+        className={cn(
+          'fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-out',
+          animateIn ? 'opacity-100' : 'opacity-0'
+        )}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Modal Dialog Card */}
+      <div
+        className={cn(
+          'relative flex max-h-[92vh] w-full max-w-xl flex-col rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xl transition-all duration-200 ease-out z-10 p-6 sm:p-8',
+          animateIn ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-2'
+        )}
       >
-        <div className="space-y-5 p-1">
-          {/* Header Property Identity Preview Card */}
-          <div className="p-4 rounded-2xl bg-admin-surface-subtle border border-admin-border flex items-center justify-between gap-3 shadow-2xs">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <DiceBearIcon
-                name={propertyCategory === 'Commercial' ? 'building' : 'house'}
-                badge
-                variant="red"
-                className="w-10 h-10 shrink-0"
-              />
-              <div className="min-w-0 flex-1">
-                <h3 className="font-extrabold text-base text-admin-foreground truncate">
-                  {displayName}
-                </h3>
-                <p className="text-xs text-admin-muted truncate mt-0.5 font-medium">
-                  {subtitleAddress}
-                </p>
-              </div>
-            </div>
-            {rentAmount ? (
-              <div className="text-right shrink-0">
-                <span className="text-xs font-black text-admin-primary uppercase tracking-wider block">
-                  ${Number(rentAmount).toLocaleString()}
-                </span>
-                <span className="text-[10px] text-admin-muted capitalize">
-                  {paymentFrequency.toLowerCase()}
-                </span>
-              </div>
-            ) : (
-              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-admin-primary-soft text-admin-primary border border-admin-primary/20 shrink-0">
-                {propertyCategory}
-              </span>
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-5 right-5 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none"
+          aria-label="Close dialog"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Centered Header */}
+        <div className="text-center mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold font-heading tracking-tight text-slate-900 dark:text-white">
+            {isCreate ? 'Add Property' : 'Edit Property'}
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Update address, details, and advertised rent.
+          </p>
+        </div>
+
+        {/* Form Body */}
+        <div className="flex-1 overflow-y-auto space-y-4 px-0.5 py-1">
+          {/* Street Address */}
+          <div>
+            <Input
+              label="Street Address *"
+              value={addressLine1}
+              onChange={(e) => {
+                setAddressLine1(e.target.value);
+                if (formErrors.addressLine1) setFormErrors({ ...formErrors, addressLine1: '' });
+              }}
+              placeholder="e.g. 102 Street Road"
+              className="bg-white dark:bg-slate-800"
+            />
+            {formErrors.addressLine1 && (
+              <p className="text-[11px] text-[#DC2626] mt-1 px-1 font-medium">{formErrors.addressLine1}</p>
             )}
           </div>
 
-          {/* Location & Address Section */}
-          <div className="space-y-4">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-admin-muted flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-admin-primary" /> Location & Address
-            </h4>
-
-            <Input
-              label="Property Name / Building Title (Optional)"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Sunset Heights Apartments"
-            />
+          {/* Suburb & Postcode */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Input
+                label="Suburb *"
+                value={suburb}
+                onChange={(e) => {
+                  setSuburb(e.target.value);
+                  if (formErrors.suburb) setFormErrors({ ...formErrors, suburb: '' });
+                }}
+                placeholder="e.g. Richmond"
+                className="bg-white dark:bg-slate-800"
+              />
+              {formErrors.suburb && (
+                <p className="text-[11px] text-[#DC2626] mt-1 px-1 font-medium">{formErrors.suburb}</p>
+              )}
+            </div>
 
             <div>
               <Input
-                label="Street Address *"
-                value={addressLine1}
+                label="Postcode *"
+                value={postalCode}
                 onChange={(e) => {
-                  setAddressLine1(e.target.value);
-                  if (formErrors.addressLine1) setFormErrors({ ...formErrors, addressLine1: '' });
+                  setPostalCode(e.target.value);
+                  if (formErrors.postalCode) setFormErrors({ ...formErrors, postalCode: '' });
                 }}
-                placeholder="e.g. 42 Wallaby Way"
+                placeholder="e.g. 3121"
+                className="bg-white dark:bg-slate-800"
               />
-              {formErrors.addressLine1 && <p className="text-[11px] text-red-500 mt-1">{formErrors.addressLine1}</p>}
+              {formErrors.postalCode && (
+                <p className="text-[11px] text-[#DC2626] mt-1 px-1 font-medium">{formErrors.postalCode}</p>
+              )}
             </div>
+          </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <Input
-                  label="Suburb / City *"
-                  value={suburb}
-                  onChange={(e) => {
-                    setSuburb(e.target.value);
-                    if (formErrors.suburb) setFormErrors({ ...formErrors, suburb: '' });
-                  }}
-                  placeholder="e.g. Sydney"
-                />
-                {formErrors.suburb && <p className="text-[11px] text-red-500 mt-1">{formErrors.suburb}</p>}
-              </div>
-
-              <div>
-                <Input
-                  label="Postcode *"
-                  value={postalCode}
-                  onChange={(e) => {
-                    setPostalCode(e.target.value);
-                    if (formErrors.postalCode) setFormErrors({ ...formErrors, postalCode: '' });
-                  }}
-                  placeholder="e.g. 2000"
-                />
-                {formErrors.postalCode && <p className="text-[11px] text-red-500 mt-1">{formErrors.postalCode}</p>}
-              </div>
-            </div>
-
+          {/* State */}
+          <div>
             <Select
-              label="State / Territory *"
+              label="State"
               value={state}
               onChange={(e) => setState(e.target.value)}
+              className="bg-white dark:bg-slate-800"
               options={[
-                { value: 'NSW', label: 'New South Wales (NSW)' },
-                { value: 'VIC', label: 'Victoria (VIC)' },
-                { value: 'QLD', label: 'Queensland (QLD)' },
-                { value: 'WA', label: 'Western Australia (WA)' },
-                { value: 'SA', label: 'South Australia (SA)' },
-                { value: 'TAS', label: 'Tasmania (TAS)' },
-                { value: 'ACT', label: 'Australian Capital Territory (ACT)' },
-                { value: 'NT', label: 'Northern Territory (NT)' },
+                { value: 'VIC', label: 'Victoria' },
+                { value: 'NSW', label: 'New South Wales' },
+                { value: 'QLD', label: 'Queensland' },
+                { value: 'WA', label: 'Western Australia' },
+                { value: 'SA', label: 'South Australia' },
+                { value: 'TAS', label: 'Tasmania' },
+                { value: 'ACT', label: 'Australian Capital Territory' },
+                { value: 'NT', label: 'Northern Territory' },
               ]}
             />
           </div>
 
-          {/* Category & Property Type Section */}
-          <div className="space-y-4 pt-2 border-t border-admin-border">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-admin-muted flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-admin-primary" /> Category & Type
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Select
-                label="Category *"
-                value={propertyCategory}
-                onChange={(e) => {
-                  const cat = e.target.value as 'Residential' | 'Commercial';
-                  setPropertyCategory(cat);
-                  setPropertyType(cat === 'Commercial' ? 'Office' : 'House');
-                }}
-                options={[
-                  { value: 'Residential', label: 'Residential' },
-                  { value: 'Commercial', label: 'Commercial' },
-                ]}
-              />
-
-              <Select
-                label="Property Type *"
-                value={propertyType}
-                onChange={(e) => setPropertyType(e.target.value)}
-                options={
-                  propertyCategory === 'Residential'
-                    ? [
-                        { value: 'House', label: 'House' },
-                        { value: 'Apartment/Unit', label: 'Apartment / Unit' },
-                        { value: 'Townhouse', label: 'Townhouse' },
-                        { value: 'Duplex', label: 'Duplex' },
-                        { value: 'Villa', label: 'Villa' },
-                      ]
-                    : [
-                        { value: 'Retail', label: 'Retail' },
-                        { value: 'Office', label: 'Office' },
-                        { value: 'Industrial', label: 'Industrial' },
-                        { value: 'Warehouse', label: 'Warehouse' },
-                      ]
-                }
-              />
-            </div>
+          {/* Segmented Category Buttons (Residential / Commercial) */}
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                setPropertyCategory('Residential');
+                setPropertyType('Apartment');
+              }}
+              className={cn(
+                'h-11 rounded-xl font-semibold text-sm transition-all duration-150 border',
+                propertyCategory === 'Residential'
+                  ? 'bg-[#008F83] text-white border-transparent shadow-xs'
+                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-[#008F83]/40'
+              )}
+            >
+              Residential
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPropertyCategory('Commercial');
+                setPropertyType('Office');
+              }}
+              className={cn(
+                'h-11 rounded-xl font-semibold text-sm transition-all duration-150 border',
+                propertyCategory === 'Commercial'
+                  ? 'bg-[#008F83] text-white border-transparent shadow-xs'
+                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-[#008F83]/40'
+              )}
+            >
+              Commercial
+            </button>
           </div>
 
-          {/* Key Features & Capacity Section */}
-          <div className="space-y-4 pt-2 border-t border-admin-border">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-admin-muted flex items-center gap-1.5">
-              <BedDouble className="w-3.5 h-3.5 text-admin-primary" /> Key Features & Capacity
-            </h4>
-
-            <div className="grid grid-cols-3 gap-3">
-              <Input
-                label="Bedrooms"
-                type="number"
-                min="0"
-                value={bedrooms}
-                onChange={(e) => setBedrooms(e.target.value)}
-                placeholder="e.g. 3"
-              />
-              <Input
-                label="Bathrooms"
-                type="number"
-                min="0"
-                step="0.5"
-                value={bathrooms}
-                onChange={(e) => setBathrooms(e.target.value)}
-                placeholder="e.g. 2"
-              />
-              <Input
-                label="Car Spaces"
-                type="number"
-                min="0"
-                value={carSpaces}
-                onChange={(e) => setCarSpaces(e.target.value)}
-                placeholder="e.g. 1"
-              />
-            </div>
-          </div>
-
-          {/* Advertised Financials Section */}
-          <div className="space-y-4 pt-2 border-t border-admin-border">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-admin-muted flex items-center gap-1.5">
-              <DollarSign className="w-3.5 h-3.5 text-emerald-500" /> Financials & Status
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input
-                label="Advertised Rent ($)"
-                type="number"
-                min="0"
-                value={rentAmount}
-                onChange={(e) => setRentAmount(e.target.value)}
-                placeholder="e.g. 650"
-              />
-
-              <Select
-                label="Payment Frequency"
-                value={paymentFrequency}
-                onChange={(e) => setPaymentFrequency(e.target.value)}
-                options={[
-                  { value: 'Weekly', label: 'Weekly' },
-                  { value: 'Fortnightly', label: 'Fortnightly' },
-                  { value: 'Monthly', label: 'Monthly' },
-                ]}
-              />
-            </div>
+          {/* Property Type & Status */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select
+              label="Property Type"
+              value={propertyType}
+              onChange={(e) => setPropertyType(e.target.value)}
+              className="bg-white dark:bg-slate-800"
+              options={
+                propertyCategory === 'Residential'
+                  ? [
+                      { value: 'Apartment', label: 'Apartment' },
+                      { value: 'House', label: 'House' },
+                      { value: 'Townhouse', label: 'Townhouse' },
+                      { value: 'Unit', label: 'Unit' },
+                    ]
+                  : [
+                      { value: 'Office', label: 'Office' },
+                      { value: 'Retail', label: 'Retail' },
+                      { value: 'Industrial', label: 'Industrial' },
+                      { value: 'Warehouse', label: 'Warehouse' },
+                    ]
+              }
+            />
 
             <Select
-              label="Property Status"
+              label="Status"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
+              className="bg-white dark:bg-slate-800"
               options={[
-                { value: 'active', label: 'Active Asset' },
-                { value: 'draft', label: 'Draft / Setup Pending' },
-                { value: 'archived', label: 'Archived / Decommissioned' },
+                { value: 'active', label: 'Active' },
+                { value: 'draft', label: 'Draft' },
+                { value: 'archived', label: 'Archived' },
               ]}
             />
           </div>
 
-          {/* Description & Overview Section */}
-          <div className="space-y-4 pt-2 border-t border-admin-border">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-admin-muted flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-admin-primary" /> Property Description & Notes
-            </h4>
-            <Textarea
-              label="Description / Special Notes"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add key features, inspection notes, or internal details for this property..."
-              rows={3}
+          {/* Beds, Baths, Cars */}
+          <div className="grid grid-cols-3 gap-3">
+            <Input
+              label="Beds"
+              type="number"
+              min="0"
+              value={bedrooms}
+              onChange={(e) => setBedrooms(e.target.value)}
+              placeholder="e.g. 2"
+              className="bg-white dark:bg-slate-800 text-center"
+            />
+            <Input
+              label="Baths"
+              type="number"
+              min="0"
+              step="0.5"
+              value={bathrooms}
+              onChange={(e) => setBathrooms(e.target.value)}
+              placeholder="e.g. 2"
+              className="bg-white dark:bg-slate-800 text-center"
+            />
+            <Input
+              label="Cars"
+              type="number"
+              min="0"
+              value={carSpaces}
+              onChange={(e) => setCarSpaces(e.target.value)}
+              placeholder="e.g. 1"
+              className="bg-white dark:bg-slate-800 text-center"
+            />
+          </div>
+
+          {/* Advertised Rent */}
+          <div>
+            <Input
+              label="Advertised Rent ($)"
+              type="number"
+              min="0"
+              value={rentAmount}
+              onChange={(e) => setRentAmount(e.target.value)}
+              placeholder="e.g. 650"
+              leftIcon={<span className="text-xs font-bold">$</span>}
+              className="bg-white dark:bg-slate-800"
             />
           </div>
         </div>
-      </Drawer>
+
+        {/* Footer Actions */}
+        <div className="flex items-center gap-3 mt-6 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSaving}
+            className="flex-1 h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors focus:outline-none"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex-1 h-12 rounded-xl bg-[#008F83] hover:bg-[#007A70] text-white font-semibold text-sm shadow-md transition-all duration-150 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#008F83]/25 active:scale-[0.99]"
+          >
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
 
       <ConfirmDialog
         isOpen={showDeleteConfirm}
@@ -478,6 +492,7 @@ export function PropertyDrawer({
         confirmLabel="Delete Property"
         variant="danger"
       />
-    </>
+    </div>,
+    document.body
   );
 }

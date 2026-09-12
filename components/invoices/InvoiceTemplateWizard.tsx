@@ -564,13 +564,14 @@ export function InvoiceTemplateWizard({
                     onChange={(e: any) => setLayoutStyle(e.target.value)}
                     className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-xs focus:border-admin-primary focus:outline-none focus:ring-1 focus:ring-admin-primary"
                   >
-                    <option value="classic">Classic Editorial</option>
-                    <option value="modern">Modern Sleek</option>
-                    <option value="minimalist">Minimalist Clean</option>
-                    <option value="corporate">Corporate Navy</option>
-                    <option value="elegant">Elegant Executive</option>
-                    <option value="creative">Creative Dynamic</option>
-                    <option value="monochrome">Monochrome High-Contrast</option>
+                    <option value="classic">Classic Clean</option>
+                    <option value="modern">Modern Slate</option>
+                    <option value="minimalist">Minimalist Line</option>
+                    <option value="corporate">Corporate Blue</option>
+                    <option value="creative">Creative Studio</option>
+                    <option value="elegant">Elegant Serif</option>
+                    <option value="google">Google Material</option>
+                    <option value="monochrome">Monochrome Dark</option>
                   </select>
                 </div>
 

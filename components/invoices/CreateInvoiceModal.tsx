@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import {
   X,
   Plus,
@@ -22,8 +23,10 @@ import {
   ShieldCheck,
   ChevronDown,
   ChevronUp,
+  LayoutTemplate,
+  Building2,
 } from 'lucide-react';
-import { Button } from '@/components/admin/ui';
+import { Button, Input, Select, Textarea } from '@/components/admin/ui';
 import { CreateInvoiceDTO, UpdateInvoiceDTO, InvoiceDTO } from '@/modules/invoices';
 import {
   PREDEFINED_INVOICE_TEMPLATES,
@@ -31,7 +34,7 @@ import {
   getPredefinedTemplateById,
 } from '@/modules/invoices/domain/constants/predefined-templates';
 import { formatCurrency, SUPPORTED_CURRENCIES } from '@/modules/invoices/domain/value-objects/currency';
-import { fetchDashboardProperties, fetchAllWorkspaceLeases } from '@/app/actions/dashboard';
+import { fetchDashboardProperties, fetchAllWorkspaceLeases, fetchDashboardLeases } from '@/app/actions/dashboard';
 import { getInvoiceDownloadUrlAction, generateInvoiceDocumentAction, sendInvoiceEmailAction } from '@/app/actions/invoices';
 import { LiveInvoiceRenderer } from './LiveInvoiceRenderer';
 import {
@@ -57,6 +60,13 @@ interface CreateInvoiceModalProps {
   initialTemplateId?: string;
 }
 
+const WIZARD_STEPS = [
+  { idx: 0, label: '1. Invoice Type' },
+  { idx: 1, label: '2. Template' },
+  { idx: 2, label: '3. Details' },
+  { idx: 3, label: '4. Preview & Issue' },
+];
+
 export function CreateInvoiceModal({
   isOpen,
   onClose,
@@ -67,8 +77,9 @@ export function CreateInvoiceModal({
 }: CreateInvoiceModalProps) {
   const isEditMode = Boolean(invoiceToEdit);
 
-  // 3-Step Wizard: 0 = Choose Template, 1 = Invoice Details, 2 = Live Preview & Send
-  const [step, setStep] = useState<number>(isEditMode ? 1 : 0);
+  // 4-Step Wizard: 0 = Invoice Type, 1 = Choose Template, 2 = Invoice Details, 3 = Live Preview & Send
+  const [step, setStep] = useState<number>(isEditMode ? 2 : 0);
+  const [detailSubStep, setDetailSubStep] = useState<number>(0);
   const [selectedTemplate, setSelectedTemplate] = useState<PredefinedInvoiceTemplate>(() => {
     return getPredefinedTemplateById(initialTemplateId || 'template_classic');
   });
@@ -80,6 +91,7 @@ export function CreateInvoiceModal({
 
   useEffect(() => {
     if (!isOpen) return;
+    setDetailSubStep(0);
     const updateTimer = () => {
       setAuCurrentTimeStr(formatAuDisplayDateTime(new Date(), true));
     };
@@ -97,7 +109,7 @@ export function CreateInvoiceModal({
   );
 
   // Issuer (Issued By) Details - Defaults from workspace / business identity
-  const [isEditingIssuer, setIsEditingIssuer] = useState(false);
+  const [isEditingIssuer, setIsEditingIssuer] = useState(true);
   const [issuerName, setIssuerName] = useState('Property Ledge Management');
   const [issuerEmail, setIssuerEmail] = useState('billing@propertyledge.com.au');
   const [issuerPhone, setIssuerPhone] = useState('+61 2 9000 0000');
@@ -154,18 +166,31 @@ export function CreateInvoiceModal({
   // Load properties & leases on open
   useEffect(() => {
     if (isOpen) {
-      setStep(isEditMode ? 1 : 0);
+      setStep(isEditMode ? 2 : 0);
       setError(null);
       setActionSuccessMessage(null);
 
-      fetchDashboardProperties().then((res: any) => {
-        if (Array.isArray(res)) setProperties(res);
-        else if (res?.success && res?.data) setProperties(res.data);
-      });
-      fetchAllWorkspaceLeases().then((res: any) => {
-        if (Array.isArray(res)) setLeases(res);
-        else if (res?.success && res?.data) setLeases(res.data);
-      });
+      const loadData = async () => {
+        try {
+          const props = await fetchDashboardProperties();
+          if (Array.isArray(props)) setProperties(props);
+          else if (props && (props as any).data && Array.isArray((props as any).data)) setProperties((props as any).data);
+        } catch (e) {
+          console.error('Error loading properties:', e);
+        }
+
+        try {
+          let leaseData = await fetchAllWorkspaceLeases();
+          if (!Array.isArray(leaseData) || leaseData.length === 0) {
+            leaseData = await fetchDashboardLeases();
+          }
+          if (Array.isArray(leaseData)) setLeases(leaseData);
+          else if (leaseData && (leaseData as any).data && Array.isArray((leaseData as any).data)) setLeases((leaseData as any).data);
+        } catch (e) {
+          console.error('Error loading leases:', e);
+        }
+      };
+      loadData();
 
       if (invoiceToEdit) {
         setInvoiceType(invoiceToEdit.leaseId ? 'lease' : 'standalone');
@@ -240,6 +265,15 @@ export function CreateInvoiceModal({
         if (name) setRecipientName(name);
         if (t.email) setRecipientEmail(t.email);
         if (t.phone) setRecipientPhone(t.phone);
+      }
+      if (found.property) {
+        const addr = [
+          found.property.address_line_1,
+          found.property.city || found.property.suburb,
+          found.property.state,
+          found.property.postal_code,
+        ].filter(Boolean).join(', ');
+        if (addr) setRecipientAddress(addr);
       }
       const rentAmt = Number(found.rent_amount || found.rentAmount || 0);
       setItems([
@@ -405,60 +439,74 @@ export function CreateInvoiceModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/75 backdrop-blur-md animate-in fade-in">
-      <div className="bg-admin-surface border border-admin-border text-admin-foreground rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in font-sans">
+      <div className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-3xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
         
         {/* Top Header & Wizard Stepper */}
-        <div className="px-6 py-4 border-b border-admin-border bg-admin-surface-subtle/70 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-admin-primary/10 text-admin-primary border border-admin-primary/20">
+            <div className="p-2.5 rounded-2xl bg-[#008F83]/10 text-[#008F83] border border-[#008F83]/20 shrink-0">
               <Calculator className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-admin-foreground flex items-center gap-2">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 {isEditMode ? `Edit Invoice ${invoiceToEdit?.invoiceNumber}` : 'Create New Invoice'}
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-admin-primary/10 text-admin-primary border border-admin-primary/20">
-                  Fixed 5-Template System
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#008F83]/10 text-[#008F83] border border-[#008F83]/20">
+                  {invoiceType === 'lease' ? 'Lease Linked' : 'Standalone'}
                 </span>
               </h2>
-              <p className="text-xs text-admin-muted mt-0.5">
-                Simple 3-Step Process: Select Template → Fill Details → Preview & Send
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {WIZARD_STEPS[step]?.label} · PropertyLedge Invoicing
               </p>
             </div>
           </div>
 
           {/* Stepper Indicator */}
-          <div className="hidden sm:flex items-center gap-2 text-xs font-bold">
-            {[
-              { idx: 0, label: '1. Select Template' },
-              { idx: 1, label: '2. Invoice Info' },
-              { idx: 2, label: '3. Preview & Issue' },
-            ].map((s) => (
-              <button
-                key={s.idx}
-                type="button"
-                onClick={() => {
-                  if (s.idx === 2 && !validateStep2()) return;
-                  setStep(s.idx);
-                }}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 border',
-                  step === s.idx
-                    ? 'bg-admin-primary text-white border-admin-primary shadow-xs'
-                    : step > s.idx
-                    ? 'bg-admin-surface-subtle text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                    : 'bg-admin-surface text-admin-muted border-admin-border opacity-60'
+          <div className="hidden sm:flex items-center gap-1.5 md:gap-2 text-xs font-bold">
+            {WIZARD_STEPS.map((s, i) => (
+              <React.Fragment key={s.idx}>
+                {i > 0 && (
+                  <div
+                    className={cn(
+                      'h-0.5 w-3 md:w-5 transition-colors',
+                      step >= s.idx ? 'bg-[#008F83]' : 'bg-slate-200 dark:bg-slate-800'
+                    )}
+                  />
                 )}
-              >
-                {step > s.idx && <Check className="w-3.5 h-3.5" />}
-                <span>{s.label}</span>
-              </button>
+                <button
+                  type="button"
+                  disabled={s.idx > step && (s.idx > 2 || (s.idx === 3 && !validateStep2()))}
+                  onClick={() => {
+                    if (s.idx === 3 && !validateStep2()) return;
+                    setStep(s.idx);
+                  }}
+                  className={cn(
+                    'px-2.5 py-1 rounded-xl transition-all flex items-center gap-1.5 text-xs font-bold border',
+                    step === s.idx
+                      ? 'bg-[#008F83] text-white border-[#008F83] shadow-xs'
+                      : step > s.idx
+                      ? 'bg-[#008F83]/10 text-[#008F83] border-[#008F83]/30 hover:bg-[#008F83]/20'
+                      : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-800 opacity-60'
+                  )}
+                >
+                  {step > s.idx ? (
+                    <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                  ) : (
+                    <span className="w-4 h-4 rounded-full flex items-center justify-center text-[10px]">
+                      {s.idx + 1}
+                    </span>
+                  )}
+                  <span className="hidden md:inline">{s.label.split('. ')[1]}</span>
+                </button>
+              </React.Fragment>
             ))}
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className="text-admin-muted hover:text-admin-foreground p-1.5 rounded-lg hover:bg-admin-surface-subtle transition-colors"
+            className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+            aria-label="Close dialog"
           >
             <X className="w-5 h-5" />
           </button>
@@ -476,18 +524,219 @@ export function CreateInvoiceModal({
         <div className="p-6 overflow-y-auto flex-1 space-y-6 text-sm">
           
           {/* ═══════════════════════════════════════════════════════
-              STEP 1: SELECT 1 OF 5 FIXED PREDEFINED TEMPLATES
+              STEP 0: CHOOSE INVOICE TYPE (STANDALONE VS PROPERTY LEASE RENT)
              ═══════════════════════════════════════════════════════ */}
           {step === 0 && (
+            <div className="space-y-6 py-2">
+              <div className="text-center max-w-xl mx-auto mb-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#008F83]/10 text-[#008F83] text-xs font-bold border border-[#008F83]/20 mb-2">
+                  <Sparkles className="w-3.5 h-3.5" /> Step 1 of 4 · Invoice Workflow
+                </span>
+                <h3 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                  Select Invoice Category
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  Choose how you want to bill this invoice. You can bill an independent client or link directly to an active property tenancy.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto">
+                {/* Option 1: Independent Customer Invoice */}
+                <div
+                  onClick={() => setInvoiceType('standalone')}
+                  className={cn(
+                    'cursor-pointer rounded-3xl p-6 border-2 transition-all flex flex-col justify-between relative group hover:shadow-xl',
+                    invoiceType === 'standalone'
+                      ? 'border-[#008F83] bg-[#008F83]/5 dark:bg-[#008F83]/10 shadow-lg ring-4 ring-[#008F83]/15'
+                      : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700 shadow-sm'
+                  )}
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className={cn(
+                        'w-12 h-12 rounded-2xl flex items-center justify-center transition-colors',
+                        invoiceType === 'standalone'
+                          ? 'bg-[#008F83] text-white shadow-md'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 group-hover:bg-[#008F83]/10 group-hover:text-[#008F83]'
+                      )}>
+                        <User className="w-6 h-6" />
+                      </div>
+                      <span className={cn(
+                        'text-[10.5px] font-bold px-2.5 py-1 rounded-full border',
+                        invoiceType === 'standalone'
+                          ? 'bg-[#008F83]/15 text-[#008F83] border-[#008F83]/30'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                      )}>
+                        Standard Direct
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-[#008F83] transition-colors">
+                        Independent Customer Invoice
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+                        Bill external clients, contractors, or customers directly for consulting, maintenance services, or custom ad-hoc charges.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs text-slate-600 dark:text-slate-300">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className={cn('w-4 h-4', invoiceType === 'standalone' ? 'text-[#008F83]' : 'text-slate-400')} />
+                        <span>No lease or tenancy linkage required</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className={cn('w-4 h-4', invoiceType === 'standalone' ? 'text-[#008F83]' : 'text-slate-400')} />
+                        <span>Custom client recipient information</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className={cn('w-4 h-4', invoiceType === 'standalone' ? 'text-[#008F83]' : 'text-slate-400')} />
+                        <span>Itemized line items with custom tax & rates</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                    <span className={cn(
+                      'text-xs font-bold transition-colors',
+                      invoiceType === 'standalone' ? 'text-[#008F83]' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'
+                    )}>
+                      {invoiceType === 'standalone' ? '✓ Selected Category' : 'Click to select'}
+                    </span>
+                    <div className={cn(
+                      'w-6 h-6 rounded-full flex items-center justify-center transition-all',
+                      invoiceType === 'standalone'
+                        ? 'bg-[#008F83] text-white shadow-xs'
+                        : 'border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-transparent'
+                    )}>
+                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Option 2: Property Lease Rent Invoice */}
+                <div
+                  onClick={() => setInvoiceType('lease')}
+                  className={cn(
+                    'cursor-pointer rounded-3xl p-6 border-2 transition-all flex flex-col justify-between relative group hover:shadow-xl',
+                    invoiceType === 'lease'
+                      ? 'border-[#008F83] bg-[#008F83]/5 dark:bg-[#008F83]/10 shadow-lg ring-4 ring-[#008F83]/15'
+                      : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700 shadow-sm'
+                  )}
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className={cn(
+                        'w-12 h-12 rounded-2xl flex items-center justify-center transition-colors',
+                        invoiceType === 'lease'
+                          ? 'bg-[#008F83] text-white shadow-md'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 group-hover:bg-[#008F83]/10 group-hover:text-[#008F83]'
+                      )}>
+                        <Building2 className="w-6 h-6" />
+                      </div>
+                      <span className={cn(
+                        'text-[10.5px] font-bold px-2.5 py-1 rounded-full border',
+                        invoiceType === 'lease'
+                          ? 'bg-[#008F83]/15 text-[#008F83] border-[#008F83]/30'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                      )}>
+                        Tenancy Linked
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-[#008F83] transition-colors">
+                        Property Lease Rent Invoice
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+                        Formal tenancy billing tied to active leases. Automatically synchronizes tenant details, property address, and recurring rent schedule.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs text-slate-600 dark:text-slate-300">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className={cn('w-4 h-4', invoiceType === 'lease' ? 'text-[#008F83]' : 'text-slate-400')} />
+                        <span>Auto-populates tenant & property records</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className={cn('w-4 h-4', invoiceType === 'lease' ? 'text-[#008F83]' : 'text-slate-400')} />
+                        <span>Pre-loads agreed rent amount & frequency</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className={cn('w-4 h-4', invoiceType === 'lease' ? 'text-[#008F83]' : 'text-slate-400')} />
+                        <span>Syncs directly to property financial ledger</span>
+                      </div>
+                    </div>
+
+                    {/* Quick lease selector if lease mode is selected */}
+                    {invoiceType === 'lease' && (
+                      <div
+                        className="mt-3 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-[#008F83]/30 shadow-xs space-y-1.5 animate-in fade-in"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Select
+                          label="Select Active Lease (Optional here or in details)"
+                          value={selectedLeaseId}
+                          onChange={(e) => handleLeaseSelect(e.target.value)}
+                          className="text-xs font-semibold"
+                        >
+                          <option value="">-- Choose active tenancy lease ({leases.length} available) --</option>
+                          {leases.map((l) => {
+                            const tenantRel = l.lease_tenants?.[0] || l.tenants?.[0];
+                            const t = tenantRel?.tenant || tenantRel;
+                            const tenantName = t ? `${t.first_name || ''} ${t.last_name || ''}`.trim() : '';
+                            const propTitle = l.property?.name || l.property?.address_line_1 || 'Property';
+                            return (
+                              <option key={l.id} value={l.id}>
+                                {propTitle} {tenantName ? `(${tenantName})` : ''} • ${l.rent_amount} ({l.rent_frequency || 'monthly'})
+                              </option>
+                            );
+                          })}
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                    <span className={cn(
+                      'text-xs font-bold transition-colors',
+                      invoiceType === 'lease' ? 'text-[#008F83]' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'
+                    )}>
+                      {invoiceType === 'lease' ? '✓ Selected Category' : 'Click to select'}
+                    </span>
+                    <div className={cn(
+                      'w-6 h-6 rounded-full flex items-center justify-center transition-all',
+                      invoiceType === 'lease'
+                        ? 'bg-[#008F83] text-white shadow-xs'
+                        : 'border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-transparent'
+                    )}>
+                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════
+              STEP 1: SELECT INVOICE TEMPLATE
+             ═══════════════════════════════════════════════════════ */}
+          {step === 1 && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <h3 className="text-base font-bold text-admin-foreground">Step 1 — Select Fixed Invoice Template</h3>
-                  <p className="text-xs text-admin-muted mt-0.5">
-                    Choose one of the 5 canonical, application-managed templates. Design and styles are strictly standardized.
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Step 2 — Select Invoice Template</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Choose one of the {PREDEFINED_INVOICE_TEMPLATES.length} canonical designs or customize your blueprints.
                   </p>
                 </div>
-                <span className="text-xs font-semibold text-admin-muted">5 Predefined Templates</span>
+                <Link
+                  href="/dashboard/invoices/templates"
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 transition-all self-start sm:self-auto"
+                >
+                  <LayoutTemplate className="w-3.5 h-3.5 text-[#008F83]" />
+                  Templates & Blueprints
+                </Link>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
@@ -500,8 +749,8 @@ export function CreateInvoiceModal({
                       className={cn(
                         'cursor-pointer rounded-2xl p-5 border transition-all flex flex-col justify-between relative group hover:shadow-lg',
                         isSelected
-                          ? 'border-admin-primary bg-admin-primary/5 ring-2 ring-admin-primary/30 shadow-md'
-                          : 'border-admin-border bg-admin-surface-subtle/50 hover:border-admin-border/80 hover:bg-admin-surface-subtle'
+                          ? 'border-[#008F83] bg-[#008F83]/5 dark:bg-[#008F83]/10 ring-2 ring-[#008F83]/30 shadow-md'
+                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700'
                       )}
                     >
                       <div className="space-y-3">
@@ -511,23 +760,23 @@ export function CreateInvoiceModal({
                             className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-xs"
                             style={{ backgroundColor: tmpl.brandColor }}
                           />
-                          <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-admin-surface border border-admin-border text-admin-muted">
+                          <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
                             {tmpl.badge}
                           </span>
                         </div>
 
                         {/* Title & Description */}
                         <div>
-                          <h4 className="font-bold text-sm text-admin-foreground group-hover:text-admin-primary transition-colors">
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white group-hover:text-[#008F83] transition-colors">
                             {tmpl.name}
                           </h4>
-                          <p className="text-xs text-admin-muted mt-1 leading-relaxed">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                             {tmpl.description}
                           </p>
                         </div>
 
                         {/* Style Swatches Preview */}
-                        <div className="flex items-center gap-2 pt-2 border-t border-admin-border/50 text-[11px] text-admin-muted font-mono">
+                        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                           <div className="flex items-center gap-1">
                             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tmpl.brandColor }} />
                             <span>Brand</span>
@@ -536,23 +785,23 @@ export function CreateInvoiceModal({
                             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tmpl.accentColor }} />
                             <span>Accent</span>
                           </div>
-                          <span className="ml-auto text-[10px] text-admin-muted capitalize">
+                          <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 capitalize">
                             {tmpl.layoutStyle}
                           </span>
                         </div>
                       </div>
 
                       {/* Selected indicator */}
-                      <div className="mt-4 pt-3 flex items-center justify-between border-t border-admin-border/50">
-                        <span className={cn('text-xs font-bold', isSelected ? 'text-admin-primary' : 'text-admin-muted')}>
+                      <div className="mt-4 pt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80">
+                        <span className={cn('text-xs font-bold', isSelected ? 'text-[#008F83]' : 'text-slate-400')}>
                           {isSelected ? '✓ Selected Template' : 'Click to select'}
                         </span>
                         <div
                           className={cn(
                             'w-5 h-5 rounded-full flex items-center justify-center border transition-colors',
                             isSelected
-                              ? 'bg-admin-primary text-white border-admin-primary'
-                              : 'border-admin-border bg-admin-surface text-transparent'
+                              ? 'bg-[#008F83] text-white border-[#008F83]'
+                              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-transparent'
                           )}
                         >
                           <Check className="w-3 h-3" />
@@ -568,449 +817,498 @@ export function CreateInvoiceModal({
           {/* ═══════════════════════════════════════════════════════
               STEP 2: INVOICE INFORMATION & LINE ITEMS
              ═══════════════════════════════════════════════════════ */}
-          {step === 1 && (
+          {step === 2 && (
             <div className="space-y-6">
               
-              {/* Type Switcher */}
-              <div className="flex bg-admin-surface-subtle p-1 rounded-xl border border-admin-border">
+              {/* Type Indicator Banner (Selection choice made at opening, no internal tabs) */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#008F83]/10 text-[#008F83] flex items-center justify-center shrink-0">
+                    {invoiceType === 'lease' ? <Building2 className="w-5 h-5" /> : <User className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">
+                        {invoiceType === 'lease' ? 'Property Lease Rent Invoice' : 'Independent Customer Invoice'}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#008F83]/10 text-[#008F83] border border-[#008F83]/20">
+                        {invoiceType === 'lease' ? 'Tenancy Linked' : 'Standard Direct'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      {invoiceType === 'lease'
+                        ? selectedLeaseId
+                          ? `Linked to: ${leases.find((l) => l.id === selectedLeaseId)?.property?.name || 'Selected Lease'}`
+                          : 'Linked to property lease & tenant records'
+                        : 'Independent billing without property tenancy association'}
+                    </p>
+                  </div>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setInvoiceType('standalone')}
-                  className={cn(
-                    'flex-1 py-2 px-4 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-2',
-                    invoiceType === 'standalone'
-                      ? 'bg-admin-surface text-admin-foreground shadow-xs border border-admin-border'
-                      : 'text-admin-muted hover:text-admin-foreground'
-                  )}
+                  onClick={() => setStep(0)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[#008F83] hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors self-start sm:self-auto"
                 >
-                  <User className="w-3.5 h-3.5" />
-                  Independent Customer Invoice (Standard)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setInvoiceType('lease')}
-                  className={cn(
-                    'flex-1 py-2 px-4 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-2',
-                    invoiceType === 'lease'
-                      ? 'bg-admin-surface text-admin-foreground shadow-xs border border-admin-border'
-                      : 'text-admin-muted hover:text-admin-foreground'
-                  )}
-                >
-                  <Building className="w-3.5 h-3.5" />
-                  Property Lease Rent Invoice
+                  Change Category
                 </button>
               </div>
 
-              {/* Lease Picker if in lease mode */}
-              {invoiceType === 'lease' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-admin-surface-subtle border border-admin-border rounded-xl">
-                  <div>
-                    <label className="block text-xs font-bold text-admin-foreground mb-1.5">Select Active Lease</label>
-                    <select
-                      value={selectedLeaseId}
-                      onChange={(e) => handleLeaseSelect(e.target.value)}
-                      className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary"
-                    >
-                      <option value="">-- Choose active lease --</option>
-                      {leases.map((l) => (
-                        <option key={l.id} value={l.id}>
-                          {l.property?.name || 'Property'} • Rent: ${l.rent_amount} ({l.rent_frequency})
-                        </option>
-                      ))}
-                    </select>
+              {/* Sub-Workflow Progress Navigation (Breaks details into 3 bite-sized, clean stages) */}
+              <div className="grid grid-cols-3 gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/70">
+                <button
+                  type="button"
+                  onClick={() => setDetailSubStep(0)}
+                  className={cn(
+                    'py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2',
+                    detailSubStep === 0
+                      ? 'bg-white dark:bg-slate-800 text-[#008F83] shadow-xs border border-slate-200 dark:border-slate-700'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  )}
+                >
+                  <User className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">1. Parties & Identity</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailSubStep(1)}
+                  className={cn(
+                    'py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2',
+                    detailSubStep === 1
+                      ? 'bg-white dark:bg-slate-800 text-[#008F83] shadow-xs border border-slate-200 dark:border-slate-700'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  )}
+                >
+                  <Calendar className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">2. Schedule & Dates</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailSubStep(2)}
+                  className={cn(
+                    'py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2',
+                    detailSubStep === 2
+                      ? 'bg-white dark:bg-slate-800 text-[#008F83] shadow-xs border border-slate-200 dark:border-slate-700'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  )}
+                >
+                  <FileText className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">3. Line Items & Terms</span>
+                </button>
+              </div>
+
+              {/* ──── SUB-STEP 1: PARTIES & IDENTITY ──── */}
+              {detailSubStep === 0 && (
+                <div className="space-y-4 animate-in fade-in">
+                  {/* Lease Picker if in lease mode */}
+                  {invoiceType === 'lease' && (
+                    <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-[#008F83]" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Active Tenancy & Lease Linkage
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Select
+                          label="Select Active Lease *"
+                          value={selectedLeaseId}
+                          onChange={(e) => handleLeaseSelect(e.target.value)}
+                        >
+                          <option value="">-- Choose active lease ({leases.length} available) --</option>
+                          {leases.map((l) => {
+                            const tenantRel = l.lease_tenants?.[0] || l.tenants?.[0];
+                            const t = tenantRel?.tenant || tenantRel;
+                            const tenantName = t ? `${t.first_name || ''} ${t.last_name || ''}`.trim() : '';
+                            return (
+                              <option key={l.id} value={l.id}>
+                                {l.property?.name || 'Property'} {tenantName ? `(${tenantName})` : ''} • ${l.rent_amount} ({l.rent_frequency || 'monthly'})
+                              </option>
+                            );
+                          })}
+                        </Select>
+                        <Select
+                          label="Linked Property"
+                          value={selectedPropertyId}
+                          onChange={(e) => setSelectedPropertyId(e.target.value)}
+                        >
+                          <option value="">-- None (Standalone) --</option>
+                          {properties.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name || p.address_line_1}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ─── ISSUED BY SECTION (Business Identity) ─── */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-[#008F83]" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Issued By (Business Identity)
+                        </span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">• Saved Profile Data</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingIssuer(!isEditingIssuer)}
+                        className="text-xs font-bold text-[#008F83] hover:underline flex items-center gap-1"
+                      >
+                        {isEditingIssuer ? 'Collapse Details' : 'Edit Issuer Details'}
+                        {isEditingIssuer ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+
+                    {isEditingIssuer ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1 animate-in fade-in">
+                        <Input
+                          label="Business Name"
+                          type="text"
+                          value={issuerName}
+                          onChange={(e) => setIssuerName(e.target.value)}
+                        />
+                        <Input
+                          label="Business Email"
+                          type="email"
+                          value={issuerEmail}
+                          onChange={(e) => setIssuerEmail(e.target.value)}
+                        />
+                        <Input
+                          label="Business Phone"
+                          type="text"
+                          value={issuerPhone}
+                          onChange={(e) => setIssuerPhone(e.target.value)}
+                        />
+                        <div className="md:col-span-2">
+                          <Input
+                            label="Registered Business Address"
+                            type="text"
+                            value={issuerAddress}
+                            onChange={(e) => setIssuerAddress(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Input
+                            label="ABN / Tax ID"
+                            type="text"
+                            value={issuerTaxId}
+                            onChange={(e) => setIssuerTaxId(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <span className="font-bold text-slate-900 dark:text-white">{issuerName}</span>
+                        <span>• {issuerEmail}</span>
+                        <span>• {issuerPhone}</span>
+                        {issuerTaxId && <span>• {issuerTaxId}</span>}
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-admin-foreground mb-1.5">Linked Property</label>
-                    <select
-                      value={selectedPropertyId}
-                      onChange={(e) => setSelectedPropertyId(e.target.value)}
-                      className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary"
-                    >
-                      <option value="">-- None (Standalone) --</option>
-                      {properties.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
+
+                  {/* ─── ISSUED TO SECTION (Recipient Information) ─── */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-[#008F83]" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Issued To (Recipient Information)
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                      <Input
+                        label="Recipient Name *"
+                        type="text"
+                        value={recipientName}
+                        onChange={(e) => setRecipientName(e.target.value)}
+                        placeholder="e.g. John Smith / Acme Corp"
+                      />
+                      <Input
+                        label="Recipient Email"
+                        type="email"
+                        value={recipientEmail}
+                        onChange={(e) => setRecipientEmail(e.target.value)}
+                        placeholder="john.smith@tenant.com"
+                      />
+                      <Input
+                        label="Recipient Phone"
+                        type="text"
+                        value={recipientPhone}
+                        onChange={(e) => setRecipientPhone(e.target.value)}
+                        placeholder="+61 400 000 000"
+                      />
+                      <div className="md:col-span-3">
+                        <Input
+                          label="Billing Address"
+                          type="text"
+                          value={recipientAddress}
+                          onChange={(e) => setRecipientAddress(e.target.value)}
+                          placeholder="Unit 12, 45 Oxford Street, Bondi Junction NSW 2022"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* ─── ISSUED BY SECTION (Pre-filled Reusable Business Info) ─── */}
-              <div className="bg-admin-surface-subtle/50 border border-admin-border rounded-xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-admin-primary" />
-                    <h4 className="font-bold text-xs text-admin-foreground">Issued By (Business Identity)</h4>
-                    <span className="text-[10.5px] text-admin-muted font-medium">• Saved Profile Data</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingIssuer(!isEditingIssuer)}
-                    className="text-xs font-bold text-admin-primary hover:underline flex items-center gap-1"
-                  >
-                    {isEditingIssuer ? 'Done Editing' : 'Edit Issuer Details'}
-                    {isEditingIssuer ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
+              {/* ──── SUB-STEP 2: SCHEDULE & DATES ──── */}
+              {detailSubStep === 1 && (
+                <div className="space-y-4 animate-in fade-in">
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-[#008F83]" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Invoice Schedule & Currency
+                        </span>
+                      </div>
+                      {/* Live AU Eastern Time Indicator Banner */}
+                      <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/25 rounded-xl text-xs">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                          Live AU Time:
+                        </span>
+                        <span className="font-mono font-bold text-emerald-700 dark:text-emerald-300 text-[11px]">
+                          {auCurrentTimeStr}
+                        </span>
+                      </div>
+                    </div>
 
-                {isEditingIssuer ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-admin-border/50 animate-in fade-in">
-                    <div>
-                      <label className="block text-[11px] font-bold text-admin-muted mb-1">Business Name</label>
-                      <input
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                      <Input
+                        label="Invoice Number *"
                         type="text"
-                        value={issuerName}
-                        onChange={(e) => setIssuerName(e.target.value)}
-                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground"
+                        value={invoiceNumber}
+                        onChange={(e) => setInvoiceNumber(e.target.value)}
+                        className="font-mono font-bold"
+                      />
+                      <Select
+                        label="Billing Currency"
+                        value={currency}
+                        onChange={(e) => setCurrency(e.target.value)}
+                      >
+                        {Object.values(SUPPORTED_CURRENCIES).map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.code} — {c.name} ({c.symbol})
+                          </option>
+                        ))}
+                      </Select>
+                      <Input
+                        label="Issue Date (AU) *"
+                        type="date"
+                        value={issueDate}
+                        onChange={(e) => {
+                          const newIssueDate = e.target.value;
+                          setIssueDate(newIssueDate);
+                          if (dueDate && newIssueDate > dueDate) {
+                            setDueDate(newIssueDate);
+                          }
+                        }}
+                      />
+                      <Input
+                        label="Due Date (AU) *"
+                        type="date"
+                        min={issueDate}
+                        value={dueDate}
+                        onChange={(e) => setDueDate(e.target.value)}
                       />
                     </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-admin-muted mb-1">Business Email</label>
-                      <input
-                        type="email"
-                        value={issuerEmail}
-                        onChange={(e) => setIssuerEmail(e.target.value)}
-                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-admin-muted mb-1">Phone</label>
-                      <input
-                        type="text"
-                        value={issuerPhone}
-                        onChange={(e) => setIssuerPhone(e.target.value)}
-                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-[11px] font-bold text-admin-muted mb-1">Registered Address</label>
-                      <input
-                        type="text"
-                        value={issuerAddress}
-                        onChange={(e) => setIssuerAddress(e.target.value)}
-                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-admin-muted mb-1">ABN / Tax ID</label>
-                      <input
-                        type="text"
-                        value={issuerTaxId}
-                        onChange={(e) => setIssuerTaxId(e.target.value)}
-                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-xs text-admin-muted flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <span className="font-bold text-admin-foreground">{issuerName}</span>
-                    <span>• {issuerEmail}</span>
-                    <span>• {issuerPhone}</span>
-                    {issuerTaxId && <span>• {issuerTaxId}</span>}
-                  </div>
-                )}
-              </div>
 
-              {/* ─── ISSUED TO SECTION (Recipient Info) ─── */}
-              <div className="space-y-3">
-                <h4 className="font-bold text-xs text-admin-foreground flex items-center gap-1.5">
-                  <User className="w-4 h-4 text-admin-primary" /> Issued To (Recipient Information)
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-admin-muted mb-1">Recipient Name *</label>
-                    <input
-                      type="text"
-                      value={recipientName}
-                      onChange={(e) => setRecipientName(e.target.value)}
-                      placeholder="e.g. John Smith / Acme Corp"
-                      className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-admin-muted mb-1">Recipient Email</label>
-                    <input
-                      type="email"
-                      value={recipientEmail}
-                      onChange={(e) => setRecipientEmail(e.target.value)}
-                      placeholder="john.smith@tenant.com"
-                      className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-admin-muted mb-1">Recipient Phone</label>
-                    <input
-                      type="text"
-                      value={recipientPhone}
-                      onChange={(e) => setRecipientPhone(e.target.value)}
-                      placeholder="+61 400 000 000"
-                      className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary"
-                    />
-                  </div>
-                  <div className="md:col-span-3">
-                    <label className="block text-xs font-bold text-admin-muted mb-1">Billing Address</label>
-                    <input
-                      type="text"
-                      value={recipientAddress}
-                      onChange={(e) => setRecipientAddress(e.target.value)}
-                      placeholder="Unit 12, 45 Oxford Street, Bondi Junction NSW 2022"
-                      className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* ─── INVOICE DATES, TERMS & CURRENCY ─── */}
-              <div className="space-y-3">
-                {/* Live AU Eastern Time Indicator Banner */}
-                <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl text-xs">
-                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
-                    <span className="relative flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                    </span>
-                    <span>Live AU Time (Sydney / AEST/AEDT):</span>
-                    <span className="font-mono font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30 text-[11.5px]">
-                      {auCurrentTimeStr}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-admin-muted font-medium">
-                    Issue date defaults to Australian business date ({formatAuDisplayDate(getAuTodayString(), 'short')})
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-admin-muted mb-1">Invoice Number</label>
-                    <input
-                      type="text"
-                      value={invoiceNumber}
-                      onChange={(e) => setInvoiceNumber(e.target.value)}
-                      className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm font-mono focus:outline-none focus:border-admin-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-admin-muted mb-1">Currency</label>
-                    <select
-                      value={currency}
-                      onChange={(e) => setCurrency(e.target.value)}
-                      className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary"
-                    >
-                      {Object.values(SUPPORTED_CURRENCIES).map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.code} — {c.name} ({c.symbol})
-                        </option>
+                    {/* Quick Due Date Presets */}
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Quick Terms:</span>
+                      {[
+                        { label: 'Net 7 Days', days: 7 },
+                        { label: 'Net 14 Days', days: 14 },
+                        { label: 'Net 30 Days', days: 30 },
+                      ].map((term) => (
+                        <button
+                          key={term.days}
+                          type="button"
+                          onClick={() => handleSetTerms(term.days)}
+                          className={cn(
+                            'px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all duration-150',
+                            paymentTermsDays === term.days
+                              ? 'bg-[#008F83] text-white border-[#008F83] shadow-xs'
+                              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-[#008F83]/40'
+                          )}
+                        >
+                          {term.label}
+                        </button>
                       ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-admin-muted mb-1">Issue Date (AU)</label>
-                    <input
-                      type="date"
-                      value={issueDate}
-                      onChange={(e) => {
-                        const newIssueDate = e.target.value;
-                        setIssueDate(newIssueDate);
-                        if (dueDate && newIssueDate > dueDate) {
-                          setDueDate(newIssueDate);
-                        }
-                      }}
-                      className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-admin-muted mb-1">Due Date (AU)</label>
-                    <input
-                      type="date"
-                      min={issueDate}
-                      value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary"
-                    />
+                    </div>
                   </div>
                 </div>
+              )}
 
-                {/* Quick Due Date Presets */}
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-admin-muted font-medium">Quick Terms:</span>
-                  {[
-                    { label: 'Net 7 Days', days: 7 },
-                    { label: 'Net 14 Days', days: 14 },
-                    { label: 'Net 30 Days', days: 30 },
-                  ].map((term) => (
-                    <button
-                      key={term.days}
-                      type="button"
-                      onClick={() => handleSetTerms(term.days)}
-                      className={cn(
-                        'px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors',
-                        paymentTermsDays === term.days
-                          ? 'bg-admin-primary/10 text-admin-primary border-admin-primary/30'
-                          : 'bg-admin-surface text-admin-muted border-admin-border hover:text-admin-foreground'
-                      )}
-                    >
-                      {term.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* ──── SUB-STEP 3: LINE ITEMS & TERMS ──── */}
+              {detailSubStep === 2 && (
+                <div className="space-y-4 animate-in fade-in">
+                  {/* ─── LINE ITEMS TABLE ─── */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-[#008F83]" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Invoice Line Items
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddItem}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 flex items-center gap-1.5 transition-colors shadow-2xs"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-[#008F83]" /> Add Line Item
+                      </button>
+                    </div>
 
-              {/* ─── LINE ITEMS TABLE ─── */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-admin-foreground text-xs flex items-center gap-1.5">
-                    <FileText className="w-4 h-4 text-admin-primary" /> Invoice Line Items
-                  </h4>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleAddItem}
-                    className="font-bold border-admin-border hover:bg-admin-surface-subtle text-admin-foreground text-xs"
-                  >
-                    <Plus className="w-3.5 h-3.5 mr-1 text-admin-primary" /> Add Line Item
-                  </Button>
-                </div>
-
-                <div className="border border-admin-border rounded-xl overflow-hidden bg-admin-surface shadow-xs">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-admin-surface-subtle border-b border-admin-border text-admin-muted text-[11px] uppercase font-bold">
-                        <th className="p-3">Description</th>
-                        <th className="p-3 w-20 text-center">Qty</th>
-                        <th className="p-3 w-28 text-right">Unit Rate</th>
-                        <th className="p-3 w-24 text-center">Tax %</th>
-                        <th className="p-3 w-28 text-right">Total</th>
-                        <th className="p-3 w-10 text-center"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-admin-border text-xs">
-                      {items.map((item, idx) => {
-                        const lineBase = Math.max(0, (item.quantity || 0) * (item.unitPrice || 0) - (item.discount || 0));
-                        const lineTotal = lineBase * (1 + (item.taxRate || 0) / 100);
-                        return (
-                          <tr key={idx} className="hover:bg-admin-surface-subtle/50 transition-colors">
-                            <td className="p-2.5">
-                              <input
-                                type="text"
-                                value={item.description}
-                                onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
-                                placeholder="Service description or item description"
-                                className="w-full bg-transparent border border-transparent hover:border-admin-border focus:border-admin-primary text-admin-foreground rounded-lg px-2 py-1 text-xs focus:outline-none"
-                              />
-                            </td>
-                            <td className="p-2.5">
-                              <input
-                                type="number"
-                                min="1"
-                                value={item.quantity}
-                                onChange={(e) => handleItemChange(idx, 'quantity', Number(e.target.value))}
-                                className="w-full bg-transparent border border-transparent hover:border-admin-border focus:border-admin-primary text-admin-foreground text-center rounded-lg px-1 py-1 text-xs focus:outline-none font-mono"
-                              />
-                            </td>
-                            <td className="p-2.5">
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={item.unitPrice}
-                                onChange={(e) => handleItemChange(idx, 'unitPrice', Number(e.target.value))}
-                                className="w-full bg-transparent border border-transparent hover:border-admin-border focus:border-admin-primary text-admin-foreground text-right rounded-lg px-2 py-1 text-xs focus:outline-none font-mono"
-                              />
-                            </td>
-                            <td className="p-2.5">
-                              <input
-                                type="number"
-                                step="0.5"
-                                min="0"
-                                max="100"
-                                value={item.taxRate}
-                                onChange={(e) => handleItemChange(idx, 'taxRate', Number(e.target.value))}
-                                className="w-full bg-transparent border border-transparent hover:border-admin-border focus:border-admin-primary text-admin-foreground text-center rounded-lg px-1 py-1 text-xs focus:outline-none font-mono"
-                              />
-                            </td>
-                            <td className="p-2.5 text-right font-bold text-admin-foreground font-mono">
-                              {formatCurrency(lineTotal, currency)}
-                            </td>
-                            <td className="p-2.5 text-center">
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveItem(idx)}
-                                disabled={items.length <= 1}
-                                className="text-admin-muted hover:text-rose-500 disabled:opacity-20 transition-colors p-1 rounded hover:bg-rose-500/10"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
+                    <div className="border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 shadow-2xs">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">
+                            <th className="p-3.5">Description</th>
+                            <th className="p-3.5 w-24 text-center">Qty</th>
+                            <th className="p-3.5 w-32 text-right">Unit Rate</th>
+                            <th className="p-3.5 w-24 text-center">GST / Tax</th>
+                            <th className="p-3.5 w-32 text-right">Line Total</th>
+                            <th className="p-3.5 w-12 text-center"></th>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+                          {items.map((item, idx) => {
+                            const lineBase = Math.max(0, (item.quantity || 0) * (item.unitPrice || 0) - (item.discount || 0));
+                            const lineTotal = lineBase * (1 + (item.taxRate || 0) / 100);
+                            return (
+                              <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                                <td className="p-3">
+                                  <input
+                                    type="text"
+                                    value={item.description}
+                                    onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
+                                    placeholder="Service description or item details..."
+                                    className="w-full h-10 px-3 rounded-xl bg-slate-50/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white font-medium placeholder:text-slate-400 focus:outline-none focus:border-[#008F83] focus:bg-white dark:focus:bg-slate-800 transition-colors"
+                                  />
+                                </td>
+                                <td className="p-3">
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={item.quantity}
+                                    onChange={(e) => handleItemChange(idx, 'quantity', Number(e.target.value))}
+                                    className="w-full h-10 px-2 rounded-xl bg-slate-50/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white font-medium text-center font-mono focus:outline-none focus:border-[#008F83] focus:bg-white dark:focus:bg-slate-800 transition-colors"
+                                  />
+                                </td>
+                                <td className="p-3">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={item.unitPrice}
+                                    onChange={(e) => handleItemChange(idx, 'unitPrice', Number(e.target.value))}
+                                    className="w-full h-10 px-3 rounded-xl bg-slate-50/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white font-medium text-right font-mono focus:outline-none focus:border-[#008F83] focus:bg-white dark:focus:bg-slate-800 transition-colors"
+                                  />
+                                </td>
+                                <td className="p-3">
+                                  <input
+                                    type="number"
+                                    step="0.5"
+                                    min="0"
+                                    max="100"
+                                    value={item.taxRate}
+                                    onChange={(e) => handleItemChange(idx, 'taxRate', Number(e.target.value))}
+                                    className="w-full h-10 px-2 rounded-xl bg-slate-50/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white font-medium text-center font-mono focus:outline-none focus:border-[#008F83] focus:bg-white dark:focus:bg-slate-800 transition-colors"
+                                  />
+                                </td>
+                                <td className="p-3 text-right font-bold text-slate-900 dark:text-white font-mono text-sm">
+                                  {formatCurrency(lineTotal, currency)}
+                                </td>
+                                <td className="p-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveItem(idx)}
+                                    disabled={items.length <= 1}
+                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-colors disabled:opacity-20 disabled:pointer-events-none"
+                                    title="Remove line item"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
 
-                {/* Calculation Summary Box */}
-                <div className="flex justify-end pt-1">
-                  <div className="w-full md:w-80 bg-admin-surface-subtle border border-admin-border rounded-xl p-4 space-y-2 text-xs">
-                    <div className="flex justify-between text-admin-muted">
-                      <span>Subtotal:</span>
-                      <span className="text-admin-foreground font-mono font-semibold">{formatCurrency(subtotal, currency)}</span>
+                    {/* Calculation Summary Box */}
+                    <div className="flex justify-end pt-2">
+                      <div className="w-full sm:w-80 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-2.5 shadow-xs">
+                        <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
+                          <span>Subtotal:</span>
+                          <span className="text-slate-900 dark:text-white font-mono font-semibold">{formatCurrency(subtotal, currency)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
+                          <span>Estimated Tax (GST/VAT):</span>
+                          <span className="text-slate-900 dark:text-white font-mono font-semibold">{formatCurrency(taxTotal, currency)}</span>
+                        </div>
+                        <div className="border-t border-slate-200 dark:border-slate-700 pt-2.5 flex justify-between items-center text-sm font-bold">
+                          <span className="text-slate-900 dark:text-white">Invoice Total:</span>
+                          <span className="text-[#008F83] font-mono text-base font-extrabold">{formatCurrency(grandTotal, currency)}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex justify-between text-admin-muted">
-                      <span>Estimated Tax (GST/VAT):</span>
-                      <span className="text-admin-foreground font-mono font-semibold">{formatCurrency(taxTotal, currency)}</span>
-                    </div>
-                    <div className="border-t border-admin-border pt-2 flex justify-between text-sm font-bold">
-                      <span className="text-admin-foreground">Invoice Total:</span>
-                      <span className="text-admin-primary font-mono">{formatCurrency(grandTotal, currency)}</span>
+                  </div>
+
+                  {/* ─── NOTES & PAYMENT INSTRUCTIONS ─── */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                      Terms & Payment Instructions
+                    </span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                      <Textarea
+                        label="Special Terms / Notes (Publicly visible)"
+                        rows={3}
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="Add any special conditions, covenants, or clauses..."
+                      />
+                      <Textarea
+                        label="Payment Remittance Instructions"
+                        rows={3}
+                        value={paymentInstructions}
+                        onChange={(e) => setPaymentInstructions(e.target.value)}
+                        placeholder="Bank Transfer: BSB 012-345 | Account 6789 0123 (Property Ledge Trust)..."
+                      />
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Notes & Payment Instructions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-admin-muted mb-1">Notes / Terms</label>
-                  <textarea
-                    rows={2}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="w-full bg-admin-surface border border-admin-border rounded-xl p-3 text-admin-foreground text-xs focus:outline-none focus:border-admin-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-admin-muted mb-1">Payment Instructions</label>
-                  <textarea
-                    rows={2}
-                    value={paymentInstructions}
-                    onChange={(e) => setPaymentInstructions(e.target.value)}
-                    className="w-full bg-admin-surface border border-admin-border rounded-xl p-3 text-admin-foreground text-xs focus:outline-none focus:border-admin-primary"
-                  />
-                </div>
-              </div>
+              )}
             </div>
           )}
 
           {/* ═══════════════════════════════════════════════════════
               STEP 3: LIVE PREVIEW & DOWNLOAD / SEND
              ═══════════════════════════════════════════════════════ */}
-          {step === 2 && (
+          {step === 3 && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <h3 className="text-base font-bold text-admin-foreground">Step 3 — Review Live Invoice Preview</h3>
-                  <p className="text-xs text-admin-muted">
-                    Rendered using template <span className="font-bold text-admin-primary">{selectedTemplate.name}</span>. Template design is fixed.
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Step 4 — Review Live Invoice Preview</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Rendered using template <span className="font-bold text-[#008F83]">{selectedTemplate.name}</span>.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-admin-muted">Change Template:</span>
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Change Template:</span>
                   <select
                     value={selectedTemplate.id}
                     onChange={(e) => setSelectedTemplate(getPredefinedTemplateById(e.target.value))}
-                    className="bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1 text-xs font-bold text-admin-foreground"
+                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-900 dark:text-white"
                   >
                     {PREDEFINED_INVOICE_TEMPLATES.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -1018,6 +1316,14 @@ export function CreateInvoiceModal({
                       </option>
                     ))}
                   </select>
+                  <Link
+                    href="/dashboard/invoices/templates"
+                    className="px-2.5 py-1 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-1 transition-all"
+                    title="View & Edit All Templates"
+                  >
+                    <LayoutTemplate className="w-3.5 h-3.5 text-[#008F83]" />
+                    <span>Templates</span>
+                  </Link>
                 </div>
               </div>
 
@@ -1052,20 +1358,26 @@ export function CreateInvoiceModal({
         {/* ═══════════════════════════════════════════════════════
             FOOTER ACTIONS
            ═══════════════════════════════════════════════════════ */}
-        <div className="px-6 py-4 border-t border-admin-border bg-admin-surface-subtle/70 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 flex items-center justify-between">
           <div>
             {step > 0 ? (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setStep((s) => s - 1)}
+                onClick={() => {
+                  if (step === 2 && detailSubStep > 0) {
+                    setDetailSubStep((s) => s - 1);
+                  } else {
+                    setStep((s) => s - 1);
+                  }
+                }}
                 disabled={loading}
-                className="font-bold border-admin-border hover:bg-admin-surface text-admin-foreground text-xs"
+                className="font-bold border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs"
               >
                 <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back
               </Button>
             ) : (
-              <Button variant="ghost" size="sm" onClick={onClose} disabled={loading} className="text-admin-muted text-xs">
+              <Button variant="ghost" size="sm" onClick={onClose} disabled={loading} className="text-slate-500 hover:text-slate-700 dark:text-slate-400 text-xs">
                 Cancel
               </Button>
             )}
@@ -1077,34 +1389,21 @@ export function CreateInvoiceModal({
                 variant="primary"
                 size="sm"
                 onClick={() => setStep(1)}
-                className="font-bold shadow-xs text-xs gap-1.5"
+                className="font-bold shadow-xs text-xs gap-1.5 bg-[#008F83] hover:bg-[#008F83]/90 text-white"
               >
-                Continue to Invoice Info <ArrowRight className="w-3.5 h-3.5" />
+                Continue to Select Template <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             )}
 
             {step === 1 && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSaveDraft}
-                  disabled={loading}
-                  className="font-bold border-admin-border hover:bg-admin-surface text-admin-foreground text-xs"
-                >
-                  Save as Draft
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    if (validateStep2()) setStep(2);
-                  }}
-                  className="font-bold shadow-xs text-xs gap-1.5"
-                >
-                  Preview Document <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
-              </>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setStep(2)}
+                className="font-bold shadow-xs text-xs gap-1.5 bg-[#008F83] hover:bg-[#008F83]/90 text-white"
+              >
+                Continue to Invoice Details <ArrowRight className="w-3.5 h-3.5" />
+              </Button>
             )}
 
             {step === 2 && (
@@ -1114,7 +1413,42 @@ export function CreateInvoiceModal({
                   size="sm"
                   onClick={handleSaveDraft}
                   disabled={loading}
-                  className="font-bold border-admin-border hover:bg-admin-surface text-admin-foreground text-xs"
+                  className="font-bold border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs"
+                >
+                  Save Draft
+                </Button>
+                {detailSubStep < 2 ? (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setDetailSubStep((s) => s + 1)}
+                    className="font-bold shadow-xs text-xs gap-1.5 bg-[#008F83] hover:bg-[#008F83]/90 text-white"
+                  >
+                    Next Section <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                ) : (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      if (validateStep2()) setStep(3);
+                    }}
+                    className="font-bold shadow-xs text-xs gap-1.5 bg-[#008F83] hover:bg-[#008F83]/90 text-white"
+                  >
+                    Preview Document <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </>
+            )}
+
+            {step === 3 && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveDraft}
+                  disabled={loading}
+                  className="font-bold border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs"
                 >
                   Save Draft
                 </Button>
@@ -1123,7 +1457,7 @@ export function CreateInvoiceModal({
                   size="sm"
                   onClick={handleIssueAndDownload}
                   disabled={loading}
-                  className="font-bold shadow-xs text-xs gap-1.5"
+                  className="font-bold shadow-xs text-xs gap-1.5 bg-[#008F83] hover:bg-[#008F83]/90 text-white"
                 >
                   <Download className="w-3.5 h-3.5 mr-1" /> Issue & Download PDF
                 </Button>

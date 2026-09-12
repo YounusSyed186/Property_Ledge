@@ -27,6 +27,7 @@ import {
   Ban,
   Trash2,
   Edit3,
+  LayoutTemplate,
 } from 'lucide-react';
 import { ColDef } from 'ag-grid-community';
 import { Button, useToast, ConfirmDialog } from '@/components/admin/ui';
@@ -587,6 +588,17 @@ export function InvoiceList() {
               <LayoutGrid className="w-3.5 h-3.5" />
             </button>
           </div>
+
+          <Link href="/dashboard/invoices/templates">
+            <Button
+              variant="outline"
+              size="sm"
+              className="font-bold border-admin-border hover:bg-admin-surface-subtle text-admin-foreground text-xs flex items-center gap-1.5"
+            >
+              <LayoutTemplate className="w-3.5 h-3.5 text-[#008F83]" />
+              Templates
+            </Button>
+          </Link>
 
           <Button
             onClick={() => {

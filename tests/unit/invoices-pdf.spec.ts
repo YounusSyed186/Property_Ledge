@@ -88,14 +88,15 @@ test.describe('A4 Invoice Document Rendering Pipeline', () => {
     expect(html).toContain('page-break-inside: avoid;');
   });
 
-  test('renders all 7 invoice visual themes with correct typography and colors', () => {
+  test('renders all 8 invoice visual themes with correct typography and colors', () => {
     const themes: InvoiceLayoutStyle[] = [
       'classic',
       'modern',
       'minimalist',
       'corporate',
-      'elegant',
       'creative',
+      'elegant',
+      'google',
       'monochrome',
     ];
 
@@ -109,7 +110,7 @@ test.describe('A4 Invoice Document Rendering Pipeline', () => {
       } else if (theme === 'monochrome') {
         expect(html).toContain('Courier New');
       } else if (theme === 'minimalist') {
-        expect(html).toContain('border-bottom: 2px solid #18181b');
+        expect(html).toContain(`border-bottom: 2px solid ${dto.brandColor}`);
       } else {
         expect(html).toContain('font-family:');
       }

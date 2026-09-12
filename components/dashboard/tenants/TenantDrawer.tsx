@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Button, Input, Select, Textarea, useToast, Drawer, ConfirmDialog } from '@/components/admin/ui';
+import { createPortal } from 'react-dom';
+import { X, Trash2 } from 'lucide-react';
+import { Input, Select, Textarea, useToast, ConfirmDialog } from '@/components/admin/ui';
 import { handleCreateTenant, handleUpdateTenant, handleDeleteTenant } from '@/app/actions/dashboard';
-import { Trash2, User, Mail, Phone, Shield } from 'lucide-react';
-import { Avatar } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
 
 export interface TenantDrawerProps {
   isOpen: boolean;
@@ -47,6 +48,36 @@ export function TenantDrawer({
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [mounted, setMounted] = useState(isOpen);
+  const [animateIn, setAnimateIn] = useState(false);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    let animFrame: number;
+    if (isOpen) {
+      setMounted(true);
+      setAnimateIn(false);
+      animFrame = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setAnimateIn(true));
+      });
+    } else {
+      setAnimateIn(false);
+      timer = setTimeout(() => setMounted(false), 280);
+    }
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(animFrame);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     if (isOpen) {
@@ -111,13 +142,13 @@ export function TenantDrawer({
           emergency_contact_phone: emergencyPhone.trim() || null,
         });
         if (!res.success) throw new Error('Could not update tenant.');
-        success('Tenant Updated', `${firstName} ${lastName}'s profile has been updated.`);
+        success('Tenant Updated', `${firstName} ${lastName}'s profile has been saved.`);
       }
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error(err);
-      showError('Save failed', err.message || 'Could not save tenant.');
+      showError('Save failed', err.message || 'Could not save tenant details.');
     } finally {
       setIsSaving(false);
     }
@@ -141,113 +172,120 @@ export function TenantDrawer({
     }
   };
 
-  return (
-    <>
-      <Drawer
-        isOpen={isOpen}
-        onClose={onClose}
-        title={isCreate ? 'Add Tenant' : `Edit ${tenant?.first_name || ''} ${tenant?.last_name || ''}`}
-        description={isCreate ? 'Add a new resident profile to this property' : 'Update resident contact details and status'}
-        footer={
-          <div className="flex items-center justify-between w-full">
-            {!isCreate && tenant && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowDeleteConfirm(true)}
-                disabled={isSaving}
-                className="text-red-500 hover:text-red-600 hover:bg-red-500/10 border-red-200"
-              >
-                <Trash2 className="w-4 h-4 mr-1.5" /> Archive Tenant
-              </Button>
-            )}
-            <div className="flex items-center gap-2 ml-auto">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={handleSave} disabled={isSaving}>
-                {isSaving ? 'Saving...' : isCreate ? 'Add Tenant' : 'Save Changes'}
-              </Button>
-            </div>
-          </div>
-        }
-      >
-        <div className="space-y-5 p-1">
-          {/* Tenant Avatar Identity Card */}
-          <div className="p-4 rounded-2xl bg-admin-surface-subtle border border-admin-border flex items-center gap-3.5">
-            <Avatar
-              seed={tenant?.id || `${firstName}_${lastName}`}
-              name={`${firstName} ${lastName}`.trim() || 'Tenant Profile'}
-              size="lg"
-              decorative
-            />
-            <div className="min-w-0 flex-1">
-              <h3 className="font-extrabold text-base text-admin-foreground truncate">
-                {`${firstName} ${lastName}`.trim() || 'New Resident'}
-              </h3>
-              <p className="text-xs text-admin-muted truncate mt-0.5">
-                {email || 'No email specified'}
-              </p>
-            </div>
-          </div>
+  if (!mounted || typeof document === 'undefined') return null;
 
-          <div className="space-y-4">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-admin-muted flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-admin-primary" /> Personal Information
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <Input
-                  label="First Name *"
-                  value={firstName}
-                  onChange={(e) => {
-                    setFirstName(e.target.value);
-                    if (formErrors.firstName) setFormErrors({ ...formErrors, firstName: '' });
-                  }}
-                  placeholder="e.g. Jane"
-                />
-                {formErrors.firstName && <p className="text-[11px] text-red-500 mt-1">{formErrors.firstName}</p>}
-              </div>
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto font-sans"
+      role="dialog"
+      aria-modal="true"
+    >
+      {/* Backdrop */}
+      <div
+        className={cn(
+          'fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-out',
+          animateIn ? 'opacity-100' : 'opacity-0'
+        )}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Modal Dialog Card */}
+      <div
+        className={cn(
+          'relative flex max-h-[92vh] w-full max-w-xl flex-col rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xl transition-all duration-200 ease-out z-10 p-6 sm:p-8',
+          animateIn ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-2'
+        )}
+      >
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-5 right-5 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none"
+          aria-label="Close dialog"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Centered Header */}
+        <div className="text-center mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold font-heading tracking-tight text-slate-900 dark:text-white">
+            {isCreate ? 'Add Tenant' : 'Edit Tenant'}
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Update resident contact details and status.
+          </p>
+        </div>
+
+        {/* Form Body */}
+        <div className="flex-1 overflow-y-auto space-y-4 px-0.5 py-1">
+          {/* First Name & Last Name */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Input
+                label="First Name *"
+                value={firstName}
+                onChange={(e) => {
+                  setFirstName(e.target.value);
+                  if (formErrors.firstName) setFormErrors({ ...formErrors, firstName: '' });
+                }}
+                placeholder="e.g. Jane"
+                className="bg-white dark:bg-slate-800"
+              />
+              {formErrors.firstName && (
+                <p className="text-[11px] text-[#DC2626] mt-1 px-1 font-medium">{formErrors.firstName}</p>
+              )}
+            </div>
+
+            <div>
               <Input
                 label="Last Name"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="e.g. Doe"
+                className="bg-white dark:bg-slate-800"
               />
             </div>
           </div>
 
-          <div className="space-y-4 pt-2 border-t border-admin-border">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-admin-muted flex items-center gap-1.5">
-              <Mail className="w-3.5 h-3.5 text-admin-primary" /> Contact Details
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <Input
-                  label="Email Address *"
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (formErrors.email) setFormErrors({ ...formErrors, email: '' });
-                  }}
-                  placeholder="e.g. jane.doe@example.com"
-                />
-                {formErrors.email && <p className="text-[11px] text-red-500 mt-1">{formErrors.email}</p>}
-              </div>
+          {/* Email Address & Phone Number */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Input
+                label="Email Address *"
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (formErrors.email) setFormErrors({ ...formErrors, email: '' });
+                }}
+                placeholder="e.g. jane.doe@example.com"
+                className="bg-white dark:bg-slate-800"
+              />
+              {formErrors.email && (
+                <p className="text-[11px] text-[#DC2626] mt-1 px-1 font-medium">{formErrors.email}</p>
+              )}
+            </div>
+
+            <div>
               <Input
                 label="Phone Number"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="e.g. 0412 345 678"
+                className="bg-white dark:bg-slate-800"
               />
             </div>
+          </div>
 
+          {/* Status */}
+          <div>
             <Select
               label="Status"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
+              className="bg-white dark:bg-slate-800"
               options={[
                 { value: 'active', label: 'Active Resident' },
                 { value: 'inactive', label: 'Inactive / Past Resident' },
@@ -257,38 +295,76 @@ export function TenantDrawer({
             />
           </div>
 
-          <div className="space-y-4 pt-2 border-t border-admin-border">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-admin-muted flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-admin-primary" /> Emergency Contact
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Emergency Contact */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
               <Input
-                label="Contact Name"
+                label="Emergency Contact Name"
                 value={emergencyName}
                 onChange={(e) => setEmergencyName(e.target.value)}
                 placeholder="e.g. Bob Doe (Father)"
+                className="bg-white dark:bg-slate-800"
               />
+            </div>
+
+            <div>
               <Input
-                label="Contact Phone"
+                label="Emergency Contact Phone"
                 type="tel"
                 value={emergencyPhone}
                 onChange={(e) => setEmergencyPhone(e.target.value)}
                 placeholder="e.g. 0400 111 222"
+                className="bg-white dark:bg-slate-800"
               />
             </div>
           </div>
 
-          <div className="space-y-4 pt-2 border-t border-admin-border">
+          {/* Internal Notes */}
+          <div>
             <Textarea
               label="Notes / Special Instructions"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add any internal notes regarding this tenant..."
               rows={3}
+              className="bg-white dark:bg-slate-800"
             />
           </div>
         </div>
-      </Drawer>
+
+        {/* Footer Actions */}
+        <div className="flex items-center gap-3 mt-6 pt-2">
+          {!isCreate && tenant ? (
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={isSaving}
+              className="h-12 px-4 rounded-xl border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 font-semibold text-xs transition-colors flex items-center gap-1.5 focus:outline-none"
+              title="Archive Tenant"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Archive</span>
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSaving}
+            className="flex-1 h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors focus:outline-none"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex-1 h-12 rounded-xl bg-[#008F83] hover:bg-[#007A70] text-white font-semibold text-sm shadow-md transition-all duration-150 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#008F83]/25 active:scale-[0.99]"
+          >
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
 
       <ConfirmDialog
         isOpen={showDeleteConfirm}
@@ -299,6 +375,7 @@ export function TenantDrawer({
         confirmLabel="Archive Tenant"
         variant="danger"
       />
-    </>
+    </div>,
+    document.body
   );
 }

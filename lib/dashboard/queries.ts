@@ -187,29 +187,44 @@ export async function getLeases(propertyId: string) {
 
 export async function getAllWorkspaceLeases(workspaceId?: string | null) {
   const supabase = await createClient();
-  let query = supabase
-    .from('leases')
-    .select(`
-      *,
-      property:properties!inner(id, name, address_line_1, city, suburb, postal_code, state, workspace_id),
-      lease_tenants!lease_tenants_lease_id_fkey(
-        tenant_id, role, is_primary,
-        tenant:tenants!lease_tenants_tenant_id_fkey(id, first_name, last_name, email, phone, status, emergency_contact_name, emergency_contact_phone)
-      )
-    `)
-    .order('created_at', { ascending: false });
+  try {
+    let query = supabase
+      .from('leases')
+      .select(`
+        *,
+        property:properties(id, name, address_line_1, city, suburb, postal_code, state, workspace_id),
+        lease_tenants(
+          tenant_id, role, is_primary,
+          tenant:tenants(id, first_name, last_name, email, phone, status, emergency_contact_name, emergency_contact_phone)
+        )
+      `)
+      .order('created_at', { ascending: false });
 
-  if (workspaceId) {
-    query = query.eq('properties.workspace_id', workspaceId);
-  }
+    if (workspaceId) {
+      query = query.eq('properties.workspace_id', workspaceId);
+    }
 
-  const { data, error } = await query;
+    const { data, error } = await query;
+    if (!error && data && data.length > 0) return data;
 
-  if (error) {
-    console.error('Error fetching all workspace leases:', error);
+    // Fallback query
+    const { data: simpleData, error: simpleError } = await supabase
+      .from('leases')
+      .select(`
+        *,
+        property:properties(id, name, address_line_1, city, suburb, postal_code, state)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (simpleError) {
+      console.error('Error fetching all workspace leases:', error || simpleError);
+      return [];
+    }
+    return simpleData || [];
+  } catch (err) {
+    console.error('Exception in getAllWorkspaceLeases:', err);
     return [];
   }
-  return data || [];
 }
 
 export async function getTenantDetail(propertyId: string, tenantId: string) {

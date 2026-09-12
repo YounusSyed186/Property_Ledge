@@ -17,25 +17,28 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 export function Input({ label, error, helpText, leftIcon, className, id, ...props }: InputProps) {
   const inputId = id || props.name;
   return (
-    <div className="space-y-1">
-      {label && (
-        <label htmlFor={inputId} className="block text-xs font-medium text-foreground">
-          {label}
-        </label>
-      )}
+    <div className="relative pt-2.5">
       <div className="relative">
+        {label && (
+          <label
+            htmlFor={inputId}
+            className="absolute -top-2.5 left-3.5 px-1.5 bg-white dark:bg-slate-800 text-[10.5px] font-medium text-slate-500 dark:text-slate-400 z-10 select-none pointer-events-none rounded-sm transition-colors"
+          >
+            {label}
+          </label>
+        )}
         {leftIcon && (
-          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">
             {leftIcon}
           </span>
         )}
         <input
           id={inputId}
           className={cn(
-            'w-full h-9 px-3 rounded-md bg-surface border text-xs text-foreground placeholder:text-muted transition-all duration-150',
-            'focus:outline-none focus:border-[#008F83] focus:ring-2 focus:ring-[#008F83]/25',
+            'w-full h-12 px-4 rounded-xl bg-white dark:bg-slate-800 border text-[15px] font-medium text-slate-900 dark:text-white placeholder:text-[13px] placeholder:font-normal placeholder:text-slate-400/70 transition-all duration-150',
+            'focus:outline-none focus:border-[#008F83] focus:ring-2 focus:ring-[#008F83]/20',
             'disabled:opacity-50 disabled:pointer-events-none shadow-2xs',
-            leftIcon && 'pl-8',
+            leftIcon && 'pl-10',
             error
               ? 'border-[#DC2626] ring-1 ring-[#DC2626]/20'
               : 'border-[#E2E8F0] dark:border-[#1E293B] hover:border-[#CBD5E1] dark:hover:border-[#334155]',
@@ -47,12 +50,12 @@ export function Input({ label, error, helpText, leftIcon, className, id, ...prop
         />
       </div>
       {error && (
-        <p id={`${inputId}-error`} className="text-[11px] text-[#DC2626] font-medium mt-0.5" role="alert">
+        <p id={`${inputId}-error`} className="text-[11px] text-[#DC2626] font-medium mt-1 px-1" role="alert">
           {error}
         </p>
       )}
       {!error && helpText && (
-        <p id={`${inputId}-help`} className="text-[11px] text-muted mt-0.5">
+        <p id={`${inputId}-help`} className="text-[11px] text-muted mt-1 px-1">
           {helpText}
         </p>
       )}
@@ -74,39 +77,44 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 export function Select({ label, error, helpText, className, id, children, options, ...props }: SelectProps) {
   const selectId = id || props.name;
   return (
-    <div className="space-y-1">
-      {label && (
-        <label htmlFor={selectId} className="block text-xs font-medium text-foreground">
-          {label}
-        </label>
-      )}
-      <select
-        id={selectId}
-        className={cn(
-          'w-full h-9 px-3 rounded-md bg-surface border text-xs text-foreground transition-all duration-150 cursor-pointer shadow-2xs',
-          'focus:outline-none focus:border-[#008F83] focus:ring-2 focus:ring-[#008F83]/25',
-          'disabled:opacity-50 disabled:pointer-events-none',
-          error
-            ? 'border-[#DC2626] ring-1 ring-[#DC2626]/20'
-            : 'border-[#E2E8F0] dark:border-[#1E293B] hover:border-[#CBD5E1] dark:hover:border-[#334155]',
-          className
+    <div className="relative pt-2.5">
+      <div className="relative">
+        {label && (
+          <label
+            htmlFor={selectId}
+            className="absolute -top-2.5 left-3.5 px-1.5 bg-white dark:bg-slate-800 text-[10.5px] font-medium text-slate-500 dark:text-slate-400 z-10 select-none pointer-events-none rounded-sm transition-colors"
+          >
+            {label}
+          </label>
         )}
-        aria-invalid={!!error}
-        {...props}
-      >
-        {children ||
-          options?.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-      </select>
+        <select
+          id={selectId}
+          className={cn(
+            'w-full h-12 px-4 rounded-xl bg-white dark:bg-slate-800 border text-[14.5px] font-medium text-slate-900 dark:text-white transition-all duration-150 cursor-pointer shadow-2xs',
+            'focus:outline-none focus:border-[#008F83] focus:ring-2 focus:ring-[#008F83]/20',
+            'disabled:opacity-50 disabled:pointer-events-none',
+            error
+              ? 'border-[#DC2626] ring-1 ring-[#DC2626]/20'
+              : 'border-[#E2E8F0] dark:border-[#1E293B] hover:border-[#CBD5E1] dark:hover:border-[#334155]',
+            className
+          )}
+          aria-invalid={!!error}
+          {...props}
+        >
+          {children ||
+            options?.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+        </select>
+      </div>
       {error && (
-        <p className="text-[11px] text-[#DC2626] font-medium mt-0.5" role="alert">
+        <p className="text-[11px] text-[#DC2626] font-medium mt-1 px-1" role="alert">
           {error}
         </p>
       )}
-      {!error && helpText && <p className="text-[11px] text-muted mt-0.5">{helpText}</p>}
+      {!error && helpText && <p className="text-[11px] text-muted mt-1 px-1">{helpText}</p>}
     </div>
   );
 }
@@ -124,32 +132,37 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 export function Textarea({ label, error, helpText, className, id, ...props }: TextareaProps) {
   const textareaId = id || props.name;
   return (
-    <div className="space-y-1">
-      {label && (
-        <label htmlFor={textareaId} className="block text-xs font-medium text-foreground">
-          {label}
-        </label>
-      )}
-      <textarea
-        id={textareaId}
-        className={cn(
-          'w-full px-3 py-2 rounded-md bg-surface border text-xs text-foreground placeholder:text-muted transition-all duration-150 resize-y min-h-[80px] shadow-2xs',
-          'focus:outline-none focus:border-[#008F83] focus:ring-2 focus:ring-[#008F83]/25',
-          'disabled:opacity-50 disabled:pointer-events-none',
-          error
-            ? 'border-[#DC2626] ring-1 ring-[#DC2626]/20'
-            : 'border-[#E2E8F0] dark:border-[#1E293B] hover:border-[#CBD5E1] dark:hover:border-[#334155]',
-          className
+    <div className="relative pt-2.5">
+      <div className="relative">
+        {label && (
+          <label
+            htmlFor={textareaId}
+            className="absolute -top-2.5 left-3.5 px-1.5 bg-white dark:bg-slate-800 text-[10.5px] font-medium text-slate-500 dark:text-slate-400 z-10 select-none pointer-events-none rounded-sm transition-colors"
+          >
+            {label}
+          </label>
         )}
-        aria-invalid={!!error}
-        {...props}
-      />
+        <textarea
+          id={textareaId}
+          className={cn(
+            'w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-800 border text-[14.5px] font-medium text-slate-900 dark:text-white placeholder:text-[13px] placeholder:font-normal placeholder:text-slate-400/70 transition-all duration-150 resize-y min-h-[90px] shadow-2xs',
+            'focus:outline-none focus:border-[#008F83] focus:ring-2 focus:ring-[#008F83]/20',
+            'disabled:opacity-50 disabled:pointer-events-none',
+            error
+              ? 'border-[#DC2626] ring-1 ring-[#DC2626]/20'
+              : 'border-[#E2E8F0] dark:border-[#1E293B] hover:border-[#CBD5E1] dark:hover:border-[#334155]',
+            className
+          )}
+          aria-invalid={!!error}
+          {...props}
+        />
+      </div>
       {error && (
-        <p className="text-[11px] text-[#DC2626] font-medium mt-0.5" role="alert">
+        <p className="text-[11px] text-[#DC2626] font-medium mt-1 px-1" role="alert">
           {error}
         </p>
       )}
-      {!error && helpText && <p className="text-[11px] text-muted mt-0.5">{helpText}</p>}
+      {!error && helpText && <p className="text-[11px] text-muted mt-1 px-1">{helpText}</p>}
     </div>
   );
 }

@@ -11,6 +11,7 @@ export type InvoiceLayoutStyle =
   | 'corporate'
   | 'creative'
   | 'elegant'
+  | 'google'
   | 'monochrome';
 
 export type InvoiceTemplateStatus = 'draft' | 'active' | 'paused' | 'archived';
