@@ -26,8 +26,10 @@ import {
   CreditCard,
   ShieldCheck,
 } from 'lucide-react';
-import { Button } from '@/components/admin/ui';
+import { Button, Input, Select, Textarea } from '@/components/admin/ui';
 import { fetchAllWorkspaceLeases } from '@/app/actions/dashboard';
+import { fetchInvoiceTemplatesAction } from '@/app/actions/invoices';
+import { InvoiceTemplateDTO } from '@/modules/invoices';
 import {
   createLeaseAutomationAction,
   createStandaloneInvoiceAutomationAction,
@@ -56,6 +58,7 @@ export function CreateAutomationModal({
 
   // Shared Data
   const [leases, setLeases] = useState<any[]>([]);
+  const [customTemplates, setCustomTemplates] = useState<InvoiceTemplateDTO[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('template_classic');
 
   // Lease Automation Fields
@@ -132,6 +135,11 @@ export function CreateAutomationModal({
           setSelectedLeaseId(list[0].id);
         }
       });
+
+      // Load custom workspace blueprints
+      fetchInvoiceTemplatesAction().then((data) => {
+        if (Array.isArray(data)) setCustomTemplates(data);
+      }).catch(err => console.error('Error fetching custom templates:', err));
     }
   }, [isOpen, preselectedLeaseId]);
 
@@ -165,7 +173,7 @@ export function CreateAutomationModal({
     selectedLease?.property?.address ||
     [selectedLease?.property?.city, selectedLease?.property?.state, selectedLease?.property?.postal_code].filter(Boolean).join(', ') ||
     'Address on file';
-  const resolvedRent = selectedLease?.rent_amount ? `$${Number(selectedLease.rent_amount).toLocaleString()} / ${selectedLease.rent_frequency || 'monthly'}` : 'N/A';
+  const resolvedRent = selectedLease?.rent_amount ? `$${Number(selectedLease.rent_amount).toLocaleString()} / ${selectedLease?.rent_frequency || 'monthly'}` : 'N/A';
   const resolvedDates = selectedLease?.start_date
     ? `${new Date(selectedLease.start_date).toLocaleDateString()} – ${selectedLease.end_date ? new Date(selectedLease.end_date).toLocaleDateString() : 'Periodic'}`
     : 'N/A';
@@ -288,16 +296,16 @@ export function CreateAutomationModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-admin-surface border border-admin-border text-admin-foreground rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-admin-border flex items-center justify-between bg-admin-surface-subtle/50">
+        <div className="px-6 py-4.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-850/50">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-admin-primary/10 text-admin-primary border border-admin-primary/20">
+            <div className="p-2 rounded-xl bg-[#008F83]/10 text-[#008F83] border border-[#008F83]/20">
               <Calendar className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-admin-foreground">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                 {currentStep === 0
                   ? 'Create New Automation'
                   : currentStep === 1
@@ -306,7 +314,7 @@ export function CreateAutomationModal({
                     : 'Configure Invoice Automation'
                   : 'Review & Confirm Automation'}
               </h2>
-              <p className="text-xs text-admin-muted mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 {currentStep === 0
                   ? 'Choose what source you would like to automate'
                   : currentStep === 1
@@ -317,11 +325,77 @@ export function CreateAutomationModal({
           </div>
           <button
             onClick={onClose}
-            className="text-admin-muted hover:text-admin-foreground p-1.5 rounded-lg hover:bg-admin-surface-subtle transition-colors"
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Circular Progress Stepper Navigation Workflow */}
+        <nav aria-label="Automation Setup Progress" className="py-2.5 px-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/50">
+          <div className="flex items-center justify-center max-w-sm mx-auto relative">
+            {/* Connecting line track */}
+            <div className="absolute top-3 left-6 right-6 h-0.5 bg-slate-200 dark:bg-slate-800 -z-0" />
+            <div
+              className="absolute top-3 left-6 h-0.5 bg-[#008F83] -z-0 transition-all duration-300"
+              style={{
+                width:
+                  currentStep === 0
+                    ? '0%'
+                    : currentStep === 1
+                    ? '50%'
+                    : 'calc(100% - 48px)',
+              }}
+            />
+
+            <div className="w-full flex items-center justify-between z-10 px-1">
+              {[
+                { id: 1, name: 'Category' },
+                { id: 2, name: 'Configure' },
+                { id: 3, name: 'Review' },
+              ].map((s, idx) => {
+                const isCurrent = idx === currentStep;
+                const isCompleted = idx < currentStep;
+
+                return (
+                  <div key={s.id} className="flex flex-col items-center group">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isCompleted || (idx === 1 && currentStep === 0)) {
+                          setCurrentStep(idx);
+                        }
+                      }}
+                      className={cn(
+                        'w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-200 cursor-pointer focus:outline-none',
+                        isCurrent
+                          ? 'bg-[#008F83] text-white shadow-xs ring-3 ring-[#008F83]/20 scale-105'
+                          : isCompleted
+                          ? 'bg-[#008F83] text-white shadow-2xs hover:bg-[#008F83]/90'
+                          : 'bg-white dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'
+                      )}
+                      title={`Go to ${s.name}`}
+                    >
+                      {isCompleted ? <Check className="w-3 h-3 stroke-[2.5]" /> : s.id}
+                    </button>
+                    <span
+                      className={cn(
+                        'mt-1 text-[10px] font-medium transition-colors text-center',
+                        isCurrent
+                          ? 'text-[#008F83] font-bold'
+                          : isCompleted
+                          ? 'text-slate-700 dark:text-slate-300'
+                          : 'text-slate-400 dark:text-slate-500'
+                      )}
+                    >
+                      {s.name}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </nav>
 
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-5 flex-1 text-sm">
@@ -335,33 +409,78 @@ export function CreateAutomationModal({
           {/* STEP 0: TYPE SELECTION                                   */}
           {/* ======================================================== */}
           {currentStep === 0 && (
-            <div className="space-y-4">
-              <div className="text-xs font-bold text-admin-foreground uppercase tracking-wider">
-                What would you like to automate?
+            <div className="space-y-6 py-2">
+              <div className="text-center max-w-xl mx-auto mb-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#008F83]/10 text-[#008F83] text-xs font-bold border border-[#008F83]/20 mb-2">
+                  <Sparkles className="w-3.5 h-3.5" /> Step 1 of 3 · Automation Category
+                </span>
+                <h3 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                  Select Automation Category
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  Choose how you want to automate recurring billing or document deliveries.
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-3.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto">
                 {/* Lease Option */}
                 <div
                   onClick={() => {
                     setAutomationType('lease');
                     setCurrentStep(1);
                   }}
-                  className="p-4 rounded-xl border-2 border-admin-border hover:border-admin-primary bg-admin-surface-subtle/60 hover:bg-admin-primary/5 cursor-pointer transition-all flex items-start gap-4 group"
+                  className={cn(
+                    'cursor-pointer rounded-3xl p-6 border-2 transition-all flex flex-col justify-between relative group hover:shadow-xl',
+                    automationType === 'lease'
+                      ? 'border-[#008F83] bg-[#008F83]/5 dark:bg-[#008F83]/10 shadow-lg ring-4 ring-[#008F83]/15'
+                      : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700 shadow-sm'
+                  )}
                 >
-                  <div className="p-3 rounded-xl bg-admin-primary/10 text-admin-primary border border-admin-primary/20 group-hover:bg-admin-primary group-hover:text-white transition-colors">
-                    <Building className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-sm text-admin-foreground">Lease Automation</h3>
-                      <span className="text-[11px] font-semibold text-admin-primary bg-admin-primary/10 px-2 py-0.5 rounded-full">
-                        Recommended for Tenancies
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className={cn(
+                        'w-12 h-12 rounded-2xl flex items-center justify-center transition-colors',
+                        automationType === 'lease'
+                          ? 'bg-[#008F83] text-white shadow-md'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 group-hover:bg-[#008F83]/10 group-hover:text-[#008F83]'
+                      )}>
+                        <Building className="w-6 h-6" />
+                      </div>
+                      <span className={cn(
+                        'text-[10.5px] font-bold px-2.5 py-1 rounded-full border',
+                        automationType === 'lease'
+                          ? 'bg-[#008F83]/15 text-[#008F83] border-[#008F83]/30'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                      )}>
+                        Tenancy Linked
                       </span>
                     </div>
-                    <p className="text-xs text-admin-muted mt-1 leading-relaxed">
-                      Auto-binds tenant recipient details (email, phone, address, rent amount) directly from the lease for recurring rent invoices or agreement deliveries.
-                    </p>
+
+                    <div>
+                      <h4 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-[#008F83] transition-colors">
+                        Lease Automation
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+                        Auto-binds tenant recipient details (email, phone, address, rent amount) directly from the lease for recurring rent invoices or agreement deliveries.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                    <span className={cn(
+                      'text-xs font-bold transition-colors',
+                      automationType === 'lease' ? 'text-[#008F83]' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'
+                    )}>
+                      {automationType === 'lease' ? '✓ Selected Category' : 'Click to select'}
+                    </span>
+                    <div className={cn(
+                      'w-6 h-6 rounded-full flex items-center justify-center transition-all',
+                      automationType === 'lease'
+                        ? 'bg-[#008F83] text-white shadow-xs'
+                        : 'border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-transparent'
+                    )}>
+                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                    </div>
                   </div>
                 </div>
 
@@ -371,21 +490,58 @@ export function CreateAutomationModal({
                     setAutomationType('invoice');
                     setCurrentStep(1);
                   }}
-                  className="p-4 rounded-xl border-2 border-admin-border hover:border-admin-primary bg-admin-surface-subtle/60 hover:bg-admin-primary/5 cursor-pointer transition-all flex items-start gap-4 group"
+                  className={cn(
+                    'cursor-pointer rounded-3xl p-6 border-2 transition-all flex flex-col justify-between relative group hover:shadow-xl',
+                    automationType === 'invoice'
+                      ? 'border-[#008F83] bg-[#008F83]/5 dark:bg-[#008F83]/10 shadow-lg ring-4 ring-[#008F83]/15'
+                      : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700 shadow-sm'
+                  )}
                 >
-                  <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                    <Receipt className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-sm text-admin-foreground">Standalone Invoice Automation</h3>
-                      <span className="text-[11px] font-semibold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                        Clients & Services
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className={cn(
+                        'w-12 h-12 rounded-2xl flex items-center justify-center transition-colors',
+                        automationType === 'invoice'
+                          ? 'bg-[#008F83] text-white shadow-md'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 group-hover:bg-[#008F83]/10 group-hover:text-[#008F83]'
+                      )}>
+                        <Receipt className="w-6 h-6" />
+                      </div>
+                      <span className={cn(
+                        'text-[10.5px] font-bold px-2.5 py-1 rounded-full border',
+                        automationType === 'invoice'
+                          ? 'bg-[#008F83]/15 text-[#008F83] border-[#008F83]/30'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                      )}>
+                        Standard Direct
                       </span>
                     </div>
-                    <p className="text-xs text-admin-muted mt-1 leading-relaxed">
-                      Automate recurring billing for commercial clients, contractors, or consulting fees with a custom template and customer details (no lease required).
-                    </p>
+
+                    <div>
+                      <h4 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-[#008F83] transition-colors">
+                        Standalone Invoice Automation
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+                        Automate recurring billing for commercial clients, contractors, or consulting fees with custom templates and client details (no lease required).
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                    <span className={cn(
+                      'text-xs font-bold transition-colors',
+                      automationType === 'invoice' ? 'text-[#008F83]' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'
+                    )}>
+                      {automationType === 'invoice' ? '✓ Selected Category' : 'Click to select'}
+                    </span>
+                    <div className={cn(
+                      'w-6 h-6 rounded-full flex items-center justify-center transition-all',
+                      automationType === 'invoice'
+                        ? 'bg-[#008F83] text-white shadow-xs'
+                        : 'border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-transparent'
+                    )}>
+                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -393,22 +549,26 @@ export function CreateAutomationModal({
           )}
 
           {/* ======================================================== */}
-          {/* STEP 1: CONFIGURATION FORM (LEASE OR INVOICE)           */}
+          {/* STEP 1: CONFIGURATION FORM (LEASE AUTOMATION)            */}
           {/* ======================================================== */}
           {currentStep === 1 && automationType === 'lease' && (
-            <div className="space-y-4">
+            <div className="space-y-5">
               {/* 1. Select Lease */}
-              <div>
-                <label className="block text-xs font-bold text-admin-foreground mb-1.5">
-                  1. Select Target Lease
-                </label>
-                <select
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <Building className="w-4 h-4 text-[#008F83]" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    1. Target Tenancy Lease Linkage
+                  </span>
+                </div>
+
+                <Select
+                  label="Select Target Lease *"
                   value={selectedLeaseId}
                   onChange={(e) => setSelectedLeaseId(e.target.value)}
                   disabled={Boolean(preselectedLeaseId)}
-                  className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2.5 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary focus:ring-1 focus:ring-admin-primary disabled:opacity-70"
                 >
-                  <option value="">-- Select Lease --</option>
+                  <option value="">-- Choose target tenancy lease ({leases.length} available) --</option>
                   {leases.map((l) => {
                     const tRel = l.lease_tenants?.[0] || l.tenants?.[0];
                     const t = tRel?.tenant || tRel;
@@ -420,15 +580,15 @@ export function CreateAutomationModal({
                       </option>
                     );
                   })}
-                </select>
+                </Select>
 
                 {/* Resolved / Editable Recipient Information Card */}
                 {selectedLease && (
-                  <div className="mt-2.5 p-3.5 bg-admin-surface-subtle/80 border border-admin-border rounded-xl space-y-2.5 animate-in fade-in">
-                    <div className="flex items-center justify-between border-b border-admin-border pb-2">
+                  <div className="mt-3 p-4 bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-2xl space-y-3 animate-in fade-in">
+                    <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-slate-700 pb-2.5">
                       <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-admin-primary" />
-                        <span className="text-xs font-bold text-admin-foreground">
+                        <User className="w-4 h-4 text-[#008F83]" />
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">
                           {hasCustomOverrides ? 'Customized Recipient & Billing Context' : 'Resolved Recipient & Lease Context'}
                         </span>
                       </div>
@@ -438,14 +598,14 @@ export function CreateAutomationModal({
                             Customized
                           </span>
                         ) : (
-                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                             Auto-Detected
                           </span>
                         )}
                         <button
                           type="button"
                           onClick={() => setIsEditingRecipient(!isEditingRecipient)}
-                          className="text-[11px] font-bold px-2 py-0.5 rounded-lg text-admin-primary bg-admin-primary/10 hover:bg-admin-primary/20 transition-colors inline-flex items-center gap-1"
+                          className="text-[11px] font-bold px-2.5 py-1 rounded-xl text-[#008F83] bg-[#008F83]/10 hover:bg-[#008F83]/20 transition-colors inline-flex items-center gap-1"
                         >
                           <Pencil className="w-3 h-3" />
                           {isEditingRecipient ? 'Done' : 'Edit Details'}
@@ -454,63 +614,43 @@ export function CreateAutomationModal({
                     </div>
 
                     {isEditingRecipient ? (
-                      <div className="space-y-3 pt-1 animate-in fade-in text-xs">
-                        <div className="grid grid-cols-2 gap-2.5">
-                          <div>
-                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                              Recipient / Tenant Name
-                            </label>
-                            <input
-                              type="text"
-                              value={customTenantName}
-                              onChange={(e) => setCustomTenantName(e.target.value)}
-                              placeholder="e.g. John Smith"
-                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                              Recipient Email Address <span className="text-rose-500">*</span>
-                            </label>
-                            <input
-                              type="email"
-                              value={customTenantEmail}
-                              onChange={(e) => setCustomTenantEmail(e.target.value)}
-                              placeholder="e.g. tenant@example.com"
-                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
-                            />
-                          </div>
+                      <div className="space-y-3 pt-1 animate-in fade-in">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input
+                            label="Recipient / Tenant Name"
+                            type="text"
+                            value={customTenantName}
+                            onChange={(e) => setCustomTenantName(e.target.value)}
+                            placeholder="e.g. John Smith"
+                          />
+                          <Input
+                            label="Recipient Email Address *"
+                            type="email"
+                            value={customTenantEmail}
+                            onChange={(e) => setCustomTenantEmail(e.target.value)}
+                            placeholder="e.g. tenant@example.com"
+                          />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2.5">
-                          <div>
-                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                              Contact Phone (Optional)
-                            </label>
-                            <input
-                              type="tel"
-                              value={customTenantPhone}
-                              onChange={(e) => setCustomTenantPhone(e.target.value)}
-                              placeholder="e.g. +61 400 000 000"
-                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                              Rent Amount ($)
-                            </label>
-                            <input
-                              type="number"
-                              min={0}
-                              value={customRentAmount}
-                              onChange={(e) => setCustomRentAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                              placeholder="Rent Amount"
-                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
-                            />
-                          </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input
+                            label="Contact Phone (Optional)"
+                            type="tel"
+                            value={customTenantPhone}
+                            onChange={(e) => setCustomTenantPhone(e.target.value)}
+                            placeholder="e.g. +61 400 000 000"
+                          />
+                          <Input
+                            label="Rent Amount ($)"
+                            type="number"
+                            min={0}
+                            value={customRentAmount}
+                            onChange={(e) => setCustomRentAmount(e.target.value === '' ? '' : Number(e.target.value))}
+                            placeholder="Rent Amount"
+                          />
                         </div>
 
-                        <div className="flex items-center justify-between pt-1 border-t border-admin-border/50">
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
                           <button
                             type="button"
                             onClick={() => {
@@ -521,14 +661,14 @@ export function CreateAutomationModal({
                               setCustomTenantPhone(tRel?.phone || '');
                               setCustomRentAmount(selectedLease.rent_amount ? Number(selectedLease.rent_amount) : '');
                             }}
-                            className="text-[11px] text-admin-muted hover:text-admin-foreground underline"
+                            className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white underline"
                           >
                             Reset to Lease Defaults
                           </button>
                           <button
                             type="button"
                             onClick={() => setIsEditingRecipient(false)}
-                            className="text-xs font-bold px-3 py-1 bg-admin-primary text-white rounded-lg hover:bg-admin-primary-hover"
+                            className="text-xs font-bold px-3 py-1 bg-[#008F83] text-white rounded-lg hover:bg-[#008F83]/90 transition-colors"
                           >
                             Done Editing
                           </button>
@@ -537,13 +677,13 @@ export function CreateAutomationModal({
                     ) : (
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-admin-muted font-medium">Tenant:</span>
-                          <strong className="text-admin-foreground">{effectiveTenantName}</strong>
+                          <span className="text-slate-500 dark:text-slate-400 font-medium">Tenant:</span>
+                          <strong className="text-slate-900 dark:text-white">{effectiveTenantName}</strong>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <Mail className="w-3.5 h-3.5 text-admin-muted shrink-0" />
+                          <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           {effectiveTenantEmail ? (
-                            <span className="font-mono text-admin-primary font-medium truncate" title={effectiveTenantEmail}>
+                            <span className="font-mono text-[#008F83] font-medium truncate" title={effectiveTenantEmail}>
                               {effectiveTenantEmail}
                             </span>
                           ) : (
@@ -557,17 +697,17 @@ export function CreateAutomationModal({
                           )}
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <Phone className="w-3.5 h-3.5 text-admin-muted shrink-0" />
-                          <span className="text-admin-foreground font-mono">{effectiveTenantPhone || 'Not provided'}</span>
+                          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="text-slate-900 dark:text-white font-mono">{effectiveTenantPhone || 'Not provided'}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                          <span className="text-admin-foreground font-semibold">{effectiveRent}</span>
+                          <DollarSign className="w-3.5 h-3.5 text-[#008F83] shrink-0" />
+                          <span className="text-slate-900 dark:text-white font-semibold">{effectiveRent}</span>
                         </div>
-                        <div className="col-span-2 flex items-start gap-1.5 pt-0.5 border-t border-admin-border/50">
-                          <MapPin className="w-3.5 h-3.5 text-admin-muted shrink-0 mt-0.5" />
-                          <span className="text-[11px] text-admin-muted truncate" title={`${resolvedPropertyName} — ${resolvedPropertyAddress}`}>
-                            <strong className="text-admin-foreground">{resolvedPropertyName}</strong> • {resolvedPropertyAddress}
+                        <div className="col-span-2 flex items-start gap-1.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate" title={`${resolvedPropertyName} — ${resolvedPropertyAddress}`}>
+                            <strong className="text-slate-900 dark:text-white">{resolvedPropertyName}</strong> • {resolvedPropertyAddress}
                           </span>
                         </div>
                       </div>
@@ -576,74 +716,95 @@ export function CreateAutomationModal({
                 )}
               </div>
 
-              {/* 2. What do you want to do? */}
-              <div>
-                <label className="block text-xs font-bold text-admin-foreground mb-1.5">
-                  2. What do you want to do?
-                </label>
-                <div className="grid grid-cols-2 gap-3">
+              {/* 2. Action Type Selection */}
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <Send className="w-4 h-4 text-[#008F83]" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    2. Automated Action Type
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setLeaseActionType('generate_and_send_invoice')}
                     className={cn(
-                      'p-3 rounded-xl border text-left transition-all flex flex-col gap-1',
+                      'p-4 rounded-2xl border-2 text-left transition-all flex flex-col gap-1.5 cursor-pointer',
                       leaseActionType === 'generate_and_send_invoice'
-                        ? 'border-admin-primary bg-admin-primary/5 text-admin-foreground font-bold'
-                        : 'border-admin-border bg-admin-surface text-admin-muted hover:text-admin-foreground'
+                        ? 'border-[#008F83] bg-[#008F83]/5 dark:bg-[#008F83]/10 shadow-xs'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700'
                     )}
                   >
-                    <div className="flex items-center gap-1.5 text-xs font-bold">
-                      <Receipt className="w-4 h-4 text-admin-primary" />
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-white">
+                      <Receipt className="w-4 h-4 text-[#008F83]" />
                       Generate & Send Invoice
                     </div>
-                    <span className="text-[11px] opacity-80 font-normal">Creates a fresh invoice for each billing period</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-normal leading-relaxed">
+                      Creates a fresh invoice for each billing period and sends PDF directly to tenant
+                    </span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setLeaseActionType('send_lease')}
                     className={cn(
-                      'p-3 rounded-xl border text-left transition-all flex flex-col gap-1',
+                      'p-4 rounded-2xl border-2 text-left transition-all flex flex-col gap-1.5 cursor-pointer',
                       leaseActionType === 'send_lease'
-                        ? 'border-admin-primary bg-admin-primary/5 text-admin-foreground font-bold'
-                        : 'border-admin-border bg-admin-surface text-admin-muted hover:text-admin-foreground'
+                        ? 'border-[#008F83] bg-[#008F83]/5 dark:bg-[#008F83]/10 shadow-xs'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700'
                     )}
                   >
-                    <div className="flex items-center gap-1.5 text-xs font-bold">
-                      <Send className="w-4 h-4 text-admin-primary" />
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-white">
+                      <Send className="w-4 h-4 text-[#008F83]" />
                       Send Lease Document
                     </div>
-                    <span className="text-[11px] opacity-80 font-normal">Emails official Lease Summary PDF</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-normal leading-relaxed">
+                      Emails official Lease Summary PDF agreement to tenant
+                    </span>
                   </button>
                 </div>
               </div>
 
               {/* 3. Invoice Reference Template & Issued By Details (if invoice action) */}
               {leaseActionType === 'generate_and_send_invoice' && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold text-admin-foreground mb-1.5">
-                      3. Fixed Invoice Template
-                    </label>
-                    <select
-                      value={selectedTemplateId}
-                      onChange={(e) => setSelectedTemplateId(e.target.value)}
-                      className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary font-medium"
-                    >
+                <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                  <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <FileCode className="w-4 h-4 text-[#008F83]" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      3. Fixed Invoice Template & Issued By Profile
+                    </span>
+                  </div>
+
+                  <Select
+                    label="Fixed Invoice Template *"
+                    value={selectedTemplateId}
+                    onChange={(e) => setSelectedTemplateId(e.target.value)}
+                  >
+                    {customTemplates.length > 0 && (
+                      <optgroup label="Custom Workspace Blueprints">
+                        {customTemplates.map((ct) => (
+                          <option key={ct.id} value={ct.id}>
+                            ★ {ct.name} ({ct.isDefault ? 'Workspace Default' : 'Custom Blueprint'})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    <optgroup label="Canonical Preset Designs">
                       {PREDEFINED_INVOICE_TEMPLATES.map((tpl) => (
                         <option key={tpl.id} value={tpl.id}>
                           {tpl.name} ({tpl.badge})
                         </option>
                       ))}
-                    </select>
-                  </div>
+                    </optgroup>
+                  </Select>
 
-                  {/* Issued By Card */}
-                  <div className="p-3.5 bg-admin-surface-subtle/80 border border-admin-border rounded-xl space-y-2.5">
-                    <div className="flex items-center justify-between border-b border-admin-border pb-2">
+                  {/* Issued By Profile Card */}
+                  <div className="p-4 bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-slate-700 pb-2.5">
                       <div className="flex items-center gap-2">
-                        <Briefcase className="w-4 h-4 text-admin-primary" />
-                        <span className="text-xs font-bold text-admin-foreground">
+                        <Briefcase className="w-4 h-4 text-[#008F83]" />
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">
                           Issued By Details (Sender & Landlord Profile)
                         </span>
                       </div>
@@ -653,14 +814,14 @@ export function CreateAutomationModal({
                             Custom Issuer
                           </span>
                         ) : (
-                          <span className="text-[10px] font-bold text-admin-muted bg-admin-surface px-2 py-0.5 rounded-full border border-admin-border">
+                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-200/60 dark:bg-slate-700/60 px-2 py-0.5 rounded-full">
                             Default Profile
                           </span>
                         )}
                         <button
                           type="button"
                           onClick={() => setIsEditingIssuer(!isEditingIssuer)}
-                          className="text-[11px] font-bold px-2 py-0.5 rounded-lg text-admin-primary bg-admin-primary/10 hover:bg-admin-primary/20 transition-colors inline-flex items-center gap-1"
+                          className="text-[11px] font-bold px-2.5 py-1 rounded-xl text-[#008F83] bg-[#008F83]/10 hover:bg-[#008F83]/20 transition-colors inline-flex items-center gap-1"
                         >
                           <Pencil className="w-3 h-3" />
                           {isEditingIssuer ? 'Done' : 'Edit Issued By'}
@@ -669,93 +830,63 @@ export function CreateAutomationModal({
                     </div>
 
                     {isEditingIssuer ? (
-                      <div className="space-y-3 pt-1 animate-in fade-in text-xs">
-                        <div className="grid grid-cols-2 gap-2.5">
-                          <div>
-                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                              Issuer / Company Name
-                            </label>
-                            <input
-                              type="text"
-                              value={issuerName}
-                              onChange={(e) => setIssuerName(e.target.value)}
-                              placeholder="e.g. Property Ledge Management"
-                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                              Billing / Issuer Email
-                            </label>
-                            <input
-                              type="email"
-                              value={issuerEmail}
-                              onChange={(e) => setIssuerEmail(e.target.value)}
-                              placeholder="billing@propertyledge.com.au"
-                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
-                            />
-                          </div>
+                      <div className="space-y-3 pt-1 animate-in fade-in">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input
+                            label="Issuer / Company Name"
+                            type="text"
+                            value={issuerName}
+                            onChange={(e) => setIssuerName(e.target.value)}
+                            placeholder="e.g. Property Ledge Management"
+                          />
+                          <Input
+                            label="Billing / Issuer Email"
+                            type="email"
+                            value={issuerEmail}
+                            onChange={(e) => setIssuerEmail(e.target.value)}
+                            placeholder="billing@propertyledge.com.au"
+                          />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2.5">
-                          <div>
-                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                              Issuer Phone (Optional)
-                            </label>
-                            <input
-                              type="tel"
-                              value={issuerPhone}
-                              onChange={(e) => setIssuerPhone(e.target.value)}
-                              placeholder="+61 2 9000 0000"
-                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                              Payment Due Terms
-                            </label>
-                            <select
-                              value={paymentDueDays}
-                              onChange={(e) => setPaymentDueDays(Number(e.target.value))}
-                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
-                            >
-                              <option value={0}>Due on Issue Date (Same Day)</option>
-                              <option value={7}>Net 7 Days (Due in 7 days)</option>
-                              <option value={14}>Net 14 Days (Default - Due in 14 days)</option>
-                              <option value={21}>Net 21 Days (Due in 21 days)</option>
-                              <option value={30}>Net 30 Days (Due in 30 days)</option>
-                            </select>
-                          </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input
+                            label="Issuer Phone (Optional)"
+                            type="tel"
+                            value={issuerPhone}
+                            onChange={(e) => setIssuerPhone(e.target.value)}
+                            placeholder="+61 2 9000 0000"
+                          />
+                          <Select
+                            label="Payment Due Terms"
+                            value={paymentDueDays}
+                            onChange={(e) => setPaymentDueDays(Number(e.target.value))}
+                          >
+                            <option value={0}>Due on Issue Date (Same Day)</option>
+                            <option value={7}>Net 7 Days (Due in 7 days)</option>
+                            <option value={14}>Net 14 Days (Default - Due in 14 days)</option>
+                            <option value={21}>Net 21 Days (Due in 21 days)</option>
+                            <option value={30}>Net 30 Days (Due in 30 days)</option>
+                          </Select>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2.5">
-                          <div>
-                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                              Issuer Address (Optional)
-                            </label>
-                            <input
-                              type="text"
-                              value={issuerAddress}
-                              onChange={(e) => setIssuerAddress(e.target.value)}
-                              placeholder="Level 5, 100 George St, Sydney NSW"
-                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                              ABN / Tax ID (Optional)
-                            </label>
-                            <input
-                              type="text"
-                              value={issuerTaxId}
-                              onChange={(e) => setIssuerTaxId(e.target.value)}
-                              placeholder="ABN 12 345 678 901"
-                              className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
-                            />
-                          </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input
+                            label="Issuer Address (Optional)"
+                            type="text"
+                            value={issuerAddress}
+                            onChange={(e) => setIssuerAddress(e.target.value)}
+                            placeholder="Level 5, 100 George St, Sydney NSW"
+                          />
+                          <Input
+                            label="ABN / Tax ID (Optional)"
+                            type="text"
+                            value={issuerTaxId}
+                            onChange={(e) => setIssuerTaxId(e.target.value)}
+                            placeholder="ABN 12 345 678 901"
+                          />
                         </div>
 
-                        <div className="flex items-center justify-between pt-1 border-t border-admin-border/50">
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
                           <button
                             type="button"
                             onClick={() => {
@@ -766,14 +897,14 @@ export function CreateAutomationModal({
                               setIssuerTaxId('');
                               setPaymentDueDays(14);
                             }}
-                            className="text-[11px] text-admin-muted hover:text-admin-foreground underline"
+                            className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white underline"
                           >
                             Reset to Default Profile
                           </button>
                           <button
                             type="button"
                             onClick={() => setIsEditingIssuer(false)}
-                            className="text-xs font-bold px-3 py-1 bg-admin-primary text-white rounded-lg hover:bg-admin-primary-hover"
+                            className="text-xs font-bold px-3 py-1 bg-[#008F83] text-white rounded-lg hover:bg-[#008F83]/90 transition-colors"
                           >
                             Done Editing
                           </button>
@@ -782,28 +913,28 @@ export function CreateAutomationModal({
                     ) : (
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-admin-muted font-medium">Issued By:</span>
-                          <strong className="text-admin-foreground">{issuerName || 'Property Ledge Management'}</strong>
+                          <span className="text-slate-500 dark:text-slate-400 font-medium">Issued By:</span>
+                          <strong className="text-slate-900 dark:text-white">{issuerName || 'Property Ledge Management'}</strong>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <Mail className="w-3.5 h-3.5 text-admin-muted shrink-0" />
-                          <span className="font-mono text-admin-primary font-medium truncate" title={issuerEmail}>
+                          <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="font-mono text-[#008F83] font-medium truncate" title={issuerEmail}>
                             {issuerEmail || 'billing@propertyledge.com.au'}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <Phone className="w-3.5 h-3.5 text-admin-muted shrink-0" />
-                          <span className="text-admin-foreground font-mono">{issuerPhone || 'Not provided'}</span>
+                          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="text-slate-900 dark:text-white font-mono">{issuerPhone || 'Not provided'}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-admin-primary shrink-0" />
-                          <span className="text-admin-foreground">
+                          <Clock className="w-3.5 h-3.5 text-[#008F83] shrink-0" />
+                          <span className="text-slate-900 dark:text-white">
                             {paymentDueDays === 0 ? 'Due on issue date' : `Due in ${paymentDueDays} days`}
                           </span>
                         </div>
                         {(issuerAddress || issuerTaxId) && (
-                          <div className="col-span-2 flex items-start gap-1.5 pt-0.5 border-t border-admin-border/50 text-[11px] text-admin-muted truncate">
-                            <Building className="w-3.5 h-3.5 text-admin-muted shrink-0 mt-0.5" />
+                          <div className="col-span-2 flex items-start gap-1.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60 text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                            <Building className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                             <span>
                               {issuerAddress} {issuerTaxId ? `• ${issuerTaxId}` : ''}
                             </span>
@@ -815,19 +946,19 @@ export function CreateAutomationModal({
                 </div>
               )}
 
-              {/* ─── EMAIL TEMPLATE & BODY SECTION (LEASE) ─── */}
-              <div className="p-3.5 bg-admin-surface-subtle/80 border border-admin-border rounded-xl space-y-2.5">
-                <div className="flex items-center justify-between border-b border-admin-border pb-2">
+              {/* 4. EMAIL TEMPLATE & BODY SECTION (LEASE) */}
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-admin-primary" />
-                    <span className="text-xs font-bold text-admin-foreground">
-                      Email Template & Message Body
+                    <Mail className="w-4 h-4 text-[#008F83]" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      4. Email Delivery & Message Body
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setIsEditingEmailTemplate(!isEditingEmailTemplate)}
-                    className="text-[11px] font-bold px-2 py-0.5 rounded-lg text-admin-primary bg-admin-primary/10 hover:bg-admin-primary/20 transition-colors inline-flex items-center gap-1"
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-xl text-[#008F83] bg-[#008F83]/10 hover:bg-[#008F83]/20 transition-colors inline-flex items-center gap-1"
                   >
                     <Pencil className="w-3 h-3" />
                     {isEditingEmailTemplate ? 'Done' : 'Customize Email'}
@@ -835,160 +966,141 @@ export function CreateAutomationModal({
                 </div>
 
                 {isEditingEmailTemplate ? (
-                  <div className="space-y-3 pt-1 animate-in fade-in text-xs">
-                    <div>
-                      <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                        Email Subject
-                      </label>
-                      <input
-                        type="text"
-                        value={emailSubject}
-                        onChange={(e) => setEmailSubject(e.target.value)}
-                        placeholder="Invoice {invoice_number} from {issuer_name}"
-                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
-                      />
-                    </div>
+                  <div className="space-y-4 pt-1 animate-in fade-in">
+                    <Input
+                      label="Email Subject"
+                      type="text"
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      placeholder="Invoice {invoice_number} from {issuer_name}"
+                    />
 
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-[11px] font-bold text-admin-muted">
-                          Email Message Body
-                        </label>
-                        <span className="text-[10px] text-admin-muted font-mono">Placeholders supported</span>
-                      </div>
-                      <textarea
-                        rows={4}
-                        value={emailMessage}
-                        onChange={(e) => setEmailMessage(e.target.value)}
-                        placeholder="Enter email body message..."
-                        className="w-full bg-admin-surface border border-admin-border rounded-lg p-2.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none leading-relaxed"
-                      />
-                    </div>
+                    <Textarea
+                      label="Email Message Body"
+                      rows={4}
+                      value={emailMessage}
+                      onChange={(e) => setEmailMessage(e.target.value)}
+                      placeholder="Enter email body message..."
+                      helpText="Supports placeholder tags listed below"
+                    />
 
-                    <div>
-                      <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                        Google Drive Folder Link (Optional)
-                      </label>
-                      <input
-                        type="url"
-                        value={driveFolderUrl}
-                        onChange={(e) => setDriveFolderUrl(e.target.value)}
-                        placeholder="https://drive.google.com/drive/folders/..."
-                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-admin-primary focus:outline-none"
-                      />
-                    </div>
+                    <Input
+                      label="Google Drive Folder Link (Optional)"
+                      type="url"
+                      value={driveFolderUrl}
+                      onChange={(e) => setDriveFolderUrl(e.target.value)}
+                      placeholder="https://drive.google.com/drive/folders/..."
+                    />
 
-                    <div className="p-2 bg-admin-surface border border-admin-border rounded-lg text-[10.5px] text-admin-muted space-y-1">
-                      <span className="font-bold text-admin-foreground block">Available Placeholders:</span>
-                      <div className="flex flex-wrap gap-1 font-mono text-[9.5px]">
-                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{first_name}'}</span>
-                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{tenant_name}'}</span>
-                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{invoice_number}'}</span>
-                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{amount}'}</span>
-                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{due_date}'}</span>
-                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{issuer_name}'}</span>
-                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{property_address}'}</span>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl text-xs space-y-1.5">
+                      <span className="font-bold text-slate-900 dark:text-white block text-[11px]">Available Placeholders:</span>
+                      <div className="flex flex-wrap gap-1.5 font-mono text-[10px]">
+                        <span className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">{'{first_name}'}</span>
+                        <span className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">{'{tenant_name}'}</span>
+                        <span className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">{'{invoice_number}'}</span>
+                        <span className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">{'{amount}'}</span>
+                        <span className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">{'{due_date}'}</span>
+                        <span className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">{'{issuer_name}'}</span>
+                        <span className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">{'{property_address}'}</span>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-1 text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-admin-muted font-medium">Subject:</span>
-                      <span className="text-admin-foreground font-semibold truncate">{emailSubject}</span>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 dark:text-slate-400 font-medium">Subject:</span>
+                      <span className="text-slate-900 dark:text-white font-semibold truncate">{emailSubject}</span>
                     </div>
-                    <p className="text-[11px] text-admin-muted line-clamp-2 bg-admin-surface p-2 rounded-lg border border-admin-border italic">
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700 italic leading-relaxed">
                       &quot;{emailMessage.split('\n')[0]}...&quot;
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* 4. Schedule Options */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-admin-foreground">
-                    4. Schedule Options (Australian Timezone)
-                  </label>
-                  <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+              {/* 5. Recurring Schedule Options */}
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-[#008F83]" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      5. Recurring Delivery Schedule
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Sydney: {auTime}</span>
+                    <span>AU Time: {auTime}</span>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setScheduleType('monthly')}
                     className={cn(
-                      'p-2.5 rounded-xl border text-left transition-all flex flex-col gap-0.5',
+                      'p-4 rounded-2xl border-2 text-left transition-all flex flex-col gap-1 cursor-pointer',
                       scheduleType === 'monthly'
-                        ? 'border-admin-primary bg-admin-primary/5 text-admin-foreground font-bold'
-                        : 'border-admin-border bg-admin-surface text-admin-muted hover:text-admin-foreground'
+                        ? 'border-[#008F83] bg-[#008F83]/5 dark:bg-[#008F83]/10 shadow-xs'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700'
                     )}
                   >
-                    <div className="flex items-center gap-1 text-xs font-bold">
-                      <Calendar className="w-3.5 h-3.5 text-admin-primary" />
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
+                      <Calendar className="w-4 h-4 text-[#008F83]" />
                       Monthly Schedule
                     </div>
-                    <span className="text-[10px] opacity-80 font-normal">Repeats every month on set day</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">Repeats every month on set day</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setScheduleType('after_start')}
                     className={cn(
-                      'p-2.5 rounded-xl border text-left transition-all flex flex-col gap-0.5',
+                      'p-4 rounded-2xl border-2 text-left transition-all flex flex-col gap-1 cursor-pointer',
                       scheduleType === 'after_start'
-                        ? 'border-admin-primary bg-admin-primary/5 text-admin-foreground font-bold'
-                        : 'border-admin-border bg-admin-surface text-admin-muted hover:text-admin-foreground'
+                        ? 'border-[#008F83] bg-[#008F83]/5 dark:bg-[#008F83]/10 shadow-xs'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700'
                     )}
                   >
-                    <div className="flex items-center gap-1 text-xs font-bold">
-                      <Clock className="w-3.5 h-3.5 text-admin-primary" />
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
+                      <Clock className="w-4 h-4 text-[#008F83]" />
                       After Lease Start
                     </div>
-                    <span className="text-[10px] opacity-80 font-normal">Triggers X months after start</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">Triggers X months after start</span>
                   </button>
                 </div>
 
                 {scheduleType === 'monthly' && (
-                  <div className="p-3 bg-admin-surface-subtle border border-admin-border rounded-xl space-y-2">
-                    <div>
-                      <label className="block text-xs font-bold text-admin-muted mb-1">Billing / Issue Day of Month</label>
-                      <select
-                        value={dayOfMonth}
-                        onChange={(e) => setDayOfMonth(Number(e.target.value))}
-                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs font-bold text-admin-foreground"
-                      >
-                        {[...Array(28)].map((_, i) => (
-                          <option key={i + 1} value={i + 1}>
-                            Day {i + 1} of each month
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="text-[11px] text-admin-muted flex items-center gap-1.5 pt-1 border-t border-admin-border/50">
-                      <Clock className="w-3.5 h-3.5 text-admin-primary shrink-0" />
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-3">
+                    <Select
+                      label="Billing / Issue Day of Month *"
+                      value={dayOfMonth}
+                      onChange={(e) => setDayOfMonth(Number(e.target.value))}
+                    >
+                      {[...Array(28)].map((_, i) => (
+                        <option key={i + 1} value={i + 1}>
+                          Day {i + 1} of each month
+                        </option>
+                      ))}
+                    </Select>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 pt-2 border-t border-slate-200 dark:border-slate-700">
+                      <Clock className="w-3.5 h-3.5 text-[#008F83] shrink-0" />
                       <span>Evaluated & dispatched automatically in the <strong>7:00 AM AU</strong> daily morning queue.</span>
                     </div>
                   </div>
                 )}
 
                 {scheduleType === 'after_start' && (
-                  <div className="p-3 bg-admin-surface-subtle border border-admin-border rounded-xl space-y-2">
-                    <div>
-                      <label className="block text-xs font-bold text-admin-muted mb-1">Months After Lease Start</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={60}
-                        value={offsetMonths}
-                        onChange={(e) => setOffsetMonths(Number(e.target.value))}
-                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs font-bold text-admin-foreground"
-                      />
-                    </div>
-                    <div className="text-[11px] text-admin-muted flex items-center gap-1.5 pt-1 border-t border-admin-border/50">
-                      <Clock className="w-3.5 h-3.5 text-admin-primary shrink-0" />
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-3">
+                    <Input
+                      label="Months After Lease Start *"
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={offsetMonths}
+                      onChange={(e) => setOffsetMonths(Number(e.target.value))}
+                    />
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 pt-2 border-t border-slate-200 dark:border-slate-700">
+                      <Clock className="w-3.5 h-3.5 text-[#008F83] shrink-0" />
                       <span>Evaluated & dispatched automatically in the <strong>7:00 AM AU</strong> daily morning queue.</span>
                     </div>
                   </div>
@@ -1001,107 +1113,101 @@ export function CreateAutomationModal({
           {/* STEP 1: CONFIGURATION FORM (STANDALONE INVOICE)          */}
           {/* ======================================================== */}
           {currentStep === 1 && automationType === 'invoice' && (
-            <div className="space-y-4">
+            <div className="space-y-5">
               {/* 1. Select Template */}
-              <div>
-                <label className="block text-xs font-bold text-admin-foreground mb-1.5">
-                  1. Fixed Invoice Template
-                </label>
-                <select
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <FileCode className="w-4 h-4 text-[#008F83]" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    1. Fixed Invoice Template
+                  </span>
+                </div>
+
+                <Select
+                  label="Fixed Invoice Template *"
                   value={selectedTemplateId}
                   onChange={(e) => setSelectedTemplateId(e.target.value)}
-                  className="w-full bg-admin-surface border border-admin-border rounded-xl px-3 py-2 text-admin-foreground text-sm focus:outline-none focus:border-admin-primary font-medium"
                 >
                   {PREDEFINED_INVOICE_TEMPLATES.map((tpl) => (
                     <option key={tpl.id} value={tpl.id}>
                       {tpl.name} ({tpl.badge})
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               {/* 2. Customer Information */}
-              <div className="p-3.5 bg-admin-surface-subtle border border-admin-border rounded-xl space-y-3">
-                <label className="block text-xs font-bold text-admin-foreground">
-                  2. Recipient & Billing Information
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-admin-muted mb-1">Customer / Company Name</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Acme Corporation"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-admin-muted mb-1">Customer Email Address</label>
-                    <input
-                      type="email"
-                      placeholder="billing@acme.com"
-                      value={customerEmail}
-                      onChange={(e) => setCustomerEmail(e.target.value)}
-                      className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground"
-                    />
-                  </div>
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <User className="w-4 h-4 text-[#008F83]" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    2. Recipient & Billing Information
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-admin-muted mb-1">Customer Phone (Optional)</label>
-                    <input
-                      type="tel"
-                      placeholder="+61 400 000 000"
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-admin-muted mb-1">Billing Address (Optional)</label>
-                    <input
-                      type="text"
-                      placeholder="123 Business Way, Sydney"
-                      value={customerAddress}
-                      onChange={(e) => setCustomerAddress(e.target.value)}
-                      className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground"
-                    />
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Customer / Company Name *"
+                    type="text"
+                    placeholder="e.g. Acme Corporation"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                  />
+                  <Input
+                    label="Customer Email Address *"
+                    type="email"
+                    placeholder="billing@acme.com"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                  />
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2">
-                    <label className="block text-[11px] font-bold text-admin-muted mb-1">Service Description</label>
-                    <input
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Customer Phone (Optional)"
+                    type="tel"
+                    placeholder="+61 400 000 000"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                  />
+                  <Input
+                    label="Billing Address (Optional)"
+                    type="text"
+                    placeholder="123 Business Way, Sydney"
+                    value={customerAddress}
+                    onChange={(e) => setCustomerAddress(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-2">
+                    <Input
+                      label="Service Description *"
                       type="text"
                       placeholder="e.g. Monthly Maintenance & Retainer"
                       value={invoiceDescription}
                       onChange={(e) => setInvoiceDescription(e.target.value)}
-                      className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-admin-muted mb-1">Amount ($ AUD)</label>
-                    <input
+                    <Input
+                      label="Amount ($ AUD) *"
                       type="number"
                       min={1}
                       placeholder="1000"
                       value={invoiceAmount}
                       onChange={(e) => setInvoiceAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground"
                     />
                   </div>
                 </div>
               </div>
 
               {/* 3. Issued By Details (Sender Profile) */}
-              <div className="p-3.5 bg-admin-surface-subtle/80 border border-admin-border rounded-xl space-y-2.5">
-                <div className="flex items-center justify-between border-b border-admin-border pb-2">
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div className="flex items-center gap-2">
-                    <Briefcase className="w-4 h-4 text-emerald-500" />
-                    <span className="text-xs font-bold text-admin-foreground">
+                    <Briefcase className="w-4 h-4 text-[#008F83]" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       3. Issued By Details (Sender & Business Profile)
                     </span>
                   </div>
@@ -1111,14 +1217,14 @@ export function CreateAutomationModal({
                         Custom Issuer
                       </span>
                     ) : (
-                      <span className="text-[10px] font-bold text-admin-muted bg-admin-surface px-2 py-0.5 rounded-full border border-admin-border">
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-200/60 dark:bg-slate-700/60 px-2 py-0.5 rounded-full">
                         Default Profile
                       </span>
                     )}
                     <button
                       type="button"
                       onClick={() => setIsEditingIssuer(!isEditingIssuer)}
-                      className="text-[11px] font-bold px-2 py-0.5 rounded-lg text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors inline-flex items-center gap-1"
+                      className="text-[11px] font-bold px-2.5 py-1 rounded-xl text-[#008F83] bg-[#008F83]/10 hover:bg-[#008F83]/20 transition-colors inline-flex items-center gap-1"
                     >
                       <Pencil className="w-3 h-3" />
                       {isEditingIssuer ? 'Done' : 'Edit Issued By'}
@@ -1127,93 +1233,63 @@ export function CreateAutomationModal({
                 </div>
 
                 {isEditingIssuer ? (
-                  <div className="space-y-3 pt-1 animate-in fade-in text-xs">
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                          Issuer / Company Name
-                        </label>
-                        <input
-                          type="text"
-                          value={issuerName}
-                          onChange={(e) => setIssuerName(e.target.value)}
-                          placeholder="e.g. Property Ledge Management"
-                          className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                          Billing / Issuer Email
-                        </label>
-                        <input
-                          type="email"
-                          value={issuerEmail}
-                          onChange={(e) => setIssuerEmail(e.target.value)}
-                          placeholder="billing@propertyledge.com.au"
-                          className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
-                        />
-                      </div>
+                  <div className="space-y-3 pt-1 animate-in fade-in">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Input
+                        label="Issuer / Company Name"
+                        type="text"
+                        value={issuerName}
+                        onChange={(e) => setIssuerName(e.target.value)}
+                        placeholder="e.g. Property Ledge Management"
+                      />
+                      <Input
+                        label="Billing / Issuer Email"
+                        type="email"
+                        value={issuerEmail}
+                        onChange={(e) => setIssuerEmail(e.target.value)}
+                        placeholder="billing@propertyledge.com.au"
+                      />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                          Issuer Phone (Optional)
-                        </label>
-                        <input
-                          type="tel"
-                          value={issuerPhone}
-                          onChange={(e) => setIssuerPhone(e.target.value)}
-                          placeholder="+61 2 9000 0000"
-                          className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                          Payment Due Terms
-                        </label>
-                        <select
-                          value={paymentDueDays}
-                          onChange={(e) => setPaymentDueDays(Number(e.target.value))}
-                          className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
-                        >
-                          <option value={0}>Due on Issue Date (Same Day)</option>
-                          <option value={7}>Net 7 Days (Due in 7 days)</option>
-                          <option value={14}>Net 14 Days (Default - Due in 14 days)</option>
-                          <option value={21}>Net 21 Days (Due in 21 days)</option>
-                          <option value={30}>Net 30 Days (Due in 30 days)</option>
-                        </select>
-                      </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Input
+                        label="Issuer Phone (Optional)"
+                        type="tel"
+                        value={issuerPhone}
+                        onChange={(e) => setIssuerPhone(e.target.value)}
+                        placeholder="+61 2 9000 0000"
+                      />
+                      <Select
+                        label="Payment Due Terms"
+                        value={paymentDueDays}
+                        onChange={(e) => setPaymentDueDays(Number(e.target.value))}
+                      >
+                        <option value={0}>Due on Issue Date (Same Day)</option>
+                        <option value={7}>Net 7 Days (Due in 7 days)</option>
+                        <option value={14}>Net 14 Days (Default - Due in 14 days)</option>
+                        <option value={21}>Net 21 Days (Due in 21 days)</option>
+                        <option value={30}>Net 30 Days (Due in 30 days)</option>
+                      </Select>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                          Issuer Address (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={issuerAddress}
-                          onChange={(e) => setIssuerAddress(e.target.value)}
-                          placeholder="Level 5, 100 George St, Sydney NSW"
-                          className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                          ABN / Tax ID (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={issuerTaxId}
-                          onChange={(e) => setIssuerTaxId(e.target.value)}
-                          placeholder="ABN 12 345 678 901"
-                          className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
-                        />
-                      </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Input
+                        label="Issuer Address (Optional)"
+                        type="text"
+                        value={issuerAddress}
+                        onChange={(e) => setIssuerAddress(e.target.value)}
+                        placeholder="Level 5, 100 George St, Sydney NSW"
+                      />
+                      <Input
+                        label="ABN / Tax ID (Optional)"
+                        type="text"
+                        value={issuerTaxId}
+                        onChange={(e) => setIssuerTaxId(e.target.value)}
+                        placeholder="ABN 12 345 678 901"
+                      />
                     </div>
 
-                    <div className="flex items-center justify-between pt-1 border-t border-admin-border/50">
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
                       <button
                         type="button"
                         onClick={() => {
@@ -1224,14 +1300,14 @@ export function CreateAutomationModal({
                           setIssuerTaxId('');
                           setPaymentDueDays(14);
                         }}
-                        className="text-[11px] text-admin-muted hover:text-admin-foreground underline"
+                        className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white underline"
                       >
                         Reset to Default Profile
                       </button>
                       <button
                         type="button"
                         onClick={() => setIsEditingIssuer(false)}
-                        className="text-xs font-bold px-3 py-1 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"
+                        className="text-xs font-bold px-3 py-1 bg-[#008F83] text-white rounded-lg hover:bg-[#008F83]/90 transition-colors"
                       >
                         Done Editing
                       </button>
@@ -1240,28 +1316,28 @@ export function CreateAutomationModal({
                 ) : (
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-admin-muted font-medium">Issued By:</span>
-                      <strong className="text-admin-foreground">{issuerName || 'Property Ledge Management'}</strong>
+                      <span className="text-slate-500 dark:text-slate-400 font-medium">Issued By:</span>
+                      <strong className="text-slate-900 dark:text-white">{issuerName || 'Property Ledge Management'}</strong>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5 text-admin-muted shrink-0" />
-                      <span className="font-mono text-emerald-500 font-medium truncate" title={issuerEmail}>
+                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="font-mono text-[#008F83] font-medium truncate" title={issuerEmail}>
                         {issuerEmail || 'billing@propertyledge.com.au'}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-admin-muted shrink-0" />
-                      <span className="text-admin-foreground font-mono">{issuerPhone || 'Not provided'}</span>
+                      <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="text-slate-900 dark:text-white font-mono">{issuerPhone || 'Not provided'}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span className="text-admin-foreground">
+                      <Clock className="w-3.5 h-3.5 text-[#008F83] shrink-0" />
+                      <span className="text-slate-900 dark:text-white">
                         {paymentDueDays === 0 ? 'Due on issue date' : `Due in ${paymentDueDays} days`}
                       </span>
                     </div>
                     {(issuerAddress || issuerTaxId) && (
-                      <div className="col-span-2 flex items-start gap-1.5 pt-0.5 border-t border-admin-border/50 text-[11px] text-admin-muted truncate">
-                        <Building className="w-3.5 h-3.5 text-admin-muted shrink-0 mt-0.5" />
+                      <div className="col-span-2 flex items-start gap-1.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60 text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        <Building className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                         <span>
                           {issuerAddress} {issuerTaxId ? `• ${issuerTaxId}` : ''}
                         </span>
@@ -1271,19 +1347,19 @@ export function CreateAutomationModal({
                 )}
               </div>
 
-              {/* ─── EMAIL TEMPLATE & BODY SECTION (STANDALONE) ─── */}
-              <div className="p-3.5 bg-admin-surface-subtle border border-admin-border rounded-xl space-y-2.5">
-                <div className="flex items-center justify-between border-b border-admin-border pb-2">
+              {/* 4. EMAIL TEMPLATE & BODY SECTION (STANDALONE) */}
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-emerald-500" />
-                    <span className="text-xs font-bold text-admin-foreground">
-                      Email Template & Message Body
+                    <Mail className="w-4 h-4 text-[#008F83]" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      4. Email Delivery & Message Body
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setIsEditingEmailTemplate(!isEditingEmailTemplate)}
-                    className="text-[11px] font-bold px-2 py-0.5 rounded-lg text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors inline-flex items-center gap-1"
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-xl text-[#008F83] bg-[#008F83]/10 hover:bg-[#008F83]/20 transition-colors inline-flex items-center gap-1"
                   >
                     <Pencil className="w-3 h-3" />
                     {isEditingEmailTemplate ? 'Done' : 'Customize Email'}
@@ -1291,96 +1367,80 @@ export function CreateAutomationModal({
                 </div>
 
                 {isEditingEmailTemplate ? (
-                  <div className="space-y-3 pt-1 animate-in fade-in text-xs">
-                    <div>
-                      <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                        Email Subject
-                      </label>
-                      <input
-                        type="text"
-                        value={emailSubject}
-                        onChange={(e) => setEmailSubject(e.target.value)}
-                        placeholder="Invoice {invoice_number} from {issuer_name}"
-                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
-                      />
-                    </div>
+                  <div className="space-y-4 pt-1 animate-in fade-in">
+                    <Input
+                      label="Email Subject"
+                      type="text"
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      placeholder="Invoice {invoice_number} from {issuer_name}"
+                    />
 
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-[11px] font-bold text-admin-muted">
-                          Email Message Body
-                        </label>
-                        <span className="text-[10px] text-admin-muted font-mono">Placeholders supported</span>
-                      </div>
-                      <textarea
-                        rows={4}
-                        value={emailMessage}
-                        onChange={(e) => setEmailMessage(e.target.value)}
-                        placeholder="Enter email body message..."
-                        className="w-full bg-admin-surface border border-admin-border rounded-lg p-2.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none leading-relaxed"
-                      />
-                    </div>
+                    <Textarea
+                      label="Email Message Body"
+                      rows={4}
+                      value={emailMessage}
+                      onChange={(e) => setEmailMessage(e.target.value)}
+                      placeholder="Enter email body message..."
+                      helpText="Supports placeholder tags listed below"
+                    />
 
-                    <div>
-                      <label className="block text-[11px] font-bold text-admin-muted mb-1">
-                        Google Drive Folder Link (Optional)
-                      </label>
-                      <input
-                        type="url"
-                        value={driveFolderUrl}
-                        onChange={(e) => setDriveFolderUrl(e.target.value)}
-                        placeholder="https://drive.google.com/drive/folders/..."
-                        className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground focus:border-emerald-500 focus:outline-none"
-                      />
-                    </div>
+                    <Input
+                      label="Google Drive Folder Link (Optional)"
+                      type="url"
+                      value={driveFolderUrl}
+                      onChange={(e) => setDriveFolderUrl(e.target.value)}
+                      placeholder="https://drive.google.com/drive/folders/..."
+                    />
 
-                    <div className="p-2 bg-admin-surface border border-admin-border rounded-lg text-[10.5px] text-admin-muted space-y-1">
-                      <span className="font-bold text-admin-foreground block">Available Placeholders:</span>
-                      <div className="flex flex-wrap gap-1 font-mono text-[9.5px]">
-                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{first_name}'}</span>
-                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{recipient_name}'}</span>
-                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{invoice_number}'}</span>
-                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{amount}'}</span>
-                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{due_date}'}</span>
-                        <span className="bg-admin-surface-subtle px-1 py-0.5 rounded border border-admin-border">{'{issuer_name}'}</span>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl text-xs space-y-1.5">
+                      <span className="font-bold text-slate-900 dark:text-white block text-[11px]">Available Placeholders:</span>
+                      <div className="flex flex-wrap gap-1.5 font-mono text-[10px]">
+                        <span className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">{'{first_name}'}</span>
+                        <span className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">{'{recipient_name}'}</span>
+                        <span className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">{'{invoice_number}'}</span>
+                        <span className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">{'{amount}'}</span>
+                        <span className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">{'{due_date}'}</span>
+                        <span className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">{'{issuer_name}'}</span>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-1 text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-admin-muted font-medium">Subject:</span>
-                      <span className="text-admin-foreground font-semibold truncate">{emailSubject}</span>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 dark:text-slate-400 font-medium">Subject:</span>
+                      <span className="text-slate-900 dark:text-white font-semibold truncate">{emailSubject}</span>
                     </div>
-                    <p className="text-[11px] text-admin-muted line-clamp-2 bg-admin-surface p-2 rounded-lg border border-admin-border italic">
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700 italic leading-relaxed">
                       &quot;{emailMessage.split('\n')[0]}...&quot;
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* 4. Schedule Options */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-admin-foreground">
-                  4. Schedule Options
-                </label>
-                <div className="p-3 bg-admin-surface-subtle border border-admin-border rounded-xl space-y-2">
-                  <div>
-                    <label className="block text-xs font-bold text-admin-muted mb-1">Billing / Issue Day of Month</label>
-                    <select
-                      value={dayOfMonth}
-                      onChange={(e) => setDayOfMonth(Number(e.target.value))}
-                      className="w-full bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs font-bold text-admin-foreground"
-                    >
-                      {[...Array(28)].map((_, i) => (
-                        <option key={i + 1} value={i + 1}>
-                          Day {i + 1} of each month
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="text-[11px] text-admin-muted flex items-center gap-1.5 pt-1 border-t border-admin-border/50">
-                    <Clock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              {/* 5. Schedule Options */}
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <Clock className="w-4 h-4 text-[#008F83]" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    5. Recurring Schedule Options
+                  </span>
+                </div>
+
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-3">
+                  <Select
+                    label="Billing / Issue Day of Month *"
+                    value={dayOfMonth}
+                    onChange={(e) => setDayOfMonth(Number(e.target.value))}
+                  >
+                    {[...Array(28)].map((_, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        Day {i + 1} of each month
+                      </option>
+                    ))}
+                  </Select>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <Clock className="w-3.5 h-3.5 text-[#008F83] shrink-0" />
                     <span>Evaluated & dispatched automatically in the <strong>7:00 AM AU</strong> daily morning queue.</span>
                   </div>
                 </div>
@@ -1393,14 +1453,14 @@ export function CreateAutomationModal({
           {/* ======================================================== */}
           {currentStep === 2 && (
             <div className="space-y-4">
-              <div className="p-4 bg-admin-surface-subtle border border-admin-border rounded-xl space-y-3">
-                <div className="flex items-center justify-between border-b border-admin-border pb-2.5">
-                  <span className="text-xs font-bold text-admin-muted uppercase">Automation Type</span>
+              <div className="p-5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Automation Type</span>
                   <span className={cn(
-                    'text-xs font-bold px-2.5 py-0.5 rounded-full',
+                    'text-xs font-bold px-3 py-1 rounded-full border',
                     automationType === 'lease'
-                      ? 'bg-admin-primary/10 text-admin-primary border border-admin-primary/20'
-                      : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                      ? 'bg-[#008F83]/10 text-[#008F83] border-[#008F83]/20'
+                      : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                   )}>
                     {automationType === 'lease' ? 'Lease Automation' : 'Standalone Invoice Automation'}
                   </span>
@@ -1408,81 +1468,81 @@ export function CreateAutomationModal({
 
                 {automationType === 'lease' ? (
                   <>
-                    <div className="space-y-1.5 bg-admin-surface p-3 rounded-lg border border-admin-border text-xs">
-                      <div className="font-bold text-admin-foreground flex items-center justify-between mb-1 text-[11px] uppercase tracking-wider text-admin-primary">
+                    <div className="space-y-2 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+                      <div className="font-bold text-[#008F83] flex items-center justify-between mb-2 text-[11px] uppercase tracking-wider">
                         <span className="flex items-center gap-1.5">
                           <User className="w-3.5 h-3.5" /> Recipient Details (Bill To)
                         </span>
                         {hasCustomOverrides && (
-                          <span className="text-[10px] lowercase font-normal bg-amber-500/10 text-amber-500 px-1.5 py-0.2 rounded border border-amber-500/20">
+                          <span className="text-[10px] lowercase font-normal bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/20">
                             (customized)
                           </span>
                         )}
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-admin-muted">Recipient Tenant:</span>
-                        <strong className="text-admin-foreground">{effectiveTenantName}</strong>
+                      <div className="flex justify-between py-0.5">
+                        <span className="text-slate-500 dark:text-slate-400">Recipient Tenant:</span>
+                        <strong className="text-slate-900 dark:text-white">{effectiveTenantName}</strong>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-admin-muted">Email Address:</span>
-                        <span className="font-mono text-admin-primary font-bold">{effectiveTenantEmail || 'No email provided'}</span>
+                      <div className="flex justify-between py-0.5">
+                        <span className="text-slate-500 dark:text-slate-400">Email Address:</span>
+                        <span className="font-mono text-[#008F83] font-bold">{effectiveTenantEmail || 'No email provided'}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-admin-muted">Phone Number:</span>
-                        <span className="font-mono text-admin-foreground">{effectiveTenantPhone || 'Not provided'}</span>
+                      <div className="flex justify-between py-0.5">
+                        <span className="text-slate-500 dark:text-slate-400">Phone Number:</span>
+                        <span className="font-mono text-slate-900 dark:text-white">{effectiveTenantPhone || 'Not provided'}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-admin-muted">Rent Amount:</span>
-                        <span className="font-bold text-emerald-500">{effectiveRent}</span>
+                      <div className="flex justify-between py-0.5">
+                        <span className="text-slate-500 dark:text-slate-400">Rent Amount:</span>
+                        <span className="font-bold text-[#008F83]">{effectiveRent}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-admin-muted">Property & Address:</span>
-                        <span className="text-admin-foreground text-right">{resolvedPropertyName} ({resolvedPropertyAddress})</span>
+                      <div className="flex justify-between py-0.5">
+                        <span className="text-slate-500 dark:text-slate-400">Property & Address:</span>
+                        <span className="text-slate-900 dark:text-white text-right">{resolvedPropertyName} ({resolvedPropertyAddress})</span>
                       </div>
                     </div>
 
                     {/* Issued By Review Card */}
                     {leaseActionType === 'generate_and_send_invoice' && (
-                      <div className="space-y-1.5 bg-admin-surface p-3 rounded-lg border border-admin-border text-xs">
-                        <div className="font-bold text-admin-foreground flex items-center justify-between mb-1 text-[11px] uppercase tracking-wider text-admin-primary">
+                      <div className="space-y-2 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+                        <div className="font-bold text-[#008F83] flex items-center justify-between mb-2 text-[11px] uppercase tracking-wider">
                           <span className="flex items-center gap-1.5">
                             <Briefcase className="w-3.5 h-3.5" /> Issued By Details (Sender & Landlord)
                           </span>
                           {hasCustomIssuer && (
-                            <span className="text-[10px] lowercase font-normal bg-amber-500/10 text-amber-500 px-1.5 py-0.2 rounded border border-amber-500/20">
+                            <span className="text-[10px] lowercase font-normal bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/20">
                               (customized)
                             </span>
                           )}
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-admin-muted">Issuer Name:</span>
-                          <strong className="text-admin-foreground">{issuerName}</strong>
+                        <div className="flex justify-between py-0.5">
+                          <span className="text-slate-500 dark:text-slate-400">Issuer Name:</span>
+                          <strong className="text-slate-900 dark:text-white">{issuerName}</strong>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-admin-muted">Billing Email:</span>
-                          <span className="font-mono text-admin-primary font-bold">{issuerEmail}</span>
+                        <div className="flex justify-between py-0.5">
+                          <span className="text-slate-500 dark:text-slate-400">Billing Email:</span>
+                          <span className="font-mono text-[#008F83] font-bold">{issuerEmail}</span>
                         </div>
                         {issuerPhone && (
-                          <div className="flex justify-between">
-                            <span className="text-admin-muted">Phone Number:</span>
-                            <span className="font-mono text-admin-foreground">{issuerPhone}</span>
+                          <div className="flex justify-between py-0.5">
+                            <span className="text-slate-500 dark:text-slate-400">Phone Number:</span>
+                            <span className="font-mono text-slate-900 dark:text-white">{issuerPhone}</span>
                           </div>
                         )}
                         {issuerAddress && (
-                          <div className="flex justify-between">
-                            <span className="text-admin-muted">Address:</span>
-                            <span className="text-admin-foreground">{issuerAddress}</span>
+                          <div className="flex justify-between py-0.5">
+                            <span className="text-slate-500 dark:text-slate-400">Address:</span>
+                            <span className="text-slate-900 dark:text-white">{issuerAddress}</span>
                           </div>
                         )}
                         {issuerTaxId && (
-                          <div className="flex justify-between">
-                            <span className="text-admin-muted">ABN / Tax ID:</span>
-                            <span className="font-mono text-admin-foreground">{issuerTaxId}</span>
+                          <div className="flex justify-between py-0.5">
+                            <span className="text-slate-500 dark:text-slate-400">ABN / Tax ID:</span>
+                            <span className="font-mono text-slate-900 dark:text-white">{issuerTaxId}</span>
                           </div>
                         )}
-                        <div className="flex justify-between">
-                          <span className="text-admin-muted">Payment Terms:</span>
-                          <strong className="text-admin-foreground">
+                        <div className="flex justify-between py-0.5">
+                          <span className="text-slate-500 dark:text-slate-400">Payment Terms:</span>
+                          <strong className="text-slate-900 dark:text-white">
                             {paymentDueDays === 0 ? 'Due on issue date' : `Due in ${paymentDueDays} days`}
                           </strong>
                         </div>
@@ -1490,133 +1550,133 @@ export function CreateAutomationModal({
                     )}
 
                     <div className="flex items-center justify-between text-xs pt-1">
-                      <span className="text-admin-muted font-medium">Scheduled Action:</span>
-                      <strong className="text-admin-foreground">
+                      <span className="text-slate-500 dark:text-slate-400 font-medium">Scheduled Action:</span>
+                      <strong className="text-slate-900 dark:text-white">
                         {leaseActionType === 'generate_and_send_invoice' ? 'Generate & Send Invoice' : 'Send Lease Document'}
                       </strong>
                     </div>
 
                     {leaseActionType === 'generate_and_send_invoice' && (
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-admin-muted font-medium">Invoice Template:</span>
-                        <span className="font-bold text-admin-foreground">{selectedTemplate?.name || 'Default Rental Template'}</span>
+                        <span className="text-slate-500 dark:text-slate-400 font-medium">Invoice Template:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{selectedTemplate?.name || 'Default Rental Template'}</span>
                       </div>
                     )}
                   </>
                 ) : (
                   <>
-                    <div className="space-y-1.5 bg-admin-surface p-3 rounded-lg border border-admin-border text-xs">
-                      <div className="font-bold text-admin-foreground flex items-center gap-1.5 mb-1 text-[11px] uppercase tracking-wider text-emerald-500">
+                    <div className="space-y-2 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+                      <div className="font-bold text-[#008F83] flex items-center gap-1.5 mb-2 text-[11px] uppercase tracking-wider">
                         <User className="w-3.5 h-3.5" /> Customer & Billing Information (Bill To)
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-admin-muted">Customer Name:</span>
-                        <strong className="text-admin-foreground">{customerName}</strong>
+                      <div className="flex justify-between py-0.5">
+                        <span className="text-slate-500 dark:text-slate-400">Customer Name:</span>
+                        <strong className="text-slate-900 dark:text-white">{customerName}</strong>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-admin-muted">Recipient Email:</span>
-                        <span className="font-mono text-emerald-500 font-bold">{customerEmail}</span>
+                      <div className="flex justify-between py-0.5">
+                        <span className="text-slate-500 dark:text-slate-400">Recipient Email:</span>
+                        <span className="font-mono text-[#008F83] font-bold">{customerEmail}</span>
                       </div>
                       {customerPhone && (
-                        <div className="flex justify-between">
-                          <span className="text-admin-muted">Phone Number:</span>
-                          <span className="font-mono text-admin-foreground">{customerPhone}</span>
+                        <div className="flex justify-between py-0.5">
+                          <span className="text-slate-500 dark:text-slate-400">Phone Number:</span>
+                          <span className="font-mono text-slate-900 dark:text-white">{customerPhone}</span>
                         </div>
                       )}
                       {customerAddress && (
-                        <div className="flex justify-between">
-                          <span className="text-admin-muted">Billing Address:</span>
-                          <span className="text-admin-foreground">{customerAddress}</span>
+                        <div className="flex justify-between py-0.5">
+                          <span className="text-slate-500 dark:text-slate-400">Billing Address:</span>
+                          <span className="text-slate-900 dark:text-white">{customerAddress}</span>
                         </div>
                       )}
-                      <div className="flex justify-between">
-                        <span className="text-admin-muted">Charge Amount:</span>
-                        <strong className="text-admin-foreground">${Number(invoiceAmount).toLocaleString()} AUD</strong>
+                      <div className="flex justify-between py-0.5">
+                        <span className="text-slate-500 dark:text-slate-400">Charge Amount:</span>
+                        <strong className="text-slate-900 dark:text-white">${Number(invoiceAmount).toLocaleString()} AUD</strong>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-admin-muted">Service Description:</span>
-                        <span className="text-admin-foreground">{invoiceDescription}</span>
+                      <div className="flex justify-between py-0.5">
+                        <span className="text-slate-500 dark:text-slate-400">Service Description:</span>
+                        <span className="text-slate-900 dark:text-white">{invoiceDescription}</span>
                       </div>
                     </div>
 
                     {/* Standalone Issued By Review Card */}
-                    <div className="space-y-1.5 bg-admin-surface p-3 rounded-lg border border-admin-border text-xs">
-                      <div className="font-bold text-admin-foreground flex items-center justify-between mb-1 text-[11px] uppercase tracking-wider text-emerald-500">
+                    <div className="space-y-2 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+                      <div className="font-bold text-[#008F83] flex items-center justify-between mb-2 text-[11px] uppercase tracking-wider">
                         <span className="flex items-center gap-1.5">
                           <Briefcase className="w-3.5 h-3.5" /> Issued By Details (Sender & Business)
                         </span>
                         {hasCustomIssuer && (
-                          <span className="text-[10px] lowercase font-normal bg-amber-500/10 text-amber-500 px-1.5 py-0.2 rounded border border-amber-500/20">
+                          <span className="text-[10px] lowercase font-normal bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/20">
                             (customized)
                           </span>
                         )}
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-admin-muted">Issuer Name:</span>
-                        <strong className="text-admin-foreground">{issuerName}</strong>
+                      <div className="flex justify-between py-0.5">
+                        <span className="text-slate-500 dark:text-slate-400">Issuer Name:</span>
+                        <strong className="text-slate-900 dark:text-white">{issuerName}</strong>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-admin-muted">Billing Email:</span>
-                        <span className="font-mono text-emerald-500 font-bold">{issuerEmail}</span>
+                      <div className="flex justify-between py-0.5">
+                        <span className="text-slate-500 dark:text-slate-400">Billing Email:</span>
+                        <span className="font-mono text-[#008F83] font-bold">{issuerEmail}</span>
                       </div>
                       {issuerPhone && (
-                        <div className="flex justify-between">
-                          <span className="text-admin-muted">Phone Number:</span>
-                          <span className="font-mono text-admin-foreground">{issuerPhone}</span>
+                        <div className="flex justify-between py-0.5">
+                          <span className="text-slate-500 dark:text-slate-400">Phone Number:</span>
+                          <span className="font-mono text-slate-900 dark:text-white">{issuerPhone}</span>
                         </div>
                       )}
                       {issuerAddress && (
-                        <div className="flex justify-between">
-                          <span className="text-admin-muted">Address:</span>
-                          <span className="text-admin-foreground">{issuerAddress}</span>
+                        <div className="flex justify-between py-0.5">
+                          <span className="text-slate-500 dark:text-slate-400">Address:</span>
+                          <span className="text-slate-900 dark:text-white">{issuerAddress}</span>
                         </div>
                       )}
                       {issuerTaxId && (
-                        <div className="flex justify-between">
-                          <span className="text-admin-muted">ABN / Tax ID:</span>
-                          <span className="font-mono text-admin-foreground">{issuerTaxId}</span>
+                        <div className="flex justify-between py-0.5">
+                          <span className="text-slate-500 dark:text-slate-400">ABN / Tax ID:</span>
+                          <span className="font-mono text-slate-900 dark:text-white">{issuerTaxId}</span>
                         </div>
                       )}
-                      <div className="flex justify-between">
-                        <span className="text-admin-muted">Payment Terms:</span>
-                        <strong className="text-admin-foreground">
+                      <div className="flex justify-between py-0.5">
+                        <span className="text-slate-500 dark:text-slate-400">Payment Terms:</span>
+                        <strong className="text-slate-900 dark:text-white">
                           {paymentDueDays === 0 ? 'Due on issue date' : `Due in ${paymentDueDays} days`}
                         </strong>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between text-xs pt-1">
-                      <span className="text-admin-muted font-medium">Invoice Template:</span>
-                      <span className="font-bold text-admin-foreground">{selectedTemplate?.name || 'Default Commercial Template'}</span>
+                      <span className="text-slate-500 dark:text-slate-400 font-medium">Invoice Template:</span>
+                      <span className="font-bold text-slate-900 dark:text-white">{selectedTemplate?.name || 'Default Commercial Template'}</span>
                     </div>
                   </>
                 )}
 
                 {/* Email Delivery Review Box */}
-                <div className="space-y-1.5 bg-admin-surface p-3 rounded-lg border border-admin-border text-xs">
-                  <div className="font-bold text-admin-foreground flex items-center justify-between mb-1 text-[11px] uppercase tracking-wider text-admin-primary">
+                <div className="space-y-2 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+                  <div className="font-bold text-[#008F83] flex items-center justify-between mb-2 text-[11px] uppercase tracking-wider">
                     <span className="flex items-center gap-1.5">
                       <Mail className="w-3.5 h-3.5" /> Email Delivery & Template
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-admin-muted">Subject:</span>
-                    <strong className="text-admin-foreground truncate max-w-[260px]">{emailSubject}</strong>
+                  <div className="flex justify-between py-0.5">
+                    <span className="text-slate-500 dark:text-slate-400">Subject:</span>
+                    <strong className="text-slate-900 dark:text-white truncate max-w-[260px]">{emailSubject}</strong>
                   </div>
                   {driveFolderUrl && (
-                    <div className="flex justify-between">
-                      <span className="text-admin-muted">Drive Link:</span>
-                      <span className="font-mono text-admin-primary truncate max-w-[260px]">{driveFolderUrl}</span>
+                    <div className="flex justify-between py-0.5">
+                      <span className="text-slate-500 dark:text-slate-400">Drive Link:</span>
+                      <span className="font-mono text-[#008F83] truncate max-w-[260px]">{driveFolderUrl}</span>
                     </div>
                   )}
-                  <div className="pt-1 border-t border-admin-border/50 text-[11px] text-admin-muted line-clamp-2 italic">
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 italic">
                     &quot;{emailMessage.split('\n')[0]}...&quot;
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs border-t border-admin-border pt-2.5">
-                  <span className="text-admin-muted font-medium">Recurring Schedule:</span>
-                  <span className="font-bold text-admin-foreground">
+                <div className="flex items-center justify-between text-xs border-t border-slate-200 dark:border-slate-700 pt-3">
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">Recurring Schedule:</span>
+                  <span className="font-bold text-slate-900 dark:text-white">
                     {scheduleType === 'monthly'
                       ? `Every month on the ${dayOfMonth}${dayOfMonth === 1 ? 'st' : dayOfMonth === 2 ? 'nd' : dayOfMonth === 3 ? 'rd' : 'th'} (7:00 AM AU Daily Run)`
                       : `${offsetMonths} month${offsetMonths > 1 ? 's' : ''} after lease start (7:00 AM AU Daily Run)`}
@@ -1624,7 +1684,7 @@ export function CreateAutomationModal({
                 </div>
               </div>
 
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-500 text-[11px] leading-relaxed flex items-start gap-2">
+              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-700 dark:text-amber-400 text-[11px] leading-relaxed flex items-start gap-2.5">
                 <HelpCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>
                   <strong>Accounting Rule:</strong> Each scheduled execution generates a <em>brand new finalized invoice</em> for the current billing period and emails the recipient directly. Historical invoices remain untouched.
@@ -1635,10 +1695,10 @@ export function CreateAutomationModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-admin-border bg-admin-surface-subtle/50 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50 flex items-center justify-between">
           {currentStep === 0 ? (
             <div>
-              <Button variant="ghost" onClick={onClose} className="text-admin-muted text-xs">
+              <Button variant="ghost" onClick={onClose} className="text-slate-500 dark:text-slate-400 text-xs">
                 Cancel
               </Button>
             </div>
@@ -1647,14 +1707,14 @@ export function CreateAutomationModal({
               <Button
                 variant="ghost"
                 onClick={() => (preselectedLeaseId ? onClose() : setCurrentStep(0))}
-                className="text-admin-muted text-xs gap-1"
+                className="text-slate-500 dark:text-slate-400 text-xs gap-1"
               >
                 <ArrowLeft className="w-3.5 h-3.5" /> Back
               </Button>
               <Button
                 variant="primary"
                 onClick={() => setCurrentStep(2)}
-                className="text-xs font-bold gap-1"
+                className="text-xs font-bold gap-1 bg-[#008F83] hover:bg-[#008F83]/90 text-white"
               >
                 Continue to Review <ArrowRight className="w-3.5 h-3.5" />
               </Button>
@@ -1665,7 +1725,7 @@ export function CreateAutomationModal({
                 variant="ghost"
                 onClick={() => setCurrentStep(1)}
                 disabled={loading}
-                className="text-admin-muted text-xs gap-1"
+                className="text-slate-500 dark:text-slate-400 text-xs gap-1"
               >
                 <ArrowLeft className="w-3.5 h-3.5" /> Back
               </Button>
@@ -1673,7 +1733,7 @@ export function CreateAutomationModal({
                 variant="primary"
                 onClick={handleCreate}
                 disabled={loading}
-                className="gap-1.5 font-bold shadow-xs text-xs"
+                className="gap-1.5 font-bold shadow-xs text-xs bg-[#008F83] hover:bg-[#008F83]/90 text-white"
               >
                 <Check className="w-4 h-4" />
                 {loading ? 'Scheduling...' : 'Confirm & Create Automation'}

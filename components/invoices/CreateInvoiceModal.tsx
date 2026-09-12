@@ -27,7 +27,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { Button, Input, Select, Textarea } from '@/components/admin/ui';
-import { CreateInvoiceDTO, UpdateInvoiceDTO, InvoiceDTO } from '@/modules/invoices';
+import { CreateInvoiceDTO, UpdateInvoiceDTO, InvoiceDTO, InvoiceTemplateDTO } from '@/modules/invoices';
 import {
   PREDEFINED_INVOICE_TEMPLATES,
   PredefinedInvoiceTemplate,
@@ -35,8 +35,9 @@ import {
 } from '@/modules/invoices/domain/constants/predefined-templates';
 import { formatCurrency, SUPPORTED_CURRENCIES } from '@/modules/invoices/domain/value-objects/currency';
 import { fetchDashboardProperties, fetchAllWorkspaceLeases, fetchDashboardLeases } from '@/app/actions/dashboard';
-import { getInvoiceDownloadUrlAction, generateInvoiceDocumentAction, sendInvoiceEmailAction } from '@/app/actions/invoices';
+import { getInvoiceDownloadUrlAction, generateInvoiceDocumentAction, sendInvoiceEmailAction, fetchInvoiceTemplatesAction } from '@/app/actions/invoices';
 import { LiveInvoiceRenderer } from './LiveInvoiceRenderer';
+import { InvoiceTemplateModal } from './InvoiceTemplateModal';
 import {
   getAuTodayString,
   getAuDateParts,
@@ -88,6 +89,10 @@ export function CreateInvoiceModal({
   const [auCurrentTimeStr, setAuCurrentTimeStr] = useState<string>(() =>
     formatAuDisplayDateTime(new Date(), true)
   );
+  // Custom templates / blueprints state
+  const [customTemplates, setCustomTemplates] = useState<InvoiceTemplateDTO[]>([]);
+  const [templateTab, setTemplateTab] = useState<'presets' | 'custom'>('presets');
+  const [isTemplateBuilderOpen, setIsTemplateBuilderOpen] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -189,6 +194,18 @@ export function CreateInvoiceModal({
         } catch (e) {
           console.error('Error loading leases:', e);
         }
+
+        try {
+          const cTemplates = await fetchInvoiceTemplatesAction();
+          if (Array.isArray(cTemplates)) {
+            setCustomTemplates(cTemplates);
+            if (cTemplates.length > 0) {
+              setTemplateTab('custom');
+            }
+          }
+        } catch (e) {
+          console.error('Error loading custom templates:', e);
+        }
       };
       loadData();
 
@@ -240,6 +257,36 @@ export function CreateInvoiceModal({
       }
     }
   }, [isOpen, invoiceToEdit, initialTemplateId]);
+
+
+  const handleSelectCustomTemplate = (customTmpl: InvoiceTemplateDTO) => {
+    const basePreset = getPredefinedTemplateById(customTmpl.layoutStyle || 'classic');
+    const merged: PredefinedInvoiceTemplate = {
+      ...basePreset,
+      id: customTmpl.id,
+      name: customTmpl.name,
+      badge: customTmpl.isDefault ? 'Workspace Default' : 'Custom Blueprint',
+      description: customTmpl.description || `Custom ${customTmpl.layoutStyle} blueprint configuration.`,
+      layoutStyle: customTmpl.layoutStyle || 'classic',
+      brandColor: customTmpl.brandColor || basePreset.brandColor,
+      accentColor: customTmpl.accentColor || basePreset.accentColor,
+    };
+    setSelectedTemplate(merged);
+
+    if (customTmpl.notes) setNotes(customTmpl.notes);
+    if (customTmpl.paymentInstructions) setPaymentInstructions(customTmpl.paymentInstructions);
+    if (customTmpl.paymentTermsDays) setPaymentTermsDays(Number(customTmpl.paymentTermsDays));
+    if (customTmpl.items && customTmpl.items.length > 0) {
+      setItems(
+        customTmpl.items.map((i: any) => ({
+          description: i.description || 'Service',
+          quantity: Number(i.quantity) || 1,
+          unitPrice: Number(i.unitPrice) || 0,
+          taxRate: i.taxRate !== undefined ? Number(i.taxRate) : 10,
+        }))
+      );
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -727,90 +774,230 @@ export function CreateInvoiceModal({
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">Step 2 — Select Invoice Template</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Choose one of the {PREDEFINED_INVOICE_TEMPLATES.length} canonical designs or customize your blueprints.
+                    Choose from {customTemplates.length} custom saved blueprint{customTemplates.length === 1 ? '' : 's'} or {PREDEFINED_INVOICE_TEMPLATES.length} canonical presets.
                   </p>
                 </div>
-                <Link
-                  href="/dashboard/invoices/templates"
-                  className="px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 transition-all self-start sm:self-auto"
+                <button
+                  type="button"
+                  onClick={() => setIsTemplateBuilderOpen(true)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold border border-[#008F83]/30 bg-[#008F83]/10 hover:bg-[#008F83]/20 text-[#008F83] flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
                 >
-                  <LayoutTemplate className="w-3.5 h-3.5 text-[#008F83]" />
+                  <Plus className="w-3.5 h-3.5" />
                   Templates & Blueprints
-                </Link>
+                </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
-                {PREDEFINED_INVOICE_TEMPLATES.map((tmpl) => {
-                  const isSelected = selectedTemplate.id === tmpl.id;
-                  return (
-                    <div
-                      key={tmpl.id}
-                      onClick={() => setSelectedTemplate(tmpl)}
-                      className={cn(
-                        'cursor-pointer rounded-2xl p-5 border transition-all flex flex-col justify-between relative group hover:shadow-lg',
-                        isSelected
-                          ? 'border-[#008F83] bg-[#008F83]/5 dark:bg-[#008F83]/10 ring-2 ring-[#008F83]/30 shadow-md'
-                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700'
-                      )}
-                    >
-                      <div className="space-y-3">
-                        {/* Header Badge */}
-                        <div className="flex items-center justify-between">
-                          <span
-                            className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-xs"
-                            style={{ backgroundColor: tmpl.brandColor }}
-                          />
-                          <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
-                            {tmpl.badge}
-                          </span>
-                        </div>
+              {/* Category Tabs: Presets vs Custom Blueprints */}
+              <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setTemplateTab('custom')}
+                  className={cn(
+                    'px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer',
+                    templateTab === 'custom'
+                      ? 'bg-[#008F83] text-white shadow-xs'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                  )}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Custom Blueprints ({customTemplates.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTemplateTab('presets')}
+                  className={cn(
+                    'px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer',
+                    templateTab === 'presets'
+                      ? 'bg-[#008F83] text-white shadow-xs'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                  )}
+                >
+                  <LayoutTemplate className="w-3.5 h-3.5" />
+                  Canonical Presets ({PREDEFINED_INVOICE_TEMPLATES.length})
+                </button>
+              </div>
 
-                        {/* Title & Description */}
-                        <div>
-                          <h4 className="font-bold text-sm text-slate-900 dark:text-white group-hover:text-[#008F83] transition-colors">
-                            {tmpl.name}
-                          </h4>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                            {tmpl.description}
-                          </p>
-                        </div>
-
-                        {/* Style Swatches Preview */}
-                        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                          <div className="flex items-center gap-1">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tmpl.brandColor }} />
-                            <span>Brand</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tmpl.accentColor }} />
-                            <span>Accent</span>
-                          </div>
-                          <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 capitalize">
-                            {tmpl.layoutStyle}
-                          </span>
-                        </div>
+              {/* TAB 1: CUSTOM BLUEPRINTS */}
+              {templateTab === 'custom' && (
+                <div>
+                  {customTemplates.length === 0 ? (
+                    <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl space-y-3 bg-slate-50/50 dark:bg-slate-900/50">
+                      <div className="w-12 h-12 rounded-2xl bg-[#008F83]/10 text-[#008F83] flex items-center justify-center mx-auto">
+                        <Sparkles className="w-6 h-6" />
                       </div>
-
-                      {/* Selected indicator */}
-                      <div className="mt-4 pt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80">
-                        <span className={cn('text-xs font-bold', isSelected ? 'text-[#008F83]' : 'text-slate-400')}>
-                          {isSelected ? '✓ Selected Template' : 'Click to select'}
-                        </span>
-                        <div
-                          className={cn(
-                            'w-5 h-5 rounded-full flex items-center justify-center border transition-colors',
-                            isSelected
-                              ? 'bg-[#008F83] text-white border-[#008F83]'
-                              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-transparent'
-                          )}
-                        >
-                          <Check className="w-3 h-3" />
-                        </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">No Custom Blueprints Configured Yet</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+                          You can create custom billing blueprints with pre-set items, payment instructions, and custom branding rules.
+                        </p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsTemplateBuilderOpen(true)}
+                        className="px-4 py-2 rounded-xl text-xs font-bold bg-[#008F83] text-white hover:bg-[#008F83]/90 shadow-xs inline-flex items-center gap-1.5"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Create Your First Custom Blueprint
+                      </button>
                     </div>
-                  );
-                })}
-              </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                      {customTemplates.map((customTmpl) => {
+                        const isSelected = selectedTemplate.id === customTmpl.id;
+                        return (
+                          <div
+                            key={customTmpl.id}
+                            onClick={() => handleSelectCustomTemplate(customTmpl)}
+                            className={cn(
+                              'cursor-pointer rounded-2xl p-5 border transition-all flex flex-col justify-between relative group hover:shadow-lg',
+                              isSelected
+                                ? 'border-[#008F83] bg-[#008F83]/5 dark:bg-[#008F83]/10 ring-2 ring-[#008F83]/30 shadow-md'
+                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700'
+                            )}
+                          >
+                            <div className="space-y-3">
+                              {/* Header Badge */}
+                              <div className="flex items-center justify-between">
+                                <span
+                                  className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-xs"
+                                  style={{ backgroundColor: customTmpl.brandColor || '#008F83' }}
+                                />
+                                <span className="text-[10.5px] font-bold px-2.5 py-0.5 rounded-full bg-[#008F83]/10 text-[#008F83] border border-[#008F83]/20">
+                                  {customTmpl.isDefault ? 'Workspace Default' : 'Custom Blueprint'}
+                                </span>
+                              </div>
+
+                              {/* Title & Description */}
+                              <div>
+                                <h4 className="font-bold text-sm text-slate-900 dark:text-white group-hover:text-[#008F83] transition-colors">
+                                  {customTmpl.name}
+                                </h4>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed line-clamp-2">
+                                  {customTmpl.description || `Custom ${customTmpl.layoutStyle || 'classic'} invoice template with pre-configured line items.`}
+                                </p>
+                              </div>
+
+                              {/* Details Summary */}
+                              <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800/80 font-mono">
+                                <span>{customTmpl.items?.length || 0} line item(s)</span>
+                                <span>Net {customTmpl.paymentTermsDays || 14} Days</span>
+                              </div>
+
+                              {/* Style Swatches Preview */}
+                              <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                                <div className="flex items-center gap-1">
+                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: customTmpl.brandColor || '#008F83' }} />
+                                  <span>Brand</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: customTmpl.accentColor || '#008F83' }} />
+                                  <span>Accent</span>
+                                </div>
+                                <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 capitalize">
+                                  {customTmpl.layoutStyle || 'classic'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Selected indicator */}
+                            <div className="mt-4 pt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80">
+                              <span className={cn('text-xs font-bold', isSelected ? 'text-[#008F83]' : 'text-slate-400')}>
+                                {isSelected ? '✓ Selected Blueprint' : 'Click to select'}
+                              </span>
+                              <div
+                                className={cn(
+                                  'w-5 h-5 rounded-full flex items-center justify-center border transition-colors',
+                                  isSelected
+                                    ? 'bg-[#008F83] text-white border-[#008F83]'
+                                    : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-transparent'
+                                )}
+                              >
+                                <Check className="w-3 h-3" />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 2: PREDEFINED CANONICAL PRESETS */}
+              {templateTab === 'presets' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                  {PREDEFINED_INVOICE_TEMPLATES.map((tmpl) => {
+                    const isSelected = selectedTemplate.id === tmpl.id;
+                    return (
+                      <div
+                        key={tmpl.id}
+                        onClick={() => setSelectedTemplate(tmpl)}
+                        className={cn(
+                          'cursor-pointer rounded-2xl p-5 border transition-all flex flex-col justify-between relative group hover:shadow-lg',
+                          isSelected
+                            ? 'border-[#008F83] bg-[#008F83]/5 dark:bg-[#008F83]/10 ring-2 ring-[#008F83]/30 shadow-md'
+                            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700'
+                        )}
+                      >
+                        <div className="space-y-3">
+                          {/* Header Badge */}
+                          <div className="flex items-center justify-between">
+                            <span
+                              className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-xs"
+                              style={{ backgroundColor: tmpl.brandColor }}
+                            />
+                            <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
+                              {tmpl.badge}
+                            </span>
+                          </div>
+
+                          {/* Title & Description */}
+                          <div>
+                            <h4 className="font-bold text-sm text-slate-900 dark:text-white group-hover:text-[#008F83] transition-colors">
+                              {tmpl.name}
+                            </h4>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                              {tmpl.description}
+                            </p>
+                          </div>
+
+                          {/* Style Swatches Preview */}
+                          <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                            <div className="flex items-center gap-1">
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tmpl.brandColor }} />
+                              <span>Brand</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tmpl.accentColor }} />
+                              <span>Accent</span>
+                            </div>
+                            <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 capitalize">
+                              {tmpl.layoutStyle}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Selected indicator */}
+                        <div className="mt-4 pt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80">
+                          <span className={cn('text-xs font-bold', isSelected ? 'text-[#008F83]' : 'text-slate-400')}>
+                            {isSelected ? '✓ Selected Template' : 'Click to select'}
+                          </span>
+                          <div
+                            className={cn(
+                              'w-5 h-5 rounded-full flex items-center justify-center border transition-colors',
+                              isSelected
+                                ? 'bg-[#008F83] text-white border-[#008F83]'
+                                : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-transparent'
+                            )}
+                          >
+                            <Check className="w-3 h-3" />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -853,48 +1040,67 @@ export function CreateInvoiceModal({
                 </button>
               </div>
 
-              {/* Sub-Workflow Progress Navigation (Breaks details into 3 bite-sized, clean stages) */}
-              <div className="grid grid-cols-3 gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/70">
-                <button
-                  type="button"
-                  onClick={() => setDetailSubStep(0)}
-                  className={cn(
-                    'py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2',
-                    detailSubStep === 0
-                      ? 'bg-white dark:bg-slate-800 text-[#008F83] shadow-xs border border-slate-200 dark:border-slate-700'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  )}
-                >
-                  <User className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">1. Parties & Identity</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDetailSubStep(1)}
-                  className={cn(
-                    'py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2',
-                    detailSubStep === 1
-                      ? 'bg-white dark:bg-slate-800 text-[#008F83] shadow-xs border border-slate-200 dark:border-slate-700'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  )}
-                >
-                  <Calendar className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">2. Schedule & Dates</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDetailSubStep(2)}
-                  className={cn(
-                    'py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2',
-                    detailSubStep === 2
-                      ? 'bg-white dark:bg-slate-800 text-[#008F83] shadow-xs border border-slate-200 dark:border-slate-700'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  )}
-                >
-                  <FileText className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">3. Line Items & Terms</span>
-                </button>
-              </div>
+              {/* Sub-Workflow Circular Progress Stepper Navigation */}
+              <nav aria-label="Invoice Details Progress" className="py-1 px-2 my-1">
+                <div className="flex items-center justify-center max-w-md mx-auto relative">
+                  {/* Connecting line track */}
+                  <div className="absolute top-3 left-6 right-6 h-0.5 bg-slate-200 dark:bg-slate-800 -z-0" />
+                  <div
+                    className="absolute top-3 left-6 h-0.5 bg-[#008F83] -z-0 transition-all duration-300"
+                    style={{
+                      width:
+                        detailSubStep === 0
+                          ? '0%'
+                          : detailSubStep === 1
+                          ? '50%'
+                          : 'calc(100% - 48px)',
+                    }}
+                  />
+
+                  <div className="w-full flex items-center justify-between z-10 px-1">
+                    {[
+                      { id: 1, name: 'Parties & Identity', icon: User },
+                      { id: 2, name: 'Schedule & Dates', icon: Calendar },
+                      { id: 3, name: 'Line Items & Terms', icon: FileText },
+                    ].map((s, idx) => {
+                      const isCurrent = idx === detailSubStep;
+                      const isCompleted = idx < detailSubStep;
+
+                      return (
+                        <div key={s.id} className="flex flex-col items-center group">
+                          <button
+                            type="button"
+                            onClick={() => setDetailSubStep(idx)}
+                            className={cn(
+                              'w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-200 cursor-pointer focus:outline-none',
+                              isCurrent
+                                ? 'bg-[#008F83] text-white shadow-xs ring-3 ring-[#008F83]/20 scale-105'
+                                : isCompleted
+                                ? 'bg-[#008F83] text-white shadow-2xs hover:bg-[#008F83]/90'
+                                : 'bg-white dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'
+                            )}
+                            title={`Jump to ${s.name}`}
+                          >
+                            {isCompleted ? <Check className="w-3 h-3 stroke-[2.5]" /> : s.id}
+                          </button>
+                          <span
+                            className={cn(
+                              'mt-1 text-[10px] font-medium transition-colors text-center',
+                              isCurrent
+                                ? 'text-[#008F83] font-bold'
+                                : isCompleted
+                                ? 'text-slate-700 dark:text-slate-300'
+                                : 'text-slate-400 dark:text-slate-500'
+                            )}
+                          >
+                            {s.name}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </nav>
 
               {/* ──── SUB-STEP 1: PARTIES & IDENTITY ──── */}
               {detailSubStep === 0 && (
@@ -1466,6 +1672,23 @@ export function CreateInvoiceModal({
           </div>
         </div>
       </div>
+
+      {/* Embedded Custom Template / Blueprint Builder Modal */}
+      <InvoiceTemplateModal
+        isOpen={isTemplateBuilderOpen}
+        onClose={() => setIsTemplateBuilderOpen(false)}
+        onSuccess={() => {
+          setIsTemplateBuilderOpen(false);
+          fetchInvoiceTemplatesAction().then((cTemplates: InvoiceTemplateDTO[]) => {
+            if (Array.isArray(cTemplates)) {
+              setCustomTemplates(cTemplates);
+              if (cTemplates.length > 0) {
+                setTemplateTab('custom');
+              }
+            }
+          });
+        }}
+      />
     </div>
   );
 }

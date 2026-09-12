@@ -108,6 +108,53 @@ export function CreateLeaseAutomationModal({
           </button>
         </div>
 
+        {/* Circular Progress Stepper Navigation Workflow */}
+        <nav aria-label="Lease Automation Setup Progress" className="py-2.5 px-6 border-b border-admin-border bg-admin-surface-subtle/30">
+          <div className="flex items-center justify-center max-w-sm mx-auto relative">
+            {/* Connecting line track */}
+            <div className="absolute top-3 left-6 right-6 h-0.5 bg-slate-200 dark:bg-slate-800 -z-0" />
+            <div
+              className="absolute top-3 left-6 h-0.5 bg-[#008F83] -z-0 transition-all duration-300"
+              style={{ width: '50%' }}
+            />
+
+            <div className="w-full flex items-center justify-between z-10 px-1">
+              {[
+                { id: 1, name: 'Target Lease', completed: true },
+                { id: 2, name: 'Action & Schedule', current: true },
+                { id: 3, name: 'Review' },
+              ].map((s) => (
+                <div key={s.id} className="flex flex-col items-center group">
+                  <div
+                    className={cn(
+                      'w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-200 cursor-pointer focus:outline-none',
+                      s.current
+                        ? 'bg-[#008F83] text-white shadow-xs ring-3 ring-[#008F83]/20 scale-105'
+                        : s.completed
+                        ? 'bg-[#008F83] text-white shadow-2xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700'
+                    )}
+                  >
+                    {s.completed ? <Check className="w-3 h-3 stroke-[2.5]" /> : s.id}
+                  </div>
+                  <span
+                    className={cn(
+                      'mt-1 text-[10px] font-medium transition-colors text-center',
+                      s.current
+                        ? 'text-[#008F83] font-bold'
+                        : s.completed
+                        ? 'text-slate-700 dark:text-slate-300'
+                        : 'text-slate-400 dark:text-slate-500'
+                    )}
+                  >
+                    {s.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </nav>
+
         {/* Form Body */}
         <div className="p-6 overflow-y-auto space-y-5 flex-1 text-sm">
           {error && (

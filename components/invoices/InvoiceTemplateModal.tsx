@@ -578,57 +578,72 @@ export function InvoiceTemplateModal({
                 : 'lg:hidden'
             )}
           >
-            {/* Section Tabs */}
-            <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/70 rounded-2xl mb-3 text-xs font-semibold shrink-0 overflow-x-auto">
-              <button
-                type="button"
-                onClick={() => setActiveTab('general')}
-                className={cn(
-                  'flex-1 py-2 px-2.5 rounded-xl transition-all text-center whitespace-nowrap',
-                  activeTab === 'general'
-                    ? 'bg-white dark:bg-slate-900 text-[#008F83] font-bold shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                )}
-              >
-                General
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('issuer')}
-                className={cn(
-                  'flex-1 py-2 px-2.5 rounded-xl transition-all text-center whitespace-nowrap',
-                  activeTab === 'issuer'
-                    ? 'bg-white dark:bg-slate-900 text-[#008F83] font-bold shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                )}
-              >
-                Issuer (FROM)
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('items')}
-                className={cn(
-                  'flex-1 py-2 px-2.5 rounded-xl transition-all text-center whitespace-nowrap',
-                  activeTab === 'items'
-                    ? 'bg-white dark:bg-slate-900 text-[#008F83] font-bold shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                )}
-              >
-                Line Items ({items.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('terms')}
-                className={cn(
-                  'flex-1 py-2 px-2.5 rounded-xl transition-all text-center whitespace-nowrap',
-                  activeTab === 'terms'
-                    ? 'bg-white dark:bg-slate-900 text-[#008F83] font-bold shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                )}
-              >
-                Terms & Payment
-              </button>
-            </div>
+            {/* Section Stepper Workflow */}
+            <nav aria-label="Template Setup Progress" className="py-1 px-2 mb-2">
+              <div className="flex items-center justify-center max-w-lg mx-auto relative">
+                {/* Connecting line track */}
+                <div className="absolute top-3 left-6 right-6 h-0.5 bg-slate-200 dark:bg-slate-800 -z-0" />
+                <div
+                  className="absolute top-3 left-6 h-0.5 bg-[#008F83] -z-0 transition-all duration-300"
+                  style={{
+                    width:
+                      activeTab === 'general'
+                        ? '0%'
+                        : activeTab === 'issuer'
+                        ? '33.33%'
+                        : activeTab === 'items'
+                        ? '66.66%'
+                        : 'calc(100% - 48px)',
+                  }}
+                />
+
+                <div className="w-full flex items-center justify-between z-10 px-1">
+                  {[
+                    { id: 1, key: 'general' as const, name: 'General' },
+                    { id: 2, key: 'issuer' as const, name: 'Issuer (FROM)' },
+                    { id: 3, key: 'items' as const, name: `Line Items (${items.length})` },
+                    { id: 4, key: 'terms' as const, name: 'Terms & Payment' },
+                  ].map((s, idx) => {
+                    const tabOrder = ['general', 'issuer', 'items', 'terms'];
+                    const currentIdx = tabOrder.indexOf(activeTab);
+                    const isCurrent = activeTab === s.key;
+                    const isCompleted = currentIdx > idx;
+
+                    return (
+                      <div key={s.id} className="flex flex-col items-center group">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab(s.key)}
+                          className={cn(
+                            'w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-200 cursor-pointer focus:outline-none',
+                            isCurrent
+                              ? 'bg-[#008F83] text-white shadow-xs ring-3 ring-[#008F83]/20 scale-105'
+                              : isCompleted
+                              ? 'bg-[#008F83] text-white shadow-2xs hover:bg-[#008F83]/90'
+                              : 'bg-white dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'
+                          )}
+                          title={`Switch to ${s.name}`}
+                        >
+                          {isCompleted ? <Check className="w-3 h-3 stroke-[2.5]" /> : s.id}
+                        </button>
+                        <span
+                          className={cn(
+                            'mt-1 text-[10px] font-medium transition-colors text-center whitespace-nowrap',
+                            isCurrent
+                              ? 'text-[#008F83] font-bold'
+                              : isCompleted
+                              ? 'text-slate-700 dark:text-slate-300'
+                              : 'text-slate-400 dark:text-slate-500'
+                          )}
+                        >
+                          {s.name}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </nav>
 
         {/* Tab Content Body */}
         <div className="flex-1 overflow-y-auto space-y-4 px-0.5 py-1">

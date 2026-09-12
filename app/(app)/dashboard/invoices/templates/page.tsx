@@ -70,7 +70,11 @@ export default function InvoiceTemplatesPage() {
     setIsLoading(true);
     try {
       const data = await fetchInvoiceTemplatesAction();
-      setCustomTemplates(data || []);
+      const list = data || [];
+      setCustomTemplates(list);
+      if (list.length > 0) {
+        setActiveTab('custom');
+      }
     } catch (err) {
       console.error('Error fetching invoice templates:', err);
     } finally {

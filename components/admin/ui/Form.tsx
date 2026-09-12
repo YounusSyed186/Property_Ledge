@@ -12,9 +12,10 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string;
   helpText?: string;
   leftIcon?: React.ReactNode;
+  labelBg?: string;
 }
 
-export function Input({ label, error, helpText, leftIcon, className, id, ...props }: InputProps) {
+export function Input({ label, error, helpText, leftIcon, labelBg, className, id, ...props }: InputProps) {
   const inputId = id || props.name;
   return (
     <div className="relative pt-2.5">
@@ -22,7 +23,10 @@ export function Input({ label, error, helpText, leftIcon, className, id, ...prop
         {label && (
           <label
             htmlFor={inputId}
-            className="absolute -top-2.5 left-3.5 px-1.5 bg-white dark:bg-slate-800 text-[10.5px] font-medium text-slate-500 dark:text-slate-400 z-10 select-none pointer-events-none rounded-sm transition-colors"
+            className={cn(
+              'absolute -top-2.5 left-3.5 px-1.5 text-[10.5px] font-medium text-slate-500 dark:text-slate-400 z-10 select-none pointer-events-none rounded-sm transition-colors',
+              labelBg || 'bg-white dark:bg-slate-900'
+            )}
           >
             {label}
           </label>
@@ -35,7 +39,7 @@ export function Input({ label, error, helpText, leftIcon, className, id, ...prop
         <input
           id={inputId}
           className={cn(
-            'w-full h-12 px-4 rounded-xl bg-white dark:bg-slate-800 border text-[15px] font-medium text-slate-900 dark:text-white placeholder:text-[13px] placeholder:font-normal placeholder:text-slate-400/70 transition-all duration-150',
+            'w-full h-12 px-4 rounded-xl bg-white dark:bg-slate-900 border text-[15px] font-medium text-slate-900 dark:text-white placeholder:text-[13px] placeholder:font-normal placeholder:text-slate-400/70 transition-all duration-150',
             'focus:outline-none focus:border-[#008F83] focus:ring-2 focus:ring-[#008F83]/20',
             'disabled:opacity-50 disabled:pointer-events-none shadow-2xs',
             leftIcon && 'pl-10',
@@ -72,9 +76,10 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   error?: string;
   helpText?: string;
   options?: Array<{ value: string; label: string }>;
+  labelBg?: string;
 }
 
-export function Select({ label, error, helpText, className, id, children, options, ...props }: SelectProps) {
+export function Select({ label, error, helpText, className, id, children, options, labelBg, ...props }: SelectProps) {
   const selectId = id || props.name;
   return (
     <div className="relative pt-2.5">
@@ -82,7 +87,10 @@ export function Select({ label, error, helpText, className, id, children, option
         {label && (
           <label
             htmlFor={selectId}
-            className="absolute -top-2.5 left-3.5 px-1.5 bg-white dark:bg-slate-800 text-[10.5px] font-medium text-slate-500 dark:text-slate-400 z-10 select-none pointer-events-none rounded-sm transition-colors"
+            className={cn(
+              'absolute -top-2.5 left-3.5 px-1.5 text-[10.5px] font-medium text-slate-500 dark:text-slate-400 z-10 select-none pointer-events-none rounded-sm transition-colors',
+              labelBg || 'bg-white dark:bg-slate-900'
+            )}
           >
             {label}
           </label>
@@ -90,7 +98,7 @@ export function Select({ label, error, helpText, className, id, children, option
         <select
           id={selectId}
           className={cn(
-            'w-full h-12 px-4 rounded-xl bg-white dark:bg-slate-800 border text-[14.5px] font-medium text-slate-900 dark:text-white transition-all duration-150 cursor-pointer shadow-2xs',
+            'w-full h-12 px-4 rounded-xl bg-white dark:bg-slate-900 border text-[14.5px] font-medium text-slate-900 dark:text-white transition-all duration-150 cursor-pointer shadow-2xs',
             'focus:outline-none focus:border-[#008F83] focus:ring-2 focus:ring-[#008F83]/20',
             'disabled:opacity-50 disabled:pointer-events-none',
             error
@@ -127,9 +135,10 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
   label?: string;
   error?: string;
   helpText?: string;
+  labelBg?: string;
 }
 
-export function Textarea({ label, error, helpText, className, id, ...props }: TextareaProps) {
+export function Textarea({ label, error, helpText, className, id, labelBg, ...props }: TextareaProps) {
   const textareaId = id || props.name;
   return (
     <div className="relative pt-2.5">
@@ -137,7 +146,10 @@ export function Textarea({ label, error, helpText, className, id, ...props }: Te
         {label && (
           <label
             htmlFor={textareaId}
-            className="absolute -top-2.5 left-3.5 px-1.5 bg-white dark:bg-slate-800 text-[10.5px] font-medium text-slate-500 dark:text-slate-400 z-10 select-none pointer-events-none rounded-sm transition-colors"
+            className={cn(
+              'absolute -top-2.5 left-3.5 px-1.5 text-[10.5px] font-medium text-slate-500 dark:text-slate-400 z-10 select-none pointer-events-none rounded-sm transition-colors',
+              labelBg || 'bg-white dark:bg-slate-900'
+            )}
           >
             {label}
           </label>
@@ -145,7 +157,7 @@ export function Textarea({ label, error, helpText, className, id, ...props }: Te
         <textarea
           id={textareaId}
           className={cn(
-            'w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-800 border text-[14.5px] font-medium text-slate-900 dark:text-white placeholder:text-[13px] placeholder:font-normal placeholder:text-slate-400/70 transition-all duration-150 resize-y min-h-[90px] shadow-2xs',
+            'w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border text-[14.5px] font-medium text-slate-900 dark:text-white placeholder:text-[13px] placeholder:font-normal placeholder:text-slate-400/70 transition-all duration-150 resize-y min-h-[90px] shadow-2xs',
             'focus:outline-none focus:border-[#008F83] focus:ring-2 focus:ring-[#008F83]/20',
             'disabled:opacity-50 disabled:pointer-events-none',
             error
