@@ -94,6 +94,34 @@ export async function createInvoiceAction(dto: CreateInvoiceDTO) {
   }
 }
 
+export async function createBulkInvoicesAction(dto: BulkInvoiceDTO) {
+  try {
+    const { user, context, invoiceService } = await getContextAndService();
+    const res = await invoiceService.createBulkInvoices(
+      {
+        ...dto,
+        workspaceId: context.workspaceId,
+      },
+      {
+        userId: user.id,
+        workspaceId: context.workspaceId,
+      }
+    );
+    if (!res.success) {
+      return { success: false, error: res.error.message || 'Failed to create bulk invoices' };
+    }
+    revalidatePath('/dashboard/invoices');
+    return {
+      success: true,
+      createdCount: res.data.createdCount,
+      invoices: res.data.invoices,
+    };
+  } catch (err: any) {
+    console.error('[createBulkInvoicesAction] Error:', err);
+    return { success: false, error: err.message || 'Failed to generate bulk invoices' };
+  }
+}
+
 export async function updateInvoiceAction(id: string, dto: UpdateInvoiceDTO) {
   try {
     const { invoiceService } = await getContextAndService();
@@ -256,6 +284,57 @@ export async function sendInvoiceEmailAction(
   } catch (err: any) {
     console.error('[sendInvoiceEmailAction] Error:', err);
     return { success: false, error: err.message || 'Failed to send invoice email' };
+  }
+}
+
+export async function sendInvoiceTestEmailAction(
+  invoiceId: string,
+  testRecipient: string,
+  customMessage?: string,
+  driveFolderUrl?: string,
+  subject?: string
+) {
+  try {
+    const { user, invoiceService, invoiceDocService } = await getContextAndService();
+    const invoice = await invoiceService.getInvoiceById(invoiceId);
+    if (!invoice) throw new Error('Invoice not found');
+
+    const targetEmail = testRecipient.trim() || user.email;
+    if (!targetEmail) {
+      throw new Error('Please provide a valid test recipient email address');
+    }
+
+    const docResult = await invoiceDocService.generateDocument({ invoiceId, format: 'pdf' });
+    const renderDto = await invoiceService.getInvoiceRenderData(invoiceId);
+
+    const testSubject = subject?.trim()
+      ? (subject.startsWith('[TEST EMAIL]') ? subject : `[TEST EMAIL] ${subject}`)
+      : `[TEST EMAIL] Invoice ${invoice.invoiceNumber || 'INV-PREVIEW'} (Test Preview)`;
+
+    const testMessage = customMessage
+      ? `[TEST EMAIL PREVIEW - SENDER VERIFICATION]\n\n${customMessage}`
+      : `[TEST EMAIL PREVIEW - SENDER VERIFICATION]\n\nThis is a sample test delivery of invoice ${invoice.invoiceNumber}. Please verify the layout and attachment before sending to your client.`;
+
+    const { invoiceEmailAdapter } = await import('@/modules/invoices/infrastructure/email/invoice-email-adapter');
+    const res = await invoiceEmailAdapter.sendInvoice({
+      to: targetEmail,
+      recipientName: invoice.recipient?.name || invoice.customerName || 'Test Recipient',
+      invoice: renderDto,
+      downloadUrl: docResult.documentUrl,
+      pdfBuffer: docResult.buffer,
+      customMessage: testMessage,
+      driveFolderUrl,
+      subject: testSubject,
+    });
+
+    if (!res.success) {
+      throw new Error(res.error?.message || 'Failed to deliver test email');
+    }
+
+    return { success: true, messageId: res.messageId, recipient: targetEmail };
+  } catch (err: any) {
+    console.error('[sendInvoiceTestEmailAction] Error:', err);
+    return { success: false, error: err.message || 'Failed to send test email' };
   }
 }
 

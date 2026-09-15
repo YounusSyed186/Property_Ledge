@@ -33,6 +33,7 @@ import { InvoiceTemplateDTO } from '@/modules/invoices';
 import {
   createLeaseAutomationAction,
   createStandaloneInvoiceAutomationAction,
+  sendAutomationTestEmailAction,
 } from '@/app/actions/automations';
 import { PREDEFINED_INVOICE_TEMPLATES, getPredefinedTemplateById } from '@/modules/invoices/domain/constants/predefined-templates';
 import { AutomationScheduleType, AutomationType } from '@/modules/automation';
@@ -102,6 +103,11 @@ export function CreateAutomationModal({
     'Hi {first_name},\n\nHope everything is going smoothly.\n\nPlease find attached invoice {invoice_number} for {amount} (due {due_date}).\n\nCould you please review the invoice and confirm that all details are correct on your end?\n\nPlease let me know if you have any questions.\n\nKind regards,\n{issuer_name}'
   );
   const [driveFolderUrl, setDriveFolderUrl] = useState<string>('');
+
+  // Test Email State
+  const [testRecipient, setTestRecipient] = useState<string>('');
+  const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
+  const [testEmailSuccess, setTestEmailSuccess] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -292,6 +298,54 @@ export function CreateAutomationModal({
       setError(err.message || 'Failed to create automation');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    setIsSendingTest(true);
+    setError(null);
+    setTestEmailSuccess(null);
+    try {
+      const res = await sendAutomationTestEmailAction({
+        automationType,
+        testRecipient,
+        leaseId: selectedLeaseId,
+        leaseActionType,
+        invoiceTemplateId: selectedTemplateId,
+        customerName: effectiveTenantName,
+        customerEmail: effectiveTenantEmail,
+        customerAddress,
+        description: invoiceDescription,
+        amount: Number(invoiceAmount) || undefined,
+        currency,
+        recipientOverride: hasCustomOverrides
+          ? {
+              tenantName: effectiveTenantName,
+              tenantEmail: effectiveTenantEmail,
+              tenantPhone: effectiveTenantPhone || undefined,
+              rentAmount: customRentAmount !== '' ? Number(customRentAmount) : undefined,
+            }
+          : undefined,
+        issuedByOverride: {
+          name: issuerName,
+          email: issuerEmail,
+          phone: issuerPhone,
+          address: issuerAddress,
+          taxId: issuerTaxId,
+        },
+        paymentDueDays: Number(paymentDueDays) || 14,
+        emailSubject: emailSubject.trim() || undefined,
+        customMessage: emailMessage.trim() || undefined,
+        driveFolderUrl: driveFolderUrl.trim() || undefined,
+      });
+
+      if (!res.success) throw new Error(res.error || 'Failed to send test email');
+      setTestEmailSuccess(`Test email successfully delivered to ${res.recipient || testRecipient || 'your email'}!`);
+      setTimeout(() => setTestEmailSuccess(null), 5000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send test email');
+    } finally {
+      setIsSendingTest(false);
     }
   };
 
@@ -1682,6 +1736,55 @@ export function CreateAutomationModal({
                       : `${offsetMonths} month${offsetMonths > 1 ? 's' : ''} after lease start (7:00 AM AU Daily Run)`}
                   </span>
                 </div>
+              </div>
+
+              {/* Test Email Section before scheduling */}
+              <div className="p-4 bg-teal-500/10 border border-[#008F83]/30 rounded-2xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-[#008F83] text-white">
+                      <Mail className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        Send Test Email Before Activating
+                        <span className="text-[9.5px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-[#008F83]/20 text-[#008F83]">
+                          Sandbox Safe
+                        </span>
+                      </h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Verify layout, dynamic tags, and PDF attachment in your inbox.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="email"
+                    value={testRecipient}
+                    onChange={(e) => setTestRecipient(e.target.value)}
+                    placeholder="Enter test email address (defaults to your account email)"
+                    className="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#008F83]"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSendTestEmail}
+                    disabled={isSendingTest || loading}
+                    className="text-xs font-bold border-[#008F83]/50 text-[#008F83] hover:bg-[#008F83]/15 shrink-0"
+                  >
+                    {isSendingTest ? 'Sending Test...' : 'Send Test Email'}
+                  </Button>
+                </div>
+
+                {testEmailSuccess && (
+                  <div className="text-[11.5px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 pt-0.5">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{testEmailSuccess}</span>
+                  </div>
+                )}
               </div>
 
               <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-700 dark:text-amber-400 text-[11px] leading-relaxed flex items-start gap-2.5">

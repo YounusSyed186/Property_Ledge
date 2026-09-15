@@ -10,6 +10,9 @@ import { ScheduleCalculator } from '@/modules/automation/domain/services/schedul
 import { createServerServices } from '@/composition/services';
 import { AutomationType, AutomationScheduleType, ScheduleConfig } from '@/modules/automation';
 import { getAuDateParts, DEFAULT_AU_TIMEZONE } from '@/lib/format/australian-time';
+import { emailService } from '@/lib/email/service';
+import { PdfLeaseAdapter } from '@/lib/pdf/pdf-lease-adapter';
+import { container } from '@/composition/container';
 
 const isUuid = (val?: string | null): boolean =>
   typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
@@ -755,3 +758,290 @@ export async function evaluateDueAutomationsAction() {
     return { success: false, error: err.message };
   }
 }
+
+export interface SendAutomationTestEmailDTO {
+  automationType: 'lease' | 'invoice';
+  testRecipient: string;
+  leaseId?: string;
+  leaseActionType?: string;
+  invoiceTemplateId?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerAddress?: string;
+  description?: string;
+  amount?: number;
+  currency?: string;
+  recipientOverride?: {
+    tenantName?: string;
+    tenantEmail?: string;
+    tenantPhone?: string;
+    rentAmount?: number;
+  };
+  issuedByOverride?: any;
+  paymentDueDays?: number;
+  emailSubject?: string;
+  customMessage?: string;
+  driveFolderUrl?: string;
+}
+
+export async function sendAutomationTestEmailAction(dto: SendAutomationTestEmailDTO) {
+  try {
+    const { user } = await getContext();
+    const targetEmail = dto.testRecipient?.trim() || user.email;
+    if (!targetEmail) {
+      throw new Error('Please provide a valid test recipient email address');
+    }
+
+    const supabase = await createAdminClient();
+
+    // 1. Lease Automation - Sending Lease Agreement Summary
+    if (dto.automationType === 'lease' && dto.leaseActionType === 'send_lease') {
+      let propertyName = 'Sample Property';
+      let propertyAddress = '123 Sample St, Sydney NSW 2000';
+      let tenantName = dto.recipientOverride?.tenantName || 'Valued Tenant';
+      let startDate = '01/07/2025';
+      let endDate = '30/06/2026';
+      let rentAmount = dto.recipientOverride?.rentAmount || 650;
+      let rentFrequency = 'weekly';
+      let securityDeposit = 2600;
+      let termsNotes = 'Standard residential tenancy terms.';
+
+      if (dto.leaseId) {
+        const { data: lease } = await (supabase as any)
+          .from('leases')
+          .select('*, property:properties(*), lease_tenants:lease_tenants(tenant:tenants(*))')
+          .eq('id', dto.leaseId)
+          .maybeSingle();
+
+        if (lease) {
+          propertyName = lease.property?.name || propertyName;
+          propertyAddress = lease.property?.address_line1 || lease.property?.address || propertyAddress;
+          const tenant = lease.lease_tenants?.[0]?.tenant;
+          if (tenant) {
+            tenantName = dto.recipientOverride?.tenantName || `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim() || tenantName;
+          }
+          startDate = lease.start_date ? new Date(lease.start_date).toLocaleDateString('en-AU') : startDate;
+          endDate = lease.end_date ? new Date(lease.end_date).toLocaleDateString('en-AU') : 'Periodic (Month-to-Month)';
+          rentAmount = dto.recipientOverride?.rentAmount || Number(lease.rent_amount) || rentAmount;
+          rentFrequency = lease.rent_frequency || rentFrequency;
+          securityDeposit = Number(lease.security_deposit) || securityDeposit;
+          termsNotes = lease.notes || termsNotes;
+        }
+      }
+
+      // Generate PDF Lease Agreement
+      const pdfBytes = await PdfLeaseAdapter.generate({
+        leaseNumber: dto.leaseId ? dto.leaseId.slice(0, 8).toUpperCase() : 'PREVIEW',
+        propertyName,
+        propertyAddress,
+        tenantName,
+        tenantEmail: targetEmail,
+        startDate,
+        endDate,
+        rentAmount,
+        rentFrequency,
+        depositAmount: securityDeposit,
+        termsNotes,
+      });
+
+      const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
+      const subject = dto.emailSubject?.trim()
+        ? `[TEST EMAIL] ${dto.emailSubject}`
+        : `[TEST EMAIL] Lease Agreement Summary — ${propertyName}`;
+
+      const res = await emailService.sendEmail({
+        to: targetEmail,
+        subject,
+        templateType: 'invoice_plain',
+        variables: {
+          body: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="background: #e6fffa; border: 1px solid #008F83; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
+              <strong style="color: #008F83;">🧪 AUTOMATION TEST PREVIEW</strong>
+              <p style="margin: 4px 0 0; font-size: 13px; color: #4a5568;">
+                This is a simulated test delivery of your lease automation. Before activating, verify that the attachment and property details meet your requirements.
+              </p>
+            </div>
+            <h2 style="color: #22333b;">Lease Agreement Summary</h2>
+            <p>Hello <strong>${tenantName}</strong>,</p>
+            <p>Please find your official Lease Agreement Summary attached for <strong>${propertyName}</strong>.</p>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #e9ecef;">
+              <p style="margin: 5px 0;"><strong>Property:</strong> ${propertyName} ${propertyAddress ? `(${propertyAddress})` : ''}</p>
+              <p style="margin: 5px 0;"><strong>Lease Period:</strong> ${startDate} – ${endDate}</p>
+              <p style="margin: 5px 0;"><strong>Rent:</strong> $${rentAmount.toLocaleString()} / ${rentFrequency}</p>
+              ${dto.driveFolderUrl ? `<p style="margin: 5px 0;"><strong>Drive Records:</strong> <a href="${dto.driveFolderUrl}">${dto.driveFolderUrl}</a></p>` : ''}
+            </div>
+            ${dto.customMessage ? `<p style="background: #f1f5f9; padding: 12px; border-radius: 6px; font-style: italic;">"${dto.customMessage}"</p>` : ''}
+            <p>Regards,<br/><strong>Property Ledge Team</strong></p>
+          </div>`,
+        },
+        attachments: [
+          {
+            filename: `Test_Lease_${propertyName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+            content: pdfBase64,
+          },
+        ],
+      });
+
+      if (!res.success) throw new Error(res.error?.message || 'Failed to deliver test email');
+      return { success: true, messageId: res.messageId, recipient: targetEmail };
+    }
+
+    // 2. Invoice Automation (or Lease Recurring Invoice Automation)
+    const amount = Number(dto.amount) || Number(dto.recipientOverride?.rentAmount) || 500;
+    const customer = dto.customerName || dto.recipientOverride?.tenantName || 'Sample Customer';
+    const desc = dto.description || 'Monthly Lease & Property Services';
+    const currency = dto.currency || 'AUD';
+    const dueDays = dto.paymentDueDays || 14;
+    const dueDate = new Date(Date.now() + dueDays * 86400000).toLocaleDateString('en-AU');
+
+    const subject = dto.emailSubject?.trim()
+      ? `[TEST EMAIL] ${dto.emailSubject}`
+      : `[TEST EMAIL] Invoice Preview — ${desc} (${currency} $${amount.toFixed(2)})`;
+
+    const customMsg = dto.customMessage || 'Thank you for your business. Please find your automated invoice attached.';
+
+    const res = await emailService.sendEmail({
+      to: targetEmail,
+      subject,
+      templateType: 'invoice_plain',
+      variables: {
+        body: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="background: #e6fffa; border: 1px solid #008F83; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
+            <strong style="color: #008F83;">🧪 INVOICE AUTOMATION TEST PREVIEW</strong>
+            <p style="margin: 4px 0 0; font-size: 13px; color: #4a5568;">
+              This is a test preview of your recurring invoice automation. No charges or live invoices were created.
+            </p>
+          </div>
+          <h2 style="color: #0f172a; margin-top: 0;">Tax Invoice</h2>
+          <p>Hello <strong>${customer}</strong>,</p>
+          <p>${customMsg}</p>
+          <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin: 18px 0; border: 1px solid #e2e8f0;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;"><strong>Invoice #:</strong></td>
+                <td style="padding: 6px 0; text-align: right; font-family: monospace; font-weight: bold;">INV-AUTO-TEST</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;"><strong>Description:</strong></td>
+                <td style="padding: 6px 0; text-align: right;">${desc}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;"><strong>Due Date:</strong></td>
+                <td style="padding: 6px 0; text-align: right;">${dueDate} (${dueDays} days terms)</td>
+              </tr>
+              <tr style="border-top: 2px solid #cbd5e1;">
+                <td style="padding: 8px 0; font-size: 16px; font-weight: bold; color: #0f172a;">Total Amount Due:</td>
+                <td style="padding: 8px 0; text-align: right; font-size: 18px; font-weight: 900; color: #008F83;">${currency} $${amount.toFixed(2)}</td>
+              </tr>
+            </table>
+          </div>
+          ${dto.driveFolderUrl ? `<p style="font-size: 12px; color: #64748b;">Document Repository: <a href="${dto.driveFolderUrl}">${dto.driveFolderUrl}</a></p>` : ''}
+          <p style="font-size: 13px; color: #64748b; margin-top: 24px;">Issued by <strong>${dto.issuedByOverride?.name || 'Property Ledge Management'}</strong></p>
+        </div>`,
+      },
+    });
+
+    if (!res.success) throw new Error(res.error?.message || 'Failed to deliver test email');
+    return { success: true, messageId: res.messageId, recipient: targetEmail };
+  } catch (err: any) {
+    console.error('[sendAutomationTestEmailAction] Error:', err);
+    return { success: false, error: err.message || 'Failed to send test email' };
+  }
+}
+
+export interface SendLeaseAgreementTestEmailDTO {
+  testRecipient: string;
+  propertyId?: string;
+  propertyName?: string;
+  propertyAddress?: string;
+  tenantName: string;
+  tenantEmail?: string;
+  tenantPhone?: string;
+  startDate: string;
+  endDate?: string | null;
+  rentAmount: number;
+  rentFrequency: string;
+  securityDeposit?: number;
+  notes?: string;
+  customMessage?: string;
+  subject?: string;
+}
+
+export async function sendLeaseAgreementTestEmailAction(dto: SendLeaseAgreementTestEmailDTO) {
+  try {
+    const { user } = await getContext();
+    const targetEmail = dto.testRecipient?.trim() || user.email;
+    if (!targetEmail) {
+      throw new Error('Please provide a valid test recipient email address');
+    }
+
+    const propName = dto.propertyName || 'Property';
+    const propAddress = dto.propertyAddress || '';
+    const tenant = dto.tenantName.trim() || 'Valued Tenant';
+    const start = dto.startDate || new Date().toISOString().split('T')[0];
+    const end = dto.endDate || 'Periodic (Month-to-Month)';
+    const rent = Number(dto.rentAmount) || 0;
+    const freq = dto.rentFrequency || 'weekly';
+
+    // Generate standard PDF Lease Agreement
+    const pdfBytes = await PdfLeaseAdapter.generate({
+      leaseNumber: 'DRAFT-PREVIEW',
+      propertyName: propName,
+      propertyAddress: propAddress,
+      tenantName: tenant,
+      tenantEmail: dto.tenantEmail || targetEmail,
+      tenantPhone: dto.tenantPhone,
+      startDate: start,
+      endDate: end,
+      rentAmount: rent,
+      rentFrequency: freq,
+      depositAmount: Number(dto.securityDeposit) || 0,
+      termsNotes: dto.notes,
+    });
+
+    const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
+    const subject = dto.subject?.trim()
+      ? (dto.subject.startsWith('[TEST EMAIL]') ? dto.subject : `[TEST EMAIL] ${dto.subject}`)
+      : `[TEST EMAIL] Official Tenancy Agreement Summary — ${propName}`;
+
+    const res = await emailService.sendEmail({
+      to: targetEmail,
+      subject,
+      templateType: 'invoice_plain',
+      variables: {
+        body: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="background: #e6fffa; border: 1px solid #008F83; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
+            <strong style="color: #008F83;">🧪 LEASE AGREEMENT TEST PREVIEW</strong>
+            <p style="margin: 4px 0 0; font-size: 13px; color: #4a5568;">
+              This is a test preview of the lease agreement email. Review the attached PDF summary to ensure all tenancy particulars and financials are accurate.
+            </p>
+          </div>
+          <h2 style="color: #22333b;">Residential Lease Agreement Summary</h2>
+          <p>Hello <strong>${tenant}</strong>,</p>
+          <p>Please find your official Lease Agreement Summary attached for <strong>${propName}</strong>.</p>
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #e9ecef;">
+            <p style="margin: 5px 0;"><strong>Property:</strong> ${propName} ${propAddress ? `(${propAddress})` : ''}</p>
+            <p style="margin: 5px 0;"><strong>Lease Period:</strong> ${start} – ${end}</p>
+            <p style="margin: 5px 0;"><strong>Rent:</strong> $${rent.toLocaleString()} / ${freq}</p>
+            ${dto.securityDeposit ? `<p style="margin: 5px 0;"><strong>Security Bond:</strong> $${Number(dto.securityDeposit).toLocaleString()}</p>` : ''}
+          </div>
+          ${dto.customMessage ? `<p style="background: #f1f5f9; padding: 12px; border-radius: 6px; font-style: italic;">"${dto.customMessage}"</p>` : ''}
+          <p>Regards,<br/><strong>Property Ledge Team</strong></p>
+        </div>`,
+      },
+      attachments: [
+        {
+          filename: `Lease_Summary_${propName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+          content: pdfBase64,
+        },
+      ],
+    });
+
+    if (!res.success) throw new Error(res.error?.message || 'Failed to deliver test email');
+    return { success: true, messageId: res.messageId, recipient: targetEmail };
+  } catch (err: any) {
+    console.error('[sendLeaseAgreementTestEmailAction] Error:', err);
+    return { success: false, error: err.message || 'Failed to send test email' };
+  }
+}
+

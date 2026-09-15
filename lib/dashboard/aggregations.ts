@@ -58,40 +58,45 @@ export async function aggregateFinancialHealth(propertyIds: string[]): Promise<F
   const { start, end } = monthBounds(0);
   const prev = monthBounds(1);
 
-  const [paymentsRes, invoicesRes, expensesRes, leasesRes] = await Promise.all([
-    supabase.from('payments').select('amount, status, payment_date')
+  const [incomeRes, invoicesRes, expensesRes, leasesRes] = await Promise.all([
+    supabase.from('transactions').select('amount, status, transaction_date')
       .in('property_id', propertyIds)
-      .gte('payment_date', prev.start)
-      .lt('payment_date', end),
+      .eq('transaction_type', 'income')
+      .gte('transaction_date', prev.start.split('T')[0])
+      .lte('transaction_date', end.split('T')[0]),
     supabase.from('invoices').select('status, total_amount, balance_due').in('property_id', propertyIds),
-    supabase.from('expenses').select('amount, status, expense_date')
+    supabase.from('transactions').select('amount, status, transaction_date')
       .in('property_id', propertyIds)
-      .gte('expense_date', prev.start)
-      .lt('expense_date', end),
+      .eq('transaction_type', 'expense')
+      .gte('transaction_date', prev.start.split('T')[0])
+      .lte('transaction_date', end.split('T')[0]),
     supabase.from('leases').select('status, rent_amount, rent_frequency').in('property_id', propertyIds),
   ]);
 
-  const payments = (paymentsRes.data || []) as PaymentRow[];
+  const incomeTx = (incomeRes.data || []) as { amount: number; status: string; transaction_date: string }[];
   const invoices = (invoicesRes.data || []) as InvoiceRow[];
-  const expenses = (expensesRes.data || []) as ExpenseRow[];
+  const expenseTx = (expensesRes.data || []) as { amount: number; status: string; transaction_date: string }[];
   const leases = (leasesRes.data || []) as LeaseRow[];
 
-  const collected = payments
-    .filter((p) => p.status === 'completed' && p.payment_date >= start && p.payment_date < end)
+  const startDateStr = start.split('T')[0];
+  const prevStartDateStr = prev.start.split('T')[0];
+
+  const collected = incomeTx
+    .filter((p) => p.status === 'completed' && p.transaction_date >= startDateStr)
     .reduce((s, p) => s + Number(p.amount), 0);
-  const collectedPrevious = payments
-    .filter((p) => p.status === 'completed' && p.payment_date >= prev.start && p.payment_date < start)
+  const collectedPrevious = incomeTx
+    .filter((p) => p.status === 'completed' && p.transaction_date >= prevStartDateStr && p.transaction_date < startDateStr)
     .reduce((s, p) => s + Number(p.amount), 0);
 
   const outstanding = invoices
     .filter((i) => !['draft', 'void', 'cancelled', 'paid'].includes(i.status))
     .reduce((s, i) => s + Number(i.balance_due || 0), 0);
 
-  const expensesThis = expenses
-    .filter((e) => e.status === 'paid' && e.expense_date >= start && e.expense_date < end)
+  const expensesThis = expenseTx
+    .filter((e) => e.status === 'completed' && e.transaction_date >= startDateStr)
     .reduce((s, e) => s + Number(e.amount), 0);
-  const expensesPrevious = expenses
-    .filter((e) => e.status === 'paid' && e.expense_date >= prev.start && e.expense_date < start)
+  const expensesPrevious = expenseTx
+    .filter((e) => e.status === 'completed' && e.transaction_date >= prevStartDateStr && e.transaction_date < startDateStr)
     .reduce((s, e) => s + Number(e.amount), 0);
 
   const expectedMonthlyRent = leases

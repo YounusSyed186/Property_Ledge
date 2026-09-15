@@ -36,6 +36,7 @@ import {
 import { formatCurrency, SUPPORTED_CURRENCIES } from '@/modules/invoices/domain/value-objects/currency';
 import { fetchDashboardProperties, fetchAllWorkspaceLeases, fetchDashboardLeases } from '@/app/actions/dashboard';
 import { getInvoiceDownloadUrlAction, generateInvoiceDocumentAction, sendInvoiceEmailAction, fetchInvoiceTemplatesAction } from '@/app/actions/invoices';
+import { sendAutomationTestEmailAction } from '@/app/actions/automations';
 import { LiveInvoiceRenderer } from './LiveInvoiceRenderer';
 import { InvoiceTemplateModal } from './InvoiceTemplateModal';
 import {
@@ -112,6 +113,11 @@ export function CreateInvoiceModal({
   const [invoiceNumber, setInvoiceNumber] = useState(
     `INV-${getAuDateParts(new Date()).year}-${Math.floor(1000 + Math.random() * 9000)}`
   );
+
+  // Test Email State
+  const [testRecipient, setTestRecipient] = useState('');
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [testSuccess, setTestSuccess] = useState<string | null>(null);
 
   // Issuer (Issued By) Details - Defaults from workspace / business identity
   const [isEditingIssuer, setIsEditingIssuer] = useState(true);
@@ -448,6 +454,40 @@ export function CreateInvoiceModal({
       setError(err.message || 'Failed to save draft');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    setIsSendingTest(true);
+    setTestSuccess(null);
+    setError(null);
+    try {
+      const res = await sendAutomationTestEmailAction({
+        automationType: 'invoice',
+        testRecipient,
+        customerName: recipientName.trim() || 'Valued Recipient',
+        customerEmail: recipientEmail.trim() || undefined,
+        customerAddress: recipientAddress.trim() || undefined,
+        description: items[0]?.description || 'Invoice Services',
+        amount: grandTotal,
+        currency,
+        invoiceTemplateId: selectedTemplate.id,
+        issuedByOverride: {
+          name: issuerName.trim(),
+          email: issuerEmail.trim(),
+          phone: issuerPhone.trim(),
+          address: issuerAddress.trim(),
+          taxId: issuerTaxId.trim(),
+        },
+      });
+
+      if (!res.success) throw new Error(res.error || 'Failed to send test email');
+      setTestSuccess(`Test invoice email sent to ${res.recipient || testRecipient || 'your inbox'}!`);
+      setTimeout(() => setTestSuccess(null), 5000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send test email');
+    } finally {
+      setIsSendingTest(false);
     }
   };
 
@@ -1532,6 +1572,53 @@ export function CreateInvoiceModal({
                   </Link>
                 </div>
               </div>
+
+              {/* Test Email Sandbox Bar */}
+              <div className="bg-[#008F83]/5 border border-[#008F83]/20 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#008F83]/15 text-[#008F83] flex items-center justify-center shrink-0">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      Send Test Email
+                      <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 bg-[#008F83]/15 text-[#008F83] rounded-md">
+                        Sandbox Safe
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Deliver a full preview with dynamic calculations to your test inbox before issuing.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="email"
+                    value={testRecipient}
+                    onChange={(e) => setTestRecipient(e.target.value)}
+                    placeholder="Enter test recipient email..."
+                    className="h-8 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-[#008F83] w-56"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSendTestEmail}
+                    disabled={isSendingTest}
+                    className="h-8 text-xs font-bold text-[#008F83] border-[#008F83]/30 hover:bg-[#008F83]/10"
+                  >
+                    {isSendingTest ? 'Sending...' : 'Send Test Email'}
+                  </Button>
+                </div>
+              </div>
+
+              {testSuccess && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{testSuccess}</span>
+                </div>
+              )}
 
               {/* Live A4 Renderer */}
               <LiveInvoiceRenderer

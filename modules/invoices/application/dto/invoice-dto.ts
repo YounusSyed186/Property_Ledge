@@ -110,11 +110,17 @@ export interface BulkInvoiceBatchItemDTO {
 export interface BulkInvoiceDTO {
   workspaceId?: string;
   propertyId?: string | null;
+  unitId?: string | null;
   leaseId?: string | null;
   tenantId?: string | null;
   customerName?: string | null;
   customerEmail?: string | null;
   customerAddress?: string | null;
+  customerPhone?: string | null;
+  recipientName?: string | null;
+  recipientEmail?: string | null;
+  recipientPhone?: string | null;
+  recipientAddress?: string | null;
   currency?: string;
   description: string;
   monthsCount: number; // 1 to 24 months

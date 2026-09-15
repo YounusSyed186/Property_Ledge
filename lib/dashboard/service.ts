@@ -177,8 +177,7 @@ export async function deleteProperty(propertyId: string) {
   await adminClient.from('leases').delete().eq('property_id', propertyId);
   await adminClient.from('tenants').delete().eq('property_id', propertyId);
   await adminClient.from('invoices').delete().eq('property_id', propertyId);
-  await adminClient.from('payments').delete().eq('property_id', propertyId);
-  await adminClient.from('expenses').delete().eq('property_id', propertyId);
+  await adminClient.from('transactions').delete().eq('property_id', propertyId);
   await adminClient.from('maintenance_requests').delete().eq('property_id', propertyId);
   await adminClient.from('inspections').delete().eq('property_id', propertyId);
   await adminClient.from('documents').delete().eq('property_id', propertyId);
@@ -475,76 +474,85 @@ export async function deleteInvoice(propertyId: string, invoiceId: string) {
   await recordActivityLog({ propertyId, action: 'voided', entityType: 'invoice', entityId: invoiceId });
 }
 
-// Payments
-export async function createPayment(propertyId: string, input: Omit<Tables['payments']['Insert'], 'property_id'>) {
+// Financial Transactions
+export async function createPayment(propertyId: string, input: any) {
   const user = await requirePropertyPermission(propertyId, 'financial.manage');
   const adminClient = await createAdminClient();
   const { data, error } = await adminClient
-    .from('payments')
-    .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
+    .from('transactions')
+    .insert({
+      ...input,
+      property_id: propertyId,
+      transaction_type: 'income',
+      created_by: user.id,
+    } as never)
     .select()
     .single();
   if (error) throw new Error(error.message);
   const row = data as { id: string };
-  await recordActivityLog({ propertyId, action: 'created', entityType: 'payment', entityId: row.id, metadata: { amount: input.amount } });
+  await recordActivityLog({ propertyId, action: 'created', entityType: 'transaction', entityId: row.id, metadata: { amount: input.amount } });
   await createNotification({
     userId: user.id,
     propertyId,
     type: 'payment_recorded',
     title: 'Payment recorded',
     body: `A payment of ${input.amount} was recorded.`,
-    actionUrl: `/dashboard/money?tab=payments`,
+    actionUrl: `/dashboard/money?tab=income`,
   });
   return data;
 }
 
-export async function updatePayment(propertyId: string, paymentId: string, input: Tables['payments']['Update']) {
+export async function updatePayment(propertyId: string, paymentId: string, input: any) {
   await requirePropertyPermission(propertyId, 'financial.manage');
   const adminClient = await createAdminClient();
-  const { data, error } = await adminClient.from('payments').update(input as never).eq('id', paymentId).eq('property_id', propertyId).select().single();
+  const { data, error } = await adminClient.from('transactions').update(input as never).eq('id', paymentId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'updated', entityType: 'payment', entityId: paymentId });
+  await recordActivityLog({ propertyId, action: 'updated', entityType: 'transaction', entityId: paymentId });
   return data;
 }
 
 export async function deletePayment(propertyId: string, paymentId: string) {
   await requirePropertyPermission(propertyId, 'financial.manage');
   const adminClient = await createAdminClient();
-  const { error } = await adminClient.from('payments').delete().eq('id', paymentId).eq('property_id', propertyId);
+  const { error } = await adminClient.from('transactions').delete().eq('id', paymentId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'deleted', entityType: 'payment', entityId: paymentId });
+  await recordActivityLog({ propertyId, action: 'deleted', entityType: 'transaction', entityId: paymentId });
 }
 
-// Expenses
-export async function createExpense(propertyId: string, input: Omit<Tables['expenses']['Insert'], 'property_id'>) {
+export async function createExpense(propertyId: string, input: any) {
   const user = await requirePropertyPermission(propertyId, 'financial.manage');
   const adminClient = await createAdminClient();
   const { data, error } = await adminClient
-    .from('expenses')
-    .insert({ ...input, property_id: propertyId, created_by: user.id } as never)
+    .from('transactions')
+    .insert({
+      ...input,
+      property_id: propertyId,
+      transaction_type: 'expense',
+      created_by: user.id,
+    } as never)
     .select()
     .single();
   if (error) throw new Error(error.message);
   const row = data as { id: string };
-  await recordActivityLog({ propertyId, action: 'created', entityType: 'expense', entityId: row.id });
+  await recordActivityLog({ propertyId, action: 'created', entityType: 'transaction', entityId: row.id });
   return data;
 }
 
-export async function updateExpense(propertyId: string, expenseId: string, input: Tables['expenses']['Update']) {
+export async function updateExpense(propertyId: string, expenseId: string, input: any) {
   await requirePropertyPermission(propertyId, 'financial.manage');
   const adminClient = await createAdminClient();
-  const { data, error } = await adminClient.from('expenses').update(input as never).eq('id', expenseId).eq('property_id', propertyId).select().single();
+  const { data, error } = await adminClient.from('transactions').update(input as never).eq('id', expenseId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'updated', entityType: 'expense', entityId: expenseId });
+  await recordActivityLog({ propertyId, action: 'updated', entityType: 'transaction', entityId: expenseId });
   return data;
 }
 
 export async function deleteExpense(propertyId: string, expenseId: string) {
   await requirePropertyPermission(propertyId, 'financial.manage');
   const adminClient = await createAdminClient();
-  const { error } = await adminClient.from('expenses').delete().eq('id', expenseId).eq('property_id', propertyId);
+  const { error } = await adminClient.from('transactions').delete().eq('id', expenseId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
-  await recordActivityLog({ propertyId, action: 'deleted', entityType: 'expense', entityId: expenseId });
+  await recordActivityLog({ propertyId, action: 'deleted', entityType: 'transaction', entityId: expenseId });
 }
 
 // Maintenance

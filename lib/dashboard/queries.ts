@@ -336,14 +336,15 @@ export async function getInvoices(propertyId: string) {
 export async function getPayments(propertyId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from('payments')
+    .from('transactions')
     .select(`
       *,
-      tenant:tenants!fk_payments_tenant_prop(first_name, last_name),
-      invoice:invoices!fk_payments_invoice_prop(invoice_number)
+      tenant:tenants(first_name, last_name),
+      invoice:invoices(invoice_number)
     `)
     .eq('property_id', propertyId)
-    .order('payment_date', { ascending: false });
+    .eq('transaction_type', 'income')
+    .order('transaction_date', { ascending: false });
 
   if (error) {
     console.error('Error fetching payments:', error);
@@ -355,10 +356,11 @@ export async function getPayments(propertyId: string) {
 export async function getExpenses(propertyId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from('expenses')
+    .from('transactions')
     .select('*')
     .eq('property_id', propertyId)
-    .order('expense_date', { ascending: false });
+    .eq('transaction_type', 'expense')
+    .order('transaction_date', { ascending: false });
 
   if (error) {
     console.error('Error fetching expenses:', error);
@@ -471,25 +473,30 @@ export async function getActivityLogs(propertyId: string) {
 
 export async function getReportsSummary(propertyId: string) {
   const supabase = await createClient();
-  const [invoices, payments, expenses, tenants, leases] = await Promise.all([
+  const [invoices, transactions, tenants, leases] = await Promise.all([
     supabase.from('invoices').select('status, total_amount, balance_due').eq('property_id', propertyId),
-    supabase.from('payments').select('amount, status').eq('property_id', propertyId),
-    supabase.from('expenses').select('amount, status').eq('property_id', propertyId),
+    supabase.from('transactions').select('amount, status, transaction_type').eq('property_id', propertyId),
     supabase.from('tenants').select('status').eq('property_id', propertyId),
     supabase.from('leases').select('status, rent_amount').eq('property_id', propertyId),
   ]);
 
   const invoiceData = (invoices.data || []) as { status: string; total_amount: number; balance_due: number }[];
-  const paymentData = (payments.data || []) as { amount: number; status: string }[];
-  const expenseData = (expenses.data || []) as { amount: number; status: string }[];
+  const txData = (transactions.data || []) as { amount: number; status: string; transaction_type: string }[];
   const tenantData = (tenants.data || []) as { status: string }[];
   const leaseData = (leases.data || []) as { status: string; rent_amount: number }[];
   const activeLeaseCount = leaseData.filter((l) => l.status === 'active').length;
 
+  const totalRevenue = txData
+    .filter((p) => p.status === 'completed' && p.transaction_type === 'income')
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalExpenses = txData
+    .filter((e) => e.status === 'completed' && e.transaction_type === 'expense')
+    .reduce((sum, e) => sum + Number(e.amount), 0);
+
   return {
-    totalRevenue: paymentData.filter((p) => p.status === 'completed').reduce((sum, p) => sum + Number(p.amount), 0),
+    totalRevenue,
     outstandingBalance: invoiceData.reduce((sum, i) => sum + Number(i.balance_due || 0), 0),
-    totalExpenses: expenseData.filter((e) => e.status === 'paid').reduce((sum, e) => sum + Number(e.amount), 0),
+    totalExpenses,
     occupiedUnits: activeLeaseCount > 0 ? 1 : 0,
     vacantUnits: activeLeaseCount > 0 ? 0 : 1,
     activeTenants: tenantData.filter((t) => t.status === 'active').length,
@@ -501,25 +508,30 @@ export async function getReportsSummary(propertyId: string) {
 
 export async function getWorkspaceReportsSummary(workspaceId: string) {
   const supabase = await createClient();
-  const [invoices, payments, expenses, tenants, leases] = await Promise.all([
+  const [invoices, transactions, tenants, leases] = await Promise.all([
     supabase.from('invoices').select('status, total_amount, balance_due, properties!inner(workspace_id)').eq('properties.workspace_id', workspaceId),
-    supabase.from('payments').select('amount, status, properties!inner(workspace_id)').eq('properties.workspace_id', workspaceId),
-    supabase.from('expenses').select('amount, status, properties!inner(workspace_id)').eq('properties.workspace_id', workspaceId),
+    supabase.from('transactions').select('amount, status, transaction_type, properties!inner(workspace_id)').eq('properties.workspace_id', workspaceId),
     supabase.from('tenants').select('status, properties!inner(workspace_id)').eq('properties.workspace_id', workspaceId),
     supabase.from('leases').select('status, rent_amount, properties!inner(workspace_id)').eq('properties.workspace_id', workspaceId),
   ]);
 
   const invoiceData = (invoices.data || []) as { status: string; total_amount: number; balance_due: number }[];
-  const paymentData = (payments.data || []) as { amount: number; status: string }[];
-  const expenseData = (expenses.data || []) as { amount: number; status: string }[];
+  const txData = (transactions.data || []) as { amount: number; status: string; transaction_type: string }[];
   const tenantData = (tenants.data || []) as { status: string }[];
   const leaseData = (leases.data || []) as { status: string; rent_amount: number }[];
   const activeLeaseCount = leaseData.filter((l) => l.status === 'active').length;
 
+  const totalRevenue = txData
+    .filter((p) => p.status === 'completed' && p.transaction_type === 'income')
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalExpenses = txData
+    .filter((e) => e.status === 'completed' && e.transaction_type === 'expense')
+    .reduce((sum, e) => sum + Number(e.amount), 0);
+
   return {
-    totalRevenue: paymentData.filter((p) => p.status === 'completed').reduce((sum, p) => sum + Number(p.amount), 0),
+    totalRevenue,
     outstandingBalance: invoiceData.reduce((sum, i) => sum + Number(i.balance_due || 0), 0),
-    totalExpenses: expenseData.filter((e) => e.status === 'paid').reduce((sum, e) => sum + Number(e.amount), 0),
+    totalExpenses,
     occupiedUnits: activeLeaseCount > 0 ? 1 : 0,
     vacantUnits: activeLeaseCount > 0 ? 0 : 1,
     activeTenants: tenantData.filter((t) => t.status === 'active').length,
@@ -666,14 +678,15 @@ export async function getWorkspaceNeedsAttention(workspaceId: string) {
 export async function getTenantPayments(propertyId: string, tenantId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from('payments')
+    .from('transactions')
     .select(`
-      id, amount, payment_date, status, payment_method, reference,
-      invoice:invoices!fk_payments_invoice_prop(invoice_number)
+      id, amount, transaction_date, status, payment_method, reference,
+      invoice:invoices(invoice_number)
     `)
     .eq('property_id', propertyId)
     .eq('tenant_id', tenantId)
-    .order('payment_date', { ascending: false })
+    .eq('transaction_type', 'income')
+    .order('transaction_date', { ascending: false })
     .limit(12);
 
   if (error) {

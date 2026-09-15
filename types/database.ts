@@ -1283,6 +1283,100 @@ export interface Database {
           updated_at?: string
         }
       }
+      categories: {
+        Row: {
+          id: string
+          transaction_type: 'income' | 'expense'
+          name: string
+          description: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          transaction_type: 'income' | 'expense'
+          name: string
+          description?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          transaction_type?: 'income' | 'expense'
+          name?: string
+          description?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      transactions: {
+        Row: {
+          id: string
+          amount: number
+          transaction_type: 'income' | 'expense'
+          transaction_category_id: string
+          transaction_date: string
+          payment_method: string | null
+          description: string | null
+          reference: string | null
+          vendor_name: string | null
+          notes: string | null
+          status: 'pending' | 'completed' | 'failed' | 'reversed' | 'refunded'
+          tenant_id: string | null
+          lease_id: string | null
+          invoice_id: string | null
+          property_id: string
+          workspace_id: string
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          amount: number
+          transaction_type: 'income' | 'expense'
+          transaction_category_id: string
+          transaction_date?: string
+          payment_method?: string | null
+          description?: string | null
+          reference?: string | null
+          vendor_name?: string | null
+          notes?: string | null
+          status?: 'pending' | 'completed' | 'failed' | 'reversed' | 'refunded'
+          tenant_id?: string | null
+          lease_id?: string | null
+          invoice_id?: string | null
+          property_id: string
+          workspace_id: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          amount?: number
+          transaction_type?: 'income' | 'expense'
+          transaction_category_id?: string
+          transaction_date?: string
+          payment_method?: string | null
+          description?: string | null
+          reference?: string | null
+          vendor_name?: string | null
+          notes?: string | null
+          status?: 'pending' | 'completed' | 'failed' | 'reversed' | 'refunded'
+          tenant_id?: string | null
+          lease_id?: string | null
+          invoice_id?: string | null
+          property_id?: string
+          workspace_id?: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

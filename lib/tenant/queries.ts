@@ -70,11 +70,12 @@ export async function getTenantInvoices(tenantId: string, propertyId: string) {
 export async function getTenantPayments(tenantId: string, propertyId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from('payments')
+    .from('transactions')
     .select('*')
     .eq('property_id', propertyId)
     .eq('tenant_id', tenantId)
-    .order('payment_date', { ascending: false })
+    .eq('transaction_type', 'income')
+    .order('transaction_date', { ascending: false })
     .limit(24);
 
   if (error) {

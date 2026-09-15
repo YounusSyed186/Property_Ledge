@@ -1,14 +1,15 @@
-'use client';
+import React, { Suspense } from 'react';
+import { FinancialList } from '@/components/finance/FinancialList';
 
-import { DollarSign } from 'lucide-react';
-import { ComingSoonPage } from '@/components/dashboard/ComingSoonPage';
+export const metadata = {
+  title: 'Transactions | PropertyLedge',
+  description: 'Manage property transactions, track income and operating expenses with live dynamic ledger reconciliation.',
+};
 
-export default function FinancesPage() {
+export default function TransactionsPage() {
   return (
-    <ComingSoonPage
-      title="Finance Operations"
-      description="Full financial management — invoices, payments, expenses, and reconciliation — is coming soon to your dashboard."
-      icon={DollarSign}
-    />
+    <Suspense fallback={<div className="p-8 text-center text-admin-muted">Loading transactions...</div>}>
+      <FinancialList />
+    </Suspense>
   );
 }

@@ -61,9 +61,7 @@ const NAV_GROUPS: { label: string; items: NavItemConfig[] }[] = [
     label: 'Finance',
     items: [
       { id: 'invoices', label: 'Invoices', href: '/dashboard/invoices', icon: Receipt, comingSoon: false },
-      { id: 'finances', label: 'Finances', href: '/dashboard/money', icon: CurrencyDollar, comingSoon: true },
-      { id: 'payments', label: 'Payments', href: '/dashboard/money?tab=payments', icon: CreditCard, comingSoon: true },
-      { id: 'expenses', label: 'Expenses', href: '/dashboard/money?tab=expenses', icon: Wallet, comingSoon: true },
+      { id: 'finances', label: 'Transactions', href: '/dashboard/money', icon: CurrencyDollar, comingSoon: false },
     ],
   },
   {
@@ -119,7 +117,7 @@ function buildNavSections(persona: Persona, permissions: string[] = []): NavSect
 const MOBILE_NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard', icon: SquaresFour },
   { label: 'Properties', href: '/dashboard/properties', icon: Buildings },
-  { label: 'Finances', href: '/dashboard/money', icon: CurrencyDollar },
+  { label: 'Transactions', href: '/dashboard/money', icon: CurrencyDollar },
   { label: 'More', href: '/dashboard/leases', icon: DotsThree },
 ];
 

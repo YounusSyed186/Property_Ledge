@@ -28,6 +28,7 @@ import {
   Trash2,
   Edit3,
   LayoutTemplate,
+  CalendarRange,
 } from 'lucide-react';
 import { ColDef } from 'ag-grid-community';
 import { Button, useToast, ConfirmDialog } from '@/components/admin/ui';
@@ -62,6 +63,10 @@ const InvoiceDetailModal = dynamic(
   () => import('./InvoiceDetailModal').then((mod) => mod.InvoiceDetailModal),
   { ssr: false }
 );
+const BulkInvoiceModal = dynamic(
+  () => import('./BulkInvoiceModal').then((mod) => mod.BulkInvoiceModal),
+  { ssr: false }
+);
 
 import { useEntityCacheStore } from '@/lib/stores/useEntityCacheStore';
 import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
@@ -82,6 +87,7 @@ export function InvoiceList() {
 
   // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [invoiceToEdit, setInvoiceToEdit] = useState<InvoiceDTO | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDTO | null>(null);
   const [invoiceToDelete, setInvoiceToDelete] = useState<InvoiceDTO | null>(null);
@@ -601,6 +607,16 @@ export function InvoiceList() {
           </Link>
 
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsBulkOpen(true)}
+            className="font-bold border-admin-border hover:bg-admin-surface-subtle text-admin-foreground text-xs flex items-center gap-1.5"
+          >
+            <CalendarRange className="w-3.5 h-3.5 text-[#008F83]" />
+            Bulk Multi-Month
+          </Button>
+
+          <Button
             onClick={() => {
               setInvoiceToEdit(null);
               setIsCreateOpen(true);
@@ -858,6 +874,15 @@ export function InvoiceList() {
         onSubmit={handleCreateSubmit}
         invoiceToEdit={invoiceToEdit}
         onUpdate={handleUpdateSubmit}
+      />
+
+      {/* Bulk Multi-Month Invoice Generation Modal */}
+      <BulkInvoiceModal
+        isOpen={isBulkOpen}
+        onClose={() => setIsBulkOpen(false)}
+        onSuccess={() => {
+          loadInvoices();
+        }}
       />
 
       {/* Detail Modal */}

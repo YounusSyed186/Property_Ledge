@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Check, Building, FileText, Send } from 'lucide-react';
+import { X, Calendar, Clock, Check, Building, FileText, Send, Mail } from 'lucide-react';
 import { Button } from '@/components/admin/ui';
 import { fetchAllWorkspaceLeases } from '@/app/actions/dashboard';
-import { CreateLeaseAutomationDTO } from '@/app/actions/automations';
+import { CreateLeaseAutomationDTO, sendAutomationTestEmailAction } from '@/app/actions/automations';
 import { AutomationScheduleType } from '@/modules/automation';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +29,11 @@ export function CreateLeaseAutomationModal({
   // Schedule parameters
   const [dayOfMonth, setDayOfMonth] = useState<number>(1);
   const [offsetMonths, setOffsetMonths] = useState<number>(12);
+
+  // Test email state
+  const [testRecipient, setTestRecipient] = useState<string>('');
+  const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
+  const [testSuccess, setTestSuccess] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +88,32 @@ export function CreateLeaseAutomationModal({
       setError(err.message || 'Failed to create lease automation');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!selectedLeaseId) {
+      setError('Please select a lease first to send test email.');
+      return;
+    }
+    setIsSendingTest(true);
+    setError(null);
+    setTestSuccess(null);
+    try {
+      const res = await sendAutomationTestEmailAction({
+        automationType: 'lease',
+        leaseId: selectedLeaseId,
+        leaseActionType: actionType,
+        testRecipient,
+      });
+
+      if (!res.success) throw new Error(res.error || 'Failed to send test email');
+      setTestSuccess(`Test email dispatched to ${res.recipient || testRecipient || 'your inbox'}!`);
+      setTimeout(() => setTestSuccess(null), 4000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send test email');
+    } finally {
+      setIsSendingTest(false);
     }
   };
 
@@ -295,6 +326,41 @@ export function CreateLeaseAutomationModal({
                 </div>
               </div>
             )}
+
+            {/* Test Email Section */}
+            <div className="p-3.5 bg-admin-primary/5 border border-admin-primary/20 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-admin-primary">
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Send Test Email Before Creating</span>
+                </div>
+                <span className="text-[10px] font-mono text-admin-muted">Simulated Sandbox</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="email"
+                  value={testRecipient}
+                  onChange={(e) => setTestRecipient(e.target.value)}
+                  placeholder="Test recipient email (defaults to logged-in user)"
+                  className="flex-1 bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-xs text-admin-foreground"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSendTestEmail}
+                  disabled={isSendingTest || loading}
+                  className="text-xs font-bold border-admin-primary/30 text-admin-primary hover:bg-admin-primary/10 shrink-0"
+                >
+                  {isSendingTest ? 'Sending...' : 'Send Test'}
+                </Button>
+              </div>
+              {testSuccess && (
+                <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <Check className="w-3 h-3" /> {testSuccess}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 

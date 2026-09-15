@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, UserPlus, Building, Calendar, DollarSign, Sparkles, Search } from 'lucide-react';
+import { X, Check, UserPlus, Building, Calendar, DollarSign, Sparkles, Search, Mail } from 'lucide-react';
 import { Button, Input, Select, Textarea, useToast } from '@/components/admin/ui';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import {
@@ -11,6 +11,7 @@ import {
   handleCreateLease,
   handleCreateTenant,
 } from '@/app/actions/dashboard';
+import { sendLeaseAgreementTestEmailAction } from '@/app/actions/automations';
 import { NextActionDialog, type NextAction } from '@/components/dashboard/NextActionDialog';
 import { getAuTodayString } from '@/lib/format/australian-time';
 import { cn } from '@/lib/utils';
@@ -108,6 +109,11 @@ export function CreateLeaseWizard({
   const [rentFrequency, setRentFrequency] = useState('weekly');
   const [status, setStatus] = useState<'active' | 'draft' | 'pending'>('active');
   const [notes, setNotes] = useState('');
+
+  // Test Email State
+  const [testRecipient, setTestRecipient] = useState('');
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [testSuccess, setTestSuccess] = useState<string | null>(null);
 
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -308,6 +314,46 @@ export function CreateLeaseWizard({
       showError('Lease creation failed', err.message || 'An unexpected error occurred.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    setIsSendingTest(true);
+    setTestSuccess(null);
+    setValidationError(null);
+    try {
+      const tenantName =
+        tenantMode === 'new'
+          ? `${newTenant.firstName} ${newTenant.lastName}`.trim() || 'Tenant'
+          : `${selectedTenantObj?.first_name || ''} ${selectedTenantObj?.last_name || ''}`.trim() || 'Tenant';
+
+      const tenantEmail = tenantMode === 'new' ? newTenant.email : selectedTenantObj?.email;
+
+      const res = await sendLeaseAgreementTestEmailAction({
+        testRecipient,
+        propertyId: targetPropertyId,
+        propertyName: activeProp?.name || 'Property',
+        propertyAddress: activeProp?.address_line_1,
+        tenantName,
+        tenantEmail,
+        tenantPhone: tenantMode === 'new' ? newTenant.phone : selectedTenantObj?.phone || undefined,
+        startDate,
+        endDate: isPeriodic ? null : endDate,
+        rentAmount: Number(rentAmount) || 0,
+        rentFrequency,
+        securityDeposit: securityDeposit ? Number(securityDeposit) : undefined,
+        notes,
+      });
+
+      if (!res.success) throw new Error(res.error || 'Failed to send test email');
+      setTestSuccess(`Test agreement email sent to ${res.recipient || testRecipient || 'your inbox'}!`);
+      success('Test Email Sent', `Agreement preview delivered to ${res.recipient || testRecipient || 'your inbox'}.`);
+      setTimeout(() => setTestSuccess(null), 5000);
+    } catch (err: any) {
+      console.error('Test email error:', err);
+      showError('Test Email Failed', err.message || 'Could not send test email');
+    } finally {
+      setIsSendingTest(false);
     }
   };
 
@@ -764,6 +810,44 @@ export function CreateLeaseWizard({
                           ${Number(rentAmount).toLocaleString()} / {rentFrequency}
                         </span>
                       </div>
+                    </div>
+
+                    {/* Test Email Verification Box */}
+                    <div className="pt-3 border-t border-slate-200 dark:border-slate-700/80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-[#008F83]" />
+                          Send Test Email & Lease PDF Preview
+                        </span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                          Sandbox
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                        Receive a sample copy of the official agreement PDF summary in your inbox before saving.
+                      </p>
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="email"
+                          value={testRecipient}
+                          onChange={(e) => setTestRecipient(e.target.value)}
+                          placeholder="Your test email (defaults to your profile email)"
+                          className="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#008F83]"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSendTestEmail}
+                          disabled={isSendingTest || isSaving}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#008F83]/10 hover:bg-[#008F83]/20 text-[#008F83] border border-[#008F83]/30 transition-colors shrink-0 disabled:opacity-50"
+                        >
+                          {isSendingTest ? 'Sending...' : 'Send Test Email'}
+                        </button>
+                      </div>
+                      {testSuccess && (
+                        <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 pt-0.5">
+                          <Check className="w-3.5 h-3.5" /> {testSuccess}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </motion.div>

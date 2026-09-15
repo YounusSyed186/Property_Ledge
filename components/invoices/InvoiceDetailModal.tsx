@@ -18,10 +18,11 @@ import {
   Trash2,
   Edit3,
 } from 'lucide-react';
-import { Button, ConfirmDialog } from '@/components/admin/ui';
+import { Button, ConfirmDialog, Input } from '@/components/admin/ui';
 import { InvoiceDTO } from '@/modules/invoices';
 import { formatCurrency } from '@/modules/invoices/domain/value-objects/currency';
 import { formatAuDisplayDate, formatAuDisplayDateTime } from '@/lib/format/australian-time';
+import { sendInvoiceTestEmailAction } from '@/app/actions/invoices';
 
 interface InvoiceDetailModalProps {
   invoice: InvoiceDTO | null;
@@ -62,6 +63,8 @@ export function InvoiceDetailModal({
   const [emailMessage, setEmailMessage] = useState('');
   const [driveFolderUrl, setDriveFolderUrl] = useState('');
   const [showEmailForm, setShowEmailForm] = useState(false);
+  const [testRecipient, setTestRecipient] = useState('');
+  const [isSendingTest, setIsSendingTest] = useState(false);
 
   const [actionLoading, setActionLoading] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -120,10 +123,30 @@ export function InvoiceDetailModal({
     try {
       await onSendEmail(invoice.id, emailMessage, driveFolderUrl, emailSubject);
       setShowEmailForm(false);
-      setActionSuccess('Invoice email dispatched successfully.');
+      setActionSuccess('Invoice email dispatched successfully to client.');
       setTimeout(() => setActionSuccess(null), 3000);
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleSendTestEmailSubmit = async () => {
+    setIsSendingTest(true);
+    try {
+      const res = await sendInvoiceTestEmailAction(
+        invoice.id,
+        testRecipient,
+        emailMessage,
+        driveFolderUrl,
+        emailSubject
+      );
+      if (!res.success) throw new Error(res.error || 'Failed to send test email');
+      setActionSuccess(`Test email sent successfully to ${res.recipient || testRecipient || 'your inbox'}!`);
+      setTimeout(() => setActionSuccess(null), 4000);
+    } catch (err: any) {
+      alert(err.message || 'Failed to send test email');
+    } finally {
+      setIsSendingTest(false);
     }
   };
 
@@ -229,6 +252,18 @@ export function InvoiceDetailModal({
                 className="gap-1.5 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
               >
                 <DollarSign className="w-3.5 h-3.5" /> Record Payment
+              </Button>
+            )}
+
+            {invoice.status !== 'cancelled' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowEmailForm((prev) => !prev)}
+                disabled={actionLoading}
+                className="gap-1.5 border-admin-border hover:bg-admin-surface text-admin-foreground font-semibold"
+              >
+                <Mail className="w-3.5 h-3.5 text-admin-primary" /> Email / Test Invoice
               </Button>
             )}
 
@@ -357,6 +392,125 @@ export function InvoiceDetailModal({
                 >
                   Confirm Cancellation
                 </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Email Dispatch & Test Email Sub-form */}
+          {showEmailForm && (
+            <div className="p-4 sm:p-5 bg-admin-primary/5 border border-admin-primary/20 rounded-2xl space-y-4 max-w-full overflow-hidden">
+              <div className="flex items-center justify-between border-b border-admin-primary/15 pb-2.5">
+                <h4 className="font-bold text-admin-primary text-sm flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-admin-primary shrink-0" /> Email Invoice & Test Delivery
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setShowEmailForm(false)}
+                  className="text-xs text-admin-muted hover:text-admin-foreground font-semibold px-2 py-1 rounded-md hover:bg-admin-surface transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="min-w-0">
+                  <label className="text-xs font-semibold text-admin-muted block mb-1 truncate">
+                    Custom Email Subject <span className="font-normal opacity-75">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={emailSubject}
+                    onChange={(e) => setEmailSubject(e.target.value)}
+                    placeholder={`Invoice ${invoice.invoiceNumber} from Property Ledge`}
+                    className="w-full bg-admin-surface border border-admin-border rounded-lg px-3 py-1.5 text-admin-foreground text-xs focus:outline-hidden focus:ring-1 focus:ring-[#008F83] transition-all"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label className="text-xs font-semibold text-admin-muted block mb-1 truncate">
+                    Cloud / Drive URL <span className="font-normal opacity-75">(Optional)</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={driveFolderUrl}
+                    onChange={(e) => setDriveFolderUrl(e.target.value)}
+                    placeholder="https://drive.google.com/drive/folders/..."
+                    className="w-full bg-admin-surface border border-admin-border rounded-lg px-3 py-1.5 text-admin-foreground text-xs focus:outline-hidden focus:ring-1 focus:ring-[#008F83] transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="min-w-0">
+                <label className="text-xs font-semibold text-admin-muted block mb-1">Personalized Cover Message</label>
+                <textarea
+                  rows={2}
+                  value={emailMessage}
+                  onChange={(e) => setEmailMessage(e.target.value)}
+                  placeholder="e.g. Please find attached your tax invoice for the current billing cycle. Kindly remit payment by the due date."
+                  className="w-full bg-admin-surface border border-admin-border rounded-lg p-2.5 text-admin-foreground text-xs focus:outline-hidden focus:ring-1 focus:ring-[#008F83] resize-none transition-all"
+                />
+              </div>
+
+              {/* Test Email Section */}
+              <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
+                <div className="space-y-0.5 min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-400">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 animate-pulse" />
+                    <span>Send Test Email (Preview)</span>
+                  </div>
+                  <p className="text-[11px] text-admin-muted leading-tight">
+                    Sends a sample preview with PDF to verify layout before emailing client.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 min-w-0">
+                  <input
+                    type="email"
+                    value={testRecipient}
+                    onChange={(e) => setTestRecipient(e.target.value)}
+                    placeholder="Your test email (e.g. user@domain.com)"
+                    className="flex-1 sm:w-60 bg-admin-surface border border-admin-border rounded-lg px-2.5 py-1.5 text-admin-foreground text-xs focus:outline-hidden focus:ring-1 focus:ring-amber-500 transition-all min-w-0"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSendTestEmailSubmit}
+                    disabled={isSendingTest || actionLoading}
+                    className="h-8 text-xs font-bold border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/15 shrink-0 whitespace-nowrap"
+                  >
+                    {isSendingTest ? 'Sending...' : 'Send Test'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Live Dispatch Actions Footer */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-admin-primary/15 min-w-0">
+                <div className="text-xs text-admin-muted truncate min-w-0">
+                  Client Recipient:{' '}
+                  <strong className="text-admin-foreground font-semibold">
+                    {invoice.recipient.email || invoice.customerEmail || 'No email on file'}
+                  </strong>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowEmailForm(false)}
+                    className="h-8 text-admin-muted hover:text-admin-foreground text-xs"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleSendEmailSubmit}
+                    disabled={actionLoading || (!invoice.recipient.email && !invoice.customerEmail)}
+                    className="h-8 bg-[#008F83] hover:bg-[#008F83]/90 text-white font-bold text-xs gap-1.5 shadow-xs"
+                  >
+                    <Mail className="w-3.5 h-3.5" /> Send to Client
+                  </Button>
+                </div>
               </div>
             </div>
           )}
