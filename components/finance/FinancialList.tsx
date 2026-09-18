@@ -23,6 +23,7 @@ import {
   User,
   LayoutTemplate,
   FileText,
+  Link2,
 } from 'lucide-react';
 import { ColDef } from 'ag-grid-community';
 import { Button, useToast } from '@/components/admin/ui';
@@ -52,6 +53,7 @@ import { TransactionModal } from './TransactionModal';
 import { TransactionDetailModal } from './TransactionDetailModal';
 import { TransactionTypeSelectModal } from './TransactionTypeSelectModal';
 import { LedgerReportModal } from './LedgerReportModal';
+import { MultiAllocationModal } from './MultiAllocationModal';
 import { isIncome, isExpense } from '@/modules/finance/domain/calculations';
 import { cn } from '@/lib/utils';
 
@@ -86,6 +88,8 @@ export function FinancialList() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isLinkScheduleOpen, setIsLinkScheduleOpen] = useState(false);
+  const [selectedTxForLink, setSelectedTxForLink] = useState<TransactionDTO | null>(null);
 
   // Load Categories & Properties
   useEffect(() => {
@@ -373,14 +377,30 @@ export function FinancialList() {
       {
         headerName: 'ACTIONS',
         colId: 'actions',
-        width: 90,
+        width: 120,
         pinned: 'right',
         sortable: false,
         filter: false,
         cellRenderer: (params: any) => {
-          const tx = params.data;
+          const tx: TransactionDTO = params.data;
+          if (!tx) return null;
+          const isInc = isIncome(tx.transaction_type);
+
           return (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 py-0.5">
+              {isInc && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedTxForLink(tx);
+                    setIsLinkScheduleOpen(true);
+                  }}
+                  className="p-1 text-[#008F83] hover:bg-[#008F83]/15 rounded-lg transition-colors inline-flex items-center gap-1 font-bold text-xs"
+                  title="Link Transaction to Expected Payment Schedule"
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                </button>
+              )}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -970,6 +990,22 @@ export function FinancialList() {
           setSelectedTransaction(null);
           setTransactionToDelete(tx);
         }}
+        onLinkSchedule={(tx) => {
+          setSelectedTransaction(null);
+          setSelectedTxForLink(tx);
+          setIsLinkScheduleOpen(true);
+        }}
+      />
+
+      {/* Link Transaction to Schedule Modal */}
+      <MultiAllocationModal
+        isOpen={isLinkScheduleOpen}
+        initialTransactionId={selectedTxForLink?.id}
+        onClose={() => {
+          setIsLinkScheduleOpen(false);
+          setSelectedTxForLink(null);
+        }}
+        onSuccess={loadData}
       />
 
       {/* Delete Confirmation Modal */}

@@ -26,11 +26,15 @@ import {
   PaymentMethod,
   CreateTransactionInput,
   UpdateTransactionInput,
+  AllocationStrategy,
 } from '@/modules/finance/domain/types';
+import { calculateAutoAllocation, ActiveLeaseForAllocation } from '@/modules/finance/domain/auto-allocate';
 import { formatCurrency } from '@/lib/format/currency';
-import { fetchCategoriesAction, createTransactionAction, updateTransactionAction } from '@/app/actions/finance';
+import { fetchCategoriesAction, createTransactionAction, updateTransactionAction, createBatchAutoAllocatedTransactionsAction } from '@/app/actions/finance';
 import { fetchDashboardProperties, fetchAllWorkspaceLeases, fetchDashboardTenants } from '@/app/actions/dashboard';
 import { fetchInvoicesAction } from '@/app/actions/invoices';
+import { getCachedCategories, getCachedProperties } from '@/lib/cache/optionsCache';
+import { Loader2, Zap, SlidersHorizontal, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TransactionModalProps {
@@ -78,38 +82,49 @@ export function TransactionModal({
   const [leases, setLeases] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
 
-  const [loadingOptions, setLoadingOptions] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [loadingProperties, setLoadingProperties] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Load Categories & Reference entities
+  // Load Categories & Reference entities (Cached & Non-blocking)
   useEffect(() => {
     if (!isOpen) return;
 
     let isMounted = true;
-    setLoadingOptions(true);
+    setLoadingCategories(true);
+    setLoadingProperties(true);
 
+    // Fast load Categories & Properties instantly via cache
+    getCachedCategories()
+      .then((cats) => {
+        if (isMounted) setCategories(cats || []);
+      })
+      .catch((err) => console.error('Error loading categories:', err))
+      .finally(() => {
+        if (isMounted) setLoadingCategories(false);
+      });
+
+    getCachedProperties()
+      .then((props) => {
+        if (isMounted) setProperties(props || []);
+      })
+      .catch((err) => console.error('Error loading properties:', err))
+      .finally(() => {
+        if (isMounted) setLoadingProperties(false);
+      });
+
+    // Secondary load Tenants, Leases, Invoices in background
     Promise.all([
-      fetchCategoriesAction(),
-      fetchDashboardProperties().catch(() => []),
       fetchDashboardTenants().catch(() => []),
       fetchAllWorkspaceLeases().catch(() => []),
       fetchInvoicesAction({ limit: 100 }).then((res) => res.items).catch(() => []),
-    ])
-      .then(([cats, props, tens, lss, invs]) => {
-        if (!isMounted) return;
-        setCategories(cats || []);
-        setProperties(props || []);
-        setTenants(tens || []);
-        setLeases(lss || []);
-        setInvoices(invs || []);
-      })
-      .catch((err) => {
-        console.error('Failed to load transaction reference data:', err);
-      })
-      .finally(() => {
-        if (isMounted) setLoadingOptions(false);
-      });
+    ]).then(([tens, lss, invs]) => {
+      if (!isMounted) return;
+      setTenants(tens || []);
+      setLeases(lss || []);
+      setInvoices(invs || []);
+    });
 
     return () => {
       isMounted = false;
@@ -154,10 +169,49 @@ export function TransactionModal({
     }
   }, [transactionToEdit, defaultType, defaultPropertyId, isOpen]);
 
+  // Auto-Allocate Lump Sum Payment States
+  const [isAutoAllocateMode, setIsAutoAllocateMode] = useState(false);
+  const [allocationStrategy, setAllocationStrategy] = useState<AllocationStrategy>('equal_obligation');
+
   // Filter Categories by currently selected transaction type
   const availableCategories = useMemo(() => {
     return categories.filter((cat) => cat.transaction_type === transactionType);
   }, [categories, transactionType]);
+
+  // Active Leases for Auto Allocation
+  const activeLeasesForAllocation = useMemo<ActiveLeaseForAllocation[]>(() => {
+    let list = leases.length > 0 ? leases : properties;
+
+    // Filter by selected property if user selected a specific target property
+    if (propertyId) {
+      list = list.filter((l: any) => l.property_id === propertyId || l.id === propertyId);
+    }
+
+    return list.map((l: any) => {
+      const propId = l.property_id || l.id;
+      const prop = properties.find((p: any) => p.id === propId) || l;
+      const propName = prop?.name || prop?.address_line_1 || prop?.address || `Property #${String(propId).slice(0, 6)}`;
+      const tenantObj = tenants.find((t: any) => t.id === l.tenant_id || t.property_id === propId);
+      const tenantName = tenantObj ? `${tenantObj.first_name || ''} ${tenantObj.last_name || ''}`.trim() : l.tenant_name || null;
+      const rentAmt = Number(l.rent_amount || prop?.rent_amount || 200);
+
+      return {
+        id: l.id || propId,
+        property_id: propId,
+        property_name: propName,
+        tenant_id: l.tenant_id || tenantObj?.id || null,
+        tenant_name: tenantName,
+        rent_amount: rentAmt,
+      };
+    });
+  }, [leases, properties, tenants, propertyId]);
+
+
+  // Calculated Auto Allocation Result
+  const autoAllocationResult = useMemo(() => {
+    const parsedAmt = parseFloat(amount) || 0;
+    return calculateAutoAllocation(parsedAmt, activeLeasesForAllocation, allocationStrategy);
+  }, [amount, activeLeasesForAllocation, allocationStrategy]);
 
   // Filter Tenants & Leases by selected Property
   const filteredTenants = useMemo(() => {
@@ -188,12 +242,16 @@ export function TransactionModal({
       errors.categoryId = `Please select an ${transactionType} category`;
     }
 
-    if (!propertyId) {
+    if (!isAutoAllocateMode && !propertyId) {
       errors.propertyId = 'Property is required';
     }
 
     if (!transactionDate) {
       errors.transactionDate = 'Date is required';
+    }
+
+    if (isAutoAllocateMode && activeLeasesForAllocation.length === 0) {
+      errors.autoAllocate = 'No active leases found for auto-allocation';
     }
 
     setFormErrors(errors);
@@ -207,6 +265,46 @@ export function TransactionModal({
 
     setIsSubmitting(true);
     try {
+      if (isAutoAllocateMode && transactionType === 'income' && !isEdit) {
+        // Execute Batch Auto-Allocation
+        const validAllocations = autoAllocationResult.allocations.filter((a) => a.allocated_amount > 0);
+        if (validAllocations.length === 0) {
+          throw new Error('No allocations were computed. Please enter a valid lump sum amount.');
+        }
+
+        const batchRes = await createBatchAutoAllocatedTransactionsAction({
+          totalAmount: parseFloat(amount),
+          transaction_category_id: categoryId,
+          transaction_date: transactionDate,
+          payment_method: paymentMethod || 'bank_transfer',
+          description: description.trim() || 'Auto-Allocated Rent Payment',
+          notes: notes.trim() || `Auto-allocated $${amount} lump-sum payment across ${validAllocations.length} active leases.`,
+          allocations: validAllocations.map((item) => ({
+            lease_id: item.lease_id,
+            property_id: item.property_id,
+            tenant_id: item.tenant_id,
+            allocated_amount: item.allocated_amount,
+            property_name: item.property_name,
+          })),
+        });
+
+        if (!batchRes.success || !batchRes.data) {
+          throw new Error(batchRes.error || 'Failed to complete auto-allocation batch');
+        }
+
+        toast({
+          title: '⚡ Payments Auto-Allocated',
+          description: `Successfully allocated ${formatCurrency(parseFloat(amount))} across ${validAllocations.length} active lease(s).`,
+          variant: 'success',
+        });
+
+        if (batchRes.data.length > 0) {
+          onSuccess?.(batchRes.data[0]);
+        }
+        onClose();
+        return;
+      }
+
       if (isEdit && transactionToEdit) {
         const updateInput: UpdateTransactionInput = {
           amount: parseFloat(amount),
@@ -282,6 +380,7 @@ export function TransactionModal({
     }
   };
 
+
   if (!isOpen) return null;
 
   return (
@@ -333,14 +432,15 @@ export function TransactionModal({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-3.5 px-0.5 py-1 text-sm">
+
           {/* Row 1: Amount & Category */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label="Amount ($ AUD) *"
+              label={isAutoAllocateMode ? "Total Lump Sum Amount ($ AUD) *" : "Amount ($ AUD) *"}
               type="number"
               step="0.01"
               min="0.01"
-              placeholder="0.00"
+              placeholder={isAutoAllocateMode ? "1000.00" : "0.00"}
               value={amount}
               onChange={(e) => {
                 setAmount(e.target.value);
@@ -359,10 +459,10 @@ export function TransactionModal({
               }}
               error={formErrors.categoryId}
               className="bg-white dark:bg-slate-800"
-              disabled={loadingOptions}
+              disabled={loadingCategories}
             >
               <option value="">
-                {loadingOptions
+                {loadingCategories
                   ? 'Loading categories...'
                   : `Select ${transactionType === 'income' ? 'Income' : 'Expense'} Category`}
               </option>
@@ -374,10 +474,72 @@ export function TransactionModal({
             </Select>
           </div>
 
+          {/* Auto-Allocate Strategy & Live Preview Card */}
+          {isAutoAllocateMode && (
+            <div className="p-4 rounded-2xl border border-indigo-200 dark:border-indigo-900 bg-slate-50 dark:bg-slate-800/40 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">Auto-Allocation Breakdown</span>
+                </div>
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  Rent Obligation Capped
+                </span>
+              </div>
+
+
+              {/* Live Allocation Preview Table */}
+              <div className="border border-slate-200 dark:border-slate-700/80 rounded-xl overflow-hidden bg-white dark:bg-slate-900 text-xs">
+                <div className="grid grid-cols-12 bg-slate-100 dark:bg-slate-800 p-2 font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[10px]">
+                  <div className="col-span-5">Property & Tenant</div>
+                  <div className="col-span-3 text-right">Rent Oblig.</div>
+                  <div className="col-span-4 text-right">Allocated ($)</div>
+                </div>
+
+                <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-48 overflow-y-auto">
+                  {autoAllocationResult.allocations.length === 0 ? (
+                    <div className="p-3 text-center text-slate-400 text-xs">
+                      Enter a total amount above to view active lease allocations.
+                    </div>
+                  ) : (
+                    autoAllocationResult.allocations.map((item, idx) => (
+                      <div key={item.lease_id || idx} className="grid grid-cols-12 p-2.5 items-center hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <div className="col-span-5 font-semibold truncate text-slate-800 dark:text-slate-200">
+                          <div>{item.property_name}</div>
+                          <div className="text-[10px] text-slate-400 font-normal truncate">
+                            {item.tenant_name || 'Active Lease'}
+                          </div>
+                        </div>
+                        <div className="col-span-3 text-right text-slate-500 font-mono">
+                          {formatCurrency(item.monthly_rent)}
+                        </div>
+                        <div className="col-span-4 text-right font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                          {formatCurrency(item.allocated_amount)}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Summary Bar */}
+                <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-slate-600 dark:text-slate-400">
+                    Allocated: <strong className="text-emerald-600 dark:text-emerald-400 font-mono">{formatCurrency(autoAllocationResult.total_allocated)}</strong> / {formatCurrency(autoAllocationResult.total_payment)}
+                  </span>
+                  {autoAllocationResult.remaining_unallocated > 0 && (
+                    <span className="font-semibold text-amber-600 dark:text-amber-400 font-mono text-[11px]">
+                      Surplus: {formatCurrency(autoAllocationResult.remaining_unallocated)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Row 2: Property & Transaction Date */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
-              label="Property *"
+              label={isAutoAllocateMode ? 'Target Property (Optional)' : 'Property *'}
               value={propertyId}
               onChange={(e) => {
                 setPropertyId(e.target.value);
@@ -388,9 +550,15 @@ export function TransactionModal({
               }}
               error={formErrors.propertyId}
               className="bg-white dark:bg-slate-800"
-              disabled={loadingOptions}
+              disabled={loadingProperties}
             >
-              <option value="">Select Property</option>
+              <option value="">
+                {loadingProperties
+                  ? 'Loading properties...'
+                  : isAutoAllocateMode
+                  ? 'All Active Leases (Workspace-wide)'
+                  : 'Select Property'}
+              </option>
               {properties.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name || p.address_line_1}
@@ -411,6 +579,7 @@ export function TransactionModal({
               className="bg-white dark:bg-slate-800"
             />
           </div>
+
 
           {/* Row 3: Description & Reference */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -437,6 +606,7 @@ export function TransactionModal({
 
           {/* Row 4: Payment Method & Status */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
             <Select
               label="Payment Method"
               value={paymentMethod}
@@ -475,42 +645,44 @@ export function TransactionModal({
               className="bg-white dark:bg-slate-800"
             />
           ) : (
-            <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 space-y-3">
-              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                Associated Tenancy Context (Optional)
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Select
-                  label="Tenant"
-                  value={tenantId}
-                  onChange={(e) => setTenantId(e.target.value)}
-                  className="bg-white dark:bg-slate-800 text-xs"
-                  labelBg="bg-slate-50 dark:bg-slate-800"
-                >
-                  <option value="">None / Property Level</option>
-                  {filteredTenants.map((t: any) => (
-                    <option key={t.id} value={t.id}>
-                      {t.first_name} {t.last_name}
-                    </option>
-                  ))}
-                </Select>
+            !isAutoAllocateMode && (
+              <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 space-y-3">
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Associated Tenancy Context (Optional)
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Select
+                    label="Tenant"
+                    value={tenantId}
+                    onChange={(e) => setTenantId(e.target.value)}
+                    className="bg-white dark:bg-slate-800 text-xs"
+                    labelBg="bg-slate-50 dark:bg-slate-800"
+                  >
+                    <option value="">None / Property Level</option>
+                    {filteredTenants.map((t: any) => (
+                      <option key={t.id} value={t.id}>
+                        {t.first_name} {t.last_name}
+                      </option>
+                    ))}
+                  </Select>
 
-                <Select
-                  label="Lease"
-                  value={leaseId}
-                  onChange={(e) => setLeaseId(e.target.value)}
-                  className="bg-white dark:bg-slate-800 text-xs"
-                  labelBg="bg-slate-50 dark:bg-slate-800"
-                >
-                  <option value="">None / Property Level</option>
-                  {filteredLeases.map((l: any) => (
-                    <option key={l.id} value={l.id}>
-                      Lease #{l.id.slice(0, 8)}
-                    </option>
-                  ))}
-                </Select>
+                  <Select
+                    label="Lease"
+                    value={leaseId}
+                    onChange={(e) => setLeaseId(e.target.value)}
+                    className="bg-white dark:bg-slate-800 text-xs"
+                    labelBg="bg-slate-50 dark:bg-slate-800"
+                  >
+                    <option value="">None / Property Level</option>
+                    {filteredLeases.map((l: any) => (
+                      <option key={l.id} value={l.id}>
+                        Lease #{l.id.slice(0, 8)}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
               </div>
-            </div>
+            )
           )}
 
           {/* Notes */}
@@ -537,15 +709,23 @@ export function TransactionModal({
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="font-bold text-xs bg-admin-primary hover:bg-admin-primary/90 text-white shadow-xs"
+              className={cn(
+                "font-bold text-xs shadow-xs",
+                isAutoAllocateMode
+                  ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                  : "bg-admin-primary hover:bg-admin-primary/90 text-white"
+              )}
             >
               {isSubmitting
-                ? 'Saving...'
+                ? 'Processing...'
+                : isAutoAllocateMode
+                ? '⚡ Record Auto-Allocated Payments'
                 : isEdit
                 ? 'Save Changes'
                 : `Record ${transactionType === 'income' ? 'Income' : 'Expense'}`}
             </Button>
           </div>
+
         </form>
       </div>
     </div>

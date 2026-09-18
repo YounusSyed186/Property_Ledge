@@ -491,3 +491,90 @@ export function generateLedgerCsv(entries: LedgerEntryDTO[]): string {
 
   return [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
 }
+
+/**
+ * Creates a batch of auto-allocated transactions across multiple active leases.
+ */
+export async function createBatchAutoAllocatedTransactions(
+  input: {
+    totalAmount: number;
+    transaction_category_id: string;
+    transaction_date: string;
+    payment_method?: string;
+    workspace_id: string;
+    description?: string;
+    notes?: string;
+    allocations: Array<{
+      lease_id: string;
+      property_id: string;
+      tenant_id?: string | null;
+      allocated_amount: number;
+      property_name?: string;
+    }>;
+  },
+  userId: string
+): Promise<TransactionDTO[]> {
+  const supabase = await createClient();
+
+  const validAllocations = input.allocations.filter((a) => a.allocated_amount > 0);
+
+  if (validAllocations.length === 0) {
+    throw new Error('No non-zero allocations provided for batch processing.');
+  }
+
+  const batchRef = `ALLOC-${Date.now().toString().slice(-6)}`;
+  const baseDescription = input.description || 'Auto-Allocated Rent Payment';
+
+  const rowsToInsert = validAllocations.map((item) => ({
+    amount: item.allocated_amount,
+    transaction_type: 'income',
+    transaction_category_id: input.transaction_category_id,
+    transaction_date: input.transaction_date,
+    property_id: item.property_id,
+    lease_id: item.lease_id,
+    tenant_id: item.tenant_id || null,
+    workspace_id: input.workspace_id,
+    payment_method: input.payment_method || 'bank_transfer',
+    description: `${baseDescription} (${item.property_name || 'Lease'})`,
+    reference: batchRef,
+    notes: input.notes
+      ? `${input.notes} [Auto-allocated batch ${batchRef}]`
+      : `Auto-allocated from total lump-sum payment of $${input.totalAmount.toFixed(2)} [Ref: ${batchRef}]`,
+    status: 'completed',
+    created_by: userId,
+  }));
+
+  const { data, error } = await supabase.from('transactions').insert(rowsToInsert as never).select(`
+    id,
+    amount,
+    transaction_type,
+    transaction_category_id,
+    transaction_date,
+    payment_method,
+    description,
+    reference,
+    vendor_name,
+    notes,
+    status,
+    tenant_id,
+    lease_id,
+    invoice_id,
+    property_id,
+    workspace_id,
+    created_by,
+    created_at,
+    updated_at,
+    category:categories(id, transaction_type, name, description, is_active, created_at, updated_at),
+    property:properties(id, name, address_line_1, city, state),
+    tenant:tenants(id, first_name, last_name, email),
+    lease:leases(id, start_date, end_date, rent_amount, status)
+  `);
+
+  if (error) {
+    console.error('Error creating batch transactions:', error);
+    throw new Error(`Failed to create auto-allocated transactions: ${error.message}`);
+  }
+
+  return (data || []) as TransactionDTO[];
+}
+

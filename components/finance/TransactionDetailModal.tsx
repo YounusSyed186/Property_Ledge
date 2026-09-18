@@ -17,6 +17,7 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
+  Link2,
 } from 'lucide-react';
 import { Button, Badge } from '@/components/admin/ui';
 import { TransactionDTO } from '@/modules/finance/domain/types';
@@ -30,6 +31,7 @@ interface TransactionDetailModalProps {
   onClose: () => void;
   onEdit?: (tx: TransactionDTO) => void;
   onDelete?: (tx: TransactionDTO) => void;
+  onLinkSchedule?: (tx: TransactionDTO) => void;
 }
 
 export function TransactionDetailModal({
@@ -38,6 +40,7 @@ export function TransactionDetailModal({
   onClose,
   onEdit,
   onDelete,
+  onLinkSchedule,
 }: TransactionDetailModalProps) {
   if (!isOpen || !transaction) return null;
 
@@ -272,6 +275,19 @@ export function TransactionDetailModal({
           </Button>
 
           <div className="flex items-center gap-2">
+            {isIncome && onLinkSchedule && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  onLinkSchedule(transaction);
+                  onClose();
+                }}
+                className="bg-[#008F83] hover:bg-[#007A70] text-white flex items-center gap-1.5 font-bold"
+              >
+                <Link2 className="w-4 h-4" /> Link Schedule
+              </Button>
+            )}
+
             <Button variant="ghost" size="sm" onClick={onClose}>
               Close
             </Button>

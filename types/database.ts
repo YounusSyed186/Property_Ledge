@@ -1377,6 +1377,100 @@ export interface Database {
           updated_at?: string
         }
       }
+      expected_payment_schedule: {
+        Row: {
+          id: string
+          workspace_id: string
+          property_id: string | null
+          lease_id: string | null
+          tenant_id: string | null
+          transaction_category_id: string | null
+          schedule_name: string
+          schedule_type: 'lease' | 'independent'
+          amount: number
+          due_date: string
+          frequency: 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'yearly' | 'custom'
+          status: 'pending' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled'
+          start_date: string | null
+          end_date: string | null
+          notes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          property_id?: string | null
+          lease_id?: string | null
+          tenant_id?: string | null
+          transaction_category_id?: string | null
+          schedule_name: string
+          schedule_type: 'lease' | 'independent'
+          amount: number
+          due_date: string
+          frequency?: 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'yearly' | 'custom'
+          status?: 'pending' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled'
+          start_date?: string | null
+          end_date?: string | null
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          property_id?: string | null
+          lease_id?: string | null
+          tenant_id?: string | null
+          transaction_category_id?: string | null
+          schedule_name?: string
+          schedule_type?: 'lease' | 'independent'
+          amount?: number
+          due_date?: string
+          frequency?: 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'yearly' | 'custom'
+          status?: 'pending' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled'
+          start_date?: string | null
+          end_date?: string | null
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      transaction_schedule_allocations: {
+        Row: {
+          id: string
+          transaction_id: string
+          expected_payment_id: string
+          allocated_amount: number
+          notes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          transaction_id: string
+          expected_payment_id: string
+          allocated_amount: number
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          transaction_id?: string
+          expected_payment_id?: string
+          allocated_amount?: number
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

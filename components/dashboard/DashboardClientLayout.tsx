@@ -22,6 +22,7 @@ import {
   DotsThree,
   ArrowRight,
   Lightning,
+  CalendarBlank,
 } from '@phosphor-icons/react';
 import { AppShell } from '@/components/shell/AppShell';
 import { AppContextProvider } from '@/components/context/AppContextProvider';
@@ -62,6 +63,7 @@ const NAV_GROUPS: { label: string; items: NavItemConfig[] }[] = [
     items: [
       { id: 'invoices', label: 'Invoices', href: '/dashboard/invoices', icon: Receipt, comingSoon: false },
       { id: 'finances', label: 'Transactions', href: '/dashboard/money', icon: CurrencyDollar, comingSoon: false },
+      { id: 'finances', label: 'Payment Schedules', href: '/dashboard/schedules', icon: CalendarBlank, comingSoon: false },
     ],
   },
   {

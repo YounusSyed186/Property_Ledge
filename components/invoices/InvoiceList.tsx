@@ -874,6 +874,7 @@ export function InvoiceList() {
         onSubmit={handleCreateSubmit}
         invoiceToEdit={invoiceToEdit}
         onUpdate={handleUpdateSubmit}
+        onOpenBulkModal={() => setIsBulkOpen(true)}
       />
 
       {/* Bulk Multi-Month Invoice Generation Modal */}

@@ -168,3 +168,41 @@ export async function exportLedgerCsvAction(
 
   return { filename, content };
 }
+
+/**
+ * Server action to process auto-allocated lump sum payments across active leases
+ */
+export async function createBatchAutoAllocatedTransactionsAction(input: {
+  totalAmount: number;
+  transaction_category_id: string;
+  transaction_date: string;
+  workspace_id?: string;
+  payment_method?: string;
+  description?: string;
+  notes?: string;
+  allocations: Array<{
+    lease_id: string;
+    property_id: string;
+    tenant_id?: string | null;
+    allocated_amount: number;
+    property_name?: string;
+  }>;
+}): Promise<{ success: boolean; data?: TransactionDTO[]; error?: string }> {
+  try {
+    const { user, context } = await getAuthContext();
+    const data = await financeService.createBatchAutoAllocatedTransactions(
+      {
+        ...input,
+        workspace_id: input.workspace_id || context.workspaceId,
+      },
+      user.id
+    );
+
+    revalidateFinancialPaths();
+    return { success: true, data };
+  } catch (err: any) {
+    console.error('Failed auto-allocating transactions:', err);
+    return { success: false, error: err.message || 'Failed to auto-allocate transactions' };
+  }
+}
+
