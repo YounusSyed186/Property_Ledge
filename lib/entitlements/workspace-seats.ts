@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { AuthorizationError } from '@/lib/auth/errors';
 import { ENTITLEMENT_KEYS } from './types';
@@ -10,7 +11,9 @@ export interface SeatUsage {
   isOverLimit: boolean;
 }
 
-export async function getWorkspaceSeatUsage(workspaceId: string): Promise<SeatUsage> {
+export const getWorkspaceSeatUsage = cache(async function getWorkspaceSeatUsage(
+  workspaceId: string
+): Promise<SeatUsage> {
   const supabase = await createClient();
 
   const [{ data: seatCount }, { data: seatLimit }] = await Promise.all([
@@ -28,7 +31,7 @@ export async function getWorkspaceSeatUsage(workspaceId: string): Promise<SeatUs
     remaining,
     isOverLimit: current > limit,
   };
-}
+});
 
 export async function getTeamMemberUsage(workspaceId: string): Promise<SeatUsage> {
   return getWorkspaceSeatUsage(workspaceId);

@@ -208,11 +208,6 @@ export function LeaseManagementPage() {
         },
       },
       {
-        headerName: 'Unit',
-        width: 100,
-        valueGetter: (p) => p.data?.unit?.unit_number || '—',
-      },
-      {
         headerName: 'Tenants',
         flex: 1.5,
         minWidth: 220,

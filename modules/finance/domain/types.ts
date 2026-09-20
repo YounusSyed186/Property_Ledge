@@ -305,4 +305,126 @@ export interface RecordTransactionFromExpectedInput {
   allocation_amount?: number;
 }
 
+// ====================================================================
+// 3-Tier Expense Tracking & Transaction Mapping Types
+// ====================================================================
+
+export type ExpenseStatus = 'pending' | 'partially_paid' | 'paid' | 'cancelled';
+
+export interface ExpenseTransactionDTO {
+  id: string;
+  expense_id: string;
+  transaction_id: string;
+  allocated_amount: number;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  transaction?: TransactionDTO | null;
+}
+
+export interface ExpenseDTO {
+  id: string;
+  workspace_id: string;
+  property_id: string;
+  lease_id: string | null;
+  transaction_category_id: string | null;
+  amount: number;
+  expense_date: string;
+  vendor_name: string | null;
+  description: string | null;
+  reference: string | null;
+  notes: string | null;
+  status: ExpenseStatus;
+  receipt_url: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+
+  // Computed & Relation fields
+  total_allocated?: number;
+  remaining_amount?: number;
+  category?: CategoryDTO | null;
+  property?: {
+    id: string;
+    name: string;
+    address_line_1?: string | null;
+    city?: string | null;
+    state?: string | null;
+  } | null;
+  lease?: {
+    id: string;
+    start_date?: string | null;
+    end_date?: string | null;
+    rent_amount?: number | null;
+    status?: string | null;
+  } | null;
+  allocations?: ExpenseTransactionDTO[];
+}
+
+export interface CreateExpenseInput {
+  workspace_id?: string;
+  property_id: string;
+  lease_id?: string | null;
+  transaction_category_id?: string | null;
+  amount: number;
+  expense_date: string;
+  vendor_name?: string | null;
+  description?: string | null;
+  reference?: string | null;
+  notes?: string | null;
+  status?: ExpenseStatus;
+  receipt_url?: string | null;
+
+  // Optional: simultaneous ledger transaction creation & allocation
+  create_transaction?: boolean;
+  record_transaction?: boolean;
+  payment_method?: PaymentMethod | null;
+}
+
+export interface UpdateExpenseInput {
+  property_id?: string;
+  lease_id?: string | null;
+  transaction_category_id?: string | null;
+  amount?: number;
+  expense_date?: string;
+  vendor_name?: string | null;
+  description?: string | null;
+  reference?: string | null;
+  notes?: string | null;
+  status?: ExpenseStatus;
+  receipt_url?: string | null;
+}
+
+export interface LinkExpenseTransactionInput {
+  expense_id: string;
+  transaction_id: string;
+  allocated_amount: number;
+  notes?: string;
+}
+
+export interface ProcessExpensePaymentInput {
+  expense_id: string;
+  amount: number;
+  payment_date: string;
+  payment_method: PaymentMethod;
+  reference?: string | null;
+  notes?: string | null;
+}
+
+export interface ExpenseFilterParams {
+  workspace_id?: string;
+  property_id?: string;
+  lease_id?: string;
+  transaction_category_id?: string;
+  status?: ExpenseStatus | 'all';
+  search_query?: string;
+  start_date?: string;
+  end_date?: string;
+  limit?: number;
+  offset?: number;
+}
+
+
+
 

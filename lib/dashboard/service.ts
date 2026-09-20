@@ -270,6 +270,25 @@ export async function createLease(propertyId: string, input: Omit<Tables['leases
     throw new Error(createResult.error.message);
   }
 
+  // Ensure lease_tenants is populated with adminClient and tenant's property_id is synced
+  if (tenantIds && tenantIds.length > 0) {
+    for (let i = 0; i < tenantIds.length; i++) {
+      const tid = tenantIds[i];
+      if (!tid) continue;
+      await adminClient.from('tenants').update({ property_id: propertyId } as never).eq('id', tid);
+      await adminClient.from('lease_tenants').upsert(
+        {
+          lease_id: createResult.data.id,
+          tenant_id: tid,
+          property_id: propertyId,
+          role: i === 0 ? 'primary' : 'co-tenant',
+          is_primary: i === 0,
+        } as never,
+        { onConflict: 'lease_id,tenant_id' }
+      );
+    }
+  }
+
   // Fetch created row for exact legacy return shape
   const { data: rawLease } = await adminClient
     .from('leases')
@@ -378,7 +397,18 @@ export async function setupTenancyWithLease(propertyId: string, input: TenancySe
   return { lease: newLease, tenants: createdTenants };
 }
 
-export async function updateLease(propertyId: string, leaseId: string, input: Tables['leases']['Update']) {
+export interface LeaseTenantAssignmentInput {
+  tenantId: string;
+  role?: 'primary' | 'co-tenant' | 'guarantor';
+  isPrimary?: boolean;
+}
+
+export async function updateLease(
+  propertyId: string,
+  leaseId: string,
+  input: Tables['leases']['Update'],
+  tenantAssignments?: LeaseTenantAssignmentInput[] | string[]
+) {
   await requirePropertyPermission(propertyId, 'lease.update');
   const adminClient = await createAdminClient();
   const { data, error } = await adminClient
@@ -390,6 +420,46 @@ export async function updateLease(propertyId: string, leaseId: string, input: Ta
     .single();
 
   if (error) throw new Error(error.message);
+
+  if (tenantAssignments !== undefined) {
+    // Delete existing junction rows for this lease
+    await adminClient.from('lease_tenants').delete().eq('lease_id', leaseId);
+
+    // Format assignments
+    const assignments: LeaseTenantAssignmentInput[] = tenantAssignments.map((item, idx) => {
+      if (typeof item === 'string') {
+        return {
+          tenantId: item,
+          role: idx === 0 ? 'primary' : 'co-tenant',
+          isPrimary: idx === 0,
+        };
+      }
+      return {
+        tenantId: item.tenantId,
+        role: item.role || (idx === 0 ? 'primary' : 'co-tenant'),
+        isPrimary: item.isPrimary ?? (idx === 0),
+      };
+    });
+
+    if (assignments.length > 0 && !assignments.some((a) => a.isPrimary)) {
+      assignments[0].isPrimary = true;
+      assignments[0].role = 'primary';
+    }
+
+    for (const assign of assignments) {
+      if (!assign.tenantId) continue;
+      // Sync tenant property_id to satisfy composite foreign key (tenant_id, property_id)
+      await adminClient.from('tenants').update({ property_id: propertyId } as never).eq('id', assign.tenantId);
+      await adminClient.from('lease_tenants').insert({
+        lease_id: leaseId,
+        tenant_id: assign.tenantId,
+        property_id: propertyId,
+        role: assign.role || 'primary',
+        is_primary: assign.isPrimary ?? false,
+      } as never);
+    }
+  }
+
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'lease', entityId: leaseId });
   return data;
 }

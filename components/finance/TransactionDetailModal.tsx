@@ -32,6 +32,7 @@ interface TransactionDetailModalProps {
   onEdit?: (tx: TransactionDTO) => void;
   onDelete?: (tx: TransactionDTO) => void;
   onLinkSchedule?: (tx: TransactionDTO) => void;
+  onLinkExpense?: (tx: TransactionDTO) => void;
 }
 
 export function TransactionDetailModal({
@@ -41,6 +42,7 @@ export function TransactionDetailModal({
   onEdit,
   onDelete,
   onLinkSchedule,
+  onLinkExpense,
 }: TransactionDetailModalProps) {
   if (!isOpen || !transaction) return null;
 
@@ -285,6 +287,19 @@ export function TransactionDetailModal({
                 className="bg-[#008F83] hover:bg-[#007A70] text-white flex items-center gap-1.5 font-bold"
               >
                 <Link2 className="w-4 h-4" /> Link Schedule
+              </Button>
+            )}
+
+            {!isIncome && onLinkExpense && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  onLinkExpense(transaction);
+                  onClose();
+                }}
+                className="bg-[#008F83] hover:bg-[#007A70] text-white flex items-center gap-1.5 font-bold"
+              >
+                <Link2 className="w-4 h-4" /> Link Expense
               </Button>
             )}
 

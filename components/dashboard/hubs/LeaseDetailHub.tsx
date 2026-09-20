@@ -121,9 +121,7 @@ export function LeaseDetailHub({ propertyId, leaseId }: LeaseDetailHubProps) {
   const tenantName = primaryTenant
     ? `${primaryTenant.first_name} ${primaryTenant.last_name}`.trim()
     : 'No tenant';
-  const unitLabel = lease.unit
-    ? `${lease.unit.name}${lease.unit.unit_number ? ` (${lease.unit.unit_number})` : ''}`
-    : '—';
+  const propertyLabel = lease.property?.name || lease.property?.address_line_1 || '';
   const daysLeft = daysUntil(lease.end_date);
   const showExpiryBanner = daysLeft !== null && daysLeft > 0 && daysLeft <= 60 && lease.status === 'active';
 
@@ -136,7 +134,7 @@ export function LeaseDetailHub({ propertyId, leaseId }: LeaseDetailHubProps) {
             { label: `Lease #${leaseId.slice(0, 8)}` },
           ]}
           title={`Lease #${leaseId.slice(0, 8).toUpperCase()}`}
-          subtitle={`${tenantName} · ${unitLabel}`}
+          subtitle={`${tenantName}${propertyLabel ? ` · ${propertyLabel}` : ''}`}
           status={<StatusBadge domain="lease" status={lease.status} />}
           meta={
             <p className="text-[13px] font-medium text-admin-foreground">

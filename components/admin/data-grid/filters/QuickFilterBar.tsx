@@ -14,6 +14,7 @@ interface QuickFilterBarProps {
   activeValue: string;
   onChange: (value: string) => void;
   className?: string;
+  loading?: boolean;
 }
 
 export function QuickFilterBar({
@@ -21,6 +22,7 @@ export function QuickFilterBar({
   activeValue,
   onChange,
   className,
+  loading = false,
 }: QuickFilterBarProps) {
   return (
     <div
@@ -47,6 +49,9 @@ export function QuickFilterBar({
                 : 'text-muted hover:text-foreground hover:bg-surface'
             )}
           >
+            {loading && isActive && (
+              <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" />
+            )}
             <span>{opt.label}</span>
             {opt.count !== undefined && (
               <span

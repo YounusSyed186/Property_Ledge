@@ -48,12 +48,13 @@ import {
   deleteTransactionAction,
   exportLedgerCsvAction,
 } from '@/app/actions/finance';
-import { fetchDashboardProperties } from '@/app/actions/dashboard';
+import { getDropdownOptions, prewarmOptionsCache } from '@/lib/cache/optionsCache';
 import { TransactionModal } from './TransactionModal';
 import { TransactionDetailModal } from './TransactionDetailModal';
 import { TransactionTypeSelectModal } from './TransactionTypeSelectModal';
 import { LedgerReportModal } from './LedgerReportModal';
 import { MultiAllocationModal } from './MultiAllocationModal';
+import { MultiExpenseAllocationModal } from './MultiExpenseAllocationModal';
 import { isIncome, isExpense } from '@/modules/finance/domain/calculations';
 import { cn } from '@/lib/utils';
 
@@ -90,15 +91,15 @@ export function FinancialList() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isLinkScheduleOpen, setIsLinkScheduleOpen] = useState(false);
   const [selectedTxForLink, setSelectedTxForLink] = useState<TransactionDTO | null>(null);
+  const [isLinkExpenseOpen, setIsLinkExpenseOpen] = useState(false);
+  const [selectedTxForLinkExpense, setSelectedTxForLinkExpense] = useState<TransactionDTO | null>(null);
 
-  // Load Categories & Properties
+  // Prewarm & Load Categories & Properties
   useEffect(() => {
-    Promise.all([
-      fetchCategoriesAction().catch(() => []),
-      fetchDashboardProperties().catch(() => []),
-    ]).then(([cats, props]) => {
-      setCategories(cats || []);
-      setProperties(props || []);
+    prewarmOptionsCache();
+    getDropdownOptions().then((opts) => {
+      setCategories(opts.categories || []);
+      setProperties(opts.properties || []);
     });
   }, [activeWorkspaceId]);
 
@@ -385,6 +386,7 @@ export function FinancialList() {
           const tx: TransactionDTO = params.data;
           if (!tx) return null;
           const isInc = isIncome(tx.transaction_type);
+          const isExp = isExpense(tx.transaction_type);
 
           return (
             <div className="flex items-center gap-1 py-0.5">
@@ -397,6 +399,19 @@ export function FinancialList() {
                   }}
                   className="p-1 text-[#008F83] hover:bg-[#008F83]/15 rounded-lg transition-colors inline-flex items-center gap-1 font-bold text-xs"
                   title="Link Transaction to Expected Payment Schedule"
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {isExp && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedTxForLinkExpense(tx);
+                    setIsLinkExpenseOpen(true);
+                  }}
+                  className="p-1 text-[#008F83] hover:bg-[#008F83]/15 rounded-lg transition-colors inline-flex items-center gap-1 font-bold text-xs"
+                  title="Link Transaction to Expenses / Operating Bills"
                 >
                   <Link2 className="w-3.5 h-3.5" />
                 </button>
@@ -610,6 +625,49 @@ export function FinancialList() {
     }
   };
 
+  const handleBulkDeleteTransactions = async (selectedRows: TransactionDTO[]) => {
+    if (!selectedRows || selectedRows.length === 0) return;
+    setIsDeleting(true);
+    try {
+      let successCount = 0;
+      let failCount = 0;
+      let lastError = '';
+
+      for (const tx of selectedRows) {
+        const res = await deleteTransactionAction(tx.id);
+        if (res.success) {
+          successCount++;
+        } else {
+          failCount++;
+          if (res.error) lastError = res.error;
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: 'Bulk Delete Completed',
+          description: `Successfully deleted ${successCount} transaction(s)${failCount > 0 ? `, ${failCount} failed (${lastError})` : ''}.`,
+          variant: 'success',
+        });
+      } else {
+        toast({
+          title: 'Bulk Delete Failed',
+          description: lastError || 'Could not delete selected transactions.',
+          variant: 'destructive',
+        });
+      }
+      loadData();
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to delete transactions.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const contextName = selectedProperty ? selectedProperty.propertyName : 'All Properties';
   const pageDescription = `${contextName} · ${filteredTransactions.length} ${filteredTransactions.length === 1 ? 'record' : 'records'}`;
 
@@ -803,6 +861,8 @@ export function FinancialList() {
               loading={isLoading}
               labelSingular="transaction"
               labelPlural="transactions"
+              enableSelection={true}
+              onDeleteSelected={handleBulkDeleteTransactions}
               onRowClick={(row) => setSelectedTransaction(row)}
               getRowId={(p) => p.data.id}
               enableColumnChooser
@@ -995,6 +1055,11 @@ export function FinancialList() {
           setSelectedTxForLink(tx);
           setIsLinkScheduleOpen(true);
         }}
+        onLinkExpense={(tx) => {
+          setSelectedTransaction(null);
+          setSelectedTxForLinkExpense(tx);
+          setIsLinkExpenseOpen(true);
+        }}
       />
 
       {/* Link Transaction to Schedule Modal */}
@@ -1004,6 +1069,17 @@ export function FinancialList() {
         onClose={() => {
           setIsLinkScheduleOpen(false);
           setSelectedTxForLink(null);
+        }}
+        onSuccess={loadData}
+      />
+
+      {/* Link Expense Transaction to Pending Bills/Expenses Modal */}
+      <MultiExpenseAllocationModal
+        isOpen={isLinkExpenseOpen}
+        initialTransactionId={selectedTxForLinkExpense?.id}
+        onClose={() => {
+          setIsLinkExpenseOpen(false);
+          setSelectedTxForLinkExpense(null);
         }}
         onSuccess={loadData}
       />

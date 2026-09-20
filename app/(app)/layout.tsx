@@ -1,6 +1,6 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
-import { getCurrentUser, getUserProfile } from '@/lib/auth/queries';
+import { getCurrentUser, getUserProfile, getAccountContext } from '@/lib/auth/queries';
 import { getPersonaForUser } from '@/lib/auth/resolvePersona';
 import { DashboardClientLayout } from '@/components/dashboard/DashboardClientLayout';
 import { resolveWorkspaceContext, getUserWorkspaces } from '@/lib/workspace/context';
@@ -19,12 +19,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect('/login');
   }
 
-  const [workspaceContext, personaContext, profile, userWorkspaces, initialProperties] = await Promise.all([
+  const [workspaceContext, personaContext, profile, userWorkspaces, initialProperties, accountCtx] = await Promise.all([
     resolveWorkspaceContext(activeWsId),
     getPersonaForUser(user.id),
     getUserProfile(user.id),
     getUserWorkspaces(user.id),
     getUserProperties(user.id, activeWsId ?? undefined),
+    getAccountContext(user.id),
   ]);
 
   const workspaces = userWorkspaces.map((ws) => ({
@@ -42,6 +43,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect('/admin');
   }
 
+  const isOnboardingPending = accountCtx?.onboarding_status !== 'completed';
+
   return (
     <DashboardClientLayout
       userEmail={user.email || ''}
@@ -55,8 +58,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       entitlements={workspaceContext?.entitlements ?? {}}
       workspaces={workspaces}
       initialProperties={initialProperties}
+      isOnboardingPending={isOnboardingPending}
     >
       {children}
     </DashboardClientLayout>
   );
 }
+

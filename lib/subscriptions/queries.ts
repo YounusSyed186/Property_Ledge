@@ -1,10 +1,14 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { Subscription, ActiveSubscriptionWithPlan, SubscriptionPlan } from '@/types/subscriptions';
 import { isSubscriptionActive } from './utils';
 import { logAuthEvent } from '@/lib/debug/logger';
 
-export async function getSubscription(accountId: string): Promise<ActiveSubscriptionWithPlan | null> {
-  logAuthEvent('SUBSCRIPTION_LOAD_STARTED', { accountId });
+export const getSubscription = cache(async function getSubscription(
+  accountId: string
+): Promise<ActiveSubscriptionWithPlan | null> {
+  const maskedId = accountId ? `${accountId.slice(0, 8)}...` : 'unknown';
+  logAuthEvent('SUBSCRIPTION_LOAD_STARTED', { accountId: maskedId });
   try {
     const supabase = await createClient();
     const { data, error } = await (supabase as any)
@@ -16,19 +20,21 @@ export async function getSubscription(accountId: string): Promise<ActiveSubscrip
       .maybeSingle();
 
     if (error) {
-      logAuthEvent('SUBSCRIPTION_LOAD_FAILED', { accountId, error: error.message });
+      logAuthEvent('SUBSCRIPTION_LOAD_FAILED', { accountId: maskedId, error: error.message });
       return null;
     }
 
-    logAuthEvent('SUBSCRIPTION_LOAD_SUCCESS', { accountId });
+    logAuthEvent('SUBSCRIPTION_LOAD_SUCCESS', { accountId: maskedId, planId: data?.plan_id });
     return data;
   } catch (err) {
-    logAuthEvent('SUBSCRIPTION_LOAD_FAILED', { accountId, err });
+    logAuthEvent('SUBSCRIPTION_LOAD_FAILED', { accountId: maskedId, err });
     return null;
   }
-}
+});
 
-export async function getActiveSubscription(accountId: string): Promise<ActiveSubscriptionWithPlan | null> {
+export const getActiveSubscription = cache(async function getActiveSubscription(
+  accountId: string
+): Promise<ActiveSubscriptionWithPlan | null> {
   const sub = await getSubscription(accountId);
   if (!sub) return null;
 
@@ -37,9 +43,9 @@ export async function getActiveSubscription(accountId: string): Promise<ActiveSu
   }
 
   return null;
-}
+});
 
-export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+export const getSubscriptionPlans = cache(async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
   try {
     const supabase = await createClient();
     const { data, error } = await (supabase as any)
@@ -53,4 +59,4 @@ export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
   } catch (err) {
     return [];
   }
-}
+});

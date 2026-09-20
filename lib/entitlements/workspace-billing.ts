@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { getEntitlements } from './queries';
 import type { EntitlementMap } from '@/types/subscriptions';
@@ -15,7 +16,9 @@ export interface WorkspaceBillingContext {
 /**
  * Subscriptions are account-scoped. Workspace billing resolves through workspace.owner_id.
  */
-export async function getWorkspaceBillingAccountId(workspaceId: string): Promise<string> {
+export const getWorkspaceBillingAccountId = cache(async function getWorkspaceBillingAccountId(
+  workspaceId: string
+): Promise<string> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('workspaces')
@@ -29,9 +32,9 @@ export async function getWorkspaceBillingAccountId(workspaceId: string): Promise
   }
 
   return (data as { owner_id: string }).owner_id;
-}
+});
 
-export async function resolveWorkspaceBilling(
+export const resolveWorkspaceBilling = cache(async function resolveWorkspaceBilling(
   workspaceId: string,
   knownOwnerId?: string
 ): Promise<WorkspaceBillingContext> {
@@ -44,7 +47,7 @@ export async function resolveWorkspaceBilling(
     ownerId,
     entitlements,
   };
-}
+});
 
 export function getEntitlementFromMap(
   entitlements: EntitlementMap,

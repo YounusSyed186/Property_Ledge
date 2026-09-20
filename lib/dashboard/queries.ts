@@ -7,7 +7,7 @@ export async function getDashboardOverview(propertyId: string) {
     getPropertyStats(propertyId),
     supabase
       .from('activity_logs')
-      .select('*')
+      .select('id, action, entity_type, created_at, user_id')
       .eq('property_id', propertyId)
       .order('created_at', { ascending: false })
       .limit(10),
@@ -50,7 +50,7 @@ export async function getWorkspaceDashboardOverview(workspaceId: string) {
       .in('status', ['issued', 'partially_paid']),
     supabase
       .from('activity_logs')
-      .select('*')
+      .select('id, action, entity_type, created_at, user_id')
       .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false })
       .limit(10),
@@ -192,10 +192,10 @@ export async function getAllWorkspaceLeases(workspaceId?: string | null) {
       .from('leases')
       .select(`
         *,
-        property:properties(id, name, address_line_1, city, suburb, postal_code, state, workspace_id),
-        lease_tenants(
+        property:properties!inner(id, name, address_line_1, city, suburb, postal_code, state, workspace_id),
+        lease_tenants!lease_tenants_lease_id_fkey(
           tenant_id, role, is_primary,
-          tenant:tenants(id, first_name, last_name, email, phone, status, emergency_contact_name, emergency_contact_phone)
+          tenant:tenants!lease_tenants_tenant_id_fkey(id, first_name, last_name, email, phone, status, emergency_contact_name, emergency_contact_phone)
         )
       `)
       .order('created_at', { ascending: false });
@@ -205,22 +205,29 @@ export async function getAllWorkspaceLeases(workspaceId?: string | null) {
     }
 
     const { data, error } = await query;
-    if (!error && data && data.length > 0) return data;
+    if (error) {
+      console.error('Error fetching all workspace leases with inner join:', error);
+      // Fallback with outer join on properties
+      const { data: outerData, error: outerError } = await supabase
+        .from('leases')
+        .select(`
+          *,
+          property:properties(id, name, address_line_1, city, suburb, postal_code, state),
+          lease_tenants!lease_tenants_lease_id_fkey(
+            tenant_id, role, is_primary,
+            tenant:tenants!lease_tenants_tenant_id_fkey(id, first_name, last_name, email, phone, status, emergency_contact_name, emergency_contact_phone)
+          )
+        `)
+        .order('created_at', { ascending: false });
 
-    // Fallback query
-    const { data: simpleData, error: simpleError } = await supabase
-      .from('leases')
-      .select(`
-        *,
-        property:properties(id, name, address_line_1, city, suburb, postal_code, state)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (simpleError) {
-      console.error('Error fetching all workspace leases:', error || simpleError);
-      return [];
+      if (outerError) {
+        console.error('Error fetching all workspace leases fallback:', outerError);
+        return [];
+      }
+      return outerData || [];
     }
-    return simpleData || [];
+
+    return data || [];
   } catch (err) {
     console.error('Exception in getAllWorkspaceLeases:', err);
     return [];

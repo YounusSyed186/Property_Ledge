@@ -170,7 +170,13 @@ export async function updateSession(request: NextRequest) {
   let onboardingRoute: string | null = null;
   let persona: Persona | null = null;
 
-  if (user) {
+  const isAuthRoute =
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password';
+
+  if (user && isAuthRoute) {
     const { data: accountContext } = await supabase
       .from('account_context')
       .select('onboarding_status')
@@ -178,8 +184,9 @@ export async function updateSession(request: NextRequest) {
       .maybeSingle();
 
     onboardingStatus = (accountContext as { onboarding_status?: string } | null)?.onboarding_status ?? null;
-    onboardingRoute = await resolveOnboardingRoute(supabase, user.id);
-    persona = await resolvePersona(supabase, user.id);
+    if (onboardingStatus !== 'completed') {
+      onboardingRoute = await resolveOnboardingRoute(supabase, user.id);
+    }
   }
 
   const resolution = resolveUserDestination({
@@ -199,3 +206,4 @@ export async function updateSession(request: NextRequest) {
 
   return supabaseResponse;
 }
+

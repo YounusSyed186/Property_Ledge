@@ -234,11 +234,14 @@ export function AdminDataGrid<TData = any>({
   const syncPaginationFromGrid = useCallback(
     (api: GridApi) => {
       if (isServerSide) return;
-      setClientPageSize(api.paginationGetPageSize());
-      setClientPage(api.paginationGetCurrentPage() + 1);
+      const newPageSize = api.paginationGetPageSize();
+      const newPage = api.paginationGetCurrentPage() + 1;
+      setClientPageSize((prev) => (prev !== newPageSize ? newPageSize : prev));
+      setClientPage((prev) => (prev !== newPage ? newPage : prev));
     },
     [isServerSide]
   );
+
 
   const onGridReady = useCallback(
     (params: GridReadyEvent) => {
@@ -398,6 +401,7 @@ export function AdminDataGrid<TData = any>({
     hideSearch,
     isExpanded,
     onToggleExpand: handleToggleExpand,
+    loading: isLoadingState,
   };
 
   return (
@@ -430,9 +434,9 @@ export function AdminDataGrid<TData = any>({
         ) : (
           /* Render AG Grid with concurrent background initialization */
           <div className="ag-theme-propertyledge w-full h-full min-h-[380px] flex-1 relative">
-            {isLoadingState && (
-              <div className="absolute inset-0 z-20 pointer-events-none">
-                <AdminDataGridLoading overlay={Boolean(isDataLoaded && rowData.length > 0)} />
+            {isLoadingState && (!isDataLoaded || rowData.length === 0) && (
+              <div className="absolute inset-0 z-20 pointer-events-none bg-admin-surface">
+                <AdminDataGridLoading overlay={false} />
               </div>
             )}
             <AgGridReact<TData>

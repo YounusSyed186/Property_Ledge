@@ -62,6 +62,7 @@ const NAV_GROUPS: { label: string; items: NavItemConfig[] }[] = [
     label: 'Finance',
     items: [
       { id: 'invoices', label: 'Invoices', href: '/dashboard/invoices', icon: Receipt, comingSoon: false },
+      { id: 'finances', label: 'Expenses', href: '/dashboard/expenses', icon: CreditCard, comingSoon: false },
       { id: 'finances', label: 'Transactions', href: '/dashboard/money', icon: CurrencyDollar, comingSoon: false },
       { id: 'finances', label: 'Payment Schedules', href: '/dashboard/schedules', icon: CalendarBlank, comingSoon: false },
     ],
@@ -143,6 +144,7 @@ interface DashboardClientLayoutProps {
   entitlements?: import('@/types/subscriptions').EntitlementMap;
   workspaces?: AccessibleWorkspace[];
   initialProperties?: UserPropertyAccess[];
+  isOnboardingPending?: boolean;
 }
 
 function DashboardShellInner({
@@ -152,19 +154,10 @@ function DashboardShellInner({
   userAvatarUrl,
   persona = 'owner',
   permissions = [],
+  isOnboardingPending: initialIsOnboardingPending = false,
 }: DashboardClientLayoutProps) {
   const router = useRouter();
-  const [isOnboardingPending, setIsOnboardingPending] = useState(false);
-
-  useEffect(() => {
-    authClient.getCurrentUser().then(async (user) => {
-      if (user) {
-        const accountContext = await authClient.getAccountContext(user.id);
-        const status = accountContext?.onboardingStatus ?? 'not_started';
-        setIsOnboardingPending(status !== 'completed');
-      }
-    });
-  }, []);
+  const [isOnboardingPending] = useState(initialIsOnboardingPending);
 
   const navSections = buildNavSections(persona, permissions);
   const commandMenuLinks: CommandMenuLink[] = navSections.flatMap((s) =>
@@ -227,6 +220,7 @@ export function DashboardClientLayout({
   entitlements = {},
   workspaces = [],
   initialProperties,
+  isOnboardingPending = false,
 }: DashboardClientLayoutProps) {
   return (
     <AppContextProvider
@@ -245,6 +239,7 @@ export function DashboardClientLayout({
         userAvatarUrl={userAvatarUrl}
         persona={persona}
         permissions={permissions}
+        isOnboardingPending={isOnboardingPending}
       >
         <WorkspaceCookieSync workspaceId={workspaceId} />
         {children}
@@ -252,3 +247,4 @@ export function DashboardClientLayout({
     </AppContextProvider>
   );
 }
+

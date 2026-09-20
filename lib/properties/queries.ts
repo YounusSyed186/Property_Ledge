@@ -1,4 +1,5 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth/queries';
 import { Database } from '@/types/database';
 
 type Property = Database['public']['Tables']['properties']['Row'];
@@ -134,7 +135,9 @@ export const getUserProperties = cache(async function getUserProperties(
   return Array.from(propertyMap.values());
 });
 
-export async function getUserOrganizations(userId: string): Promise<(Workspace & { membership?: WorkspaceMember })[]> {
+export const getUserOrganizations = cache(async function getUserOrganizations(
+  userId: string
+): Promise<(Workspace & { membership?: WorkspaceMember })[]> {
   const supabase = await createClient();
 
   const { data: ownedOrgs, error: ownedError } = await supabase
@@ -187,9 +190,11 @@ export async function getUserOrganizations(userId: string): Promise<(Workspace &
   }
 
   return Array.from(orgMap.values());
-}
+});
 
-export async function getPropertyById(propertyId: string): Promise<PropertyWithMembership | null> {
+export const getPropertyById = cache(async function getPropertyById(
+  propertyId: string
+): Promise<PropertyWithMembership | null> {
   const supabase = await createClient();
 
   const { data: property, error } = await supabase
@@ -222,15 +227,12 @@ export async function getPropertyById(propertyId: string): Promise<PropertyWithM
 
   const typedProperty = property as Property & { workspace?: Workspace };
   return { ...typedProperty, membership, organization: typedProperty.workspace };
-}
+});
 
-export async function getCurrentUser() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
-}
-
-export async function verifyPropertyAccess(propertyId: string, userId: string): Promise<boolean> {
+export const verifyPropertyAccess = cache(async function verifyPropertyAccess(
+  propertyId: string,
+  userId: string
+): Promise<boolean> {
   const supabase = await createClient();
 
   const { data: property } = await supabase
@@ -258,7 +260,7 @@ export async function verifyPropertyAccess(propertyId: string, userId: string): 
     .maybeSingle();
 
   return !!member;
-}
+});
 
 export async function getPropertyStats(propertyId: string) {
   const supabase = await createClient();

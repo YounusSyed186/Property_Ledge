@@ -23,7 +23,11 @@ export const routes = {
   money: {
     invoices: () => '/dashboard/invoices',
     payments: () => '/dashboard/money?tab=payments',
-    expenses: () => '/dashboard/money?tab=expenses',
+    expenses: () => '/dashboard/expenses',
+    transactions: () => '/dashboard/money',
+  },
+  expenses: {
+    list: () => '/dashboard/expenses',
   },
   invoices: {
     list: () => '/dashboard/invoices',

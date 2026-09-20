@@ -40,6 +40,7 @@ interface AdminDataGridToolbarProps {
   hideSearch?: boolean;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
+  loading?: boolean;
 }
 
 export type { AdminDataGridToolbarProps };
@@ -64,6 +65,7 @@ export function AdminDataGridToolbar({
   hideSearch = false,
   isExpanded = true,
   onToggleExpand,
+  loading = false,
 }: AdminDataGridToolbarProps) {
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
   const [columns, setColumns] = useState<ColumnItem[]>([]);
@@ -174,6 +176,13 @@ export function AdminDataGridToolbar({
           {/* Left: Quick Filters & Search */}
           <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
             {leftContent}
+
+            {loading && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#008F83]/10 border border-[#008F83]/20 text-[#008F83] text-xs font-semibold shrink-0 animate-fade-in">
+                <div className="w-3.5 h-3.5 border-2 border-[#008F83] border-t-transparent rounded-full animate-spin shrink-0" />
+                <span>Loading...</span>
+              </div>
+            )}
 
             {/* Global Search Bar */}
             {!hideSearch && (

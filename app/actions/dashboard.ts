@@ -301,9 +301,14 @@ export async function handleCreateLease(
   return { success: true, data };
 }
 
-export async function handleUpdateLease(propertyId: string, leaseId: string, input: Tables['leases']['Update']) {
-  const data = await service.updateLease(propertyId, leaseId, input);
-  revalidateDashboard('/dashboard/leases', `/dashboard/properties/${propertyId}`);
+export async function handleUpdateLease(
+  propertyId: string,
+  leaseId: string,
+  input: Tables['leases']['Update'],
+  tenantAssignments?: service.LeaseTenantAssignmentInput[] | string[]
+) {
+  const data = await service.updateLease(propertyId, leaseId, input, tenantAssignments);
+  revalidateDashboard('/dashboard/leases', `/dashboard/properties/${propertyId}`, `/dashboard/leases/${leaseId}`);
   return { success: true, data };
 }
 

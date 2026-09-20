@@ -30,10 +30,9 @@ import {
 } from '@/modules/finance/domain/types';
 import { calculateAutoAllocation, ActiveLeaseForAllocation } from '@/modules/finance/domain/auto-allocate';
 import { formatCurrency } from '@/lib/format/currency';
-import { fetchCategoriesAction, createTransactionAction, updateTransactionAction, createBatchAutoAllocatedTransactionsAction } from '@/app/actions/finance';
-import { fetchDashboardProperties, fetchAllWorkspaceLeases, fetchDashboardTenants } from '@/app/actions/dashboard';
+import { createTransactionAction, updateTransactionAction, createBatchAutoAllocatedTransactionsAction } from '@/app/actions/finance';
 import { fetchInvoicesAction } from '@/app/actions/invoices';
-import { getCachedCategories, getCachedProperties } from '@/lib/cache/optionsCache';
+import { getCachedDropdownOptionsSync, getDropdownOptions } from '@/lib/cache/optionsCache';
 import { Loader2, Zap, SlidersHorizontal, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -57,6 +56,8 @@ export function TransactionModal({
   const isEdit = Boolean(transactionToEdit);
   const { toast } = useToast();
 
+  const syncCache = getCachedDropdownOptionsSync();
+
   // Form State
   const [transactionType, setTransactionType] = useState<TransactionType>(defaultType);
   const [amount, setAmount] = useState('');
@@ -75,56 +76,35 @@ export function TransactionModal({
   const [leaseId, setLeaseId] = useState('');
   const [invoiceId, setInvoiceId] = useState('');
 
-  // Loaded Options
-  const [categories, setCategories] = useState<CategoryDTO[]>([]);
-  const [properties, setProperties] = useState<any[]>([]);
-  const [tenants, setTenants] = useState<any[]>([]);
-  const [leases, setLeases] = useState<any[]>([]);
+  // Loaded Options (Instantly available from synchronous cache)
+  const [categories, setCategories] = useState<CategoryDTO[]>(syncCache.categories || []);
+  const [properties, setProperties] = useState<any[]>(syncCache.properties || []);
+  const [tenants, setTenants] = useState<any[]>(syncCache.tenants || []);
+  const [leases, setLeases] = useState<any[]>(syncCache.leases || []);
   const [invoices, setInvoices] = useState<any[]>([]);
 
-  const [loadingCategories, setLoadingCategories] = useState(false);
-  const [loadingProperties, setLoadingProperties] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Load Categories & Reference entities (Cached & Non-blocking)
+  // Fast single-roundtrip sync on open
   useEffect(() => {
     if (!isOpen) return;
 
     let isMounted = true;
-    setLoadingCategories(true);
-    setLoadingProperties(true);
 
-    // Fast load Categories & Properties instantly via cache
-    getCachedCategories()
-      .then((cats) => {
-        if (isMounted) setCategories(cats || []);
-      })
-      .catch((err) => console.error('Error loading categories:', err))
-      .finally(() => {
-        if (isMounted) setLoadingCategories(false);
-      });
-
-    getCachedProperties()
-      .then((props) => {
-        if (isMounted) setProperties(props || []);
-      })
-      .catch((err) => console.error('Error loading properties:', err))
-      .finally(() => {
-        if (isMounted) setLoadingProperties(false);
-      });
-
-    // Secondary load Tenants, Leases, Invoices in background
-    Promise.all([
-      fetchDashboardTenants().catch(() => []),
-      fetchAllWorkspaceLeases().catch(() => []),
-      fetchInvoicesAction({ limit: 100 }).then((res) => res.items).catch(() => []),
-    ]).then(([tens, lss, invs]) => {
+    getDropdownOptions().then((opts) => {
       if (!isMounted) return;
-      setTenants(tens || []);
-      setLeases(lss || []);
-      setInvoices(invs || []);
+      setCategories(opts.categories || []);
+      setProperties(opts.properties || []);
+      setTenants(opts.tenants || []);
+      setLeases(opts.leases || []);
     });
+
+    fetchInvoicesAction({ limit: 100 })
+      .then((res) => {
+        if (isMounted) setInvoices(res.items || []);
+      })
+      .catch(() => {});
 
     return () => {
       isMounted = false;
@@ -319,7 +299,7 @@ export function TransactionModal({
           notes: notes.trim() || undefined,
           status,
           tenant_id: transactionType === 'income' && tenantId ? tenantId : undefined,
-          lease_id: transactionType === 'income' && leaseId ? leaseId : undefined,
+          lease_id: leaseId || undefined,
           invoice_id: transactionType === 'income' && invoiceId ? invoiceId : undefined,
         };
 
@@ -350,7 +330,7 @@ export function TransactionModal({
           notes: notes.trim() || undefined,
           status,
           tenant_id: transactionType === 'income' && tenantId ? tenantId : undefined,
-          lease_id: transactionType === 'income' && leaseId ? leaseId : undefined,
+          lease_id: leaseId || undefined,
           invoice_id: transactionType === 'income' && invoiceId ? invoiceId : undefined,
         };
 
@@ -459,12 +439,9 @@ export function TransactionModal({
               }}
               error={formErrors.categoryId}
               className="bg-white dark:bg-slate-800"
-              disabled={loadingCategories}
             >
               <option value="">
-                {loadingCategories
-                  ? 'Loading categories...'
-                  : `Select ${transactionType === 'income' ? 'Income' : 'Expense'} Category`}
+                {`Select ${transactionType === 'income' ? 'Income' : 'Expense'} Category`}
               </option>
               {availableCategories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
@@ -550,12 +527,9 @@ export function TransactionModal({
               }}
               error={formErrors.propertyId}
               className="bg-white dark:bg-slate-800"
-              disabled={loadingProperties}
             >
               <option value="">
-                {loadingProperties
-                  ? 'Loading properties...'
-                  : isAutoAllocateMode
+                {isAutoAllocateMode
                   ? 'All Active Leases (Workspace-wide)'
                   : 'Select Property'}
               </option>
@@ -635,15 +609,31 @@ export function TransactionModal({
             </Select>
           </div>
 
-          {/* Context Fields: Expense (Vendor) vs Income (Tenant, Lease, Invoice) */}
+          {/* Context Fields: Expense (Vendor & Optional Lease) vs Income (Tenant, Lease, Invoice) */}
           {transactionType === 'expense' ? (
-            <Input
-              label="Vendor / Payee Name (Optional)"
-              placeholder="e.g. Apex Plumbing Services Pty Ltd"
-              value={vendorName}
-              onChange={(e) => setVendorName(e.target.value)}
-              className="bg-white dark:bg-slate-800"
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Vendor / Payee Name (Optional)"
+                placeholder="e.g. Apex Plumbing Services Pty Ltd"
+                value={vendorName}
+                onChange={(e) => setVendorName(e.target.value)}
+                className="bg-white dark:bg-slate-800"
+              />
+              <Select
+                label="Associated Lease (Optional)"
+                value={leaseId}
+                onChange={(e) => setLeaseId(e.target.value)}
+                className="bg-white dark:bg-slate-800 text-xs"
+                disabled={!propertyId || filteredLeases.length === 0}
+              >
+                <option value="">No Lease (General Expense)</option>
+                {filteredLeases.map((l: any) => (
+                  <option key={l.id} value={l.id}>
+                    Lease #{l.id.slice(0, 8)}
+                  </option>
+                ))}
+              </Select>
+            </div>
           ) : (
             !isAutoAllocateMode && (
               <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 space-y-3">

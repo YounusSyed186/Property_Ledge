@@ -1,31 +1,22 @@
-'use client';
+import React, { Suspense } from 'react';
+import { ExpenseList } from '@/components/finance/ExpenseList';
 
-import { EntityListPage } from '@/components/dashboard/EntityListPage';
-import { createEntityDrawer } from '@/components/dashboard/entities/createEntityDrawer';
-import { expenseFields, expenseColumns } from '@/components/dashboard/entities/config';
-import {
-  fetchDashboardExpenses,
-  handleCreateExpense,
-  handleUpdateExpense,
-  handleDeleteExpense,
-} from '@/app/actions/dashboard';
-
-const ExpenseDrawer = createEntityDrawer('Expense', expenseFields, {
-  onCreate: handleCreateExpense,
-  onUpdate: handleUpdateExpense,
-  onDelete: handleDeleteExpense,
-}, { status: 'pending' });
+export const metadata = {
+  title: 'Expenses | PropertyLedge',
+  description: 'Track and manage property operating expenses, utility bills, maintenance, rates, and landlord costs.',
+};
 
 export default function ExpensesPage() {
   return (
-    <EntityListPage
-      title="Expenses"
-      entityLabel="expense"
-      entityLabelPlural="expenses"
-      fetchAction={fetchDashboardExpenses}
-      columnDefs={expenseColumns}
-      DrawerComponent={ExpenseDrawer}
-      deleteAction={handleDeleteExpense}
-    />
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-slate-400 text-sm">
+          Loading property expenses...
+        </div>
+      }
+    >
+      <ExpenseList />
+    </Suspense>
   );
 }
+

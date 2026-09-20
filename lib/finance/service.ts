@@ -243,7 +243,30 @@ export async function createTransaction(
     workspaceId = property.workspace_id;
   }
 
-  // 3. Insert transaction
+  // 3. If lease_id is provided, verify it exists and belongs to the selected property
+  if (validated.lease_id) {
+    const { data: leaseData, error: leaseError } = await supabase
+      .from('leases')
+      .select('id, property_id, workspace_id')
+      .eq('id', validated.lease_id)
+      .single();
+
+    const lease = leaseData as { id: string; property_id: string; workspace_id?: string } | null;
+
+    if (leaseError || !lease) {
+      throw new Error('Selected lease was not found.');
+    }
+
+    if (lease.property_id !== validated.property_id) {
+      throw new Error('Selected lease does not belong to the selected property.');
+    }
+
+    if (lease.workspace_id && lease.workspace_id !== workspaceId) {
+      throw new Error('Selected lease does not belong to the active workspace.');
+    }
+  }
+
+  // 4. Insert transaction
   const insertPayload = {
     amount: validated.amount,
     transaction_type: validated.transaction_type,
@@ -337,6 +360,32 @@ export async function updateTransaction(
       throw new Error(
         `Category "${category.name}" is an ${category.transaction_type} category and cannot be used with a ${effectiveType} transaction.`
       );
+    }
+  }
+
+  // Validate lease consistency if lease_id is being set or property_id is updated
+  const effectivePropertyId = validated.property_id || current.property_id;
+  const effectiveLeaseId = validated.lease_id !== undefined ? validated.lease_id : current.lease_id;
+
+  if (effectiveLeaseId) {
+    const { data: leaseData, error: leaseError } = await supabase
+      .from('leases')
+      .select('id, property_id, workspace_id')
+      .eq('id', effectiveLeaseId)
+      .single();
+
+    const lease = leaseData as { id: string; property_id: string; workspace_id?: string } | null;
+
+    if (leaseError || !lease) {
+      throw new Error('Selected lease was not found.');
+    }
+
+    if (lease.property_id !== effectivePropertyId) {
+      throw new Error('Selected lease does not belong to the selected property.');
+    }
+
+    if (lease.workspace_id && lease.workspace_id !== current.workspace_id) {
+      throw new Error('Selected lease does not belong to the active workspace.');
     }
   }
 

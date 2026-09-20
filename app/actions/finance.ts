@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth/queries';
 import { resolveWorkspaceContext } from '@/lib/workspace/context';
+import { createClient } from '@/lib/supabase/server';
 import * as financeService from '@/lib/finance/service';
 import {
   CategoryDTO,
@@ -32,6 +33,82 @@ function revalidateFinancialPaths() {
   revalidatePath('/dashboard/money');
   revalidatePath('/dashboard/finances');
   revalidatePath('/dashboard');
+}
+
+/**
+ * Consolidated single-roundtrip fetch for all modal dropdown reference data
+ */
+export async function fetchFormDropdownOptionsAction() {
+  try {
+    const { context } = await getAuthContext();
+    const supabase = await createClient();
+
+    const [categoriesRes, propertiesRes, leasesRes, tenantsRes] = await Promise.all([
+      // Categories (active)
+      supabase
+        .from('categories')
+        .select('id, transaction_type, name, description, is_active')
+        .eq('is_active', true)
+        .order('name', { ascending: true }),
+
+      // Properties in workspace
+      supabase
+        .from('properties')
+        .select('id, name, address_line_1, suburb, state, postal_code')
+        .eq('workspace_id', context.workspaceId)
+        .order('name', { ascending: true }),
+
+      // Leases in workspace
+      supabase
+        .from('leases')
+        .select(`
+          id,
+          property_id,
+          start_date,
+          end_date,
+          rent_amount,
+          status,
+          property:properties(id, name),
+          lease_tenants!lease_tenants_lease_id_fkey(
+            is_primary,
+            tenant:tenants!lease_tenants_tenant_id_fkey(id, first_name, last_name)
+          )
+        `)
+        .order('created_at', { ascending: false }),
+
+      // Tenants
+      supabase
+        .from('tenants')
+        .select('id, first_name, last_name, email, property_id')
+        .order('last_name', { ascending: true }),
+    ]);
+
+    const formattedLeases = (leasesRes.data || []).map((l: any) => ({
+      id: l.id,
+      property_id: l.property_id,
+      start_date: l.start_date,
+      end_date: l.end_date,
+      rent_amount: l.rent_amount,
+      status: l.status,
+      property: l.property,
+      tenant: l.lease_tenants?.[0]?.tenant || null,
+    }));
+
+    return {
+      categories: (categoriesRes.data || []) as CategoryDTO[],
+      properties: propertiesRes.data || [],
+      leases: formattedLeases,
+      tenants: tenantsRes.data || [],
+    };
+  } catch (err) {
+    console.error('Error in fetchFormDropdownOptionsAction:', err);
+    return {
+      categories: [],
+      properties: [],
+      leases: [],
+      tenants: [],
+    };
+  }
 }
 
 /**

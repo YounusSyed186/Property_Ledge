@@ -524,6 +524,7 @@ export function TenantDirectoryPage() {
                   options={filterOptions}
                   activeValue={statusFilter}
                   onChange={(val) => setStatusFilter(val as any)}
+                  loading={isLoading}
                 />
               }
               disablePagination={true}

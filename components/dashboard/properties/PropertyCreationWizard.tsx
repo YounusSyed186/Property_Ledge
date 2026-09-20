@@ -28,11 +28,12 @@ export function PropertyCreationWizard({
 }: PropertyCreationWizardProps) {
   const { success: showSuccess, error: showError } = useToast();
   const { refreshProperties } = usePropertyContext();
+  const storeWorkspaces = useWorkspaceStore((s) => s.workspaces);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const [activeStep, setActiveStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [workspaceId, setWorkspaceId] = useState(initialWorkspaceId || activeWorkspaceId || '');
-  const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([]);
+  const [workspaceId, setWorkspaceId] = useState(initialWorkspaceId || activeWorkspaceId || (storeWorkspaces?.[0]?.id ?? ''));
+  const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>(() => storeWorkspaces || []);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -58,13 +59,22 @@ export function PropertyCreationWizard({
   }, [activeWorkspaceId, workspaceId]);
 
   useEffect(() => {
+    if (storeWorkspaces && storeWorkspaces.length > 0) {
+      setWorkspaces(storeWorkspaces);
+      if (!initialWorkspaceId && !activeWorkspaceId) {
+        setWorkspaceId(storeWorkspaces[0].id);
+      }
+      return;
+    }
+
     fetchUserWorkspaces().then((ws: any) => {
       setWorkspaces(ws || []);
       if (!initialWorkspaceId && !activeWorkspaceId && ws && ws.length > 0) {
         setWorkspaceId(ws[0].id);
       }
     });
-  }, [initialWorkspaceId, activeWorkspaceId]);
+  }, [initialWorkspaceId, activeWorkspaceId, storeWorkspaces]);
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
