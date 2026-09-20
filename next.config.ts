@@ -6,6 +6,15 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',
+      },
+    ],
+    formats: ['image/avif', 'image/webp'],
+  },
   async redirects() {
     return [
       { source: '/admin/organizations', destination: '/admin', permanent: false },

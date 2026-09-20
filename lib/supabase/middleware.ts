@@ -12,71 +12,7 @@ const STAGE_ROUTES: Record<string, string> = {
   ready: '/onboarding/complete',
 };
 
-function mapTeamRoleNameToPersona(roleName: string | null | undefined): Persona | null {
-  if (!roleName) return null;
-  const normalized = roleName.toLowerCase();
-  switch (normalized) {
-    case 'owner':
-      return 'owner';
-    case 'admin':
-      return 'admin';
-    case 'manager':
-      return 'manager';
-    case 'leasing agent':
-      return 'agent';
-    case 'staff':
-      return 'staff';
-    case 'viewer':
-    case 'landlord':
-      return 'viewer';
-    default:
-      return 'viewer';
-  }
-}
 
-async function resolvePersona(
-  supabase: ReturnType<typeof createServerClient>,
-  userId: string
-): Promise<Persona> {
-  const [
-    { data: adminRow },
-    { data: tenantRow },
-    { data: ownedWorkspaces },
-    { data: propertyMembers },
-    { data: workspaceMembers },
-  ] = await Promise.all([
-    supabase.from('platform_admins').select('user_id').eq('user_id', userId).eq('status', 'active').maybeSingle(),
-    supabase.from('tenants').select('id').eq('user_id', userId).eq('status', 'active').maybeSingle(),
-    supabase.from('workspaces').select('id').eq('owner_id', userId).eq('status', 'active'),
-    supabase.from('property_members').select('role').eq('user_id', userId).eq('status', 'active'),
-    supabase
-      .from('workspace_members')
-      .select('role_id, team_roles(name)')
-      .eq('user_id', userId)
-      .eq('status', 'active'),
-  ]);
-
-  if (adminRow) return 'platform_admin';
-  if (tenantRow) return 'tenant';
-
-  if ((ownedWorkspaces || []).length > 0) return 'owner';
-
-  const propertyRoles = (propertyMembers || []).map((m) => m.role as string);
-  if (propertyRoles.includes('owner')) return 'owner';
-
-  for (const m of workspaceMembers || []) {
-    const row = m as { team_roles?: { name?: string } | null };
-    const persona = mapTeamRoleNameToPersona(row.team_roles?.name);
-    if (persona) return persona;
-  }
-
-  if (propertyRoles.includes('manager')) return 'manager';
-  if (propertyRoles.includes('staff')) return 'staff';
-  if (propertyRoles.includes('agent')) return 'agent';
-  if (propertyRoles.includes('viewer')) return 'viewer';
-
-  return 'owner';
-}
 
 async function resolveOnboardingRoute(
   supabase: ReturnType<typeof createServerClient>,
