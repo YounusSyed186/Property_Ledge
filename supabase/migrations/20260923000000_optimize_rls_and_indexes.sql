@@ -31,6 +31,21 @@ BEGIN
     EXECUTE 'CREATE INDEX IF NOT EXISTS idx_subscriptions_acc_status ON public.subscriptions (account_id, status)';
   END IF;
 
+  IF to_regclass('public.transactions') IS NOT NULL THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_transactions_ws_date ON public.transactions (workspace_id, transaction_date DESC)';
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_transactions_prop_type_date ON public.transactions (property_id, transaction_type, transaction_date DESC)';
+  END IF;
+
+  IF to_regclass('public.expenses') IS NOT NULL THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_expenses_ws_date ON public.expenses (workspace_id, expense_date DESC)';
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_expenses_prop_date ON public.expenses (property_id, expense_date DESC)';
+  END IF;
+
+  IF to_regclass('public.expected_payment_schedule') IS NOT NULL THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_expected_sched_ws_due ON public.expected_payment_schedule (workspace_id, due_date ASC)';
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_expected_sched_prop_due ON public.expected_payment_schedule (property_id, due_date ASC)';
+  END IF;
+
   -- 2. Optimize RLS on Invoices (Remove ::text casting on native UUID columns)
   IF EXISTS (
     SELECT 1 FROM pg_policies 

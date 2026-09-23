@@ -33,6 +33,27 @@ function revalidateExpensePaths() {
   revalidatePath('/dashboard');
 }
 
+export type { ExpensesPageData } from '@/lib/finance/expenseService';
+
+/**
+ * Consolidated single-pass fetch for expenses page model
+ */
+export async function fetchExpensesPageDataAction(
+  filters: ExpenseFilterParams = {}
+): Promise<{ success: boolean; data?: expenseService.ExpensesPageData; error?: string }> {
+  try {
+    const { context } = await getAuthContext();
+    const data = await expenseService.getExpensesPageData({
+      ...filters,
+      workspace_id: filters.workspace_id || context.workspaceId,
+    });
+    return { success: true, data };
+  } catch (err: any) {
+    console.error('Failed to fetch expenses page data:', err);
+    return { success: false, error: err.message || 'Failed to fetch expenses page data' };
+  }
+}
+
 /**
  * Fetch business expenses with workspace filtering and calculated allocations
  */

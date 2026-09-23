@@ -113,11 +113,10 @@ export async function getTransactions(
   if (filters.end_date) {
     query = query.lte('transaction_date', filters.end_date);
   }
-  if (filters.limit) {
-    query = query.limit(filters.limit);
-  }
   if (filters.offset) {
-    query = query.range(filters.offset, filters.offset + (filters.limit || 50) - 1);
+    query = query.range(filters.offset, filters.offset + (filters.limit || 100) - 1);
+  } else {
+    query = query.limit(filters.limit || 100);
   }
 
   const { data, error } = await query;
@@ -472,6 +471,35 @@ export async function deleteTransaction(id: string, userId?: string): Promise<bo
   }
 
   return true;
+}
+
+export interface FinancialPageData {
+  transactions: TransactionDTO[];
+  ledgerEntries: LedgerEntryDTO[];
+  summary: FinancialSummaryDTO;
+  categories: CategoryDTO[];
+}
+
+/**
+ * Consolidated single-pass fetch for transactions page (eliminates 3x duplicate fetch)
+ */
+export async function getFinancialPageData(
+  filters: TransactionFilterParams = {}
+): Promise<FinancialPageData> {
+  const [transactions, categories] = await Promise.all([
+    getTransactions(filters),
+    getCategories(),
+  ]);
+
+  const ledgerEntries = calculateLedger(transactions);
+  const summary = calculateFinancialSummary(transactions);
+
+  return {
+    transactions,
+    ledgerEntries,
+    summary,
+    categories,
+  };
 }
 
 /**

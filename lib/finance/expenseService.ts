@@ -95,11 +95,10 @@ export async function getExpenses(
   if (filters.end_date) {
     query = query.lte('expense_date', filters.end_date);
   }
-  if (filters.limit) {
-    query = query.limit(filters.limit);
-  }
   if (filters.offset) {
-    query = query.range(filters.offset, filters.offset + (filters.limit || 50) - 1);
+    query = query.range(filters.offset, filters.offset + (filters.limit || 100) - 1);
+  } else {
+    query = query.limit(filters.limit || 100);
   }
 
   const { data, error } = await query;
@@ -137,6 +136,26 @@ export async function getExpenses(
   }
 
   return results;
+}
+
+export interface ExpensesPageData {
+  expenses: ExpenseDTO[];
+  categories: any[];
+}
+
+/**
+ * Consolidated single-pass fetch for expenses page model
+ */
+export async function getExpensesPageData(
+  filters: ExpenseFilterParams = {}
+): Promise<ExpensesPageData> {
+  const { getCategories } = await import('@/lib/finance/service');
+  const [expenses, categories] = await Promise.all([
+    getExpenses(filters),
+    getCategories('expense'),
+  ]);
+
+  return { expenses, categories };
 }
 
 /**

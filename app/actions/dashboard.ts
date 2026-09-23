@@ -104,16 +104,19 @@ export async function fetchDashboardInspectionDetail(propertyId: string, inspect
 }
 
 export async function fetchDashboardInvoices(propertyId: string) {
+  if (!propertyId) return [];
   await requirePropertyAccess(propertyId);
   return queries.getInvoices(propertyId);
 }
 
 export async function fetchDashboardPayments(propertyId: string) {
+  if (!propertyId) return [];
   await requirePropertyAccess(propertyId);
   return queries.getPayments(propertyId);
 }
 
 export async function fetchDashboardExpenses(propertyId: string) {
+  if (!propertyId) return [];
   await requirePropertyAccess(propertyId);
   return queries.getExpenses(propertyId);
 }

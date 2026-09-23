@@ -340,18 +340,35 @@ export async function getInvoices(propertyId: string) {
   return data || [];
 }
 
-export async function getPayments(propertyId: string) {
+export async function getPayments(propertyId: string, limit: number = 100) {
+  if (!propertyId) return [];
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('transactions')
     .select(`
-      *,
+      id,
+      property_id,
+      lease_id,
+      tenant_id,
+      transaction_category_id,
+      amount,
+      transaction_type,
+      transaction_date,
+      payment_method,
+      status,
+      description,
+      reference,
+      vendor_name,
+      notes,
+      created_at,
+      updated_at,
       tenant:tenants(first_name, last_name),
       invoice:invoices(invoice_number)
     `)
     .eq('property_id', propertyId)
     .eq('transaction_type', 'income')
-    .order('transaction_date', { ascending: false });
+    .order('transaction_date', { ascending: false })
+    .limit(limit);
 
   if (error) {
     console.error('Error fetching payments:', error);

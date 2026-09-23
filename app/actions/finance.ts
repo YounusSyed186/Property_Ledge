@@ -119,6 +119,21 @@ export async function fetchCategoriesAction(type?: TransactionType): Promise<Cat
   return financeService.getCategories(type);
 }
 
+export type { FinancialPageData } from '@/lib/finance/service';
+
+/**
+ * Consolidated single-pass fetch for transactions page model
+ */
+export async function fetchFinancialPageDataAction(
+  filters: TransactionFilterParams = {}
+): Promise<financeService.FinancialPageData> {
+  const { context } = await getAuthContext();
+  return financeService.getFinancialPageData({
+    ...filters,
+    workspace_id: filters.workspace_id || context.workspaceId,
+  });
+}
+
 /**
  * Fetch transactions with workspace filtering
  */

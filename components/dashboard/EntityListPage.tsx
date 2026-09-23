@@ -99,10 +99,16 @@ export function EntityListPage<T extends { id: string }>({
   const effectivePropertyId = selectedProperty?.propertyId || (availableProperties.length > 0 ? availableProperties[0].propertyId : '');
 
   const loadData = async () => {
+    const targetPropertyId = selectedProperty?.propertyId;
+    if (!targetPropertyId) {
+      setRows([]);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
-      const data = await fetchAction(selectedProperty?.propertyId ?? '');
-      setRows(data);
+      const data = await fetchAction(targetPropertyId);
+      setRows(data || []);
     } catch (err) {
       console.error(`Failed to load ${entityLabelPlural}:`, err);
       showError("Couldn't load " + entityLabelPlural, "Please check your connection and try again.");

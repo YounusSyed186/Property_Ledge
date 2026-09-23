@@ -35,13 +35,20 @@ import { MultiAllocationModal } from './MultiAllocationModal';
 import { EditScheduleModal } from './EditScheduleModal';
 import { cn } from '@/lib/utils';
 
-export function ExpectedScheduleList() {
+interface ExpectedScheduleListProps {
+  initialSchedules?: ExpectedPaymentScheduleDTO[];
+}
+
+export function ExpectedScheduleList({ initialSchedules }: ExpectedScheduleListProps = {}) {
   const { toast } = useToast();
   const { selectedProperty } = usePropertyContext();
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
 
-  const [schedules, setSchedules] = useState<ExpectedPaymentScheduleDTO[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const activePropertyId = selectedProperty?.propertyId ?? null;
+  const isInitialMount = React.useRef(true);
+
+  const [schedules, setSchedules] = useState<ExpectedPaymentScheduleDTO[]>(initialSchedules || []);
+  const [isLoading, setIsLoading] = useState(!initialSchedules);
 
   // View & Filter States
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
@@ -74,7 +81,7 @@ export function ExpectedScheduleList() {
     setIsLoading(true);
     fetchExpectedSchedulesAction({
       workspace_id: activeWorkspaceId || undefined,
-      property_id: selectedProperty?.propertyId || undefined,
+      property_id: activePropertyId || undefined,
       status: 'all',
       schedule_type: 'all',
     })
@@ -86,11 +93,17 @@ export function ExpectedScheduleList() {
         }
       })
       .finally(() => setIsLoading(false));
-  }, [activeWorkspaceId, selectedProperty, toast]);
+  }, [activeWorkspaceId, activePropertyId, toast]);
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      if (initialSchedules && (!activePropertyId || activePropertyId === '')) {
+        return;
+      }
+    }
     loadData();
-  }, [loadData]);
+  }, [loadData, activePropertyId, initialSchedules]);
 
   // Derived filter options
   const tenantOptions = useMemo(() => {

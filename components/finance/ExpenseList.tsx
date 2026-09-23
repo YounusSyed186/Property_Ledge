@@ -48,18 +48,24 @@ import { formatCurrency } from '@/lib/format/currency';
 import { formatAuDisplayDate } from '@/lib/format/australian-time';
 import { cn } from '@/lib/utils';
 
-export function ExpenseList() {
+interface ExpenseListProps {
+  initialExpenses?: ExpenseDTO[];
+  initialCategories?: CategoryDTO[];
+}
+
+export function ExpenseList({ initialExpenses, initialCategories }: ExpenseListProps = {}) {
   const { toast } = useToast();
-  const { selectedProperty } = usePropertyContext();
+  const { selectedProperty, availableProperties } = usePropertyContext();
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
 
   const activePropertyId = selectedProperty?.propertyId ?? null;
+  const isInitialMount = React.useRef(true);
 
   // Data State
-  const [expenses, setExpenses] = useState<ExpenseDTO[]>([]);
-  const [categories, setCategories] = useState<CategoryDTO[]>([]);
-  const [properties, setProperties] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [expenses, setExpenses] = useState<ExpenseDTO[]>(initialExpenses || []);
+  const [categories, setCategories] = useState<CategoryDTO[]>(initialCategories || []);
+  const [properties, setProperties] = useState<any[]>(availableProperties || []);
+  const [isLoading, setIsLoading] = useState(!initialExpenses);
 
   // View & Filter States
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
@@ -77,14 +83,12 @@ export function ExpenseList() {
   const [expenseForLinking, setExpenseForLinking] = useState<ExpenseDTO | null>(null);
   const [selectedBulkExpenses, setSelectedBulkExpenses] = useState<ExpenseDTO[]>([]);
 
-  // Prewarm & Load Categories & Properties
+  // Sync available properties when context updates
   useEffect(() => {
-    prewarmOptionsCache();
-    getDropdownOptions().then((opts) => {
-      setCategories((opts.categories || []).filter((c) => c.transaction_type === 'expense'));
-      setProperties(opts.properties || []);
-    });
-  }, [activeWorkspaceId]);
+    if (availableProperties && availableProperties.length > 0) {
+      setProperties(availableProperties);
+    }
+  }, [availableProperties]);
 
   // Load Expenses Data
   const loadExpenses = useCallback(async () => {
@@ -113,8 +117,14 @@ export function ExpenseList() {
   }, [activePropertyId, toast]);
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      if (initialExpenses && (!activePropertyId || activePropertyId === '')) {
+        return;
+      }
+    }
     loadExpenses();
-  }, [loadExpenses]);
+  }, [loadExpenses, activePropertyId, initialExpenses]);
 
   // Filter options for Quick Filter Bar
   const filterOptions = useMemo<QuickFilterOption[]>(

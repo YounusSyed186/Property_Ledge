@@ -95,11 +95,10 @@ export async function getExpectedPaymentSchedules(
   if (filters.end_date) {
     query = query.lte('due_date', filters.end_date);
   }
-  if (filters.limit) {
-    query = query.limit(filters.limit);
-  }
   if (filters.offset) {
-    query = query.range(filters.offset, filters.offset + (filters.limit || 50) - 1);
+    query = query.range(filters.offset, filters.offset + (filters.limit || 100) - 1);
+  } else {
+    query = query.limit(filters.limit || 100);
   }
 
   const { data, error } = await query;
@@ -145,6 +144,20 @@ export async function getExpectedPaymentSchedules(
   }
 
   return results;
+}
+
+export interface SchedulesPageData {
+  schedules: ExpectedPaymentScheduleDTO[];
+}
+
+/**
+ * Consolidated single-pass fetch for payment schedules page model
+ */
+export async function getSchedulesPageData(
+  filters: ExpectedScheduleFilterParams = {}
+): Promise<SchedulesPageData> {
+  const schedules = await getExpectedPaymentSchedules(filters);
+  return { schedules };
 }
 
 /**

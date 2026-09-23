@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { FinancialList } from '@/components/finance/FinancialList';
+import { fetchFinancialPageDataAction } from '@/app/actions/finance';
 
 export const metadata = {
   title: 'Transactions | PropertyLedge',
@@ -17,9 +18,16 @@ export default async function TransactionsPage({
     redirect('/dashboard/expenses');
   }
 
+  let initialData;
+  try {
+    initialData = await fetchFinancialPageDataAction();
+  } catch (err) {
+    console.error('Failed to pre-fetch financial page data on server:', err);
+  }
+
   return (
     <Suspense fallback={<div className="p-8 text-center text-admin-muted">Loading transactions...</div>}>
-      <FinancialList />
+      <FinancialList initialData={initialData} />
     </Suspense>
   );
 }

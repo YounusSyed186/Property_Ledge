@@ -23,6 +23,19 @@ import {
 } from '@/modules/finance/domain/types';
 import { revalidatePath } from 'next/cache';
 
+export type { SchedulesPageData } from '@/lib/finance/scheduleService';
+
+export async function fetchSchedulesPageDataAction(filters: ExpectedScheduleFilterParams = {}) {
+  try {
+    const { getSchedulesPageData } = await import('@/lib/finance/scheduleService');
+    const data = await getSchedulesPageData(filters);
+    return { success: true, data };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch schedules page data';
+    return { success: false, error: message };
+  }
+}
+
 export async function fetchExpectedSchedulesAction(filters: ExpectedScheduleFilterParams = {}) {
   try {
     const data = await getExpectedPaymentSchedules(filters);

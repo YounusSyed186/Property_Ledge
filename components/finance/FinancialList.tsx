@@ -42,11 +42,13 @@ import {
 } from '@/modules/finance/domain/types';
 import {
   fetchCategoriesAction,
+  fetchFinancialPageDataAction,
   fetchTransactionsAction,
   fetchLedgerAction,
   fetchFinancialOverviewAction,
   deleteTransactionAction,
   exportLedgerCsvAction,
+  FinancialPageData,
 } from '@/app/actions/finance';
 import { getDropdownOptions, prewarmOptionsCache } from '@/lib/cache/optionsCache';
 import { TransactionModal } from './TransactionModal';
@@ -58,7 +60,11 @@ import { MultiExpenseAllocationModal } from './MultiExpenseAllocationModal';
 import { isIncome, isExpense } from '@/modules/finance/domain/calculations';
 import { cn } from '@/lib/utils';
 
-export function FinancialList() {
+interface FinancialListProps {
+  initialData?: FinancialPageData;
+}
+
+export function FinancialList({ initialData }: FinancialListProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -66,14 +72,15 @@ export function FinancialList() {
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
 
   const activePropertyId = selectedProperty?.propertyId ?? null;
+  const isInitialMount = React.useRef(true);
 
   // Data State
-  const [transactions, setTransactions] = useState<TransactionDTO[]>([]);
-  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntryDTO[]>([]);
-  const [summary, setSummary] = useState<FinancialSummaryDTO | null>(null);
-  const [categories, setCategories] = useState<CategoryDTO[]>([]);
-  const [properties, setProperties] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [transactions, setTransactions] = useState<TransactionDTO[]>(initialData?.transactions || []);
+  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntryDTO[]>(initialData?.ledgerEntries || []);
+  const [summary, setSummary] = useState<FinancialSummaryDTO | null>(initialData?.summary || null);
+  const [categories, setCategories] = useState<CategoryDTO[]>(initialData?.categories || []);
+  const [properties, setProperties] = useState<any[]>(availableProperties || []);
+  const [isLoading, setIsLoading] = useState(!initialData);
 
   // View & Filter States
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
@@ -94,16 +101,14 @@ export function FinancialList() {
   const [isLinkExpenseOpen, setIsLinkExpenseOpen] = useState(false);
   const [selectedTxForLinkExpense, setSelectedTxForLinkExpense] = useState<TransactionDTO | null>(null);
 
-  // Prewarm & Load Categories & Properties
+  // Sync available properties when context updates
   useEffect(() => {
-    prewarmOptionsCache();
-    getDropdownOptions().then((opts) => {
-      setCategories(opts.categories || []);
-      setProperties(opts.properties || []);
-    });
-  }, [activeWorkspaceId]);
+    if (availableProperties && availableProperties.length > 0) {
+      setProperties(availableProperties);
+    }
+  }, [availableProperties]);
 
-  // Load Transactions & Overview Data
+  // Load Transactions & Overview Data in a single consolidated pass
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -111,15 +116,14 @@ export function FinancialList() {
         property_id: activePropertyId || undefined,
       };
 
-      const [txs, ledger, sum] = await Promise.all([
-        fetchTransactionsAction(filterParams),
-        fetchLedgerAction(filterParams),
-        fetchFinancialOverviewAction(filterParams),
-      ]);
+      const pageData = await fetchFinancialPageDataAction(filterParams);
 
-      setTransactions(txs || []);
-      setLedgerEntries(ledger || []);
-      setSummary(sum || null);
+      setTransactions(pageData.transactions || []);
+      setLedgerEntries(pageData.ledgerEntries || []);
+      setSummary(pageData.summary || null);
+      if (pageData.categories?.length > 0) {
+        setCategories(pageData.categories);
+      }
     } catch (err: any) {
       console.error('Failed to load transaction data:', err);
       toast({
@@ -133,8 +137,14 @@ export function FinancialList() {
   }, [activePropertyId, toast]);
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      if (initialData && (!activePropertyId || activePropertyId === '')) {
+        return;
+      }
+    }
     loadData();
-  }, [loadData]);
+  }, [loadData, activePropertyId, initialData]);
 
   // Filter options for QuickFilterBar (modelled after tenant directory)
   const filterOptions = useMemo<QuickFilterOption[]>(
