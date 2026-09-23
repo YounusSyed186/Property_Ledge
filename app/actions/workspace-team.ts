@@ -365,8 +365,7 @@ export async function suspendMember(workspaceId: string, memberId: string) {
   revalidatePath('/dashboard/team');
 }
 
-export async function fetchWorkspaceTeam(workspaceId: string) {
-  await requireTeamPermission(workspaceId, 'team.member.view');
+async function fetchWorkspaceTeamDirect(workspaceId: string) {
   const supabase = await createClient();
   const admin = await createAdminClient();
 
@@ -418,8 +417,7 @@ export async function fetchWorkspaceTeam(workspaceId: string) {
   return memberRows;
 }
 
-export async function fetchPendingInvitations(workspaceId: string): Promise<PendingInvitationRow[]> {
-  await requireTeamPermission(workspaceId, 'team.member.view');
+async function fetchPendingInvitationsDirect(workspaceId: string): Promise<PendingInvitationRow[]> {
   const supabase = await createClient();
 
   const { data, error } = await supabase.rpc(
@@ -450,6 +448,33 @@ export async function fetchPendingInvitations(workspaceId: string): Promise<Pend
     createdAt: r.created_at,
     invitedByName: r.inviter_name,
   }));
+}
+
+export interface TeamPageData {
+  members: WorkspaceMemberRow[];
+  invitations: PendingInvitationRow[];
+  seats: { current: number; limit: number; remaining: number; isOverLimit: boolean } | null;
+}
+
+export async function fetchTeamPageData(workspaceId: string): Promise<TeamPageData> {
+  await requireTeamPermission(workspaceId, 'team.member.view');
+  const [members, invitations, seats] = await Promise.all([
+    fetchWorkspaceTeamDirect(workspaceId),
+    fetchPendingInvitationsDirect(workspaceId),
+    fetchSeatUsage(workspaceId),
+  ]);
+
+  return { members, invitations, seats };
+}
+
+export async function fetchWorkspaceTeam(workspaceId: string) {
+  await requireTeamPermission(workspaceId, 'team.member.view');
+  return fetchWorkspaceTeamDirect(workspaceId);
+}
+
+export async function fetchPendingInvitations(workspaceId: string): Promise<PendingInvitationRow[]> {
+  await requireTeamPermission(workspaceId, 'team.member.view');
+  return fetchPendingInvitationsDirect(workspaceId);
 }
 
 export async function resolveJoinInvitation(token: string) {

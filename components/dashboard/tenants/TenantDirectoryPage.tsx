@@ -89,7 +89,12 @@ type PropertyOption = {
 import { useEntityCacheStore } from '@/lib/stores/useEntityCacheStore';
 import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
 
-export function TenantDirectoryPage() {
+export interface TenantDirectoryPageProps {
+  initialTenants?: TenantRecord[];
+  initialProperties?: PropertyOption[];
+}
+
+export function TenantDirectoryPage({ initialTenants, initialProperties }: TenantDirectoryPageProps = {}) {
   const router = useRouter();
   const { error: showError } = useToast();
   const { selectedProperty, availableProperties } = usePropertyContext();
@@ -104,8 +109,12 @@ export function TenantDirectoryPage() {
     cachedTenants.workspaceId === activeWorkspaceId &&
     cachedTenants.propertyId === activePropertyId;
 
-  const [tenants, setTenants] = useState<TenantRecord[]>(() => hasMatchingCache ? (cachedTenants.data as TenantRecord[]) : []);
+  const [tenants, setTenants] = useState<TenantRecord[]>(() => {
+    if (initialTenants && initialTenants.length > 0) return initialTenants;
+    return hasMatchingCache ? (cachedTenants.data as TenantRecord[]) : [];
+  });
   const [properties, setProperties] = useState<PropertyOption[]>(() => {
+    if (initialProperties && initialProperties.length > 0) return initialProperties;
     if (cachedProperties && cachedProperties.workspaceId === activeWorkspaceId) {
       return cachedProperties.data as PropertyOption[];
     }
@@ -119,7 +128,8 @@ export function TenantDirectoryPage() {
     }
     return [];
   });
-  const [isLoading, setIsLoading] = useState(() => !hasMatchingCache);
+  const [isLoading, setIsLoading] = useState(() => !initialTenants && !hasMatchingCache);
+  const isInitialMount = React.useRef(true);
   const [statusFilter, setStatusFilter] = useState<
     'All' | 'Active Resident' | 'Inactive / Past Resident' | 'Prospect / Applicant' | 'Archived'
   >('All');
@@ -299,6 +309,16 @@ export function TenantDirectoryPage() {
   };
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      if (initialTenants && initialTenants.length > 0) {
+        setCachedTenants(initialTenants, activeWorkspaceId, activePropertyId);
+        if (initialProperties && initialProperties.length > 0) {
+          setCachedProperties(initialProperties, activeWorkspaceId);
+        }
+        return;
+      }
+    }
     loadData();
   }, [selectedProperty?.propertyId, activeWorkspaceId]);
 

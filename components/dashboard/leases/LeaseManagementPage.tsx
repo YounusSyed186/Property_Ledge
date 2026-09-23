@@ -105,7 +105,12 @@ type LeaseRecord = {
   }>;
 };
 
-export function LeaseManagementPage() {
+export interface LeaseManagementPageProps {
+  initialLeases?: LeaseRecord[];
+  initialProperties?: any[];
+}
+
+export function LeaseManagementPage({ initialLeases, initialProperties }: LeaseManagementPageProps = {}) {
   const router = useRouter();
   const { success: showSuccess, error: showError } = useToast();
   const { selectedProperty, availableProperties } = usePropertyContext();
@@ -120,8 +125,12 @@ export function LeaseManagementPage() {
     cachedLeases.workspaceId === activeWorkspaceId &&
     cachedLeases.propertyId === activePropertyId;
 
-  const [leases, setLeases] = useState<LeaseRecord[]>(() => hasMatchingCache ? (cachedLeases.data as LeaseRecord[]) : []);
+  const [leases, setLeases] = useState<LeaseRecord[]>(() => {
+    if (initialLeases && initialLeases.length > 0) return initialLeases;
+    return hasMatchingCache ? (cachedLeases.data as LeaseRecord[]) : [];
+  });
   const [properties, setProperties] = useState<any[]>(() => {
+    if (initialProperties && initialProperties.length > 0) return initialProperties;
     if (cachedProperties && cachedProperties.workspaceId === activeWorkspaceId) {
       return cachedProperties.data;
     }
@@ -135,7 +144,8 @@ export function LeaseManagementPage() {
     }
     return [];
   });
-  const [isLoading, setIsLoading] = useState(() => !hasMatchingCache);
+  const [isLoading, setIsLoading] = useState(() => !initialLeases && !hasMatchingCache);
+  const isInitialMount = React.useRef(true);
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Pending' | 'Expired' | 'Renewed'>('All');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -361,6 +371,16 @@ export function LeaseManagementPage() {
   };
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      if (initialLeases && initialLeases.length > 0) {
+        setCachedLeases(initialLeases, activeWorkspaceId, activePropertyId);
+        if (initialProperties && initialProperties.length > 0) {
+          setCachedProperties(initialProperties, activeWorkspaceId);
+        }
+        return;
+      }
+    }
     loadData();
   }, [selectedProperty?.propertyId, activeWorkspaceId]);
 

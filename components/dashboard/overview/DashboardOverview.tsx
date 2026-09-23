@@ -72,7 +72,15 @@ function QuickAction({ label, href, icon: Icon, description, onClick }: {
   return <Link href={href || '#'}>{content}</Link>;
 }
 
-function OwnerDashboard({ userName, setupProgress }: { userName: string; setupProgress?: SetupProgress }) {
+function OwnerDashboard({
+  userName,
+  setupProgress,
+  initialData,
+}: {
+  userName: string;
+  setupProgress?: SetupProgress;
+  initialData?: any;
+}) {
   const { selectedProperty, availableProperties, isLoading: propertyLoading } = usePropertyContext();
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const cachedDashboard = useEntityCacheStore((s) => s.dashboard);
@@ -83,13 +91,14 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
     cachedDashboard.workspaceId === activeWorkspaceId && 
     cachedDashboard.propertyId === propertyId;
 
-  const [overview, setOverview] = useState<any>(() => hasMatchingCache ? cachedDashboard.data.overview : null);
-  const [reports, setReports] = useState<any>(() => hasMatchingCache ? cachedDashboard.data.reports : null);
-  const [needsAttention, setNeedsAttention] = useState<any>(() => hasMatchingCache ? cachedDashboard.data.needsAttention : null);
+  const [overview, setOverview] = useState<any>(() => initialData?.overview ?? (hasMatchingCache ? cachedDashboard.data.overview : null));
+  const [reports, setReports] = useState<any>(() => initialData?.reports ?? (hasMatchingCache ? cachedDashboard.data.reports : null));
+  const [needsAttention, setNeedsAttention] = useState<any>(() => initialData?.needsAttention ?? (hasMatchingCache ? cachedDashboard.data.needsAttention : null));
   const [leases, setLeases] = useState<Array<{ id: string; end_date: string | null; status: string; unit?: { name?: string; unit_number?: string } }>>(
-    () => hasMatchingCache ? (cachedDashboard.data.leases as any[]) : []
+    () => initialData?.leases ?? (hasMatchingCache ? (cachedDashboard.data.leases as any[]) : [])
   );
-  const [isLoading, setIsLoading] = useState(() => !hasMatchingCache);
+  const [isLoading, setIsLoading] = useState(() => !initialData && !hasMatchingCache);
+  const isInitialMount = React.useRef(true);
   const [leaseWizardOpen, setLeaseWizardOpen] = useState(false);
 
   const hour = new Date().getHours();
@@ -97,6 +106,13 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
   const showSetup = setupProgress && !setupProgress.allComplete;
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      if (initialData) {
+        setCachedDashboard(initialData, activeWorkspaceId, propertyId);
+        return;
+      }
+    }
     if (!hasMatchingCache) {
       setIsLoading(true);
     }
@@ -262,9 +278,11 @@ function OwnerDashboard({ userName, setupProgress }: { userName: string; setupPr
 export function DashboardOverview({
   userName,
   setupProgress,
+  initialDashboardData,
 }: {
   userName: string;
   setupProgress?: SetupProgress;
+  initialDashboardData?: any;
 }) {
   const { persona } = useAppContext();
 
@@ -276,5 +294,11 @@ export function DashboardOverview({
     return <StaffDashboard userName={userName} />;
   }
 
-  return <OwnerDashboard userName={userName} setupProgress={setupProgress} />;
+  return (
+    <OwnerDashboard
+      userName={userName}
+      setupProgress={setupProgress}
+      initialData={initialDashboardData}
+    />
+  );
 }

@@ -71,7 +71,7 @@ const BulkInvoiceModal = dynamic(
 import { useEntityCacheStore } from '@/lib/stores/useEntityCacheStore';
 import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
 
-export function InvoiceList() {
+export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[] } = {}) {
   const router = useRouter();
   const { toast } = useToast();
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
@@ -80,8 +80,12 @@ export function InvoiceList() {
 
   const hasMatchingCache = cachedInvoices && cachedInvoices.workspaceId === activeWorkspaceId;
 
-  const [invoices, setInvoices] = useState<InvoiceDTO[]>(() => hasMatchingCache ? cachedInvoices.data : []);
-  const [loading, setLoading] = useState(() => !hasMatchingCache);
+  const [invoices, setInvoices] = useState<InvoiceDTO[]>(() => {
+    if (initialInvoices && initialInvoices.length > 0) return initialInvoices;
+    return hasMatchingCache ? cachedInvoices.data : [];
+  });
+  const [loading, setLoading] = useState(() => !initialInvoices && !hasMatchingCache);
+  const isInitialMount = React.useRef(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
@@ -131,6 +135,13 @@ export function InvoiceList() {
   };
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      if (initialInvoices && initialInvoices.length > 0) {
+        setCachedInvoices(initialInvoices, activeWorkspaceId);
+        return;
+      }
+    }
     loadInvoices();
   }, [activeWorkspaceId]);
 

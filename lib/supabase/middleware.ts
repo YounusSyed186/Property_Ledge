@@ -91,12 +91,46 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
+  const url = request.nextUrl.clone();
+  const pathname = url.pathname;
+  const isRsc = request.headers.get('rsc') === '1' || request.nextUrl.searchParams.has('_rsc');
+  const isAuthRoute =
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password';
+
+  const allCookies = request.cookies.getAll();
+  const hasAuthCookie = allCookies.some(
+    (c) => c.name.startsWith('sb-') && c.name.includes('-auth-token')
+  );
+
+  const isProtectedRoute =
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/tenant') ||
+    pathname.startsWith('/subscription') ||
+    pathname.startsWith('/checkout') ||
+    pathname.startsWith('/onboarding');
+
+  // Fast path 1: Internal RSC navigation with active auth cookie -> zero remote network overhead
+  if (isRsc && !isAuthRoute) {
+    if (!hasAuthCookie && isProtectedRoute) {
+      return NextResponse.redirect(new URL(`/login?redirectTo=${encodeURIComponent(pathname)}`, request.url));
+    }
+    return supabaseResponse;
+  }
+
+  // Fast path 2: Direct unauthenticated request to protected route without auth cookie -> instant redirect
+  if (!hasAuthCookie && isProtectedRoute) {
+    return NextResponse.redirect(new URL(`/login?redirectTo=${encodeURIComponent(pathname)}`, request.url));
+  }
+
+  // Full session verification & refresh for full document loads or auth routes
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const url = request.nextUrl.clone();
-  const pathname = url.pathname;
   const redirectTo = request.nextUrl.searchParams.get('redirectTo');
   const planParam = request.nextUrl.searchParams.get('plan');
   const joinMatch = redirectTo?.match(/^\/join\/([^/?]+)/);
@@ -105,12 +139,6 @@ export async function updateSession(request: NextRequest) {
   let onboardingStatus: string | null = null;
   let onboardingRoute: string | null = null;
   let persona: Persona | null = null;
-
-  const isAuthRoute =
-    pathname === '/login' ||
-    pathname === '/signup' ||
-    pathname === '/forgot-password' ||
-    pathname === '/reset-password';
 
   if (user && isAuthRoute) {
     const { data: accountContext } = await supabase

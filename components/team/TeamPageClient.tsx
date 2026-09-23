@@ -22,7 +22,17 @@ import { AddMemberModal } from './AddMemberModal';
 import { MemberDetailDrawer } from './MemberDetailDrawer';
 import { PersonIdentity } from '@/components/ui/avatar';
 
-export function TeamPageClient() {
+interface TeamPageClientProps {
+  initialMembers?: WorkspaceMemberRow[];
+  initialInvitations?: PendingInvitationRow[];
+  initialSeats?: { current: number; limit: number; remaining: number; isOverLimit: boolean } | null;
+}
+
+export function TeamPageClient({
+  initialMembers,
+  initialInvitations,
+  initialSeats,
+}: TeamPageClientProps = {}) {
   const { workspaceId } = useAppContext();
   const canInvite = useCan('team.member.invite');
   const canView = useCan('team.member.view');
@@ -30,17 +40,16 @@ export function TeamPageClient() {
   const canRevoke = useCan('team.member.invite');
   const { toast, error: toastError, success: toastSuccess } = useToast();
 
-  const [members, setMembers] = useState<WorkspaceMemberRow[]>([]);
-  const [invitations, setInvitations] = useState<PendingInvitationRow[]>([]);
-  const [seats, setSeats] = useState<{ current: number; limit: number; remaining: number; isOverLimit: boolean } | null>(null);
+  const [members, setMembers] = useState<WorkspaceMemberRow[]>(initialMembers || []);
+  const [invitations, setInvitations] = useState<PendingInvitationRow[]>(initialInvitations || []);
+  const [seats, setSeats] = useState<{ current: number; limit: number; remaining: number; isOverLimit: boolean } | null>(initialSeats ?? null);
   const [tab, setTab] = useState<'members' | 'invitations'>('members');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialMembers === undefined);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<WorkspaceMemberRow | null>(null);
 
   const load = useCallback(async () => {
     if (!workspaceId) return;
-    setLoading(true);
     try {
       const [memberData, inviteData, seatData] = await Promise.all([
         fetchWorkspaceTeam(workspaceId),
@@ -55,11 +64,13 @@ export function TeamPageClient() {
     } finally {
       setLoading(false);
     }
-  }, [workspaceId, toast]);
+  }, [workspaceId, toastError]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (initialMembers === undefined) {
+      load();
+    }
+  }, [load, initialMembers]);
 
   if (!workspaceId) {
     return (

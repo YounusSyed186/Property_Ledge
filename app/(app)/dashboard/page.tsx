@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { container } from '@/composition';
 import { DashboardOverview } from '@/components/dashboard/overview/DashboardOverview';
 import { getSetupProgress } from '@/lib/dashboard/setupProgress';
+import { fetchDashboardDataAction } from '@/app/actions/dashboard';
 
 export const metadata: Metadata = {
   title: 'Dashboard | PropertyLedge',
@@ -16,10 +17,20 @@ export default async function DashboardPage() {
   const user = userRes.success ? userRes.data : null;
   if (!user) redirect('/login');
 
-  const profileRes = await authService.getUserProfile(user.id);
+  const [profileRes, setupProgress, dashboardData] = await Promise.all([
+    authService.getUserProfile(user.id),
+    getSetupProgress(user.id),
+    fetchDashboardDataAction().catch(() => null),
+  ]);
+
   const profile = profileRes.success ? profileRes.data : null;
   const userName = profile?.fullName || user.fullName || 'User';
-  const setupProgress = await getSetupProgress(user.id);
 
-  return <DashboardOverview userName={userName} setupProgress={setupProgress} />;
+  return (
+    <DashboardOverview
+      userName={userName}
+      setupProgress={setupProgress}
+      initialDashboardData={dashboardData}
+    />
+  );
 }

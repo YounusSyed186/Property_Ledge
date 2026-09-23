@@ -1,22 +1,28 @@
 {
-  "timestamp": "2026-09-11T02:38:35.306Z",
+  "timestamp": "2026-09-23T00:56:38.675Z",
   "navTimings": [
     {
       "fromRoute": "http://localhost:3000/dashboard",
       "toRoute": "/dashboard/properties",
       "label": "Properties",
       "clickToFeedbackMs": 45,
-      "clickToUrlChangeMs": 784,
-      "clickToShellMs": 809,
-      "clickToDataMs": 3934,
-      "clickToInteractiveMs": 3934,
-      "requestsCount": 23,
-      "rscRequestsCount": 7,
+      "clickToUrlChangeMs": 269,
+      "clickToShellMs": 296,
+      "clickToDataMs": 2777,
+      "clickToInteractiveMs": 2777,
+      "requestsCount": 24,
+      "rscRequestsCount": 11,
       "requests": [
         {
           "url": "https://api.dicebear.com/9.x/lorelei/svg?seed=Nora772&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf,e0f2fe,fef3c7,dcfce7",
-          "durationMs": 5,
+          "durationMs": 7,
           "sizeKb": 6,
+          "status": 200
+        },
+        {
+          "url": "http://localhost:3000/dashboard/properties?_rsc=0emvZ8YlOZ3v4i2x",
+          "durationMs": 5,
+          "sizeKb": 12,
           "status": 200
         },
         {
@@ -26,211 +32,217 @@
           "status": 200
         },
         {
-          "url": "https://oyupwjqrctcszmgzsurf.supabase.co/auth/v1/user",
-          "durationMs": 2,
-          "sizeKb": 1,
-          "status": 200
-        },
-        {
-          "url": "https://oyupwjqrctcszmgzsurf.supabase.co/rest/v1/account_context?select=*&user_id=eq.aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-          "durationMs": 2,
+          "url": "http://localhost:3000/dashboard/expenses?_rsc=0emvZ8YlOZ3v4i2x",
+          "durationMs": 9,
           "sizeKb": 0,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/dashboard/leases?_rsc=0emvZ8YlOZ3v4i2x",
-          "durationMs": 2,
+          "url": "http://localhost:3000/dashboard/automations?_rsc=0emvZ8YlOZ3v4i2x",
+          "durationMs": 9,
           "sizeKb": 0,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/dashboard/people?_rsc=0emvZ8YlOZ3v4i2x",
-          "durationMs": 1,
-          "sizeKb": 0,
+          "url": "http://localhost:3000/dashboard/money?_rsc=0emvZ8YlOZ3v4i2x",
+          "durationMs": 7,
+          "sizeKb": 12,
           "status": 200
-        },
-        {
-          "url": "http://localhost:3000/dashboard/properties",
-          "durationMs": 2,
-          "sizeKb": 0,
-          "status": 500
         },
         {
           "url": "http://localhost:3000/dashboard/maintenance?_rsc=0emvZ8YlOZ3v4i2x",
-          "durationMs": 1,
+          "durationMs": 6,
           "sizeKb": 0,
+          "status": 200
+        },
+        {
+          "url": "http://localhost:3000/dashboard/documents?_rsc=0emvZ8YlOZ3v4i2x",
+          "durationMs": 5,
+          "sizeKb": 0,
+          "status": 200
+        },
+        {
+          "url": "http://localhost:3000/dashboard/inspections?_rsc=0emvZ8YlOZ3v4i2x",
+          "durationMs": 4,
+          "sizeKb": 0,
+          "status": 200
+        },
+        {
+          "url": "http://localhost:3000/dashboard/reports?_rsc=0emvZ8YlOZ3v4i2x",
+          "durationMs": 3,
+          "sizeKb": 0,
+          "status": 200
+        },
+        {
+          "url": "http://localhost:3000/dashboard/team?_rsc=0emvZ8YlOZ3v4i2x",
+          "durationMs": 3,
+          "sizeKb": 10,
           "status": 200
         },
         {
           "url": "http://localhost:3000/dashboard/properties?_rsc=LiLQDQzzJQFVPAR1",
           "durationMs": 2,
-          "sizeKb": 3,
+          "sizeKb": 6,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/61b0aedd-d45f2512701a9248.js",
-          "durationMs": 82,
-          "sizeKb": 943,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/dashboard/tasks?_rsc=0emvZ8YlOZ3v4i2x",
-          "durationMs": 82,
-          "sizeKb": 0,
+          "url": "http://localhost:3000/_next/static/chunks/4223-b93b85d05f5c412f.js",
+          "durationMs": 7,
+          "sizeKb": 9,
           "status": 200
         },
         {
           "url": "http://localhost:3000/_next/static/chunks/ab17dafa-b779d352ec1c985a.js",
-          "durationMs": 43,
+          "durationMs": 8,
           "sizeKb": 102,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/912ab70b-743adcb8b29a4e63.js",
-          "durationMs": 42,
-          "sizeKb": 65,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/_next/static/chunks/6230-5e4558e9fdda5c03.js",
-          "durationMs": 42,
+          "url": "http://localhost:3000/_next/static/chunks/1282-e167a41c5b08cbb5.js",
+          "durationMs": 5,
           "sizeKb": 6,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/2212-2a9f2046a635cea1.js",
-          "durationMs": 42,
-          "sizeKb": 6,
+          "url": "http://localhost:3000/_next/static/chunks/2732-88b082b3329531af.js",
+          "durationMs": 5,
+          "sizeKb": 29,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/2796-387a8d164613154b.js",
-          "durationMs": 41,
-          "sizeKb": 11,
+          "url": "http://localhost:3000/_next/static/chunks/5583-df56d6126d7bf56d.js",
+          "durationMs": 3,
+          "sizeKb": 10,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/2732-ae24779cba9ea58a.js",
-          "durationMs": 42,
-          "sizeKb": 28,
+          "url": "http://localhost:3000/_next/static/chunks/8166-00d7fb25fcdc52f4.js",
+          "durationMs": 4,
+          "sizeKb": 15,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/8166-2cc4cb8adbc307a5.js",
-          "durationMs": 42,
-          "sizeKb": 11,
+          "url": "http://localhost:3000/_next/static/chunks/app/(app)/dashboard/properties/page-b3227fd57f14e330.js",
+          "durationMs": 5,
+          "sizeKb": 30,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/app/(app)/dashboard/properties/page-3e0725209fac7cab.js",
-          "durationMs": 42,
-          "sizeKb": 31,
+          "url": "http://localhost:3000/_next/static/chunks/61b0aedd-d45f2512701a9248.js",
+          "durationMs": 109,
+          "sizeKb": 943,
+          "status": 200
+        },
+        {
+          "url": "http://localhost:3000/dashboard/team/roles?_rsc=0emvZ8YlOZ3v4i2x",
+          "durationMs": 4,
+          "sizeKb": 10,
           "status": 200
         },
         {
           "url": "http://localhost:3000/dashboard",
-          "durationMs": 3,
-          "sizeKb": 22,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/dashboard/reports?_rsc=0emvZ8YlOZ3v4i2x",
-          "durationMs": 7,
-          "sizeKb": 0,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/dashboard/settings?_rsc=0emvZ8YlOZ3v4i2x",
-          "durationMs": 2,
-          "sizeKb": 0,
+          "durationMs": 6,
+          "sizeKb": 29,
           "status": 200
         },
         {
           "url": "http://localhost:3000/_next/static/css/b6ce0468ff39025f.css",
-          "durationMs": 6,
+          "durationMs": 8,
           "sizeKb": 6,
+          "status": 200
+        },
+        {
+          "url": "http://localhost:3000/_next/static/chunks/912ab70b.0c7e12da26da7b9f.js",
+          "durationMs": 9,
+          "sizeKb": 66,
           "status": 200
         }
       ],
-      "domNodes": 958,
+      "domNodes": 955,
       "layoutShiftDetected": false
     },
     {
       "fromRoute": "http://localhost:3000/dashboard/properties",
       "toRoute": "/dashboard/people",
       "label": "Tenants",
-      "clickToFeedbackMs": 68,
-      "clickToUrlChangeMs": 2259,
-      "clickToShellMs": 2372,
-      "clickToDataMs": 4645,
-      "clickToInteractiveMs": 4645,
-      "requestsCount": 8,
-      "rscRequestsCount": 1,
+      "clickToFeedbackMs": 51,
+      "clickToUrlChangeMs": 265,
+      "clickToShellMs": 312,
+      "clickToDataMs": 1121,
+      "clickToInteractiveMs": 1121,
+      "requestsCount": 4,
+      "rscRequestsCount": 2,
       "requests": [
         {
           "url": "http://localhost:3000/dashboard/people?_rsc=jcQceunEz59pqouJ",
-          "durationMs": 2,
-          "sizeKb": 0,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/dashboard/properties",
-          "durationMs": 2,
-          "sizeKb": 3,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/_next/static/chunks/1769-d616f548dafa1b3f.js",
           "durationMs": 5,
-          "sizeKb": 8,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/_next/static/chunks/app/(app)/dashboard/people/page-205d9b5921ef9bbf.js",
-          "durationMs": 4,
           "sizeKb": 0,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/7700-ac2004b60ee61777.js",
-          "durationMs": 4,
-          "sizeKb": 22,
+          "url": "http://localhost:3000/dashboard/people?_rsc=uxg2Ou-4TVIio_Z2",
+          "durationMs": 5,
+          "sizeKb": 10,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/logo_Light.png",
+          "url": "http://localhost:3000/_next/static/chunks/app/(app)/dashboard/people/page-f97bc4f00db10dfd.js",
+          "durationMs": 9,
+          "sizeKb": 0,
+          "status": 200
+        },
+        {
+          "url": "http://localhost:3000/_next/static/chunks/2319-2cbe2c9cd6206eed.js",
           "durationMs": 11,
-          "sizeKb": 528,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/dashboard/people",
-          "durationMs": 2,
-          "sizeKb": 4,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/dashboard/people",
-          "durationMs": 35,
-          "sizeKb": 3,
+          "sizeKb": 28,
           "status": 200
         }
       ],
-      "domNodes": 1052,
+      "domNodes": 570,
       "layoutShiftDetected": false
     },
     {
       "fromRoute": "http://localhost:3000/dashboard/people",
       "toRoute": "/dashboard/leases",
       "label": "Leases",
-      "clickToFeedbackMs": 48,
-      "clickToUrlChangeMs": 794,
-      "clickToShellMs": 828,
-      "clickToDataMs": 4150,
-      "clickToInteractiveMs": 4150,
-      "requestsCount": 5,
-      "rscRequestsCount": 1,
+      "clickToFeedbackMs": 91,
+      "clickToUrlChangeMs": 295,
+      "clickToShellMs": 327,
+      "clickToDataMs": 948,
+      "clickToInteractiveMs": 948,
+      "requestsCount": 8,
+      "rscRequestsCount": 2,
       "requests": [
+        {
+          "url": "https://api.dicebear.com/9.x/lorelei/svg?seed=cba75679-06f6-4c3f-9133-e48fa3eefa2d&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf,e0f2fe,fef3c7,dcfce7",
+          "durationMs": 12,
+          "sizeKb": 6,
+          "status": 200
+        },
+        {
+          "url": "https://api.dicebear.com/9.x/lorelei/svg?seed=8339d2c4-9d69-4b01-86d1-a499213ee089&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf,e0f2fe,fef3c7,dcfce7",
+          "durationMs": 6,
+          "sizeKb": 5,
+          "status": 200
+        },
+        {
+          "url": "https://api.dicebear.com/9.x/lorelei/svg?seed=f0f0f0f0-a0a0-b0b0-c0c0-f0f0f0f0f0f3&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf,e0f2fe,fef3c7,dcfce7",
+          "durationMs": 3,
+          "sizeKb": 6,
+          "status": 200
+        },
+        {
+          "url": "https://api.dicebear.com/9.x/lorelei/svg?seed=e0e0e0e0-f0f0-a0a0-b0b0-e0e0e0e0e0e2&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf,e0f2fe,fef3c7,dcfce7",
+          "durationMs": 4,
+          "sizeKb": 6,
+          "status": 200
+        },
+        {
+          "url": "https://api.dicebear.com/9.x/lorelei/svg?seed=d0d0d0d0-e0e0-f0f0-a0a0-d0d0d0d0d0d1&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf,e0f2fe,fef3c7,dcfce7",
+          "durationMs": 14,
+          "sizeKb": 6,
+          "status": 200
+        },
         {
           "url": "http://localhost:3000/dashboard/leases?_rsc=Dqy1T5OY76MgEGlf",
           "durationMs": 5,
@@ -238,44 +250,32 @@
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/4506-eca6262ef1ffa57d.js",
-          "durationMs": 8,
-          "sizeKb": 8,
+          "url": "http://localhost:3000/dashboard/leases?_rsc=TS6alYgwAcyOM9Ah",
+          "durationMs": 6,
+          "sizeKb": 10,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/app/(app)/dashboard/leases/page-effe64a0a9c7a997.js",
-          "durationMs": 7,
-          "sizeKb": 27,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/dashboard/leases",
-          "durationMs": 2,
-          "sizeKb": 4,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/dashboard/leases",
-          "durationMs": 35,
-          "sizeKb": 3,
+          "url": "http://localhost:3000/_next/static/chunks/app/(app)/dashboard/leases/page-5a62f393a0aaab00.js",
+          "durationMs": 40,
+          "sizeKb": 32,
           "status": 200
         }
       ],
-      "domNodes": 1066,
+      "domNodes": 1075,
       "layoutShiftDetected": false
     },
     {
       "fromRoute": "http://localhost:3000/dashboard/leases",
       "toRoute": "/dashboard/invoices",
       "label": "Invoices",
-      "clickToFeedbackMs": 41,
-      "clickToUrlChangeMs": 1047,
-      "clickToShellMs": 1112,
-      "clickToDataMs": 3686,
-      "clickToInteractiveMs": 3686,
-      "requestsCount": 7,
-      "rscRequestsCount": 2,
+      "clickToFeedbackMs": 59,
+      "clickToUrlChangeMs": 230,
+      "clickToShellMs": 268,
+      "clickToDataMs": 1456,
+      "clickToInteractiveMs": 1456,
+      "requestsCount": 6,
+      "rscRequestsCount": 1,
       "requests": [
         {
           "url": "http://localhost:3000/dashboard/invoices?_rsc=dc3F_Xixt8OkaPeZ",
@@ -284,185 +284,173 @@
           "status": 200
         },
         {
-          "url": "http://localhost:3000/dashboard/invoices?_rsc=9bv_juyAkIJ5aDc5",
-          "durationMs": 10,
+          "url": "http://localhost:3000/_next/static/chunks/app/(app)/dashboard/invoices/page-1f75b091485518e8.js",
+          "durationMs": 8,
+          "sizeKb": 33,
+          "status": 200
+        },
+        {
+          "url": "http://localhost:3000/_next/static/chunks/8469.01f41fdbc097599f.js",
+          "durationMs": 110,
           "sizeKb": 3,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/2566-c7250e34ebbebaf6.js",
-          "durationMs": 15,
-          "sizeKb": 6,
+          "url": "http://localhost:3000/_next/static/chunks/1590.a39eafbca5b4eab0.js",
+          "durationMs": 110,
+          "sizeKb": 29,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/app/(app)/dashboard/invoices/page-c3733655e8d8faa6.js",
-          "durationMs": 14,
-          "sizeKb": 28,
+          "url": "http://localhost:3000/_next/static/chunks/5990-077533bb410224df.js",
+          "durationMs": 119,
+          "sizeKb": 65,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/9210.d04105c9f987f47d.js",
-          "durationMs": 17,
-          "sizeKb": 2,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/_next/static/chunks/5771-0d6318fff79acee0.js",
-          "durationMs": 18,
-          "sizeKb": 53,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/dashboard/invoices",
-          "durationMs": 41,
-          "sizeKb": 15,
+          "url": "http://localhost:3000/_next/static/chunks/8647-ce0a5206ea5a91b7.js",
+          "durationMs": 121,
+          "sizeKb": 81,
           "status": 200
         }
       ],
-      "domNodes": 1956,
+      "domNodes": 2188,
       "layoutShiftDetected": false
     },
     {
       "fromRoute": "http://localhost:3000/dashboard/invoices",
       "toRoute": "/dashboard/automations",
       "label": "Automations",
-      "clickToFeedbackMs": 60,
-      "clickToUrlChangeMs": 831,
-      "clickToShellMs": 870,
-      "clickToDataMs": 3337,
-      "clickToInteractiveMs": 3337,
+      "clickToFeedbackMs": 20,
+      "clickToUrlChangeMs": 230,
+      "clickToShellMs": 257,
+      "clickToDataMs": 1960,
+      "clickToInteractiveMs": 1960,
       "requestsCount": 8,
       "rscRequestsCount": 1,
       "requests": [
         {
-          "url": "http://localhost:3000/dashboard/automations?_rsc=LSI51AEGasdmpR3h",
-          "durationMs": 5,
-          "sizeKb": 0,
+          "url": "https://api.dicebear.com/9.x/lorelei/svg?seed=sfdisfadsf%40gmial.com&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf,e0f2fe,fef3c7,dcfce7",
+          "durationMs": 11,
+          "sizeKb": 6,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/2681-eebaa1f1183a422c.js",
-          "durationMs": 6,
-          "sizeKb": 8,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/_next/static/chunks/app/(app)/dashboard/automations/page-b4951375c4d1190f.js",
-          "durationMs": 6,
-          "sizeKb": 26,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/_next/static/chunks/535.31c4ab010b27f7a3.js",
-          "durationMs": 14,
-          "sizeKb": 1,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/_next/static/chunks/1168.5dfebe9f936d87a0.js",
-          "durationMs": 20,
-          "sizeKb": 62,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/_next/static/chunks/6498.ff87f236ff2f3a5b.js",
-          "durationMs": 19,
+          "url": "https://api.dicebear.com/9.x/lorelei/svg?seed=test.olliejones%40gmail.com&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf,e0f2fe,fef3c7,dcfce7",
+          "durationMs": 7,
           "sizeKb": 4,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/1426.108cff6debd67901.js",
-          "durationMs": 20,
-          "sizeKb": 10,
+          "url": "https://api.dicebear.com/9.x/lorelei/svg?seed=contact.olliejones%40gmail.com&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf,e0f2fe,fef3c7,dcfce7",
+          "durationMs": 14,
+          "sizeKb": 7,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/dashboard/automations",
+          "url": "http://localhost:3000/dashboard/automations?_rsc=LSI51AEGasdmpR3h",
+          "durationMs": 3,
+          "sizeKb": 0,
+          "status": 200
+        },
+        {
+          "url": "http://localhost:3000/_next/static/chunks/app/(app)/dashboard/automations/page-ed28018c71e3455e.js",
           "durationMs": 5,
-          "sizeKb": 2,
+          "sizeKb": 32,
+          "status": 200
+        },
+        {
+          "url": "http://localhost:3000/_next/static/chunks/9678.a7e11a37eba77cdb.js",
+          "durationMs": 13,
+          "sizeKb": 68,
+          "status": 200
+        },
+        {
+          "url": "http://localhost:3000/_next/static/chunks/6498.ff87f236ff2f3a5b.js",
+          "durationMs": 5,
+          "sizeKb": 4,
+          "status": 200
+        },
+        {
+          "url": "http://localhost:3000/_next/static/chunks/3442.55a76b9919249d5f.js",
+          "durationMs": 4,
+          "sizeKb": 10,
           "status": 200
         }
       ],
-      "domNodes": 863,
+      "domNodes": 860,
       "layoutShiftDetected": false
     },
     {
       "fromRoute": "http://localhost:3000/dashboard/automations",
       "toRoute": "/dashboard/settings",
       "label": "Settings",
-      "clickToFeedbackMs": 51,
-      "clickToUrlChangeMs": 823,
-      "clickToShellMs": 847,
-      "clickToDataMs": 1906,
-      "clickToInteractiveMs": 1906,
-      "requestsCount": 6,
+      "clickToFeedbackMs": 64,
+      "clickToUrlChangeMs": 270,
+      "clickToShellMs": 310,
+      "clickToDataMs": 897,
+      "clickToInteractiveMs": 897,
+      "requestsCount": 7,
       "rscRequestsCount": 1,
       "requests": [
         {
+          "url": "https://api.dicebear.com/9.x/lorelei/svg?seed=john.smith%40tenant.com&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf,e0f2fe,fef3c7,dcfce7",
+          "durationMs": 4,
+          "sizeKb": 6,
+          "status": 200
+        },
+        {
           "url": "http://localhost:3000/dashboard/settings?_rsc=X-D7lpvsvMhgis1q",
-          "durationMs": 27,
+          "durationMs": 5,
           "sizeKb": 0,
           "status": 200
         },
         {
           "url": "http://localhost:3000/_next/static/chunks/1191-30beaefc457e447a.js",
-          "durationMs": 6,
+          "durationMs": 3,
           "sizeKb": 7,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/app/(app)/dashboard/settings/layout-a8ee05031d2892dc.js",
-          "durationMs": 5,
+          "url": "http://localhost:3000/_next/static/chunks/app/(app)/dashboard/settings/layout-157b32bf36d88e2c.js",
+          "durationMs": 2,
           "sizeKb": 4,
           "status": 200
         },
         {
           "url": "http://localhost:3000/_next/static/chunks/6970-654945fa29c3b45e.js",
-          "durationMs": 5,
+          "durationMs": 12,
           "sizeKb": 8,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/app/(app)/dashboard/settings/page-7745fb05b67fcc0a.js",
-          "durationMs": 4,
+          "url": "http://localhost:3000/_next/static/chunks/app/(app)/dashboard/settings/page-913766ffcfcd54dd.js",
+          "durationMs": 11,
           "sizeKb": 5,
           "status": 200
         },
         {
-          "url": "http://localhost:3000/_next/static/chunks/4803-afde9f19291e0f8c.js",
-          "durationMs": 4,
+          "url": "http://localhost:3000/_next/static/chunks/4803-97c7955f72510ba1.js",
+          "durationMs": 10,
           "sizeKb": 16,
           "status": 200
         }
       ],
-      "domNodes": 585,
+      "domNodes": 582,
       "layoutShiftDetected": false
     },
     {
       "fromRoute": "http://localhost:3000/dashboard/settings",
       "toRoute": "/dashboard",
       "label": "Dashboard",
-      "clickToFeedbackMs": 28,
-      "clickToUrlChangeMs": 904,
-      "clickToShellMs": 926,
-      "clickToDataMs": 2669,
-      "clickToInteractiveMs": 2669,
-      "requestsCount": 4,
-      "rscRequestsCount": 4,
+      "clickToFeedbackMs": 25,
+      "clickToUrlChangeMs": 229,
+      "clickToShellMs": 261,
+      "clickToDataMs": 1623,
+      "clickToInteractiveMs": 1623,
+      "requestsCount": 2,
+      "rscRequestsCount": 2,
       "requests": [
-        {
-          "url": "http://localhost:3000/dashboard/settings/security?_rsc=sVF5xwv5mLEPdr86",
-          "durationMs": 4,
-          "sizeKb": 0,
-          "status": 200
-        },
-        {
-          "url": "http://localhost:3000/dashboard/settings/notifications?_rsc=sVF5xwv5mLEPdr86",
-          "durationMs": 2,
-          "sizeKb": 0,
-          "status": 200
-        },
         {
           "url": "http://localhost:3000/?_rsc=sVF5xwv5mLEPdr86",
           "durationMs": 3,
@@ -470,26 +458,26 @@
           "status": 200
         },
         {
-          "url": "http://localhost:3000/dashboard?_rsc=sVF5xwv5mLEPdr86",
-          "durationMs": 5,
+          "url": "http://localhost:3000/dashboard/settings/subscription?_rsc=sVF5xwv5mLEPdr86",
+          "durationMs": 2,
           "sizeKb": 0,
           "status": 200
         }
       ],
-      "domNodes": 444,
+      "domNodes": 699,
       "layoutShiftDetected": false
     }
   ],
   "collapseTimings": [
     {
       "action": "collapse",
-      "durationMs": 381,
+      "durationMs": 359,
       "domWidthBefore": 211,
       "domWidthAfter": 52
     },
     {
       "action": "expand",
-      "durationMs": 581,
+      "durationMs": 475,
       "domWidthBefore": 52,
       "domWidthAfter": 209
     }
@@ -501,7 +489,7 @@
       "/dashboard/leases",
       "/dashboard/invoices"
     ],
-    "totalSequenceMs": 2257,
+    "totalSequenceMs": 2654,
     "finalRoute": "http://localhost:3000/dashboard/invoices",
     "finalContentCorrect": true,
     "errorsCaught": [
@@ -510,7 +498,7 @@
     ]
   },
   "historyNav": {
-    "backMs": 37,
-    "forwardMs": 35
+    "backMs": 81,
+    "forwardMs": 96
   }
 }

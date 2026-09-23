@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { AgGridReact } from 'ag-grid-react';
+import dynamic from 'next/dynamic';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/admin/ui';
 import {
@@ -18,6 +18,14 @@ import { AdminDataGridToolbar, BulkAction } from './AdminDataGridToolbar';
 import { AdminDataGridPagination } from './AdminDataGridPagination';
 import { AdminDataGridEmpty } from './AdminDataGridEmpty';
 import { AdminDataGridLoading } from './AdminDataGridLoading';
+
+const AgGridReact = dynamic(
+  () => import('ag-grid-react').then((mod) => mod.AgGridReact),
+  {
+    ssr: false,
+    loading: () => <AdminDataGridLoading overlay={false} />,
+  }
+) as unknown as typeof import('ag-grid-react').AgGridReact;
 import { useCollapsibleWorkspaceOptional, useCollapsibleWorkspaceSnapshot } from '@/components/workspace/useCollapsibleDataWorkspace';
 import { cn } from '@/lib/utils';
 import type { AdminDataGridToolbarProps } from './AdminDataGridToolbar';
