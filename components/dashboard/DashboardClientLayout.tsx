@@ -23,6 +23,7 @@ import {
   ArrowRight,
   Lightning,
   CalendarBlank,
+  Calculator,
 } from '@phosphor-icons/react';
 import { AppShell } from '@/components/shell/AppShell';
 import { AppContextProvider } from '@/components/context/AppContextProvider';
@@ -65,6 +66,7 @@ const NAV_GROUPS: { label: string; items: NavItemConfig[] }[] = [
       { id: 'finances', label: 'Expenses', href: '/dashboard/expenses', icon: CreditCard, comingSoon: false },
       { id: 'finances', label: 'Transactions', href: '/dashboard/money', icon: CurrencyDollar, comingSoon: false },
       { id: 'finances', label: 'Payment Schedules', href: '/dashboard/schedules', icon: CalendarBlank, comingSoon: false },
+      { id: 'bas', label: 'BAS Activity Statement', href: '/dashboard/bas', icon: Calculator, comingSoon: false },
     ],
   },
   {

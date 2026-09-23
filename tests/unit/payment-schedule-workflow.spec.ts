@@ -27,7 +27,7 @@ test.describe('Rent & Payment Schedule Workflow - Journeys 1 through 9', () => {
 
     const entries = generateScheduleEntries(input);
     expect(entries.length).toBe(6);
-    expect(entries[0].schedule_name).toBe('Monthly Service Charge #1');
+    expect(entries[0].schedule_name).toBe('Monthly Service Charge');
     expect(entries[0].due_date).toBe('2026-01-01');
     expect(entries[5].due_date).toBe('2026-06-01');
     expect(entries[0].schedule_type).toBe('independent');

@@ -36,24 +36,24 @@ export function DropdownItem({
       }}
       disabled={disabled}
       className={cn(
-        'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-body-sm transition-colors duration-150 text-left',
-        'disabled:opacity-40 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-primary/40',
+        'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors duration-150 text-left',
+        'disabled:opacity-40 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008F83]/40',
         danger
-          ? 'text-admin-danger hover:bg-admin-danger-soft'
+          ? 'text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30'
           : active
-          ? 'text-admin-primary bg-admin-primary-soft font-medium'
-          : 'text-admin-foreground hover:bg-admin-surface-subtle'
+          ? 'text-[#008F83] bg-[#008F83]/10 font-bold'
+          : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
       )}
       role="menuitem"
     >
       {icon && (
-        <span className={cn('shrink-0', danger ? 'text-admin-danger' : active ? 'text-admin-primary' : 'text-admin-muted')}>
+        <span className={cn('shrink-0', danger ? 'text-rose-600' : active ? 'text-[#008F83]' : 'text-slate-400')}>
           {icon}
         </span>
       )}
       <span className="min-w-0 flex-1">
         <span className="block truncate">{label}</span>
-        {description && <span className="block text-metadata text-admin-muted mt-0.5 truncate">{description}</span>}
+        {description && <span className="block text-[11px] text-slate-400 mt-0.5 truncate">{description}</span>}
       </span>
     </button>
   );
@@ -74,18 +74,18 @@ export function DropdownTrigger({ label, icon, variant = 'secondary', className,
     <button
       type="button"
       className={cn(
-        'inline-flex items-center justify-center gap-2 h-9 px-3 rounded-lg text-body-sm font-medium transition-all duration-200 border',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-primary/40',
+        'inline-flex items-center justify-center gap-2 h-10 px-3.5 rounded-xl text-xs font-medium transition-all duration-200 border shadow-xs',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#008F83]/40',
         variant === 'secondary'
-          ? 'bg-admin-surface text-admin-foreground border-admin-border hover:bg-admin-surface-elevated hover:border-admin-border-subtle'
-          : 'bg-transparent text-admin-muted border-transparent hover:text-admin-foreground hover:bg-admin-surface-subtle',
+          ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200/80 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300'
+          : 'bg-transparent text-slate-500 border-transparent hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800',
         className
       )}
       {...props}
     >
       {icon}
-      {label}
-      <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+      <span>{label}</span>
+      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
     </button>
   );
 }
@@ -143,7 +143,7 @@ export function Dropdown({ trigger, children, align = 'end', className, label }:
       {isOpen && (
         <div
           className={cn(
-            'absolute z-dropdown mt-2 min-w-[220px] p-1.5 bg-admin-surface-elevated border border-admin-border rounded-xl shadow-elevation-3 animate-slide-up',
+            'absolute z-dropdown mt-2 min-w-[220px] p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl animate-slide-up',
             align === 'end' ? 'right-0' : 'left-0'
           )}
           role="menu"

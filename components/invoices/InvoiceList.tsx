@@ -70,6 +70,7 @@ const BulkInvoiceModal = dynamic(
 
 import { useEntityCacheStore } from '@/lib/stores/useEntityCacheStore';
 import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
+import { usePropertyContext } from '@/components/property/PropertyContext';
 
 export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[] } = {}) {
   const router = useRouter();
@@ -77,6 +78,9 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const cachedInvoices = useEntityCacheStore((s) => s.invoices);
   const setCachedInvoices = useEntityCacheStore((s) => s.setInvoices);
+  const { selectedProperty, availableProperties } = usePropertyContext();
+
+  const activePropertyId = selectedProperty?.propertyId ?? null;
 
   const hasMatchingCache = cachedInvoices && cachedInvoices.workspaceId === activeWorkspaceId;
 
@@ -87,6 +91,7 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
   const [loading, setLoading] = useState(() => !initialInvoices && !hasMatchingCache);
   const isInitialMount = React.useRef(true);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [includeIndependent, setIncludeIndependent] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
   // Modals
@@ -96,6 +101,18 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDTO | null>(null);
   const [invoiceToDelete, setInvoiceToDelete] = useState<InvoiceDTO | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const propertyMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of availableProperties) {
+      map.set(p.propertyId, p.propertyName);
+    }
+    return map;
+  }, [availableProperties]);
+
+  const independentCount = useMemo(() => {
+    return invoices.filter((inv) => !inv.propertyId).length;
+  }, [invoices]);
 
   const filterOptions = useMemo<QuickFilterOption[]>(
     () => [
@@ -110,10 +127,22 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
     []
   );
 
+  // Filter invoices strictly by active property dropdown context, with independent leases/invoices option
+  const scopedInvoices = useMemo(() => {
+    return invoices.filter((inv) => {
+      if (activePropertyId) {
+        const isForProperty = inv.propertyId === activePropertyId;
+        const isIndependent = !inv.propertyId;
+        return isForProperty || (includeIndependent && isIndependent);
+      }
+      return true;
+    });
+  }, [invoices, activePropertyId, includeIndependent]);
+
   const displayedInvoices = useMemo(() => {
-    if (statusFilter === 'all') return invoices;
-    return invoices.filter((inv) => inv.status === statusFilter);
-  }, [invoices, statusFilter]);
+    if (statusFilter === 'all') return scopedInvoices;
+    return scopedInvoices.filter((inv) => inv.status === statusFilter);
+  }, [scopedInvoices, statusFilter]);
 
   const loadInvoices = async () => {
     if (!hasMatchingCache) setLoading(true);
@@ -145,14 +174,14 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
     loadInvoices();
   }, [activeWorkspaceId]);
 
-  // KPIs
+  // KPIs strictly reflecting current property context and filters
   const stats = useMemo(() => {
     let totalOutstanding = 0;
     let totalInvoiced = 0;
     let overdueCount = 0;
     let paidCount = 0;
 
-    for (const inv of invoices) {
+    for (const inv of scopedInvoices) {
       if (inv.status !== 'cancelled' && inv.status !== 'void') {
         totalInvoiced += inv.total;
         totalOutstanding += inv.balance;
@@ -162,7 +191,7 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
     }
 
     return { totalOutstanding, totalInvoiced, overdueCount, paidCount };
-  }, [invoices]);
+  }, [scopedInvoices]);
 
   // Actions
   const handleCreateSubmit = async (
@@ -438,6 +467,30 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
         },
       },
       {
+        headerName: 'Property / Context',
+        width: 175,
+        cellRenderer: (params: any) => {
+          const inv = params.data as InvoiceDTO;
+          if (!inv) return null;
+          const propName = inv.propertyId ? propertyMap.get(inv.propertyId) : null;
+          if (propName) {
+            return (
+              <div className="flex items-center gap-1.5 py-1 min-w-0">
+                <Building className="w-3.5 h-3.5 text-admin-primary shrink-0" />
+                <span className="text-xs text-admin-foreground font-semibold truncate" title={propName}>
+                  {propName}
+                </span>
+              </div>
+            );
+          }
+          return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+              <User className="w-3 h-3 text-slate-400" /> Independent
+            </span>
+          );
+        },
+      },
+      {
         headerName: 'Issue Date',
         field: 'issueDate',
         width: 130,
@@ -568,13 +621,17 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
         },
       },
     ],
-    []
+    [propertyMap]
   );
 
   return (
     <ListPage
       title="Invoices & Billing"
-      description="Manage customer billing, automated recurring rent invoices, PDF documents, and payment tracking."
+      description={
+        selectedProperty
+          ? `Showing invoices for ${selectedProperty.propertyName}.`
+          : 'Manage customer billing, automated recurring rent invoices, PDF documents, and payment tracking.'
+      }
       breadcrumb={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Invoices' }]}
       actions={
         <div className="flex items-center gap-2">
@@ -709,18 +766,22 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
       }
     >
       <div className="flex-1 flex flex-col min-h-0 h-full space-y-4">
-        {!loading && invoices.length === 0 && statusFilter === 'all' ? (
+        {!loading && displayedInvoices.length === 0 && statusFilter === 'all' ? (
           <div className="py-20 px-6 text-center bg-admin-surface rounded-2xl border border-admin-border shadow-xs flex-1 flex flex-col items-center justify-center min-h-[300px]">
             <div className="w-14 h-14 bg-admin-surface-subtle rounded-full flex items-center justify-center mx-auto mb-4 text-admin-muted border border-admin-border">
               <FileText className="w-7 h-7" />
             </div>
-            <h3 className="text-lg font-black text-admin-foreground mb-1">No invoices yet</h3>
+            <h3 className="text-lg font-black text-admin-foreground mb-1">
+              {selectedProperty ? `No invoices for ${selectedProperty.propertyName}` : 'No invoices yet'}
+            </h3>
             <p className="text-xs text-admin-muted max-w-sm mx-auto mb-5 font-medium">
-              Create your first standalone invoice or manage automated invoices through the Automations tab.
+              {selectedProperty
+                ? 'Create an invoice for this property, or toggle "Include Independent Leases" to see unlinked billing.'
+                : 'Create your first standalone invoice or manage automated invoices through the Automations tab.'}
             </p>
             <div className="flex items-center gap-2">
               <Button onClick={() => setIsCreateOpen(true)} className="font-bold">
-                <Plus className="w-4 h-4 mr-1.5" /> Create First Invoice
+                <Plus className="w-4 h-4 mr-1.5" /> Create Invoice
               </Button>
             </div>
           </div>
@@ -742,11 +803,43 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
               exportFilename="invoices-export"
               searchPlaceholder="Search invoices by number or customer..."
               leftToolbarContent={
-                <QuickFilterBar
-                  options={filterOptions}
-                  activeValue={statusFilter}
-                  onChange={(val) => setStatusFilter(val as string)}
-                />
+                <div className="flex items-center gap-3 flex-wrap">
+                  <QuickFilterBar
+                    options={filterOptions}
+                    activeValue={statusFilter}
+                    onChange={(val) => setStatusFilter(val as string)}
+                  />
+
+                  <div className="h-4 w-px bg-admin-border hidden sm:block" />
+
+                  <label
+                    className={cn(
+                      'flex items-center gap-2 cursor-pointer select-none text-xs font-semibold px-2.5 py-1.5 rounded-xl border transition-all shadow-2xs',
+                      includeIndependent
+                        ? 'bg-[#008F83]/10 border-[#008F83]/30 text-[#008F83]'
+                        : 'bg-admin-surface border-admin-border text-admin-foreground hover:bg-admin-surface-subtle'
+                    )}
+                    title="Toggle independent / standalone invoices without a linked property"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={includeIndependent}
+                      onChange={(e) => setIncludeIndependent(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-[#008F83] focus:ring-[#008F83] accent-[#008F83] cursor-pointer"
+                    />
+                    <span className="whitespace-nowrap">Include Independent Leases</span>
+                    {independentCount > 0 && (
+                      <span
+                        className={cn(
+                          'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+                          includeIndependent ? 'bg-[#008F83] text-white' : 'bg-admin-surface-subtle text-admin-muted'
+                        )}
+                      >
+                        {independentCount}
+                      </span>
+                    )}
+                  </label>
+                </div>
               }
               disablePagination={true}
             />
@@ -774,104 +867,146 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
             ))}
           </div>
         ) : (
-          <HoverCardGrid className="overflow-y-auto flex-1 p-1">
-            {displayedInvoices.map((inv) => {
-              const name = inv.recipient?.name || inv.customerName || 'Customer';
-              const email = inv.recipient?.email || inv.customerEmail || '';
-              const isOverdue = inv.status === 'overdue' || (inv.balance > 0 && new Date(inv.dueDate) < new Date());
+          <div className="flex-1 flex flex-col min-h-0 space-y-3">
+            {/* Grid View Controls */}
+            <div className="flex items-center justify-between gap-3 flex-wrap bg-admin-surface p-2.5 rounded-2xl border border-admin-border shadow-xs">
+              <QuickFilterBar
+                options={filterOptions}
+                activeValue={statusFilter}
+                onChange={(val) => setStatusFilter(val as string)}
+              />
 
-              return (
-                <HoverEffectCardItem
-                  key={inv.id}
-                  onClick={() => setSelectedInvoice(inv)}
-                  className="group/card cursor-pointer"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-admin-primary/10 text-admin-primary flex items-center justify-center shrink-0 border border-admin-primary/20">
-                        <FileText className="w-5 h-5 text-admin-primary" />
+              <label
+                className={cn(
+                  'flex items-center gap-2 cursor-pointer select-none text-xs font-semibold px-2.5 py-1.5 rounded-xl border transition-all shadow-2xs',
+                  includeIndependent
+                    ? 'bg-[#008F83]/10 border-[#008F83]/30 text-[#008F83]'
+                    : 'bg-admin-surface border-admin-border text-admin-foreground hover:bg-admin-surface-subtle'
+                )}
+                title="Toggle independent / standalone invoices without a linked property"
+              >
+                <input
+                  type="checkbox"
+                  checked={includeIndependent}
+                  onChange={(e) => setIncludeIndependent(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-[#008F83] focus:ring-[#008F83] accent-[#008F83] cursor-pointer"
+                />
+                <span className="whitespace-nowrap">Include Independent Leases</span>
+                {independentCount > 0 && (
+                  <span
+                    className={cn(
+                      'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+                      includeIndependent ? 'bg-[#008F83] text-white' : 'bg-admin-surface-subtle text-admin-muted'
+                    )}
+                  >
+                    {independentCount}
+                  </span>
+                )}
+              </label>
+            </div>
+
+            <HoverCardGrid className="overflow-y-auto flex-1 p-1">
+              {displayedInvoices.map((inv) => {
+                const name = inv.recipient?.name || inv.customerName || 'Customer';
+                const email = inv.recipient?.email || inv.customerEmail || '';
+                const isOverdue = inv.status === 'overdue' || (inv.balance > 0 && new Date(inv.dueDate) < new Date());
+                const propName = inv.propertyId ? propertyMap.get(inv.propertyId) : null;
+
+                return (
+                  <HoverEffectCardItem
+                    key={inv.id}
+                    onClick={() => setSelectedInvoice(inv)}
+                    className="group/card cursor-pointer"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-admin-primary/10 text-admin-primary flex items-center justify-center shrink-0 border border-admin-primary/20">
+                          <FileText className="w-5 h-5 text-admin-primary" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-bold text-sm text-admin-foreground line-clamp-1 group-hover/card:text-admin-primary transition-colors font-mono">
+                            {inv.invoiceNumber}
+                          </h4>
+                          <p className="text-xs text-admin-muted truncate font-sans">{name}</p>
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-bold text-sm text-admin-foreground line-clamp-1 group-hover/card:text-admin-primary transition-colors font-mono">
-                          {inv.invoiceNumber}
-                        </h4>
-                        <p className="text-xs text-admin-muted truncate font-sans">{name}</p>
+
+                      <span className={cn('px-2 py-0.5 rounded-md text-[10.5px] font-bold border capitalize shrink-0', getStatusBadge(inv.status))}>
+                        {inv.status.replace('_', ' ')}
+                      </span>
+                    </div>
+
+                    <div className="h-px w-full bg-admin-border/60 my-3" />
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p className="text-[10.5px] text-admin-muted font-medium">Context / Property</p>
+                        <p className="font-semibold text-admin-foreground mt-0.5 truncate text-xs">
+                          {propName || 'Independent'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10.5px] text-admin-muted font-medium">Balance Due</p>
+                        <p className={cn('font-bold mt-0.5', inv.balance > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400')}>
+                          {formatCurrency(inv.balance, inv.currency)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10.5px] text-admin-muted font-medium">Total Amount</p>
+                        <p className="font-bold text-admin-foreground mt-0.5">{formatCurrency(inv.total, inv.currency)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10.5px] text-admin-muted font-medium">Due Date</p>
+                        <p className={cn('mt-0.5', isOverdue && inv.balance > 0 ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-admin-foreground')}>
+                          {formatAuDisplayDate(inv.dueDate)}
+                        </p>
                       </div>
                     </div>
 
-                    <span className={cn('px-2 py-0.5 rounded-md text-[10.5px] font-bold border capitalize shrink-0', getStatusBadge(inv.status))}>
-                      {inv.status.replace('_', ' ')}
-                    </span>
-                  </div>
+                    <div className="h-px w-full bg-admin-border/60 my-3" />
 
-                  <div className="h-px w-full bg-admin-border/60 my-3" />
-
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <p className="text-[10.5px] text-admin-muted font-medium">Total Amount</p>
-                      <p className="font-bold text-admin-foreground mt-0.5">{formatCurrency(inv.total, inv.currency)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10.5px] text-admin-muted font-medium">Balance Due</p>
-                      <p className={cn('font-bold mt-0.5', inv.balance > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400')}>
-                        {formatCurrency(inv.balance, inv.currency)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10.5px] text-admin-muted font-medium">Issue Date</p>
-                      <p className="text-admin-foreground mt-0.5">{formatAuDisplayDate(inv.issueDate)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10.5px] text-admin-muted font-medium">Due Date</p>
-                      <p className={cn('mt-0.5', isOverdue && inv.balance > 0 ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-admin-foreground')}>
-                        {formatAuDisplayDate(inv.dueDate)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="h-px w-full bg-admin-border/60 my-3" />
-
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-[11px] text-admin-muted truncate">{email}</span>
-                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                      {inv.status !== 'paid' && inv.status !== 'cancelled' && inv.status !== 'void' && (
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[11px] text-admin-muted truncate">{email}</span>
+                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        {inv.status !== 'paid' && inv.status !== 'cancelled' && inv.status !== 'void' && (
+                          <button
+                            onClick={() => {
+                              setInvoiceToEdit(inv);
+                              setIsCreateOpen(true);
+                            }}
+                            className="p-1.5 text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-subtle rounded-md transition-colors"
+                            title="Edit Invoice"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
-                          onClick={() => {
-                            setInvoiceToEdit(inv);
-                            setIsCreateOpen(true);
-                          }}
+                          onClick={() => handleDownload(inv.id, 'pdf')}
                           className="p-1.5 text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-subtle rounded-md transition-colors"
-                          title="Edit Invoice"
+                          title="Download PDF"
                         >
-                          <Edit3 className="w-3.5 h-3.5" />
+                          <Download className="w-3.5 h-3.5" />
                         </button>
-                      )}
-                      <button
-                        onClick={() => handleDownload(inv.id, 'pdf')}
-                        className="p-1.5 text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-subtle rounded-md transition-colors"
-                        title="Download PDF"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setInvoiceToDelete(inv)}
-                        className="p-1.5 text-admin-muted hover:text-rose-500 hover:bg-rose-500/10 rounded-md transition-colors"
-                        title="Delete Invoice"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setSelectedInvoice(inv)}
-                        className="px-2.5 py-1 text-xs font-bold text-admin-primary hover:bg-admin-primary/10 rounded-md transition-colors inline-flex items-center gap-1"
-                      >
-                        View <ArrowUpRight className="w-3 h-3" />
-                      </button>
+                        <button
+                          onClick={() => setInvoiceToDelete(inv)}
+                          className="p-1.5 text-admin-muted hover:text-rose-500 hover:bg-rose-500/10 rounded-md transition-colors"
+                          title="Delete Invoice"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setSelectedInvoice(inv)}
+                          className="px-2.5 py-1 text-xs font-bold text-admin-primary hover:bg-admin-primary/10 rounded-md transition-colors inline-flex items-center gap-1"
+                        >
+                          View <ArrowUpRight className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </HoverEffectCardItem>
-              );
-            })}
-          </HoverCardGrid>
+                  </HoverEffectCardItem>
+                );
+              })}
+            </HoverCardGrid>
+          </div>
         )}
       </div>
 
@@ -886,6 +1021,7 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
         invoiceToEdit={invoiceToEdit}
         onUpdate={handleUpdateSubmit}
         onOpenBulkModal={() => setIsBulkOpen(true)}
+        initialPropertyId={activePropertyId || undefined}
       />
 
       {/* Bulk Multi-Month Invoice Generation Modal */}

@@ -46,8 +46,12 @@ export async function getExpectedPaymentSchedules(
       created_by,
       created_at,
       updated_at,
-      category:categories(id, transaction_type, name, description, is_active, created_at, updated_at),
-      property:properties(id, name, address_line_1, city, state),
+      gst_inclusive,
+      gst_amount,
+      tax_classification_id,
+      category:categories(id, transaction_type, name, description, is_active, category_group_id, default_tax_classification_id, created_at, updated_at),
+      tax_classification:tax_classifications(id, name, bas_code, description, is_active, applies_to),
+      property:properties(id, name, address_line_1, city, state, gst_enabled),
       lease:leases(id, start_date, end_date, rent_amount, status),
       tenant:tenants(id, first_name, last_name, email),
       allocations:transaction_schedule_allocations(
@@ -109,6 +113,38 @@ export async function getExpectedPaymentSchedules(
 
   const rawEntries = (data || []) as unknown as ExpectedPaymentScheduleDTO[];
 
+  // For entries with lease_id but no direct tenant, batch fetch the connected lease_tenants
+  const unassignedLeaseIds = Array.from(
+    new Set(
+      rawEntries
+        .filter((e) => !e.tenant && e.lease_id)
+        .map((e) => e.lease_id as string)
+    )
+  );
+
+  const leaseTenantMap = new Map<string, { id: string; first_name: string; last_name: string; email?: string | null }>();
+  if (unassignedLeaseIds.length > 0) {
+    const { data: ltData } = await supabase
+      .from('lease_tenants')
+      .select(`
+        lease_id,
+        is_primary,
+        tenant:tenants(id, first_name, last_name, email)
+      `)
+      .in('lease_id', unassignedLeaseIds);
+
+    if (ltData) {
+      for (const row of ltData as any[]) {
+        if (row.tenant) {
+          const existing = leaseTenantMap.get(row.lease_id);
+          if (!existing || row.is_primary) {
+            leaseTenantMap.set(row.lease_id, row.tenant);
+          }
+        }
+      }
+    }
+  }
+
   // Calculate dynamic allocation breakdown, status, and remaining amount for each entry
   let results = rawEntries.map((entry) => {
     const allocations = entry.allocations || [];
@@ -119,12 +155,18 @@ export async function getExpectedPaymentSchedules(
       entry.due_date
     );
 
+    // Resolve tenant from direct relation or via connected lease_tenants
+    const directTenant = entry.tenant;
+    const connectedLeaseTenant = entry.lease_id ? leaseTenantMap.get(entry.lease_id) : null;
+    const resolvedTenant = directTenant || connectedLeaseTenant || null;
+
     return {
       ...entry,
       amount: Number(entry.amount),
       total_allocated: calculated.total_allocated,
       remaining_amount: calculated.remaining_amount,
       status: calculated.status,
+      tenant: resolvedTenant,
     };
   });
 
@@ -187,8 +229,12 @@ export async function getExpectedPaymentScheduleById(id: string): Promise<Expect
       created_by,
       created_at,
       updated_at,
-      category:categories(id, transaction_type, name, description, is_active, created_at, updated_at),
-      property:properties(id, name, address_line_1, city, state),
+      gst_inclusive,
+      gst_amount,
+      tax_classification_id,
+      category:categories(id, transaction_type, name, description, is_active, category_group_id, default_tax_classification_id, created_at, updated_at),
+      tax_classification:tax_classifications(id, name, bas_code, description, is_active, applies_to),
+      property:properties(id, name, address_line_1, city, state, gst_enabled),
       lease:leases(id, start_date, end_date, rent_amount, status),
       tenant:tenants(id, first_name, last_name, email),
       allocations:transaction_schedule_allocations(
@@ -229,12 +275,28 @@ export async function getExpectedPaymentScheduleById(id: string): Promise<Expect
     entry.due_date
   );
 
+  let resolvedTenant = entry.tenant;
+  if (!resolvedTenant && entry.lease_id) {
+    const { data: ltData } = await supabase
+      .from('lease_tenants')
+      .select('is_primary, tenant:tenants(id, first_name, last_name, email)')
+      .eq('lease_id', entry.lease_id)
+      .order('is_primary', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (ltData && (ltData as any).tenant) {
+      resolvedTenant = (ltData as any).tenant;
+    }
+  }
+
   return {
     ...entry,
     amount: Number(entry.amount),
     total_allocated: calculated.total_allocated,
     remaining_amount: calculated.remaining_amount,
     status: calculated.status,
+    tenant: resolvedTenant,
   };
 }
 
@@ -247,8 +309,40 @@ export async function createPaymentSchedule(
 ): Promise<ExpectedPaymentScheduleDTO[]> {
   const supabase = await createClient();
 
-  // Resolve workspace_id from property or lease if not passed
+  // Resolve workspace_id and tenant_id from property or lease if not passed
   let workspaceId = input.workspace_id;
+
+  if (input.lease_id) {
+    const { data: lease } = await supabase
+      .from('leases')
+      .select('id, property_id, properties!inner(workspace_id)')
+      .eq('id', input.lease_id)
+      .maybeSingle();
+
+    if (lease) {
+      const leaseObj = lease as any;
+      if (!workspaceId && leaseObj.properties?.workspace_id) {
+        workspaceId = leaseObj.properties.workspace_id;
+      }
+      if (!input.property_id && leaseObj.property_id) {
+        input.property_id = leaseObj.property_id;
+      }
+    }
+
+    if (!input.tenant_id) {
+      const { data: lt } = await supabase
+        .from('lease_tenants')
+        .select('tenant_id, is_primary')
+        .eq('lease_id', input.lease_id)
+        .order('is_primary', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lt && (lt as any).tenant_id) {
+        input.tenant_id = (lt as any).tenant_id;
+      }
+    }
+  }
 
   if (!workspaceId && input.property_id) {
     const { data: prop } = await supabase
@@ -257,23 +351,6 @@ export async function createPaymentSchedule(
       .eq('id', input.property_id)
       .single();
     if (prop) workspaceId = (prop as any).workspace_id;
-  }
-
-  if (!workspaceId && input.lease_id) {
-    const { data: lease } = await supabase
-      .from('leases')
-      .select('properties!inner(workspace_id), property_id')
-      .eq('id', input.lease_id)
-      .single();
-    if (lease) {
-      const leaseObj = lease as any;
-      if (leaseObj.properties?.workspace_id) {
-        workspaceId = leaseObj.properties.workspace_id;
-      }
-      if (!input.property_id && leaseObj.property_id) {
-        input.property_id = leaseObj.property_id;
-      }
-    }
   }
 
   if (!workspaceId) {
@@ -306,6 +383,9 @@ export async function createPaymentSchedule(
     end_date: item.end_date,
     notes: item.notes || null,
     created_by: userId || null,
+    gst_inclusive: item.gst_inclusive || false,
+    gst_amount: item.gst_amount || 0,
+    tax_classification_id: item.tax_classification_id || null,
   }));
 
   const { data, error } = await supabase
@@ -409,6 +489,9 @@ export async function getEligibleTransactionsForExpectedPayment(
 
   const supabase = await createClient();
 
+  // Target transaction type based on expected schedule's category or schedule type
+  const targetType = expected.category?.transaction_type || (expected.schedule_type === 'lease' ? 'income' : 'income');
+
   // Fetch transactions in the same workspace (and property if set)
   let query = supabase
     .from('transactions')
@@ -432,12 +515,16 @@ export async function getEligibleTransactionsForExpectedPayment(
       created_by,
       created_at,
       updated_at,
+      gst_inclusive,
+      gst_amount,
+      tax_classification_id,
       category:categories(id, transaction_type, name, description, is_active, created_at, updated_at),
+      tax_classification:tax_classifications(id, name, bas_code, description, is_active),
       property:properties(id, name, address_line_1, city, state),
       tenant:tenants(id, first_name, last_name, email)
     `)
     .eq('workspace_id', expected.workspace_id)
-    .eq('transaction_type', 'income')
+    .eq('transaction_type', targetType)
     .eq('status', 'completed')
     .order('transaction_date', { ascending: false });
 
@@ -497,7 +584,7 @@ export async function allocateTransactionToExpectedPayment(
   // Fetch transaction details
   const { data: txData, error: txError } = await supabase
     .from('transactions')
-    .select('id, amount, status')
+    .select('id, amount, status, property_id, transaction_type, tax_classification_id')
     .eq('id', transaction_id)
     .single();
 
@@ -505,7 +592,19 @@ export async function allocateTransactionToExpectedPayment(
     throw new Error('Transaction not found.');
   }
 
-  const transaction = txData as { id: string; amount: number; status: string };
+  const transaction = txData as {
+    id: string;
+    amount: number;
+    status: string;
+    property_id?: string | null;
+    transaction_type?: string;
+    tax_classification_id?: string | null;
+  };
+
+  // Property compatibility validation if schedule is tied to a specific property
+  if (expected.property_id && transaction.property_id && expected.property_id !== transaction.property_id) {
+    throw new Error('Cannot allocate transaction belonging to a different property.');
+  }
 
   // Validate allocation amount against expected remaining & transaction unallocated amount
   validateAllocation(expected, Number(transaction.amount), allocated_amount, expected.allocations || []);
@@ -562,12 +661,51 @@ export async function recordTransactionForExpectedPayment(
 
   const allocAmount = input.allocation_amount || input.amount;
 
-  // 1. Create the actual transaction in transactions table
+  // Resolve category and transaction type
+  const targetCategoryId = input.transaction_category_id || expected.transaction_category_id || '';
+  let txType: 'income' | 'expense' = 'income';
+
+  if (targetCategoryId) {
+    const supabase = await createClient();
+    const { data: cat } = await supabase
+      .from('categories')
+      .select('transaction_type')
+      .eq('id', targetCategoryId)
+      .maybeSingle();
+    if (cat && (cat as any).transaction_type) {
+      txType = (cat as any).transaction_type;
+    }
+  } else if (expected.category?.transaction_type) {
+    txType = expected.category.transaction_type;
+  }
+
+  // Calculate proportional or explicit GST amount
+  const isGstInc = input.gst_inclusive !== undefined ? input.gst_inclusive : (expected.gst_inclusive || false);
+  let resolvedGstAmount = 0;
+
+  if (input.gst_amount !== undefined) {
+    resolvedGstAmount = Number(input.gst_amount) || 0;
+  } else if (isGstInc) {
+    if (expected.amount > 0 && expected.gst_amount) {
+      // Proportional calculation
+      resolvedGstAmount = Math.round((input.amount / expected.amount) * expected.gst_amount * 100) / 100;
+    } else {
+      // Standard 1/11th calculation
+      const net = Math.round((input.amount / 1.1) * 100) / 100;
+      resolvedGstAmount = Math.round((input.amount - net) * 100) / 100;
+    }
+  }
+
+  const resolvedTaxClassId = input.tax_classification_id !== undefined
+    ? input.tax_classification_id
+    : (expected.tax_classification_id || expected.category?.default_tax_classification_id || null);
+
+  // 1. Create the canonical transaction in transactions table
   const createdTransaction = await createTransaction(
     {
       amount: input.amount,
-      transaction_type: 'income',
-      transaction_category_id: input.transaction_category_id,
+      transaction_type: txType,
+      transaction_category_id: targetCategoryId,
       transaction_date: input.transaction_date,
       property_id: input.property_id || expected.property_id || '',
       lease_id: input.lease_id || expected.lease_id || undefined,
@@ -576,6 +714,9 @@ export async function recordTransactionForExpectedPayment(
       description: input.description || `Payment for ${expected.schedule_name}`,
       notes: input.notes,
       status: 'completed',
+      gst_inclusive: isGstInc,
+      gst_amount: resolvedGstAmount,
+      tax_classification_id: resolvedTaxClassId,
     },
     userId
   );

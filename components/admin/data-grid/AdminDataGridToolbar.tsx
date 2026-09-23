@@ -131,76 +131,72 @@ export function AdminDataGridToolbar({
   return (
     <div
       className={cn(
-        'admin-data-grid-toolbar relative border-b border-admin-divider bg-admin-surface transition-[padding] duration-250 ease-out',
-        compact ? 'admin-data-grid-toolbar--compact px-2 py-1' : 'px-2 py-1.5'
+        'admin-data-grid-toolbar relative bg-admin-surface/60 backdrop-blur-xs p-2.5 sm:p-3 transition-[padding] duration-250 ease-out border-b border-admin-divider/60',
+        compact && 'admin-data-grid-toolbar--compact p-2'
       )}
     >
       {/* Contextual Bulk Action Bar when items are selected */}
       {selectedCount > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-2.5 animate-slide-up bg-admin-surface-elevated p-1.5 rounded-lg border border-admin-primary/30 shadow-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-md bg-admin-primary-soft text-admin-primary flex items-center justify-center font-bold text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 animate-slide-up bg-admin-surface border border-[#008F83]/30 p-2 sm:p-2.5 rounded-xl shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="w-6 h-6 rounded-lg bg-[#008F83]/15 text-[#008F83] flex items-center justify-center font-bold text-xs">
               {selectedCount}
             </span>
-            <span className="text-caption font-semibold text-admin-foreground">
+            <span className="text-xs font-semibold text-admin-foreground">
               {selectedCount === 1 ? `1 ${labelSingular} selected` : `${selectedCount} ${labelPlural} selected`}
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {bulkActions.map((action, idx) => (
-              <Button
+              <button
                 key={idx}
-                variant={action.variant || 'secondary'}
-                size="sm"
+                type="button"
                 onClick={() => action.onClick(selectedRows)}
-                leftIcon={action.icon}
+                className={cn(
+                  'h-9 px-3.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs border',
+                  action.variant === 'destructive'
+                    ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                )}
               >
-                {action.label}
-              </Button>
+                {action.icon}
+                <span>{action.label}</span>
+              </button>
             ))}
 
-            <Button
-              variant="ghost"
-              size="sm"
+            <button
+              type="button"
               onClick={onClearSelection}
-              leftIcon={<X className="w-3.5 h-3.5" />}
+              className="h-9 px-3 rounded-xl text-xs font-medium text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-subtle transition-colors flex items-center gap-1.5"
             >
-              Deselect
-            </Button>
+              <X className="w-3.5 h-3.5" />
+              <span>Deselect</span>
+            </button>
           </div>
         </div>
       ) : (
         /* Normal Toolbar */
-        <div className={cn('flex flex-col lg:flex-row lg:items-center justify-between', compact ? 'gap-1' : 'gap-2')}>
-          {/* Left: Quick Filters & Search */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+          {/* Left: Search Bar & Primary Left Content */}
           <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
-            {leftContent}
-
-            {loading && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#008F83]/10 border border-[#008F83]/20 text-[#008F83] text-xs font-semibold shrink-0 animate-fade-in">
-                <div className="w-3.5 h-3.5 border-2 border-[#008F83] border-t-transparent rounded-full animate-spin shrink-0" />
-                <span>Loading...</span>
-              </div>
-            )}
-
-            {/* Global Search Bar */}
+            {/* Global Search Bar (Modelled after reference mockup) */}
             {!hideSearch && (
-              <div className={cn('relative flex-1 min-w-[190px]', compact ? 'max-w-[220px]' : 'max-w-xs')}>
-                <Search className="w-4 h-4 text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <div className="relative flex-1 min-w-[200px] max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   value={searchValue}
                   onChange={(e) => onSearchChange(e.target.value)}
                   placeholder={searchPlaceholder}
-                  className="w-full h-8 pl-8 pr-7 rounded-lg bg-surface border border-border text-[12px] text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-[#008F83]/20 focus:border-[#008F83] transition-all shadow-2xs"
+                  className="w-full h-10 sm:h-10.5 pl-10 pr-8 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs sm:text-[13px] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#008F83]/20 focus:border-[#008F83] transition-all shadow-xs"
                   aria-label={searchPlaceholder}
                 />
                 {searchValue && (
                   <button
                     type="button"
                     onClick={() => onSearchChange('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted hover:text-foreground"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                     aria-label="Clear search"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -208,36 +204,45 @@ export function AdminDataGridToolbar({
                 )}
               </div>
             )}
+
+            {leftContent}
+
+            {loading && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#008F83]/10 border border-[#008F83]/20 text-[#008F83] text-xs font-semibold shrink-0 animate-fade-in">
+                <div className="w-3.5 h-3.5 border-2 border-[#008F83] border-t-transparent rounded-full animate-spin shrink-0" />
+                <span>Loading...</span>
+              </div>
+            )}
           </div>
 
-          {/* Right: Columns menu, Export, Count */}
-          <div className="flex items-center gap-2 shrink-0 self-end lg:self-center">
+          {/* Right: Dropdown Filters, Columns & Export (Modelled after reference mockup) */}
+          <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-center">
             {rightContent}
 
             {/* Column Visibility Menu */}
             {enableColumnChooser && (
               <div className="relative" ref={menuRef}>
-                <Button
-                  variant="secondary"
-                  size="sm"
+                <button
+                  type="button"
                   onClick={() => {
                     refreshColumns();
                     setIsColumnMenuOpen(!isColumnMenuOpen);
                   }}
-                  leftIcon={<Columns className="w-4 h-4" />}
-                  title="Columns"
+                  className="h-10 px-3.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 transition-all flex items-center gap-1.5"
+                  title="Toggle Columns"
                 >
-                  {!compact && 'Columns'}
-                </Button>
+                  <Columns className="w-4 h-4 text-slate-500" />
+                  <span className="hidden sm:inline">Columns</span>
+                </button>
 
                 {isColumnMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 p-2 rounded-xl bg-surface border border-border shadow-elevation-2 z-dropdown animate-slide-up">
-                    <div className="flex items-center justify-between px-2 py-1.5 border-b border-divider mb-1">
-                      <span className="text-caption font-bold text-foreground">Toggle Columns</span>
+                  <div className="absolute right-0 mt-2 w-56 p-2 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl z-dropdown animate-slide-up">
+                    <div className="flex items-center justify-between px-2 py-1.5 border-b border-slate-100 dark:border-slate-700 mb-1">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">Toggle Columns</span>
                       <button
                         type="button"
                         onClick={resetColumns}
-                        className="text-metadata text-muted hover:text-[#008F83] flex items-center gap-1"
+                        className="text-[11px] text-slate-500 hover:text-[#008F83] flex items-center gap-1"
                         title="Reset column layout"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
@@ -267,34 +272,33 @@ export function AdminDataGridToolbar({
 
             {/* Export CSV */}
             {enableExport && (
-              <Button
-                variant="secondary"
-                size="sm"
+              <button
+                type="button"
                 onClick={handleExportCsv}
-                leftIcon={<Download className="w-4 h-4" />}
+                className="h-10 px-3.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 transition-all flex items-center gap-1.5"
                 title="Export CSV"
               >
-                {!compact && 'Export'}
-              </Button>
+                <Download className="w-4 h-4 text-slate-500" />
+                {!compact && <span>Export</span>}
+              </button>
             )}
 
             {/* Explicit Expand / Collapse Button */}
             {onToggleExpand && (
-              <Button
-                variant="secondary"
-                size="sm"
+              <button
+                type="button"
                 onClick={onToggleExpand}
                 title={isExpanded ? 'Collapse Grid ↓' : 'Expand Grid ↑'}
-                className="font-medium"
+                className="h-10 px-3.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 transition-all flex items-center gap-1.5"
               >
-                {isExpanded ? 'Collapse Grid ↓' : 'Expand Grid ↑'}
-              </Button>
+                <span>{isExpanded ? 'Collapse ↓' : 'Expand ↑'}</span>
+              </button>
             )}
 
             {/* Total Count Badge */}
             {totalCount !== undefined && !compact && (
-              <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface text-[11px] text-muted border border-border font-medium shadow-2xs">
-                <span className="font-bold text-foreground">{totalCount}</span>
+              <div className="hidden sm:flex items-center gap-1 px-3 h-10 rounded-xl bg-slate-50/80 dark:bg-slate-800/80 text-xs text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/60 font-medium">
+                <span className="font-bold text-slate-900 dark:text-white">{totalCount}</span>
                 <span>{totalCount === 1 ? labelSingular : labelPlural}</span>
               </div>
             )}

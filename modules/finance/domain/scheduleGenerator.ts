@@ -16,6 +16,9 @@ export interface GeneratedScheduleItem {
   tenant_id?: string | null;
   transaction_category_id?: string | null;
   notes?: string | null;
+  gst_inclusive?: boolean;
+  gst_amount?: number;
+  tax_classification_id?: string | null;
 }
 
 /**
@@ -35,6 +38,9 @@ export function generateScheduleEntries(input: CreateExpectedScheduleInput): Gen
     transaction_category_id,
     workspace_id,
     notes,
+    gst_inclusive,
+    gst_amount,
+    tax_classification_id,
   } = input;
 
   if (!start_date || !end_date) {
@@ -54,10 +60,9 @@ export function generateScheduleEntries(input: CreateExpectedScheduleInput): Gen
 
   while (!isAfter(currentDate, endDateObj)) {
     const formattedDueDate = format(currentDate, 'yyyy-MM-dd');
-    const entryTitle = `${schedule_name} #${entryIndex}`;
 
     entries.push({
-      schedule_name: entryTitle,
+      schedule_name: schedule_name,
       schedule_type,
       amount,
       due_date: formattedDueDate,
@@ -71,6 +76,9 @@ export function generateScheduleEntries(input: CreateExpectedScheduleInput): Gen
       tenant_id: tenant_id || null,
       transaction_category_id: transaction_category_id || null,
       notes: notes || null,
+      gst_inclusive: gst_inclusive || false,
+      gst_amount: gst_amount || 0,
+      tax_classification_id: tax_classification_id || null,
     });
 
     entryIndex++;

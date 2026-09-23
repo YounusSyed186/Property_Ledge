@@ -27,7 +27,7 @@ export function QuickFilterBar({
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1 bg-surface-subtle p-0.5 rounded-lg border border-border max-w-full overflow-x-auto admin-scrollbar shrink-0',
+        'inline-flex items-center gap-1.5 p-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 max-w-full overflow-x-auto admin-scrollbar shrink-0',
         className
       )}
       role="radiogroup"
@@ -43,23 +43,23 @@ export function QuickFilterBar({
             aria-checked={isActive}
             onClick={() => onChange(opt.value)}
             className={cn(
-              'px-3 py-1.5 rounded-md text-[12px] transition-all duration-150 flex items-center gap-1.5 whitespace-nowrap font-medium',
+              'h-8 px-3 rounded-lg text-xs transition-all duration-150 flex items-center gap-1.5 whitespace-nowrap font-medium',
               isActive
-                ? 'bg-[#008F83] text-white shadow-xs font-semibold'
-                : 'text-muted hover:text-foreground hover:bg-surface'
+                ? 'bg-white dark:bg-slate-700 text-[#008F83] font-bold shadow-xs'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-700/40'
             )}
           >
             {loading && isActive && (
-              <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" />
+              <div className="w-3 h-3 border-2 border-[#008F83] border-t-transparent rounded-full animate-spin shrink-0" />
             )}
             <span>{opt.label}</span>
             {opt.count !== undefined && (
               <span
                 className={cn(
-                  'text-[10px] px-1.5 py-0.5 rounded-full font-mono font-semibold leading-none',
+                  'text-[10px] px-1.5 py-0.5 rounded-full font-semibold leading-none',
                   isActive
-                    ? 'bg-white/20 text-white'
-                    : 'bg-surface text-muted border border-border'
+                    ? 'bg-[#008F83]/15 text-[#008F83]'
+                    : 'bg-slate-200/70 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
                 )}
               >
                 {opt.count}

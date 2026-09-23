@@ -11,25 +11,25 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 const variantStyles: Record<BadgeVariant, string> = {
-  success: 'bg-[#F0FDF4] dark:bg-[#16A34A]/15 text-[#15803D] dark:text-[#4ADE80] border-[#BBF7D0] dark:border-[#16A34A]/30 font-medium',
-  warning: 'bg-[#FFFBEB] dark:bg-[#D97706]/15 text-[#B45309] dark:text-[#FBBF24] border-[#FDE68A] dark:border-[#D97706]/30 font-medium',
-  danger: 'bg-[#FEF2F2] dark:bg-[#DC2626]/15 text-[#B91C1C] dark:text-[#F87171] border-[#FECACA] dark:border-[#DC2626]/30 font-medium',
-  info: 'bg-[#F0F9FF] dark:bg-[#0284C7]/15 text-[#0369A1] dark:text-[#60A5FA] border-[#BAE6FD] dark:border-[#0284C7]/30 font-medium',
-  neutral: 'bg-[#F8FAFC] dark:bg-[#1E293B] text-[#475569] dark:text-[#94A3B8] border-[#E2E8F0] dark:border-[#334155] font-medium',
-  primary: 'bg-[#F0FBFA] dark:bg-[#008F83]/15 text-[#008F83] dark:text-[#32D5C4] border-[#CCECE8] dark:border-[#008F83]/30 font-medium',
+  success: 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40 font-semibold',
+  warning: 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40 font-semibold',
+  danger: 'bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40 font-semibold',
+  info: 'bg-sky-50 text-sky-700 border-sky-200/60 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/40 font-semibold',
+  neutral: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-semibold',
+  primary: 'bg-[#008F83]/10 text-[#008F83] border-[#008F83]/20 dark:bg-[#008F83]/20 dark:text-[#32D5C4] dark:border-[#008F83]/30 font-semibold',
 };
 
 const sizeStyles: Record<BadgeSize, string> = {
-  sm: 'px-2 py-0.5 text-[10px] gap-1 rounded-md tracking-normal font-medium',
-  md: 'px-2.5 py-0.5 text-[11px] gap-1.5 rounded-md tracking-normal font-medium',
+  sm: 'px-2.5 py-0.5 text-[11px] gap-1.5 rounded-full tracking-normal',
+  md: 'px-3 py-1 text-xs gap-1.5 rounded-full tracking-normal',
 };
 
 const dotColors: Record<BadgeVariant, string> = {
-  success: 'bg-[#16A34A] dark:bg-[#4ADE80]',
-  warning: 'bg-[#D97706] dark:bg-[#FBBF24]',
-  danger: 'bg-[#DC2626] dark:bg-[#F87171]',
-  info: 'bg-[#0284C7] dark:bg-[#60A5FA]',
-  neutral: 'bg-[#94A3B8]',
+  success: 'bg-emerald-500',
+  warning: 'bg-amber-500',
+  danger: 'bg-rose-500',
+  info: 'bg-sky-500',
+  neutral: 'bg-slate-400',
   primary: 'bg-[#008F83]',
 };
 
@@ -37,7 +37,7 @@ export function Badge({ variant = 'neutral', size = 'sm', dot = false, className
   return (
     <span
       className={cn(
-        'inline-flex items-center border rounded-md shadow-2xs',
+        'inline-flex items-center border rounded-full shadow-2xs font-sans',
         variantStyles[variant],
         sizeStyles[size],
         className

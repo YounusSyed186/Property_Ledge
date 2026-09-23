@@ -48,6 +48,7 @@ export function PropertyCreationWizard({
     carSpaces: '1',
     rentAmount: '650',
     paymentFrequency: 'Weekly',
+    gstEnabled: false,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -135,6 +136,7 @@ export function PropertyCreationWizard({
           rent_amount: formData.rentAmount !== '' ? Number(formData.rentAmount) : 0,
           payment_frequency: formData.paymentFrequency,
           status: 'active' as const,
+          gst_enabled: formData.gstEnabled,
         };
 
         const result = await handleCreateProperty(payload as any);
@@ -265,6 +267,18 @@ export function PropertyCreationWizard({
                 </div>
               )}
 
+              {/* Property Name */}
+              <div>
+                <Input
+                  label="Property Name"
+                  name="name"
+                  placeholder="e.g. Sunset Heights (or leave blank to use address)"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="bg-white dark:bg-slate-800"
+                />
+              </div>
+
               {/* Street Address */}
               <div>
                 <Input
@@ -365,8 +379,8 @@ export function PropertyCreationWizard({
                 </button>
               </div>
 
-              {/* Property Type & Optional Property Name */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Property Type */}
+              <div>
                 <Select
                   label="Property Type"
                   name="propertyType"
@@ -391,15 +405,6 @@ export function PropertyCreationWizard({
                     </>
                   )}
                 </Select>
-
-                <Input
-                  label="Property Name (Optional)"
-                  name="name"
-                  placeholder="e.g. Sunset Heights"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="bg-white dark:bg-slate-800"
-                />
               </div>
             </motion.div>
           )}
@@ -473,6 +478,50 @@ export function PropertyCreationWizard({
                   <option value="Fortnightly">Fortnightly</option>
                   <option value="Monthly">Monthly</option>
                 </Select>
+              </div>
+
+              {/* Australian GST Tracking Toggle */}
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 p-4 space-y-2 mt-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <label
+                      onClick={() =>
+                        setFormData((prev) => ({ ...prev, gstEnabled: !prev.gstEnabled }))
+                      }
+                      className="text-xs font-bold text-slate-900 dark:text-white cursor-pointer flex items-center gap-1.5"
+                    >
+                      Australian GST Tracking
+                    </label>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Enable for commercial leases or properties registered for GST & BAS reporting
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={formData.gstEnabled}
+                    onClick={() =>
+                      setFormData((prev) => ({ ...prev, gstEnabled: !prev.gstEnabled }))
+                    }
+                    className={cn(
+                      'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#008F83] focus:ring-offset-2',
+                      formData.gstEnabled ? 'bg-[#008F83]' : 'bg-slate-200 dark:bg-slate-700'
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                        formData.gstEnabled ? 'translate-x-5' : 'translate-x-0'
+                      )}
+                    />
+                  </button>
+                </div>
+                {formData.gstEnabled && (
+                  <p className="text-[11px] text-[#008F83] dark:text-emerald-400 font-medium pt-1">
+                    ✓ GST fields and 1/11th calculation will be available on all ledger entries for this property.
+                  </p>
+                )}
               </div>
             </motion.div>
           )}

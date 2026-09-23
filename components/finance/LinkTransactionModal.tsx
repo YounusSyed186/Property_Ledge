@@ -12,7 +12,10 @@ import {
   Building,
   User,
   AlertCircle,
+  AlertTriangle,
   Info,
+  Receipt,
+  Percent,
 } from 'lucide-react';
 import { Button, useToast } from '@/components/admin/ui';
 import {
@@ -20,12 +23,17 @@ import {
   linkTransactionAction,
   recordAndLinkTransactionAction,
 } from '@/app/actions/schedules';
-import { fetchCategoriesAction } from '@/app/actions/finance';
-import { getCachedCategories } from '@/lib/cache/optionsCache';
+import { getDropdownOptions } from '@/lib/cache/optionsCache';
+import {
+  checkTaxClassificationMismatch,
+  calculateProportionalGst,
+} from '@/modules/finance/domain/taxContext';
+import { calculateGstPortion } from '@/modules/finance/domain/bas-calculations';
 import {
   ExpectedPaymentScheduleDTO,
   TransactionDTO,
   CategoryDTO,
+  TaxClassificationDTO,
 } from '@/modules/finance/domain/types';
 
 interface LinkTransactionModalProps {
@@ -56,12 +64,18 @@ export function LinkTransactionModal({
 
   // New Transaction Form State for Record New (Journey 5)
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
+  const [taxClassifications, setTaxClassifications] = useState<TaxClassificationDTO[]>([]);
   const [recordAmount, setRecordAmount] = useState<string>('');
   const [recordDate, setRecordDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [paymentMethod, setPaymentMethod] = useState<string>('bank_transfer');
   const [categoryId, setCategoryId] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [recordNotes, setRecordNotes] = useState<string>('');
+
+  // Tax and GST State for Recorded Transaction
+  const [gstInclusive, setGstInclusive] = useState<boolean>(false);
+  const [gstAmount, setGstAmount] = useState<string>('0.00');
+  const [taxClassificationId, setTaxClassificationId] = useState<string>('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -76,10 +90,24 @@ export function LinkTransactionModal({
     setDescription(`Payment for ${expectedPayment.schedule_name}`);
     setSelectedTxId('');
 
-    // Load categories instantly from cache
-    getCachedCategories('income').then((cats) => {
-      setCategories(cats || []);
-      const match = (cats || []).find(
+    // Tax defaults from schedule
+    const isGstInc = Boolean(expectedPayment.gst_inclusive);
+    setGstInclusive(isGstInc);
+    setTaxClassificationId(expectedPayment.tax_classification_id || '');
+
+    const initGst = calculateProportionalGst(
+      expectedPayment.amount,
+      expectedPayment.gst_amount || 0,
+      remaining,
+      isGstInc
+    );
+    setGstAmount(initGst.toFixed(2));
+
+    // Load categories and tax classifications
+    getDropdownOptions().then((opts) => {
+      setCategories(opts.categories || []);
+      setTaxClassifications(opts.taxClassifications || []);
+      const match = (opts.categories || []).find(
         (c) => c.id === expectedPayment.transaction_category_id || c.name.toLowerCase().includes('rent')
       );
       if (match) setCategoryId(match.id);
@@ -110,6 +138,32 @@ export function LinkTransactionModal({
       const defaultAlloc = Math.min(tx.unallocated_amount, remaining);
       setLinkAmount(String(defaultAlloc));
     }
+  };
+
+  const handleRecordAmountChange = (val: string) => {
+    setRecordAmount(val);
+    if (!expectedPayment) return;
+    const num = parseFloat(val) || 0;
+    const propGst = calculateProportionalGst(
+      expectedPayment.amount,
+      expectedPayment.gst_amount || 0,
+      num,
+      gstInclusive
+    );
+    setGstAmount(propGst.toFixed(2));
+  };
+
+  const handleGstToggle = (isInc: boolean) => {
+    setGstInclusive(isInc);
+    if (!expectedPayment) return;
+    const num = parseFloat(recordAmount) || 0;
+    const propGst = calculateProportionalGst(
+      expectedPayment.amount,
+      expectedPayment.gst_amount || 0,
+      num,
+      isInc
+    );
+    setGstAmount(isInc ? propGst.toFixed(2) : '0.00');
   };
 
   // Submit Link Existing Transaction (Journey 4 & 6)
@@ -180,12 +234,15 @@ export function LinkTransactionModal({
         description: description || undefined,
         notes: recordNotes || undefined,
         allocation_amount: numAmount,
+        gst_inclusive: gstInclusive,
+        gst_amount: parseFloat(gstAmount) || 0,
+        tax_classification_id: taxClassificationId || undefined,
       });
 
       if (res.success) {
         toast({
           title: 'Transaction Recorded',
-          description: `Successfully created transaction & allocated $${numAmount.toFixed(2)}!`,
+          description: `Successfully created transaction & allocated $${numAmount.toFixed(2)} with tax classification!`,
         });
         onSuccess();
         onClose();
@@ -203,6 +260,15 @@ export function LinkTransactionModal({
 
   const remaining = expectedPayment.remaining_amount ?? expectedPayment.amount;
   const isPartial = remaining < expectedPayment.amount;
+
+  const selectedTransaction = eligibleTransactions.find((t) => t.id === selectedTxId);
+  const mismatchInfo = selectedTransaction
+    ? checkTaxClassificationMismatch(
+        expectedPayment.tax_classification_id,
+        selectedTransaction.tax_classification_id,
+        taxClassifications
+      )
+    : { isMismatch: false, scheduleLabel: '', txLabel: '' };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 overflow-y-auto animate-in fade-in duration-200">
@@ -244,6 +310,11 @@ export function LinkTransactionModal({
             {isPartial && (
               <span className="text-amber-600 dark:text-amber-400 font-semibold">
                 (Partial Payment: ${expectedPayment.total_allocated?.toFixed(2)} paid)
+              </span>
+            )}
+            {expectedPayment.gst_inclusive && (
+              <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
+                GST: ${expectedPayment.gst_amount?.toFixed(2)}
               </span>
             )}
           </div>
@@ -294,7 +365,7 @@ export function LinkTransactionModal({
                 <AlertCircle className="h-8 w-8 text-amber-500 mx-auto" />
                 <p className="text-xs font-bold text-slate-900 dark:text-white">No Unallocated Transactions Found</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                  There are no unallocated income transactions recorded in this workspace. Switch to "Record New
+                  There are no unallocated transactions matching this schedule. Switch to "Record New
                   Transaction" tab to log a new payment.
                 </p>
               </div>
@@ -309,11 +380,27 @@ export function LinkTransactionModal({
                   >
                     {eligibleTransactions.map((tx) => (
                       <option key={tx.id} value={tx.id}>
-                        {tx.transaction_date} - {tx.description || tx.category?.name || 'Income'} (${tx.amount.toFixed(2)} total, ${tx.unallocated_amount.toFixed(2)} available)
+                        {tx.transaction_date} - {tx.description || tx.category?.name || 'Payment'} (${tx.amount.toFixed(2)} total, ${tx.unallocated_amount.toFixed(2)} available)
                       </option>
                     ))}
                   </select>
                 </div>
+
+                {/* Tax Classification Mismatch Warning */}
+                {mismatchInfo.isMismatch && (
+                  <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 space-y-1 text-xs text-amber-700 dark:text-amber-300 animate-in fade-in duration-150">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                      Tax Classification Mismatch Detected
+                    </div>
+                    <p className="text-[11px] leading-relaxed">
+                      Schedule classification: <span className="font-semibold">{mismatchInfo.scheduleLabel}</span>. Transaction classification: <span className="font-semibold">{mismatchInfo.txLabel}</span>.
+                    </p>
+                    <p className="text-[11px] opacity-80">
+                      Linking will allocate payment without altering the completed transaction's tax audit history.
+                    </p>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
@@ -394,7 +481,7 @@ export function LinkTransactionModal({
                   type="number"
                   step="0.01"
                   value={recordAmount}
-                  onChange={(e) => setRecordAmount(e.target.value)}
+                  onChange={(e) => handleRecordAmountChange(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:border-[#008F83] focus:outline-none focus:ring-1 focus:ring-[#008F83]"
                 />
               </div>
@@ -443,10 +530,71 @@ export function LinkTransactionModal({
                   <option value="">-- Select Category --</option>
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name}
+                      {c.name} ({c.transaction_type})
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            {/* Tax Treatment & GST Breakdown */}
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3.5 space-y-3">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
+                <span className="flex items-center gap-1.5">
+                  <Receipt className="h-4 w-4 text-[#008F83]" />
+                  Tax Treatment & Canonical BAS Classification
+                </span>
+                {gstInclusive && (
+                  <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+                    GST: ${gstAmount}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">GST Registration</label>
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="recordGstToggle"
+                      checked={gstInclusive}
+                      onChange={(e) => handleGstToggle(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-[#008F83] focus:ring-[#008F83]"
+                    />
+                    <label htmlFor="recordGstToggle" className="text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                      Amount includes GST
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">GST Amount ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    disabled={!gstInclusive}
+                    value={gstAmount}
+                    onChange={(e) => setGstAmount(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-1.5 text-xs text-slate-900 dark:text-white disabled:opacity-50"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">BAS Classification</label>
+                  <select
+                    value={taxClassificationId}
+                    onChange={(e) => setTaxClassificationId(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-1.5 text-xs text-slate-900 dark:text-white"
+                  >
+                    <option value="">-- Inherited from Schedule --</option>
+                    {taxClassifications.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.bas_code ? `[${t.bas_code}] ` : ''}{t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -490,3 +638,4 @@ export function LinkTransactionModal({
     </div>
   );
 }
+

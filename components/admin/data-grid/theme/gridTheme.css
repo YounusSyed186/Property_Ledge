@@ -5,28 +5,28 @@
 
 .ag-theme-propertyledge {
   --ag-font-family: var(--font-outfit), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --ag-font-size: 13px;
+  --ag-font-size: 13.5px;
   --ag-grid-size: 4px;
-  --ag-row-height: 42px;
-  --ag-header-height: 40px;
-  --ag-list-item-height: 38px;
+  --ag-row-height: 48px;
+  --ag-header-height: 44px;
+  --ag-list-item-height: 40px;
 
   /* Colors */
   --ag-background-color: var(--admin-surface);
   --ag-foreground-color: var(--admin-foreground);
   --ag-data-color: var(--admin-foreground);
   --ag-secondary-foreground-color: var(--admin-muted);
-  --ag-header-background-color: var(--admin-surface-elevated);
+  --ag-header-background-color: var(--admin-surface-subtle);
   --ag-header-foreground-color: var(--admin-muted);
-  --ag-header-cell-hover-background-color: var(--admin-surface-subtle);
-  --ag-header-cell-moving-background-color: var(--admin-surface-subtle);
+  --ag-header-cell-hover-background-color: var(--admin-surface-elevated);
+  --ag-header-cell-moving-background-color: var(--admin-surface-elevated);
 
   /* Borders & Dividers */
-  --ag-border-color: var(--admin-border);
-  --ag-border-radius: 6px;
+  --ag-border-color: transparent;
+  --ag-border-radius: 12px;
   --ag-row-border-color: var(--admin-divider);
   --ag-cell-horizontal-border: solid transparent;
-  --ag-header-column-separator-color: var(--admin-border-subtle);
+  --ag-header-column-separator-color: transparent;
   --ag-header-column-resize-handle-color: var(--admin-primary);
 
   /* Selection & Hover */
@@ -38,10 +38,10 @@
   /* Inputs, Controls & Menus */
   --ag-input-focus-border-color: var(--admin-primary);
   --ag-input-border-color: var(--admin-border);
-  --ag-checkbox-checked-color: var(--admin-foreground);
+  --ag-checkbox-checked-color: #008F83;
   --ag-checkbox-unchecked-color: var(--admin-border);
   --ag-checkbox-background-color: var(--admin-surface);
-  --ag-checkbox-border-radius: 4px;
+  --ag-checkbox-border-radius: 6px;
 
   /* Menus & Popups */
   --ag-control-panel-background-color: var(--admin-surface);
@@ -52,7 +52,7 @@
 
   width: 100%;
   height: 100%;
-  border-radius: 6px;
+  border-radius: 12px;
 }
 
 /* Custom Header Typography & Styling */

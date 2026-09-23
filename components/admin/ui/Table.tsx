@@ -20,7 +20,7 @@ const densityStyles = {
 
 export function Table({ density = 'default', className, children, ...props }: TableProps) {
   return (
-    <div className="w-full overflow-x-auto admin-scrollbar">
+    <div className="w-full overflow-x-auto admin-scrollbar rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-[0_2px_10px_rgba(0,0,0,0.03)]">
       <table className={cn('w-full text-left', densityStyles[density], className)} {...props}>
         {children}
       </table>
@@ -32,7 +32,7 @@ export function TableHeader({ className, children, ...props }: React.HTMLAttribu
   return (
     <thead
       className={cn(
-        'border-b border-admin-divider bg-admin-sidebar-surface/40 text-admin-muted uppercase tracking-wide text-[11px] font-semibold',
+        'border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs font-semibold',
         className
       )}
       {...props}
@@ -44,7 +44,7 @@ export function TableHeader({ className, children, ...props }: React.HTMLAttribu
 
 export function TableBody({ className, children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
-    <tbody className={cn('divide-y divide-admin-divider/60', className)} {...props}>
+    <tbody className={cn('divide-y divide-slate-100 dark:divide-slate-800/60', className)} {...props}>
       {children}
     </tbody>
   );
@@ -53,7 +53,7 @@ export function TableBody({ className, children, ...props }: React.HTMLAttribute
 export function TableRow({ className, children, ...props }: React.HTMLAttributes<HTMLTableRowElement>) {
   return (
     <tr
-      className={cn('transition-colors duration-150 hover:bg-admin-surface-subtle/50', className)}
+      className={cn('transition-colors duration-150 hover:bg-slate-50/60 dark:hover:bg-slate-800/40', className)}
       {...props}
     >
       {children}
@@ -63,7 +63,7 @@ export function TableRow({ className, children, ...props }: React.HTMLAttributes
 
 export function TableHead({ className, children, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <th className={cn('px-4 font-semibold whitespace-nowrap', className)} {...props}>
+    <th className={cn('px-4 py-3 font-semibold text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap', className)} {...props}>
       {children}
     </th>
   );
@@ -71,7 +71,7 @@ export function TableHead({ className, children, ...props }: React.ThHTMLAttribu
 
 export function TableCell({ className, children, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={cn('px-4 text-admin-foreground align-middle', className)} {...props}>
+    <td className={cn('px-4 py-3.5 text-xs sm:text-[13px] text-slate-800 dark:text-slate-200 align-middle', className)} {...props}>
       {children}
     </td>
   );
@@ -101,26 +101,26 @@ export function TableToolbar({
   return (
     <div
       className={cn(
-        'flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-admin-divider bg-admin-sidebar-surface/20',
+        'flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900',
         className
       )}
       {...props}
     >
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        {leftContent}
+      <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
         {onSearchChange && (
-          <div className="relative flex-1 max-w-xs">
-            <Search className="w-4 h-4 text-admin-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <div className="relative flex-1 min-w-[200px] max-w-md">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchValue}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder={searchPlaceholder}
-              className="w-full h-9 pl-9 pr-3 rounded-lg bg-admin-sidebar-surface border border-admin-border text-body-sm text-admin-foreground placeholder:text-admin-muted/60 focus:outline-none focus:ring-2 focus:ring-admin-primary/40 focus:border-admin-primary transition-all duration-200"
+              className="w-full h-10 pl-10 pr-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs sm:text-[13px] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#008F83]/20 focus:border-[#008F83] transition-all shadow-xs"
               aria-label={searchPlaceholder}
             />
           </div>
         )}
+        {leftContent}
       </div>
       {rightContent && <div className="flex items-center gap-2 shrink-0">{rightContent}</div>}
     </div>
@@ -142,22 +142,49 @@ interface PaginationProps {
 export function Pagination({ page, totalPages, totalItems, onPageChange, pageSize = 10 }: PaginationProps) {
   const from = totalItems ? (page - 1) * pageSize + 1 : 0;
   const to = totalItems ? Math.min(page * pageSize, totalItems) : 0;
+  const safeTotalPages = Math.max(1, totalPages);
+
+  const getPageNumbers = () => {
+    const pages: (number | 'ellipsis')[] = [];
+    if (safeTotalPages <= 7) {
+      for (let i = 1; i <= safeTotalPages; i++) pages.push(i);
+    } else {
+      if (page <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push('ellipsis');
+        pages.push(safeTotalPages);
+      } else if (page >= safeTotalPages - 3) {
+        pages.push(1);
+        pages.push('ellipsis');
+        for (let i = safeTotalPages - 4; i <= safeTotalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('ellipsis');
+        for (let i = page - 1; i <= page + 1; i++) pages.push(i);
+        pages.push('ellipsis');
+        pages.push(safeTotalPages);
+      }
+    }
+    return pages;
+  };
+
+  const pageNumbers = getPageNumbers();
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 border-t border-admin-divider">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs text-slate-500">
       {totalItems !== undefined && (
-        <p className="text-caption text-admin-muted">
-          Showing <span className="font-semibold text-admin-foreground">{from}</span>–
-          <span className="font-semibold text-admin-foreground">{to}</span> of{' '}
-          <span className="font-semibold text-admin-foreground">{totalItems}</span>
+        <p className="text-slate-500 dark:text-slate-400 font-medium">
+          Showing <span className="font-bold text-slate-900 dark:text-white">{from}</span>–
+          <span className="font-bold text-slate-900 dark:text-white">{to}</span> of{' '}
+          <span className="font-bold text-slate-900 dark:text-white">{totalItems}</span>
         </p>
       )}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center justify-center gap-1 self-center">
         <button
           type="button"
           onClick={() => onPageChange(1)}
           disabled={page <= 1}
-          className="w-8 h-8 rounded-lg border border-admin-border flex items-center justify-center text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-subtle disabled:opacity-40 disabled:pointer-events-none transition-colors"
+          className="w-8 h-8 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all shadow-xs"
           aria-label="First page"
         >
           <ChevronsLeft className="w-4 h-4" />
@@ -166,29 +193,54 @@ export function Pagination({ page, totalPages, totalItems, onPageChange, pageSiz
           type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
-          className="w-8 h-8 rounded-lg border border-admin-border flex items-center justify-center text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-subtle disabled:opacity-40 disabled:pointer-events-none transition-colors"
+          className="w-8 h-8 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all shadow-xs"
           aria-label="Previous page"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="px-3 text-caption text-admin-muted">
-          Page <span className="font-semibold text-admin-foreground">{page}</span> of{' '}
-          <span className="font-semibold text-admin-foreground">{totalPages || 1}</span>
-        </span>
+        
+        <div className="flex items-center gap-1 mx-1">
+          {pageNumbers.map((p, idx) => {
+            if (p === 'ellipsis') {
+              return (
+                <span key={`ellipsis-${idx}`} className="w-6 text-center text-slate-400 font-bold text-xs">
+                  ...
+                </span>
+              );
+            }
+            const isActive = p === page;
+            return (
+              <button
+                key={p}
+                type="button"
+                onClick={() => onPageChange(p)}
+                className={cn(
+                  'w-8 h-8 rounded-xl flex items-center justify-center text-xs font-semibold transition-all',
+                  isActive
+                    ? 'bg-[#008F83] text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 shadow-xs'
+                )}
+              >
+                {p}
+              </button>
+            );
+          })}
+        </div>
+
         <button
           type="button"
           onClick={() => onPageChange(page + 1)}
-          disabled={page >= totalPages}
-          className="w-8 h-8 rounded-lg border border-admin-border flex items-center justify-center text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-subtle disabled:opacity-40 disabled:pointer-events-none transition-colors"
+          disabled={page >= safeTotalPages}
+          className="w-8 h-8 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all shadow-xs"
           aria-label="Next page"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
         <button
           type="button"
-          onClick={() => onPageChange(totalPages)}
-          disabled={page >= totalPages}
-          className="w-8 h-8 rounded-lg border border-admin-border flex items-center justify-center text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-subtle disabled:opacity-40 disabled:pointer-events-none transition-colors"
+          onClick={() => onPageChange(safeTotalPages)}
+          disabled={page >= safeTotalPages}
+          className="w-8 h-8 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all shadow-xs"
           aria-label="Last page"
         >
           <ChevronsRight className="w-4 h-4" />

@@ -24,7 +24,7 @@ export async function getCategories(type?: TransactionType): Promise<CategoryDTO
   const supabase = await createClient();
   let query = supabase
     .from('categories')
-    .select('id, transaction_type, name, description, is_active, created_at, updated_at')
+    .select('id, transaction_type, name, description, is_active, category_group_id, default_tax_classification_id, created_at, updated_at')
     .eq('is_active', true)
     .order('name', { ascending: true });
 
@@ -71,8 +71,21 @@ export async function getTransactions(
       created_by,
       created_at,
       updated_at,
-      category:categories(id, transaction_type, name, description, is_active, created_at, updated_at),
-      property:properties(id, name, address_line_1, city, state),
+      gst_inclusive,
+      gst_amount,
+      tax_classification_id,
+      category:categories(
+        id,
+        transaction_type,
+        name,
+        description,
+        is_active,
+        category_group_id,
+        created_at,
+        updated_at
+      ),
+      tax_classification:tax_classifications(id, name, bas_code, description, is_active),
+      property:properties(id, name, address_line_1, city, state, gst_enabled),
       tenant:tenants(id, first_name, last_name, email),
       lease:leases(id, start_date, end_date, rent_amount, status),
       invoice:invoices(id, invoice_number, total_amount)
@@ -175,8 +188,21 @@ export async function getTransactionById(id: string): Promise<TransactionDTO | n
       created_by,
       created_at,
       updated_at,
-      category:categories(id, transaction_type, name, description, is_active, created_at, updated_at),
-      property:properties(id, name, address_line_1, city, state),
+      gst_inclusive,
+      gst_amount,
+      tax_classification_id,
+      category:categories(
+        id,
+        transaction_type,
+        name,
+        description,
+        is_active,
+        category_group_id,
+        created_at,
+        updated_at
+      ),
+      tax_classification:tax_classifications(id, name, bas_code, description, is_active),
+      property:properties(id, name, address_line_1, city, state, gst_enabled),
       tenant:tenants(id, first_name, last_name, email),
       lease:leases(id, start_date, end_date, rent_amount, status),
       invoice:invoices(id, invoice_number, total_amount)
@@ -246,11 +272,11 @@ export async function createTransaction(
   if (validated.lease_id) {
     const { data: leaseData, error: leaseError } = await supabase
       .from('leases')
-      .select('id, property_id, workspace_id')
+      .select('id, property_id')
       .eq('id', validated.lease_id)
-      .single();
+      .maybeSingle();
 
-    const lease = leaseData as { id: string; property_id: string; workspace_id?: string } | null;
+    const lease = leaseData as { id: string; property_id: string } | null;
 
     if (leaseError || !lease) {
       throw new Error('Selected lease was not found.');
@@ -258,10 +284,6 @@ export async function createTransaction(
 
     if (lease.property_id !== validated.property_id) {
       throw new Error('Selected lease does not belong to the selected property.');
-    }
-
-    if (lease.workspace_id && lease.workspace_id !== workspaceId) {
-      throw new Error('Selected lease does not belong to the active workspace.');
     }
   }
 
@@ -283,6 +305,9 @@ export async function createTransaction(
     lease_id: validated.lease_id || null,
     invoice_id: validated.invoice_id || null,
     created_by: userId || null,
+    gst_inclusive: validated.gst_inclusive || false,
+    gst_amount: validated.gst_amount || 0,
+    tax_classification_id: validated.tax_classification_id || null,
   };
 
   const { data: insertData, error } = await supabase
@@ -297,6 +322,37 @@ export async function createTransaction(
   }
 
   const insertedId = (insertData as { id: string }).id;
+
+  // 5. If linked to an invoice on income transaction, update invoice balance & status
+  if (validated.invoice_id && validated.transaction_type === 'income') {
+    try {
+      const { data: invData } = await supabase
+        .from('invoices')
+        .select('id, total_amount, balance_due, status')
+        .eq('id', validated.invoice_id)
+        .maybeSingle();
+
+      if (invData) {
+        const invoiceRow = invData as { id: string; total_amount: number; balance_due?: number; status: string };
+        const currentBalance = invoiceRow.balance_due !== undefined && invoiceRow.balance_due !== null
+          ? Number(invoiceRow.balance_due)
+          : Number(invoiceRow.total_amount);
+        const newBalance = Math.max(0, currentBalance - validated.amount);
+        const newStatus = newBalance <= 0.001 ? 'paid' : 'partially_paid';
+
+        await supabase
+          .from('invoices')
+          .update({
+            balance_due: newBalance,
+            status: newStatus,
+            paid_at: newStatus === 'paid' ? new Date().toISOString() : undefined,
+          } as never)
+          .eq('id', validated.invoice_id);
+      }
+    } catch (invErr) {
+      console.warn('Could not update linked invoice balance:', invErr);
+    }
+  }
 
   // Log activity
   try {
@@ -369,11 +425,11 @@ export async function updateTransaction(
   if (effectiveLeaseId) {
     const { data: leaseData, error: leaseError } = await supabase
       .from('leases')
-      .select('id, property_id, workspace_id')
+      .select('id, property_id')
       .eq('id', effectiveLeaseId)
-      .single();
+      .maybeSingle();
 
-    const lease = leaseData as { id: string; property_id: string; workspace_id?: string } | null;
+    const lease = leaseData as { id: string; property_id: string } | null;
 
     if (leaseError || !lease) {
       throw new Error('Selected lease was not found.');
@@ -381,10 +437,6 @@ export async function updateTransaction(
 
     if (lease.property_id !== effectivePropertyId) {
       throw new Error('Selected lease does not belong to the selected property.');
-    }
-
-    if (lease.workspace_id && lease.workspace_id !== current.workspace_id) {
-      throw new Error('Selected lease does not belong to the active workspace.');
     }
   }
 
@@ -403,6 +455,9 @@ export async function updateTransaction(
   if (validated.tenant_id !== undefined) updatePayload.tenant_id = validated.tenant_id;
   if (validated.lease_id !== undefined) updatePayload.lease_id = validated.lease_id;
   if (validated.invoice_id !== undefined) updatePayload.invoice_id = validated.invoice_id;
+  if (validated.gst_inclusive !== undefined) updatePayload.gst_inclusive = validated.gst_inclusive;
+  if (validated.gst_amount !== undefined) updatePayload.gst_amount = validated.gst_amount;
+  if (validated.tax_classification_id !== undefined) updatePayload.tax_classification_id = validated.tax_classification_id;
 
   const { error } = await supabase
     .from('transactions')

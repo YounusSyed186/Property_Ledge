@@ -11,14 +11,23 @@ import {
   Info,
   Clock,
   Plus,
+  Receipt,
+  Percent,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Button, Input, Select, Textarea, useToast, Drawer } from '@/components/admin/ui';
 import { createScheduleAction } from '@/app/actions/schedules';
-import { fetchCategoriesAction } from '@/app/actions/finance';
-import { fetchDashboardLeases, fetchDashboardProperties } from '@/app/actions/dashboard';
-import { getCachedCategories, getCachedProperties } from '@/lib/cache/optionsCache';
+import { getDropdownOptions } from '@/lib/cache/optionsCache';
 import { generateScheduleEntries } from '@/modules/finance/domain/scheduleGenerator';
-import { CategoryDTO, ScheduleFrequency, ScheduleType } from '@/modules/finance/domain/types';
+import { resolveScheduleTaxContext } from '@/modules/finance/domain/taxContext';
+import { calculateGstPortion } from '@/modules/finance/domain/bas-calculations';
+import {
+  CategoryDTO,
+  TaxClassificationDTO,
+  ScheduleFrequency,
+  ScheduleType,
+} from '@/modules/finance/domain/types';
 import { cn } from '@/lib/utils';
 
 interface CreateScheduleModalProps {
@@ -51,27 +60,49 @@ export function CreateScheduleModal({
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
 
+  // Tax & GST State
+  const [gstInclusive, setGstInclusive] = useState<boolean>(false);
+  const [gstAmount, setGstAmount] = useState<string>('0.00');
+  const [taxClassificationId, setTaxClassificationId] = useState<string>('');
+  const [originExplanation, setOriginExplanation] = useState<string>('');
+  const [showAdvancedTax, setShowAdvancedTax] = useState<boolean>(false);
+  const [hasManualTaxOverride, setHasManualTaxOverride] = useState<boolean>(false);
+
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
   const [leases, setLeases] = useState<any[]>([]);
+  const [taxClassifications, setTaxClassifications] = useState<TaxClassificationDTO[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    getCachedCategories('income').then((cats) => {
-      setCategories(cats || []);
-      const rentCat = (cats || []).find((c) => c.name.toLowerCase().includes('rent'));
-      if (rentCat) setSelectedCategoryId(rentCat.id);
-    });
+    getDropdownOptions().then((opts) => {
+      setCategories(opts.categories || []);
+      setProperties(opts.properties || []);
+      setLeases(opts.leases || []);
+      setTaxClassifications(opts.taxClassifications || []);
 
-    getCachedProperties().then((props) => setProperties(props || []));
-    fetchDashboardLeases().then((lData) => setLeases(lData || []));
+      const rentCat = (opts.categories || []).find((c) => c.name.toLowerCase().includes('rent'));
+      if (rentCat && !selectedCategoryId) {
+        setSelectedCategoryId(rentCat.id);
+      }
+    });
   }, [isOpen]);
 
   useEffect(() => {
     if (defaultPropertyId) setSelectedPropertyId(defaultPropertyId);
   }, [defaultPropertyId]);
+
+  const getLeaseTenant = (lease: any) => {
+    if (!lease) return null;
+    if (lease.tenant) return lease.tenant;
+    const primaryLt = lease.lease_tenants?.find((lt: any) => lt.is_primary)?.tenant;
+    if (primaryLt) return primaryLt;
+    const fallbackLt = lease.lease_tenants?.[0]?.tenant;
+    if (fallbackLt) return fallbackLt;
+    return null;
+  };
 
   const handleLeaseChange = (leaseId: string) => {
     setSelectedLeaseId(leaseId);
@@ -85,10 +116,79 @@ export function CreateScheduleModal({
       if (lease.start_date) setStartDate(lease.start_date.split('T')[0]);
       if (lease.end_date) setEndDate(lease.end_date.split('T')[0]);
 
-      const tenantName = lease.tenant ? `${lease.tenant.first_name} ${lease.tenant.last_name}` : 'Tenant';
+      const tenant = getLeaseTenant(lease);
+      const tenantName = tenant ? `${tenant.first_name} ${tenant.last_name}` : 'Tenant';
       const propName = lease.property?.name || 'Property';
       setScheduleName(`Rent Schedule - ${propName} (${tenantName})`);
     }
+  };
+
+  // Amount Change Handler to dynamically recompute GST when amount changes
+  const handleAmountChange = (newAmount: string) => {
+    setAmount(newAmount);
+    if (hasManualTaxOverride) {
+      if (gstInclusive) {
+        const num = parseFloat(newAmount) || 0;
+        setGstAmount(num > 0 ? (num / 11).toFixed(2) : '0.00');
+      } else {
+        setGstAmount('0.00');
+      }
+    }
+  };
+
+  // Automatic Tax Context Resolution
+  useEffect(() => {
+    const numAmount = parseFloat(amount) || 0;
+
+    if (hasManualTaxOverride) {
+      if (gstInclusive) {
+        setGstAmount(numAmount > 0 ? (numAmount / 11).toFixed(2) : '0.00');
+      } else {
+        setGstAmount('0.00');
+      }
+      return;
+    }
+
+    const prop = properties.find((p) => p.id === selectedPropertyId);
+    const cat = categories.find((c) => c.id === selectedCategoryId);
+
+    const resolution = resolveScheduleTaxContext({
+      amount: numAmount,
+      scheduleType,
+      property: prop,
+      category: cat,
+      taxClassifications,
+    });
+
+    setGstInclusive(resolution.gst_inclusive);
+    setGstAmount(resolution.gst_amount.toFixed(2));
+    setTaxClassificationId(resolution.tax_classification_id || '');
+    setOriginExplanation(resolution.originExplanation);
+  }, [
+    amount,
+    selectedPropertyId,
+    selectedCategoryId,
+    scheduleType,
+    properties,
+    categories,
+    taxClassifications,
+    hasManualTaxOverride,
+    gstInclusive,
+  ]);
+
+  const handleGstToggle = (isInc: boolean) => {
+    setHasManualTaxOverride(true);
+    setGstInclusive(isInc);
+    const numAmount = parseFloat(amount) || 0;
+    const { gst } = calculateGstPortion(numAmount, isInc);
+    setGstAmount(isInc ? gst.toFixed(2) : '0.00');
+    setOriginExplanation('Manually overridden by user');
+  };
+
+  const handleTaxClassChange = (classId: string) => {
+    setHasManualTaxOverride(true);
+    setTaxClassificationId(classId);
+    setOriginExplanation('Manually overridden by user');
   };
 
   const previewEntries = useMemo(() => {
@@ -106,6 +206,9 @@ export function CreateScheduleModal({
         lease_id: scheduleType === 'lease' ? selectedLeaseId || null : null,
         transaction_category_id: selectedCategoryId || null,
         notes,
+        gst_inclusive: gstInclusive,
+        gst_amount: parseFloat(gstAmount) || 0,
+        tax_classification_id: taxClassificationId || null,
       });
     } catch {
       return [];
@@ -121,6 +224,9 @@ export function CreateScheduleModal({
     selectedLeaseId,
     selectedCategoryId,
     notes,
+    gstInclusive,
+    gstAmount,
+    taxClassificationId,
   ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -143,7 +249,13 @@ export function CreateScheduleModal({
     setIsSubmitting(true);
     try {
       const selectedLease = leases.find((l) => l.id === selectedLeaseId);
-      const tenantId = selectedLease?.tenant_id || selectedLease?.tenant?.id || null;
+      const tenant = getLeaseTenant(selectedLease);
+      const tenantId =
+        selectedLease?.tenant_id ||
+        tenant?.id ||
+        selectedLease?.lease_tenants?.find((lt: any) => lt.is_primary)?.tenant_id ||
+        selectedLease?.lease_tenants?.[0]?.tenant_id ||
+        null;
 
       const res = await createScheduleAction({
         schedule_name: scheduleName,
@@ -157,12 +269,15 @@ export function CreateScheduleModal({
         tenant_id: tenantId,
         transaction_category_id: selectedCategoryId || null,
         notes: notes || null,
+        gst_inclusive: gstInclusive,
+        gst_amount: parseFloat(gstAmount) || 0,
+        tax_classification_id: taxClassificationId || null,
       });
 
       if (res.success && res.data) {
         toast({
           title: 'Schedule Created',
-          description: `Generated ${res.data.length} expected payment entries!`,
+          description: `Generated ${res.data.length} expected payment entries with tax classification!`,
         });
         onSuccess();
         onClose();
@@ -185,19 +300,22 @@ export function CreateScheduleModal({
         type="button"
         onClick={handleSubmit as any}
         disabled={isSubmitting || previewEntries.length === 0}
-        className="bg-[#008F83] hover:bg-[#007A70] text-white"
+        className="bg-[#008F83] hover:bg-[#007A70] text-white font-bold"
       >
         {isSubmitting ? 'Generating...' : `Generate Schedule (${previewEntries.length} entries)`}
       </Button>
     </div>
   );
 
+  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+  const selectedTaxClass = taxClassifications.find((t) => t.id === taxClassificationId);
+
   return (
     <Drawer
       isOpen={isOpen}
       onClose={onClose}
       title="Create Payment Schedule"
-      description="Setup recurring lease-based rent schedules or independent expected payments"
+      description="Setup recurring rent schedules or independent obligations with full tax classification & BAS tracking"
       width="lg"
       footer={footer}
     >
@@ -209,6 +327,7 @@ export function CreateScheduleModal({
             onClick={() => {
               setScheduleType('lease');
               setScheduleName('');
+              setHasManualTaxOverride(false);
             }}
             className={cn(
               'h-11 rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-2 border',
@@ -227,6 +346,7 @@ export function CreateScheduleModal({
               setScheduleType('independent');
               setSelectedLeaseId('');
               setScheduleName('Recurring Maintenance / Obligation');
+              setHasManualTaxOverride(false);
             }}
             className={cn(
               'h-11 rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-2 border',
@@ -248,12 +368,14 @@ export function CreateScheduleModal({
             onChange={(e) => handleLeaseChange(e.target.value)}
             options={[
               { value: '', label: '-- Choose Active Lease --' },
-              ...leases.map((l) => ({
-                value: l.id,
-                label: `${l.property?.name || 'Property'} - ${
-                  l.tenant ? `${l.tenant.first_name} ${l.tenant.last_name}` : 'Tenant'
-                } ($${l.rent_amount || 0}/${l.rent_frequency || 'm'})`,
-              })),
+              ...leases.map((l) => {
+                const tenant = getLeaseTenant(l);
+                const tenantName = tenant ? `${tenant.first_name} ${tenant.last_name}` : 'Tenant';
+                return {
+                  value: l.id,
+                  label: `${l.property?.name || 'Property'} - ${tenantName} ($${l.rent_amount || 0}/${l.rent_frequency || 'm'})`,
+                };
+              }),
             ]}
           />
         )}
@@ -263,20 +385,32 @@ export function CreateScheduleModal({
           <Select
             label="Associated Property"
             value={selectedPropertyId}
-            onChange={(e) => setSelectedPropertyId(e.target.value)}
+            onChange={(e) => {
+              setSelectedPropertyId(e.target.value);
+              setHasManualTaxOverride(false);
+            }}
             options={[
               { value: '', label: '-- Workspace Level / None --' },
-              ...properties.map((p) => ({ value: p.id, label: p.name })),
+              ...properties.map((p) => ({
+                value: p.id,
+                label: `${p.name}${p.gst_enabled ? ' (GST Registered)' : ''}`,
+              })),
             ]}
           />
 
           <Select
             label="Category"
             value={selectedCategoryId}
-            onChange={(e) => setSelectedCategoryId(e.target.value)}
+            onChange={(e) => {
+              setSelectedCategoryId(e.target.value);
+              setHasManualTaxOverride(false);
+            }}
             options={[
               { value: '', label: '-- Select Category --' },
-              ...categories.map((c) => ({ value: c.id, label: c.name })),
+              ...categories.map((c) => ({
+                value: c.id,
+                label: `${c.name} (${c.transaction_type})`,
+              })),
             ]}
           />
         </div>
@@ -296,9 +430,106 @@ export function CreateScheduleModal({
             step="0.01"
             placeholder="1000.00"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => handleAmountChange(e.target.value)}
             leftIcon={<DollarSign className="h-4 w-4 text-emerald-500" />}
           />
+        </div>
+
+        {/* GST & Tax Treatment Financial Context Panel */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Receipt className="h-4 w-4 text-[#008F83]" />
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                GST Treatment & Tax Classification
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAdvancedTax(!showAdvancedTax)}
+              className="text-[11px] text-[#008F83] hover:underline flex items-center gap-1 font-semibold"
+            >
+              {showAdvancedTax ? 'Hide Details' : 'Advanced Tax Settings'}
+              {showAdvancedTax ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={cn(
+                'px-2.5 py-1 rounded-lg text-xs font-bold border',
+                gstInclusive
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                  : 'bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+              )}
+            >
+              {gstInclusive ? `Taxable (${gstAmount ? `$${gstAmount} GST` : '10% GST'})` : 'GST-Free / Input Taxed ($0 GST)'}
+            </span>
+
+            {selectedTaxClass && (
+              <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#008F83]/10 text-[#008F83] border border-[#008F83]/20">
+                BAS: {selectedTaxClass.bas_code || 'G1'} — {selectedTaxClass.name}
+              </span>
+            )}
+          </div>
+
+          {originExplanation && (
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <Sparkles className="h-3 w-3 text-[#008F83]" />
+              {originExplanation}
+            </p>
+          )}
+
+          {showAdvancedTax && (
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 animate-in fade-in duration-150">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">GST Registration</label>
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="gstInclusiveToggle"
+                    checked={gstInclusive}
+                    onChange={(e) => handleGstToggle(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-[#008F83] focus:ring-[#008F83]"
+                  />
+                  <label htmlFor="gstInclusiveToggle" className="text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                    Amount includes GST
+                  </label>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">GST Amount ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  disabled={!gstInclusive}
+                  value={gstAmount}
+                  onChange={(e) => {
+                    setHasManualTaxOverride(true);
+                    setGstAmount(e.target.value);
+                  }}
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-1.5 text-xs text-slate-900 dark:text-white disabled:opacity-50"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">BAS Classification</label>
+                <select
+                  value={taxClassificationId}
+                  onChange={(e) => handleTaxClassChange(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-1.5 text-xs text-slate-900 dark:text-white"
+                >
+                  <option value="">-- Auto-resolve / None --</option>
+                  {taxClassifications.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.bas_code ? `[${t.bas_code}] ` : ''}{t.name} ({t.applies_to})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Frequency & Dates */}
@@ -359,7 +590,14 @@ export function CreateScheduleModal({
                   key={idx}
                   className="flex items-center justify-between text-xs py-2 px-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
                 >
-                  <span className="font-medium text-slate-800 dark:text-slate-200">{item.schedule_name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{item.schedule_name}</span>
+                    {item.gst_inclusive && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600">
+                        GST: ${item.gst_amount?.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-4">
                     <span className="text-slate-500 font-mono text-[11px]">Due: {item.due_date}</span>
                     <span className="font-semibold text-emerald-600 dark:text-emerald-400">
@@ -380,3 +618,4 @@ export function CreateScheduleModal({
     </Drawer>
   );
 }
+

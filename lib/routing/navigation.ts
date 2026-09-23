@@ -88,6 +88,15 @@ export const CANONICAL_ROUTES: RouteConfig[] = [
     permission: 'financial.view',
   },
   {
+    id: 'bas',
+    label: 'BAS Activity Statement',
+    href: '/dashboard/bas',
+    group: 'Finance',
+    requiresWorkspace: true,
+    supportsPropertyFilter: true,
+    permission: 'financial.view',
+  },
+  {
     id: 'automations',
     label: 'Automations',
     href: '/dashboard/automations',

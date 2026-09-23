@@ -61,6 +61,7 @@ interface CreateInvoiceModalProps {
   invoiceToEdit?: InvoiceDTO | null;
   onUpdate?: (id: string, dto: UpdateInvoiceDTO) => Promise<void>;
   initialTemplateId?: string;
+  initialPropertyId?: string;
   onOpenBulkModal?: () => void;
 }
 
@@ -78,6 +79,7 @@ export function CreateInvoiceModal({
   invoiceToEdit,
   onUpdate,
   initialTemplateId,
+  initialPropertyId,
   onOpenBulkModal,
 }: CreateInvoiceModalProps) {
   const isEditMode = Boolean(invoiceToEdit);
@@ -246,7 +248,13 @@ export function CreateInvoiceModal({
         setNotes(invoiceToEdit.notes || 'Payment is due within the terms specified on this invoice.');
         setPaymentInstructions(invoiceToEdit.paymentInstructions || 'Bank Transfer: BSB 012-345 | Account 6789 0123');
       } else {
-        setInvoiceType('standalone');
+        if (initialPropertyId) {
+          setSelectedPropertyId(initialPropertyId);
+          setInvoiceType('lease');
+        } else {
+          setSelectedPropertyId('');
+          setInvoiceType('standalone');
+        }
         setStatus('draft');
         setCurrency('AUD');
         setInvoiceNumber(`INV-${getAuDateParts(new Date()).year}-${Math.floor(1000 + Math.random() * 9000)}`);
@@ -259,13 +267,12 @@ export function CreateInvoiceModal({
         const parts = getAuDateParts(new Date());
         const dueD = createAuDate(parts.year, parts.month, parts.day + 14);
         setDueDate(formatAuDateIso(dueD));
-        setSelectedPropertyId('');
         setSelectedLeaseId('');
         setItems([{ description: 'Professional Property Management Services', quantity: 1, unitPrice: 450, taxRate: 10, discount: 0 }]);
         setSelectedTemplate(getPredefinedTemplateById(initialTemplateId || 'template_classic'));
       }
     }
-  }, [isOpen, invoiceToEdit, initialTemplateId]);
+  }, [isOpen, invoiceToEdit, initialTemplateId, initialPropertyId]);
 
 
   const handleSelectCustomTemplate = (customTmpl: InvoiceTemplateDTO) => {

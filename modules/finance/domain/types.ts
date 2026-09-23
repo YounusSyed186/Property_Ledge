@@ -6,18 +6,47 @@ export type PaymentMethod =
   | 'bank_transfer'
   | 'cash'
   | 'card'
+  | 'credit_card'
+  | 'debit_card'
   | 'cheque'
   | 'direct_debit'
+  | 'stripe'
+  | 'bpay'
   | 'other';
+
+export interface CategoryGroupDTO {
+  id: string;
+  workspace_id: string;
+  name: string;
+  description?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaxClassificationDTO {
+  id: string;
+  workspace_id: string;
+  name: string;
+  bas_code: string | null; // e.g. "G1", "1A", "1B", "G10"
+  description: string | null;
+  applies_to?: 'income' | 'expense' | 'both';
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface CategoryDTO {
   id: string;
   transaction_type: TransactionType;
   name: string;
   description: string | null;
+  category_group_id?: string | null;
+  default_tax_classification_id?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  category_group?: CategoryGroupDTO | null;
+  default_tax_classification?: TaxClassificationDTO | null;
 }
 
 export interface TransactionDTO {
@@ -41,14 +70,21 @@ export interface TransactionDTO {
   created_at: string;
   updated_at: string;
 
+  // Australian GST & Tax Classification
+  gst_inclusive?: boolean;
+  gst_amount?: number;
+  tax_classification_id?: string | null;
+
   // Populated relations
   category?: CategoryDTO | null;
+  tax_classification?: TaxClassificationDTO | null;
   property?: {
     id: string;
     name: string;
     address_line_1?: string | null;
     city?: string | null;
     state?: string | null;
+    gst_enabled?: boolean;
   } | null;
   tenant?: {
     id: string;
@@ -83,6 +119,10 @@ export interface LedgerEntryDTO {
   money_out: number;
   running_balance: number;
   status: TransactionStatus;
+  gst_inclusive?: boolean;
+  gst_amount?: number;
+  tax_classification_name?: string | null;
+  bas_code?: string | null;
 }
 
 export interface CategoryBreakdownItem {
@@ -128,6 +168,11 @@ export interface CreateTransactionInput {
   tenant_id?: string | null;
   lease_id?: string | null;
   invoice_id?: string | null;
+
+  // GST & Tax Classification
+  gst_inclusive?: boolean;
+  gst_amount?: number;
+  tax_classification_id?: string | null;
 }
 
 export interface UpdateTransactionInput {
@@ -145,6 +190,11 @@ export interface UpdateTransactionInput {
   tenant_id?: string | null;
   lease_id?: string | null;
   invoice_id?: string | null;
+
+  // GST & Tax Classification
+  gst_inclusive?: boolean;
+  gst_amount?: number;
+  tax_classification_id?: string | null;
 }
 
 export interface TransactionFilterParams {
@@ -152,6 +202,7 @@ export interface TransactionFilterParams {
   property_id?: string;
   transaction_type?: TransactionType | 'all';
   transaction_category_id?: string;
+  tax_classification_id?: string;
   tenant_id?: string;
   lease_id?: string;
   invoice_id?: string;
@@ -221,16 +272,23 @@ export interface ExpectedPaymentScheduleDTO {
   created_at: string;
   updated_at: string;
 
+  // Australian GST & Tax Classification
+  gst_inclusive?: boolean;
+  gst_amount?: number;
+  tax_classification_id?: string | null;
+
   // Computed & Relation fields
   total_allocated?: number;
   remaining_amount?: number;
   category?: CategoryDTO | null;
+  tax_classification?: TaxClassificationDTO | null;
   property?: {
     id: string;
     name: string;
     address_line_1?: string | null;
     city?: string | null;
     state?: string | null;
+    gst_enabled?: boolean;
   } | null;
   lease?: {
     id: string;
@@ -238,6 +296,24 @@ export interface ExpectedPaymentScheduleDTO {
     end_date?: string | null;
     rent_amount?: number | null;
     status?: string | null;
+    tenant_id?: string | null;
+    tenant?: {
+      id: string;
+      first_name: string;
+      last_name: string;
+      email?: string | null;
+    } | null;
+    lease_tenants?: Array<{
+      tenant_id?: string;
+      role?: string;
+      is_primary?: boolean;
+      tenant?: {
+        id: string;
+        first_name: string;
+        last_name: string;
+        email?: string | null;
+      } | null;
+    }>;
   } | null;
   tenant?: {
     id: string;
@@ -261,6 +337,9 @@ export interface CreateExpectedScheduleInput {
   end_date: string;
   frequency: ScheduleFrequency;
   notes?: string | null;
+  gst_inclusive?: boolean;
+  gst_amount?: number;
+  tax_classification_id?: string | null;
 }
 
 export interface UpdateExpectedScheduleInput {
@@ -269,6 +348,9 @@ export interface UpdateExpectedScheduleInput {
   due_date?: string;
   notes?: string | null;
   status?: ExpectedPaymentStatus;
+  gst_inclusive?: boolean;
+  gst_amount?: number;
+  tax_classification_id?: string | null;
 }
 
 export interface ExpectedScheduleFilterParams {
@@ -303,6 +385,9 @@ export interface RecordTransactionFromExpectedInput {
   description?: string;
   notes?: string;
   allocation_amount?: number;
+  gst_inclusive?: boolean;
+  gst_amount?: number;
+  tax_classification_id?: string | null;
 }
 
 // ====================================================================
@@ -341,16 +426,23 @@ export interface ExpenseDTO {
   created_at: string;
   updated_at: string;
 
+  // Australian GST & Tax Classification
+  gst_inclusive?: boolean;
+  gst_amount?: number;
+  tax_classification_id?: string | null;
+
   // Computed & Relation fields
   total_allocated?: number;
   remaining_amount?: number;
   category?: CategoryDTO | null;
+  tax_classification?: TaxClassificationDTO | null;
   property?: {
     id: string;
     name: string;
     address_line_1?: string | null;
     city?: string | null;
     state?: string | null;
+    gst_enabled?: boolean;
   } | null;
   lease?: {
     id: string;
@@ -376,6 +468,11 @@ export interface CreateExpenseInput {
   status?: ExpenseStatus;
   receipt_url?: string | null;
 
+  // Australian GST & Tax Classification
+  gst_inclusive?: boolean;
+  gst_amount?: number;
+  tax_classification_id?: string | null;
+
   // Optional: simultaneous ledger transaction creation & allocation
   create_transaction?: boolean;
   record_transaction?: boolean;
@@ -394,6 +491,11 @@ export interface UpdateExpenseInput {
   notes?: string | null;
   status?: ExpenseStatus;
   receipt_url?: string | null;
+
+  // Australian GST & Tax Classification
+  gst_inclusive?: boolean;
+  gst_amount?: number;
+  tax_classification_id?: string | null;
 }
 
 export interface LinkExpenseTransactionInput {
@@ -423,6 +525,101 @@ export interface ExpenseFilterParams {
   end_date?: string;
   limit?: number;
   offset?: number;
+}
+
+// ====================================================================
+// Australian BAS Activity Statement Domain Types
+// ====================================================================
+
+export type BasPeriod = 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'FY' | 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'M7' | 'M8' | 'M9' | 'M10' | 'M11' | 'M12';
+
+export interface BasDateRange {
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  label: string;     // e.g. "Q1 (Jul 2025 – Sep 2025)"
+  financialYear: number; // e.g. 2026 for FY 2025-2026
+  period: BasPeriod;
+}
+
+export interface BasWorksheetTotals {
+  totalSales: number;       // G1 (Gross Sales / Income)
+  gstOnSales: number;       // 1A (GST Collected)
+  totalExpenses: number;    // Gross Purchases / Expenses
+  gstOnExpenses: number;    // 1B (GST Paid / Input Tax Credits)
+  netGstPosition: number;   // 1A - 1B (Positive = Payable, Negative = Refund)
+  capitalExpensesGross: number; // G10 (Capital Purchases)
+  nonCapitalExpensesGross: number; // G11 (Non-Capital Purchases)
+}
+
+export interface BasCategoryBreakdownItem {
+  categoryId: string;
+  categoryName: string;
+  categoryGroup: string;
+  gross: number;
+  gst: number;
+  net: number;
+  basCode?: string | null;
+  count: number;
+  transactionIds: string[];
+}
+
+export interface BasFigureItem {
+  code: string;       // e.g. "G1", "1A", "1B"
+  label: string;      // e.g. "Total Sales"
+  amount: number;
+  footnoteSymbol: string; // e.g. "¹", "²", "³"
+  description: string;
+}
+
+export interface BasWorksheetDTO {
+  propertyName: string;
+  propertyId: string | null; // null for "All Properties"
+  financialYear: number;
+  period: BasPeriod;
+  periodLabel: string;
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+  totals: BasWorksheetTotals;
+  incomeByCategory: BasCategoryBreakdownItem[];
+  expenseByCategory: BasCategoryBreakdownItem[];
+  basFigures: BasFigureItem[];
+  unclassifiedCount: number;
+  totalTransactionsCount: number;
+}
+
+export interface BasTransactionDTO {
+  id: string;
+  date: string;
+  description: string;
+  type: TransactionType;
+  category: string;
+  categoryGroup: string;
+  taxClassification: string;
+  propertyName: string;
+  amount: number; // Gross amount
+  gstAmount: number;
+  netAmount: number;
+  gstInclusive: boolean;
+  basCode: string | null;
+  reference: string | null;
+  status: TransactionStatus;
+}
+
+export interface BasGuidanceItem {
+  basField: string;        // e.g. "G1 – Total sales"
+  ledgeLabel: string;      // e.g. "Total Sales (Worksheet)"
+  amount: number;
+  explanation: string;     // Instructions for entering into ATO BAS
+  footnoteSymbol?: string;
+}
+
+export interface BasFilterParams {
+  workspaceId?: string;
+  propertyId?: string | null; // null = All Properties
+  financialYear: number;
+  period: BasPeriod;
 }
 
 

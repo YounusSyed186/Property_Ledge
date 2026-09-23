@@ -47,8 +47,12 @@ export async function getExpenses(
       created_by,
       created_at,
       updated_at,
-      category:categories(id, transaction_type, name, description, is_active),
-      property:properties(id, name, address_line_1, city, state),
+      gst_inclusive,
+      gst_amount,
+      tax_classification_id,
+      category:categories(id, transaction_type, name, description, is_active, category_group_id, default_tax_classification_id),
+      tax_classification:tax_classifications(id, name, bas_code, description, is_active, applies_to),
+      property:properties(id, name, address_line_1, city, state, gst_enabled),
       lease:leases(id, start_date, end_date, rent_amount, status),
       allocations:expense_transactions(
         id,
@@ -183,8 +187,12 @@ export async function getExpenseById(id: string): Promise<ExpenseDTO | null> {
       created_by,
       created_at,
       updated_at,
-      category:categories(id, transaction_type, name, description, is_active),
-      property:properties(id, name, address_line_1, city, state),
+      gst_inclusive,
+      gst_amount,
+      tax_classification_id,
+      category:categories(id, transaction_type, name, description, is_active, category_group_id, default_tax_classification_id),
+      tax_classification:tax_classifications(id, name, bas_code, description, is_active, applies_to),
+      property:properties(id, name, address_line_1, city, state, gst_enabled),
       lease:leases(id, start_date, end_date, rent_amount, status),
       allocations:expense_transactions(
         id,
@@ -307,6 +315,9 @@ export async function createExpense(
     status: initialStatus,
     receipt_url: validated.receipt_url || null,
     created_by: userId || null,
+    gst_inclusive: validated.gst_inclusive || false,
+    gst_amount: validated.gst_amount || 0,
+    tax_classification_id: validated.tax_classification_id || null,
   };
 
   const { data: expData, error: expError } = await supabase
@@ -341,6 +352,9 @@ export async function createExpense(
         status: 'completed',
         notes: validated.notes ? `[Expense Link: ${expenseId}] ${validated.notes}` : `Linked to Expense #${expenseId.slice(0, 8)}`,
         created_by: userId || null,
+        gst_inclusive: validated.gst_inclusive || false,
+        gst_amount: validated.gst_amount || 0,
+        tax_classification_id: validated.tax_classification_id || null,
       };
 
       const { data: txData, error: txError } = await supabase
@@ -800,6 +814,10 @@ export async function processExpensePayment(
   }
 
   // 2. Create financial ledger transaction
+  const propGstAmount = expense.amount > 0 && expense.gst_amount
+    ? Math.round((input.amount / expense.amount) * expense.gst_amount * 100) / 100
+    : 0;
+
   const txPayload = {
     amount: input.amount,
     transaction_type: 'expense',
@@ -815,6 +833,9 @@ export async function processExpensePayment(
     status: 'completed',
     notes: input.notes ? `[Expense #${expense.id.slice(0, 8)}] ${input.notes}` : `Settled payment for Expense #${expense.id.slice(0, 8)}`,
     created_by: userId || null,
+    gst_inclusive: expense.gst_inclusive || false,
+    gst_amount: propGstAmount,
+    tax_classification_id: expense.tax_classification_id || null,
   };
 
   const { data: txData, error: txError } = await supabase

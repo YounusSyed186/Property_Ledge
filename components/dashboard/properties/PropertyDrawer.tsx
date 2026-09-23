@@ -62,6 +62,7 @@ export function PropertyDrawer({
   const [paymentFrequency, setPaymentFrequency] = useState('Weekly');
   const [status, setStatus] = useState('active');
   const [description, setDescription] = useState('');
+  const [gstEnabled, setGstEnabled] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -120,6 +121,7 @@ export function PropertyDrawer({
         setPaymentFrequency(property.payment_frequency || 'Weekly');
         setStatus(property.status || 'active');
         setDescription(property.description || '');
+        setGstEnabled(Boolean((property as any)?.gst_enabled));
       } else {
         setName('');
         setAddressLine1('');
@@ -135,6 +137,7 @@ export function PropertyDrawer({
         setPaymentFrequency('Weekly');
         setStatus('active');
         setDescription('');
+        setGstEnabled(false);
       }
       setFormErrors({});
     }
@@ -169,6 +172,7 @@ export function PropertyDrawer({
         payment_frequency: paymentFrequency,
         status: status as any,
         description: description.trim() || null,
+        gst_enabled: gstEnabled,
       };
 
       if (isCreate) {
@@ -272,6 +276,17 @@ export function PropertyDrawer({
 
         {/* Form Body */}
         <div className="flex-1 overflow-y-auto space-y-4 px-0.5 py-1">
+          {/* Property Name */}
+          <div>
+            <Input
+              label="Property Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Sunset Heights (or leave blank to use address)"
+              className="bg-white dark:bg-slate-800"
+            />
+          </div>
+
           {/* Street Address */}
           <div>
             <Input
@@ -459,6 +474,46 @@ export function PropertyDrawer({
               leftIcon={<span className="text-xs font-bold">$</span>}
               className="bg-white dark:bg-slate-800"
             />
+          </div>
+
+          {/* Australian GST Tracking Toggle */}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 p-4 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-1">
+                <label
+                  onClick={() => setGstEnabled(!gstEnabled)}
+                  className="text-xs font-bold text-slate-900 dark:text-white cursor-pointer flex items-center gap-1.5"
+                >
+                  Australian GST Tracking
+                </label>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Enable for commercial leases or properties registered for GST & BAS reporting
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={gstEnabled}
+                onClick={() => setGstEnabled(!gstEnabled)}
+                className={cn(
+                  'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#008F83] focus:ring-offset-2',
+                  gstEnabled ? 'bg-[#008F83]' : 'bg-slate-200 dark:bg-slate-700'
+                )}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                    gstEnabled ? 'translate-x-5' : 'translate-x-0'
+                  )}
+                />
+              </button>
+            </div>
+            {gstEnabled && (
+              <p className="text-[11px] text-[#008F83] dark:text-emerald-400 font-medium pt-1">
+                ✓ GST fields & 1/11th calculation enabled in transaction and expense modals for this property.
+              </p>
+            )}
           </div>
         </div>
 

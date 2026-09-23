@@ -575,7 +575,7 @@ export interface Database {
           tenant_id: string | null
           amount: number
           payment_date: string
-          payment_method: 'bank_transfer' | 'direct_debit' | 'card' | 'cash' | 'cheque' | 'other'
+          payment_method: 'bank_transfer' | 'direct_debit' | 'card' | 'credit_card' | 'debit_card' | 'cash' | 'cheque' | 'stripe' | 'bpay' | 'other'
           status: 'pending' | 'completed' | 'failed' | 'reversed' | 'refunded'
           reference: string | null
           notes: string | null
@@ -591,7 +591,7 @@ export interface Database {
           tenant_id?: string | null
           amount: number
           payment_date?: string
-          payment_method?: 'bank_transfer' | 'direct_debit' | 'card' | 'cash' | 'cheque' | 'other'
+          payment_method?: 'bank_transfer' | 'direct_debit' | 'card' | 'credit_card' | 'debit_card' | 'cash' | 'cheque' | 'stripe' | 'bpay' | 'other'
           status?: 'pending' | 'completed' | 'failed' | 'reversed' | 'refunded'
           reference?: string | null
           notes?: string | null
@@ -607,7 +607,7 @@ export interface Database {
           tenant_id?: string | null
           amount?: number
           payment_date?: string
-          payment_method?: 'bank_transfer' | 'direct_debit' | 'card' | 'cash' | 'cheque' | 'other'
+          payment_method?: 'bank_transfer' | 'direct_debit' | 'card' | 'credit_card' | 'debit_card' | 'cash' | 'cheque' | 'stripe' | 'bpay' | 'other'
           status?: 'pending' | 'completed' | 'failed' | 'reversed' | 'refunded'
           reference?: string | null
           notes?: string | null

@@ -76,11 +76,17 @@ export function TransactionModal({
   const [leaseId, setLeaseId] = useState('');
   const [invoiceId, setInvoiceId] = useState('');
 
+  // GST & Tax Classification State
+  const [gstInclusive, setGstInclusive] = useState(false);
+  const [gstAmount, setGstAmount] = useState('');
+  const [taxClassificationId, setTaxClassificationId] = useState('');
+
   // Loaded Options (Instantly available from synchronous cache)
   const [categories, setCategories] = useState<CategoryDTO[]>(syncCache.categories || []);
   const [properties, setProperties] = useState<any[]>(syncCache.properties || []);
   const [tenants, setTenants] = useState<any[]>(syncCache.tenants || []);
   const [leases, setLeases] = useState<any[]>(syncCache.leases || []);
+  const [taxClassifications, setTaxClassifications] = useState<any[]>(syncCache.taxClassifications || []);
   const [invoices, setInvoices] = useState<any[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -98,6 +104,7 @@ export function TransactionModal({
       setProperties(opts.properties || []);
       setTenants(opts.tenants || []);
       setLeases(opts.leases || []);
+      setTaxClassifications(opts.taxClassifications || []);
     });
 
     fetchInvoicesAction({ limit: 100 })
@@ -129,6 +136,9 @@ export function TransactionModal({
         setTenantId(transactionToEdit.tenant_id || '');
         setLeaseId(transactionToEdit.lease_id || '');
         setInvoiceId(transactionToEdit.invoice_id || '');
+        setGstInclusive(Boolean(transactionToEdit.gst_inclusive));
+        setGstAmount(transactionToEdit.gst_amount !== undefined && transactionToEdit.gst_amount !== null ? String(transactionToEdit.gst_amount) : '');
+        setTaxClassificationId(transactionToEdit.tax_classification_id || '');
       } else {
         setTransactionType(defaultType);
         setAmount('');
@@ -144,10 +154,33 @@ export function TransactionModal({
         setTenantId('');
         setLeaseId('');
         setInvoiceId('');
+        setGstInclusive(false);
+        setGstAmount('');
+        setTaxClassificationId('');
       }
       setFormErrors({});
     }
   }, [transactionToEdit, defaultType, defaultPropertyId, isOpen]);
+
+  // Selected property GST tracking capability
+  const selectedProperty = useMemo(() => {
+    return properties.find((p: any) => p.id === propertyId);
+  }, [properties, propertyId]);
+
+  const isGstEnabledOnProperty = Boolean(selectedProperty?.gst_enabled);
+
+  // Auto-calculate 1/11th GST when amount or inclusive toggle changes
+  const handleAmountOrGstChange = (newAmount: string, isInc: boolean) => {
+    setAmount(newAmount);
+    setGstInclusive(isInc);
+    if (isInc && newAmount && !isNaN(parseFloat(newAmount))) {
+      const val = parseFloat(newAmount);
+      const calculatedGst = (val - val / 1.1).toFixed(2);
+      setGstAmount(calculatedGst);
+    } else if (!isInc) {
+      setGstAmount('0.00');
+    }
+  };
 
   // Auto-Allocate Lump Sum Payment States
   const [isAutoAllocateMode, setIsAutoAllocateMode] = useState(false);
@@ -157,6 +190,13 @@ export function TransactionModal({
   const availableCategories = useMemo(() => {
     return categories.filter((cat) => cat.transaction_type === transactionType);
   }, [categories, transactionType]);
+
+  // Filter Tax Classifications by currently selected transaction type
+  const filteredTaxClassifications = useMemo(() => {
+    return taxClassifications.filter(
+      (tc: any) => !tc.applies_to || tc.applies_to === 'both' || tc.applies_to === transactionType
+    );
+  }, [taxClassifications, transactionType]);
 
   // Active Leases for Auto Allocation
   const activeLeasesForAllocation = useMemo<ActiveLeaseForAllocation[]>(() => {
@@ -301,6 +341,9 @@ export function TransactionModal({
           tenant_id: transactionType === 'income' && tenantId ? tenantId : undefined,
           lease_id: leaseId || undefined,
           invoice_id: transactionType === 'income' && invoiceId ? invoiceId : undefined,
+          gst_inclusive: isGstEnabledOnProperty ? gstInclusive : false,
+          gst_amount: isGstEnabledOnProperty && gstAmount ? parseFloat(gstAmount) : 0,
+          tax_classification_id: isGstEnabledOnProperty && taxClassificationId ? taxClassificationId : null,
         };
 
         const res = await updateTransactionAction(transactionToEdit.id, updateInput);
@@ -332,6 +375,9 @@ export function TransactionModal({
           tenant_id: transactionType === 'income' && tenantId ? tenantId : undefined,
           lease_id: leaseId || undefined,
           invoice_id: transactionType === 'income' && invoiceId ? invoiceId : undefined,
+          gst_inclusive: isGstEnabledOnProperty ? gstInclusive : false,
+          gst_amount: isGstEnabledOnProperty && gstAmount ? parseFloat(gstAmount) : 0,
+          tax_classification_id: isGstEnabledOnProperty && taxClassificationId ? taxClassificationId : null,
         };
 
         const res = await createTransactionAction(createInput);
@@ -423,7 +469,8 @@ export function TransactionModal({
               placeholder={isAutoAllocateMode ? "1000.00" : "0.00"}
               value={amount}
               onChange={(e) => {
-                setAmount(e.target.value);
+                const newAmt = e.target.value;
+                handleAmountOrGstChange(newAmt, gstInclusive);
                 if (formErrors.amount) setFormErrors((p) => ({ ...p, amount: '' }));
               }}
               error={formErrors.amount}
@@ -434,7 +481,17 @@ export function TransactionModal({
               label="Category *"
               value={categoryId}
               onChange={(e) => {
-                setCategoryId(e.target.value);
+                const newCatId = e.target.value;
+                setCategoryId(newCatId);
+                const cat = categories.find((c) => c.id === newCatId);
+                if (cat?.default_tax_classification_id) {
+                  setTaxClassificationId(cat.default_tax_classification_id);
+                  const tc = taxClassifications.find((t) => t.id === cat.default_tax_classification_id);
+                  const isTaxable = tc?.bas_code === '1B' || tc?.bas_code === 'G10' || tc?.bas_code === 'G1';
+                  if (isTaxable && !gstInclusive) {
+                    handleAmountOrGstChange(amount, true);
+                  }
+                }
                 if (formErrors.categoryId) setFormErrors((p) => ({ ...p, categoryId: '' }));
               }}
               error={formErrors.categoryId}
@@ -519,10 +576,15 @@ export function TransactionModal({
               label={isAutoAllocateMode ? 'Target Property (Optional)' : 'Property *'}
               value={propertyId}
               onChange={(e) => {
-                setPropertyId(e.target.value);
+                const newPropId = e.target.value;
+                setPropertyId(newPropId);
                 setTenantId('');
                 setLeaseId('');
                 setInvoiceId('');
+                const prop = properties.find((p: any) => p.id === newPropId);
+                if (prop?.gst_enabled && !gstInclusive) {
+                  handleAmountOrGstChange(amount, true);
+                }
                 if (formErrors.propertyId) setFormErrors((p) => ({ ...p, propertyId: '' }));
               }}
               error={formErrors.propertyId}
@@ -535,7 +597,7 @@ export function TransactionModal({
               </option>
               {properties.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name || p.address_line_1}
+                  {p.name || p.address_line_1} {p.gst_enabled ? '• (GST Tracked)' : ''}
                 </option>
               ))}
             </Select>
@@ -553,6 +615,57 @@ export function TransactionModal({
               className="bg-white dark:bg-slate-800"
             />
           </div>
+
+          {/* Australian GST & Tax Classification Panel */}
+          {isGstEnabledOnProperty ? (
+            <div className="p-4 rounded-2xl border border-sky-200 bg-sky-50/50 dark:border-sky-900/50 dark:bg-sky-950/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-sky-900 dark:text-sky-300">
+                  🇦🇺 Australian GST & BAS Classification
+                </span>
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={gstInclusive}
+                    onChange={(e) => handleAmountOrGstChange(amount, e.target.checked)}
+                    className="rounded border-slate-300 text-sky-600 focus:ring-sky-500 h-4 w-4"
+                  />
+                  <span>Amount includes 10% GST</span>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label="GST Portion ($)"
+                  type="number"
+                  step="0.01"
+                  value={gstAmount}
+                  onChange={(e) => setGstAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="bg-white dark:bg-slate-800 text-xs font-mono"
+                />
+
+                <Select
+                  label="Tax Classification (for BAS)"
+                  value={taxClassificationId}
+                  onChange={(e) => setTaxClassificationId(e.target.value)}
+                  className="bg-white dark:bg-slate-800 text-xs"
+                >
+                  <option value="">Default Standard Classification</option>
+                  {filteredTaxClassifications.map((tc: any) => (
+                    <option key={tc.id} value={tc.id}>
+                      {tc.name} {tc.bas_code ? `[${tc.bas_code}]` : ''}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+          ) : propertyId ? (
+            <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+              <AlertCircle className="w-4 h-4 text-slate-400 shrink-0" />
+              <span>Property is not registered for GST. Transactions are recorded as GST-Free / Input-Taxed.</span>
+            </div>
+          ) : null}
 
 
           {/* Row 3: Description & Reference */}

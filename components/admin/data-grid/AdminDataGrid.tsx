@@ -416,7 +416,7 @@ export function AdminDataGrid<TData = any>({
     <div
       className={cn(
         'flex flex-col w-full rounded-2xl bg-admin-surface border border-admin-border shadow-xs overflow-hidden transition-[height,max-height,min-height] duration-250 ease-out',
-        isExpanded ? 'flex-1 h-full min-h-[480px]' : 'flex-none h-[340px] max-h-[340px]'
+        isExpanded ? 'flex-1 h-full min-h-[480px]' : 'flex-none h-auto min-h-[420px]'
       )}
     >
       {/* Toolbar — isolated subscriber so grid body does not rerender on collapse */}
@@ -427,7 +427,7 @@ export function AdminDataGrid<TData = any>({
         ref={gridContainerRef}
         className={cn(
           'relative w-full overflow-hidden transition-[height,max-height,min-height] duration-250 ease-out',
-          isExpanded ? 'h-full min-h-[200px] flex-1' : 'h-[240px] min-h-[240px] max-h-[240px] flex-none'
+          isExpanded ? 'h-full min-h-[280px] flex-1' : 'h-[360px] min-h-[320px] flex-none'
         )}
       >
         {isEmpty ? (
@@ -441,7 +441,7 @@ export function AdminDataGrid<TData = any>({
           />
         ) : (
           /* Render AG Grid with concurrent background initialization */
-          <div className="ag-theme-propertyledge w-full h-full min-h-[380px] flex-1 relative">
+          <div className="ag-theme-propertyledge w-full h-full flex-1 relative">
             {isLoadingState && (!isDataLoaded || rowData.length === 0) && (
               <div className="absolute inset-0 z-20 pointer-events-none bg-admin-surface">
                 <AdminDataGridLoading overlay={false} />
@@ -487,16 +487,18 @@ export function AdminDataGrid<TData = any>({
 
       {/* Pagination Footer */}
       {!isEmpty && !isLoadingState && !disablePagination && (
-        <AdminDataGridPagination
-          currentPage={effectiveCurrentPage}
-          totalPages={effectiveTotalPages}
-          totalItems={effectiveTotalItems}
-          pageSize={effectivePageSize}
-          onPageChange={handlePageChange}
-          onPageSizeChange={isServerSide ? handlePageSizeChange : undefined}
-          labelSingular={labelSingular}
-          labelPlural={labelPlural}
-        />
+        <div className="shrink-0">
+          <AdminDataGridPagination
+            currentPage={effectiveCurrentPage}
+            totalPages={effectiveTotalPages}
+            totalItems={effectiveTotalItems}
+            pageSize={effectivePageSize}
+            onPageChange={handlePageChange}
+            onPageSizeChange={isServerSide ? handlePageSizeChange : undefined}
+            labelSingular={labelSingular}
+            labelPlural={labelPlural}
+          />
+        </div>
       )}
 
       {/* Delete Confirmation Modal */}

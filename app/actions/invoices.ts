@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { createClient } from '@/lib/supabase/server';
 import { resolveWorkspaceContext } from '@/lib/workspace/context';
 import { getCurrentUser } from '@/lib/auth/queries';
 import { container } from '@/composition/container';
@@ -159,12 +160,88 @@ export async function recordInvoicePaymentAction(
   reference?: string
 ) {
   try {
-    const { invoiceService } = await getContextAndService();
+    const { user, context, invoiceService } = await getContextAndService();
     const res = await invoiceService.recordPayment(invoiceId, amount, paymentMethod, reference);
     if (!res.success) {
       return { success: false, error: res.error.message || 'Failed to record payment' };
     }
+
+    // Automatically create a ledger transaction for this payment so BAS and Money Ledger capture it
+    try {
+      const invoice = res.data;
+      const supabase = await createClient();
+      // Find default Rent/Income category
+      const { data: catData } = await supabase
+        .from('categories')
+        .select('id, default_tax_classification_id')
+        .eq('transaction_type', 'income')
+        .ilike('name', '%Rent%')
+        .limit(1)
+        .maybeSingle();
+
+      let categoryId = (catData as any)?.id;
+      let taxClassificationId = (catData as any)?.default_tax_classification_id;
+
+      if (!categoryId) {
+        const { data: anyCat } = await supabase
+          .from('categories')
+          .select('id, default_tax_classification_id')
+          .eq('transaction_type', 'income')
+          .limit(1)
+          .maybeSingle();
+        categoryId = (anyCat as any)?.id;
+        taxClassificationId = (anyCat as any)?.default_tax_classification_id;
+      }
+
+      // Check property GST status
+      let gstInclusive = false;
+      let gstAmount = 0;
+      if (invoice.propertyId) {
+        const { data: propData } = await supabase
+          .from('properties')
+          .select('gst_enabled')
+          .eq('id', invoice.propertyId)
+          .maybeSingle();
+
+        if ((propData as any)?.gst_enabled && invoice.taxAmount > 0) {
+          gstInclusive = true;
+          // Calculate proportional GST for this payment amount
+          const gstRatio = invoice.totalAmount > 0 ? invoice.taxAmount / invoice.totalAmount : 0;
+          gstAmount = Math.round(amount * gstRatio * 100) / 100;
+        }
+      }
+
+      if (categoryId && invoice.propertyId) {
+        const validPaymentMethods = ['bank_transfer', 'cash', 'card', 'cheque', 'direct_debit', 'other'];
+        const sanitizedPaymentMethod = validPaymentMethods.includes(paymentMethod) ? paymentMethod : 'bank_transfer';
+
+        await supabase.from('transactions').insert({
+          amount,
+          transaction_type: 'income',
+          transaction_category_id: categoryId,
+          transaction_date: getAuTodayString(),
+          property_id: invoice.propertyId,
+          workspace_id: context.workspaceId,
+          payment_method: sanitizedPaymentMethod,
+          description: `Payment for Invoice ${invoice.invoiceNumber || ''}`.trim(),
+          reference: reference || invoice.invoiceNumber || null,
+          status: 'completed',
+          tenant_id: invoice.tenantId || null,
+          lease_id: invoice.leaseId || null,
+          invoice_id: invoice.id,
+          created_by: user.id,
+          gst_inclusive: gstInclusive,
+          gst_amount: gstAmount,
+          tax_classification_id: taxClassificationId || null,
+        } as never);
+      }
+    } catch (txErr) {
+      console.error('[recordInvoicePaymentAction] Error creating synchronized transaction ledger entry:', txErr);
+    }
+
     revalidatePath('/dashboard/invoices');
+    revalidatePath('/dashboard/money');
+    revalidatePath('/dashboard/reports/bas');
     return { success: true, invoice: res.data };
   } catch (err: any) {
     console.error('[recordInvoicePaymentAction] Error:', err);

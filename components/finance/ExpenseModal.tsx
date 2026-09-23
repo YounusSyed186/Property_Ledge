@@ -73,11 +73,17 @@ export function ExpenseModal({
   const [status, setStatus] = useState<ExpenseStatus>('pending');
   const [notes, setNotes] = useState('');
 
+  // GST & Tax Classification State
+  const [gstInclusive, setGstInclusive] = useState(false);
+  const [gstAmount, setGstAmount] = useState('');
+  const [taxClassificationId, setTaxClassificationId] = useState('');
+
   // Options State (instantly populated)
   const [categories, setCategories] = useState<CategoryDTO[]>(initialExpenseCats);
   const [properties, setProperties] = useState<any[]>(syncCache.properties || []);
   const [leases, setLeases] = useState<any[]>(syncCache.leases || []);
   const [tenants, setTenants] = useState<any[]>(syncCache.tenants || []);
+  const [taxClassifications, setTaxClassifications] = useState<any[]>(syncCache.taxClassifications || []);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -94,6 +100,7 @@ export function ExpenseModal({
       setProperties(opts.properties || []);
       setLeases(opts.leases || []);
       setTenants(opts.tenants || []);
+      setTaxClassifications(opts.taxClassifications || []);
       if (!categoryId && expCats.length > 0 && !isEdit) {
         setCategoryId(expCats[0].id);
       }
@@ -119,6 +126,9 @@ export function ExpenseModal({
         setStatus(expenseToEdit.status || 'pending');
         setNotes(expenseToEdit.notes || '');
         setCreateTransaction(false);
+        setGstInclusive(Boolean(expenseToEdit.gst_inclusive));
+        setGstAmount(expenseToEdit.gst_amount !== undefined && expenseToEdit.gst_amount !== null ? String(expenseToEdit.gst_amount) : '');
+        setTaxClassificationId(expenseToEdit.tax_classification_id || '');
       } else {
         setAmount('');
         setExpenseDate(new Date().toISOString().split('T')[0]);
@@ -131,10 +141,40 @@ export function ExpenseModal({
         setCreateTransaction(true);
         setStatus('pending');
         setNotes('');
+        setGstInclusive(false);
+        setGstAmount('');
+        setTaxClassificationId('');
       }
       setFormErrors({});
     }
   }, [isOpen, expenseToEdit, defaultPropertyId]);
+
+  // Selected property GST tracking capability
+  const selectedProperty = useMemo(() => {
+    return properties.find((p: any) => p.id === propertyId);
+  }, [properties, propertyId]);
+
+  const isGstEnabledOnProperty = Boolean(selectedProperty?.gst_enabled);
+
+  // Filter Tax Classifications for expenses
+  const filteredTaxClassifications = useMemo(() => {
+    return taxClassifications.filter(
+      (tc: any) => !tc.applies_to || tc.applies_to === 'both' || tc.applies_to === 'expense'
+    );
+  }, [taxClassifications]);
+
+  // Auto-calculate 1/11th GST when amount or inclusive toggle changes
+  const handleAmountOrGstChange = (newAmount: string, isInc: boolean) => {
+    setAmount(newAmount);
+    setGstInclusive(isInc);
+    if (isInc && newAmount && !isNaN(parseFloat(newAmount))) {
+      const val = parseFloat(newAmount);
+      const calculatedGst = (val / 11).toFixed(2);
+      setGstAmount(calculatedGst);
+    } else if (!isInc) {
+      setGstAmount('0.00');
+    }
+  };
 
   // Available Leases filtered by selected Property
   const availableLeases = useMemo(() => {
@@ -150,6 +190,10 @@ export function ExpenseModal({
       if (!isLeaseValid) {
         setLeaseId('');
       }
+    }
+    const prop = properties.find((p: any) => p.id === newPropId);
+    if (prop?.gst_enabled && !gstInclusive) {
+      handleAmountOrGstChange(amount, true);
     }
     if (formErrors.propertyId) {
       setFormErrors((prev) => ({ ...prev, propertyId: '' }));
@@ -195,6 +239,7 @@ export function ExpenseModal({
     setIsSubmitting(true);
     try {
       const parsedAmount = Math.round(parseFloat(amount) * 100) / 100;
+      const parsedGst = gstInclusive && gstAmount ? Math.round(parseFloat(gstAmount) * 100) / 100 : 0;
 
       if (isEdit && expenseToEdit) {
         const updatePayload: UpdateExpenseInput = {
@@ -208,6 +253,9 @@ export function ExpenseModal({
           reference: reference.trim() || null,
           notes: notes.trim() || null,
           status: status,
+          gst_inclusive: gstInclusive,
+          gst_amount: parsedGst,
+          tax_classification_id: taxClassificationId || null,
         };
 
         const res = await updateExpenseAction(expenseToEdit.id, updatePayload);
@@ -236,6 +284,9 @@ export function ExpenseModal({
           record_transaction: false,
           create_transaction: false,
           status: 'pending',
+          gst_inclusive: gstInclusive,
+          gst_amount: parsedGst,
+          tax_classification_id: taxClassificationId || null,
         };
 
         const res = await createExpenseAction(createPayload);
@@ -329,7 +380,8 @@ export function ExpenseModal({
             placeholder="0.00"
             value={amount}
             onChange={(e) => {
-              setAmount(e.target.value);
+              const newAmt = e.target.value;
+              handleAmountOrGstChange(newAmt, gstInclusive);
               if (formErrors.amount) setFormErrors((prev) => ({ ...prev, amount: '' }));
             }}
             error={formErrors.amount}
@@ -340,7 +392,17 @@ export function ExpenseModal({
             label="Expense Category *"
             value={categoryId}
             onChange={(e) => {
-              setCategoryId(e.target.value);
+              const newCatId = e.target.value;
+              setCategoryId(newCatId);
+              const cat = categories.find((c) => c.id === newCatId);
+              if (cat?.default_tax_classification_id) {
+                setTaxClassificationId(cat.default_tax_classification_id);
+                const tc = taxClassifications.find((t) => t.id === cat.default_tax_classification_id);
+                const isTaxable = tc?.bas_code === '1B' || tc?.bas_code === 'G10' || tc?.bas_code === 'G1';
+                if (isTaxable && !gstInclusive) {
+                  handleAmountOrGstChange(amount, true);
+                }
+              }
               if (formErrors.categoryId) setFormErrors((prev) => ({ ...prev, categoryId: '' }));
             }}
             error={formErrors.categoryId}
@@ -350,6 +412,56 @@ export function ExpenseModal({
             ]}
           />
         </div>
+
+        {/* Australian GST & Tax Classification Panel */}
+        {isGstEnabledOnProperty ? (
+          <div className="p-4 rounded-2xl border border-sky-200 bg-sky-50/50 dark:border-sky-900/50 dark:bg-sky-950/20 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-sky-900 dark:text-sky-300">
+                🇦🇺 Australian GST & BAS Classification
+              </span>
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={gstInclusive}
+                  onChange={(e) => handleAmountOrGstChange(amount, e.target.checked)}
+                  className="rounded border-slate-300 text-sky-600 focus:ring-sky-500 h-4 w-4"
+                />
+                <span>Amount includes 10% GST</span>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="GST Portion ($)"
+                type="number"
+                step="0.01"
+                value={gstAmount}
+                onChange={(e) => setGstAmount(e.target.value)}
+                placeholder="0.00"
+                className="bg-white dark:bg-slate-800 text-xs font-mono"
+              />
+
+              <Select
+                label="Tax Classification (for BAS)"
+                value={taxClassificationId}
+                onChange={(e) => setTaxClassificationId(e.target.value)}
+                options={[
+                  { value: '', label: 'Default Operating Expense [G11]' },
+                  ...filteredTaxClassifications.map((tc: any) => ({
+                    value: tc.id,
+                    label: `${tc.name} ${tc.bas_code ? `[${tc.bas_code}]` : ''}`,
+                  })),
+                ]}
+              />
+            </div>
+          </div>
+        ) : propertyId ? (
+          <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+            <AlertCircle className="w-4 h-4 text-slate-400 shrink-0" />
+            <span>Property is not registered for GST. Expenses are recorded as GST-Free / Input-Taxed.</span>
+          </div>
+        ) : null}
 
         {/* Expense Date & Payee / Vendor */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

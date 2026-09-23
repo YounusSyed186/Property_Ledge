@@ -16,8 +16,12 @@ export const paymentMethodSchema = z.enum([
   'bank_transfer',
   'cash',
   'card',
+  'credit_card',
+  'debit_card',
   'cheque',
   'direct_debit',
+  'stripe',
+  'bpay',
   'other',
 ]);
 
@@ -42,6 +46,11 @@ export const createTransactionSchema = z.object({
   tenant_id: z.string().uuid().nullable().optional(),
   lease_id: z.string().uuid().nullable().optional(),
   invoice_id: z.string().uuid().nullable().optional(),
+
+  // GST & Tax Classification
+  gst_inclusive: z.boolean().default(false).optional(),
+  gst_amount: z.number().min(0).default(0).optional(),
+  tax_classification_id: z.string().uuid().nullable().optional(),
 });
 
 export const updateTransactionSchema = createTransactionSchema.partial();
@@ -51,6 +60,7 @@ export const transactionFilterSchema = z.object({
   property_id: z.string().uuid().optional(),
   transaction_type: z.enum(['income', 'expense', 'all']).optional(),
   transaction_category_id: z.string().uuid().optional(),
+  tax_classification_id: z.string().uuid().optional(),
   tenant_id: z.string().uuid().optional(),
   lease_id: z.string().uuid().optional(),
   invoice_id: z.string().uuid().optional(),
@@ -61,6 +71,13 @@ export const transactionFilterSchema = z.object({
   end_date: z.string().optional(),
   limit: z.number().int().positive().optional(),
   offset: z.number().int().nonnegative().optional(),
+});
+
+export const basFilterSchema = z.object({
+  workspace_id: z.string().uuid().optional(),
+  property_id: z.string().uuid().nullable().optional(),
+  financial_year: z.number().int().min(2000).max(2100).default(2026),
+  period: z.enum(['Q1', 'Q2', 'Q3', 'Q4', 'FY', 'M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9', 'M10', 'M11', 'M12']).default('Q1'),
 });
 
 export const expenseStatusSchema = z.enum([
@@ -88,6 +105,9 @@ export const createExpenseSchema = z.object({
   status: expenseStatusSchema.default('pending'),
   receipt_url: z.string().max(1000).nullable().optional(),
   workspace_id: z.string().uuid().optional(),
+  gst_inclusive: z.boolean().default(false).optional(),
+  gst_amount: z.number().min(0).default(0).optional(),
+  tax_classification_id: z.string().uuid().nullable().optional(),
   create_transaction: z.boolean().optional(),
   payment_method: paymentMethodSchema.nullable().optional(),
 });

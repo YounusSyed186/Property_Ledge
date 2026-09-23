@@ -148,14 +148,16 @@ export function EntityDetailHeader({
 
 /* ── KPI & panels ─────────────────────────────────────────── */
 
-export type KpiAccent = 'blue' | 'indigo' | 'teal' | 'amber' | 'neutral';
+export type KpiAccent = 'blue' | 'indigo' | 'teal' | 'amber' | 'emerald' | 'rose' | 'neutral';
 
 const KPI_ACCENT_STYLES: Record<KpiAccent, string> = {
-  blue: 'bg-admin-primary-soft text-admin-primary',
-  indigo: 'bg-admin-indigo-soft text-admin-indigo',
-  teal: 'bg-admin-teal-soft text-admin-teal',
-  amber: 'bg-admin-warning-soft text-admin-warning',
-  neutral: 'bg-admin-surface-subtle text-admin-muted',
+  blue: 'bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/50',
+  indigo: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/50',
+  teal: 'bg-[#008F83]/10 text-[#008F83] dark:bg-[#008F83]/20 dark:text-[#008F83] border border-[#008F83]/20',
+  emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/50',
+  amber: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/50',
+  rose: 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/50',
+  neutral: 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700',
 };
 
 interface CompactKpiCardProps {
@@ -169,36 +171,50 @@ interface CompactKpiCardProps {
   className?: string;
 }
 
-export function CompactKpiCard({ label, value, hint, trend, href, icon: Icon, accent = 'blue', className }: CompactKpiCardProps) {
+export function CompactKpiCard({ label, value, hint, trend, href, icon: Icon, accent = 'teal', className }: CompactKpiCardProps) {
   const inner = (
     <div
       className={cn(
-        'rounded-xl border border-admin-border bg-admin-surface px-4 py-4 transition-colors w-full h-full min-h-[96px] flex flex-col justify-between',
-        href && 'hover:border-admin-primary-border hover:shadow-sm',
+        'rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 transition-all duration-200 w-full h-full min-h-[120px] flex flex-col justify-between shadow-[0_2px_10px_rgba(0,0,0,0.03)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)]',
+        href && 'hover:border-[#008F83]/40 cursor-pointer',
         className
       )}
     >
-      <div className="flex items-start justify-between gap-3 flex-1">
-        <div className="min-w-0 flex-1 flex flex-col justify-between h-full">
-          <div>
-            <p className="text-metadata font-semibold uppercase tracking-wider text-admin-muted">{label}</p>
-            <p className="mt-1.5 font-heading text-display font-semibold tabular-nums tracking-tight text-admin-foreground">
-              {value}
-            </p>
-          </div>
-          {trend && (
-            <p className={cn('mt-1 text-caption font-medium', trend.positive ? 'text-admin-success' : 'text-admin-muted')}>
-              {trend.value}
-            </p>
-          )}
-          {hint && !trend && <p className="mt-1 text-caption text-admin-muted">{hint}</p>}
-        </div>
+      {/* Top row: Label + Icon */}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-tight">{label}</p>
         {Icon && (
-          <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', KPI_ACCENT_STYLES[accent])}>
-            <Icon className="h-5 w-5" />
+          <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', KPI_ACCENT_STYLES[accent])}>
+            <Icon className="h-4.5 w-4.5" />
           </div>
         )}
       </div>
+
+      {/* Middle row: Big Value */}
+      <div className="my-1">
+        <p className="font-heading text-2xl sm:text-[28px] font-extrabold tabular-nums tracking-tight text-slate-900 dark:text-white leading-tight">
+          {value}
+        </p>
+      </div>
+
+      {/* Bottom row: Trend badge & comparison text */}
+      {(trend || hint) && (
+        <div className="flex items-center gap-2 pt-0.5">
+          {trend && (
+            <span
+              className={cn(
+                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border',
+                trend.positive !== false
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40'
+                  : 'bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40'
+              )}
+            >
+              {trend.positive !== false ? '↗' : '↘'} {trend.value}
+            </span>
+          )}
+          {hint && <span className="text-[11px] text-slate-400 dark:text-slate-500 font-normal">{hint}</span>}
+        </div>
+      )}
     </div>
   );
 
@@ -218,12 +234,12 @@ export function SectionPanel({
   className?: string;
 }) {
   return (
-    <section className={cn('rounded-xl border border-admin-border bg-admin-surface w-full', className)}>
-      <div className="flex items-center justify-between gap-2 border-b border-admin-border px-4 py-3">
-        <h2 className="text-section-title font-semibold text-admin-foreground">{title}</h2>
+    <section className={cn('rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 w-full shadow-[0_2px_10px_rgba(0,0,0,0.03)] overflow-hidden', className)}>
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 px-5 py-3.5 bg-slate-50/50 dark:bg-slate-800/30">
+        <h2 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white">{title}</h2>
         {action}
       </div>
-      <div className="p-4">{children}</div>
+      <div className="p-5">{children}</div>
     </section>
   );
 }

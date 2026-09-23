@@ -7,6 +7,7 @@ export interface FormDropdownOptions {
   properties: any[];
   leases: any[];
   tenants: any[];
+  taxClassifications?: any[];
 }
 
 export const DEFAULT_FALLBACK_CATEGORIES: CategoryDTO[] = [
@@ -80,6 +81,7 @@ export async function getDropdownOptions(forceRefresh = false): Promise<FormDrop
           properties: data.properties || [],
           leases: data.leases || [],
           tenants: data.tenants || [],
+          taxClassifications: data.taxClassifications || [],
         };
         lastCacheTime = Date.now();
         fetchPromise = null;

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server';
 import * as financeService from '@/lib/finance/service';
 import {
   CategoryDTO,
+  TaxClassificationDTO,
   TransactionDTO,
   LedgerEntryDTO,
   FinancialSummaryDTO,
@@ -43,18 +44,18 @@ export async function fetchFormDropdownOptionsAction() {
     const { context } = await getAuthContext();
     const supabase = await createClient();
 
-    const [categoriesRes, propertiesRes, leasesRes, tenantsRes] = await Promise.all([
+    const [categoriesRes, propertiesRes, leasesRes, tenantsRes, taxClassificationsRes] = await Promise.all([
       // Categories (active)
       supabase
         .from('categories')
-        .select('id, transaction_type, name, description, is_active')
+        .select('id, transaction_type, name, description, is_active, category_group_id')
         .eq('is_active', true)
         .order('name', { ascending: true }),
 
       // Properties in workspace
       supabase
         .from('properties')
-        .select('id, name, address_line_1, suburb, state, postal_code')
+        .select('id, name, address_line_1, suburb, state, postal_code, gst_enabled')
         .eq('workspace_id', context.workspaceId)
         .order('name', { ascending: true }),
 
@@ -81,6 +82,14 @@ export async function fetchFormDropdownOptionsAction() {
         .from('tenants')
         .select('id, first_name, last_name, email, property_id')
         .order('last_name', { ascending: true }),
+
+      // Tax Classifications in workspace
+      supabase
+        .from('tax_classifications')
+        .select('id, workspace_id, name, bas_code, description, is_active')
+        .eq('workspace_id', context.workspaceId)
+        .eq('is_active', true)
+        .order('name', { ascending: true }),
     ]);
 
     const formattedLeases = (leasesRes.data || []).map((l: any) => ({
@@ -99,6 +108,7 @@ export async function fetchFormDropdownOptionsAction() {
       properties: propertiesRes.data || [],
       leases: formattedLeases,
       tenants: tenantsRes.data || [],
+      taxClassifications: taxClassificationsRes.data || [],
     };
   } catch (err) {
     console.error('Error in fetchFormDropdownOptionsAction:', err);
@@ -107,6 +117,7 @@ export async function fetchFormDropdownOptionsAction() {
       properties: [],
       leases: [],
       tenants: [],
+      taxClassifications: [],
     };
   }
 }
@@ -117,6 +128,15 @@ export async function fetchFormDropdownOptionsAction() {
 export async function fetchCategoriesAction(type?: TransactionType): Promise<CategoryDTO[]> {
   await getAuthContext();
   return financeService.getCategories(type);
+}
+
+/**
+ * Fetch active tax classifications for workspace
+ */
+export async function fetchTaxClassificationsAction(): Promise<TaxClassificationDTO[]> {
+  const { context } = await getAuthContext();
+  const res = await fetchFormDropdownOptionsAction();
+  return res.taxClassifications || [];
 }
 
 export type { FinancialPageData } from '@/lib/finance/service';
