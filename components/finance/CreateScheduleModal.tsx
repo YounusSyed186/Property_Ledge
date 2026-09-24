@@ -15,8 +15,9 @@ import {
   Percent,
   ChevronDown,
   ChevronUp,
+  X,
 } from 'lucide-react';
-import { Button, Input, Select, Textarea, useToast, Drawer } from '@/components/admin/ui';
+import { Button, Input, Select, Textarea, useToast } from '@/components/admin/ui';
 import { createScheduleAction } from '@/app/actions/schedules';
 import { getDropdownOptions } from '@/lib/cache/optionsCache';
 import { generateScheduleEntries } from '@/modules/finance/domain/scheduleGenerator';
@@ -35,6 +36,7 @@ interface CreateScheduleModalProps {
   onClose: () => void;
   onSuccess: () => void;
   defaultPropertyId?: string | null;
+  defaultScheduleType?: ScheduleType;
 }
 
 export function CreateScheduleModal({
@@ -42,10 +44,11 @@ export function CreateScheduleModal({
   onClose,
   onSuccess,
   defaultPropertyId,
+  defaultScheduleType = 'lease',
 }: CreateScheduleModalProps) {
   const { toast } = useToast();
 
-  const [scheduleType, setScheduleType] = useState<ScheduleType>('lease');
+  const [scheduleType, setScheduleType] = useState<ScheduleType>(defaultScheduleType);
   const [scheduleName, setScheduleName] = useState('');
   const [amount, setAmount] = useState<string>('');
   const [frequency, setFrequency] = useState<ScheduleFrequency>('monthly');
@@ -89,6 +92,20 @@ export function CreateScheduleModal({
       }
     });
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (defaultScheduleType) {
+        setScheduleType(defaultScheduleType);
+        if (defaultScheduleType === 'independent') {
+          setSelectedLeaseId('');
+          setScheduleName('Recurring Maintenance / Obligation');
+        } else {
+          setScheduleName('');
+        }
+      }
+    }
+  }, [isOpen, defaultScheduleType]);
 
   useEffect(() => {
     if (defaultPropertyId) setSelectedPropertyId(defaultPropertyId);
@@ -229,6 +246,8 @@ export function CreateScheduleModal({
     taxClassificationId,
   ]);
 
+  const selectedTaxClass = taxClassifications.find((t) => t.id === taxClassificationId);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const numAmount = parseFloat(amount);
@@ -291,216 +310,191 @@ export function CreateScheduleModal({
     }
   };
 
-  const footer = (
-    <div className="flex items-center justify-end gap-3 w-full">
-      <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
-        Cancel
-      </Button>
-      <Button
-        type="button"
-        onClick={handleSubmit as any}
-        disabled={isSubmitting || previewEntries.length === 0}
-        className="bg-[#008F83] hover:bg-[#007A70] text-white font-bold"
-      >
-        {isSubmitting ? 'Generating...' : `Generate Schedule (${previewEntries.length} entries)`}
-      </Button>
-    </div>
-  );
-
-  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
-  const selectedTaxClass = taxClassifications.find((t) => t.id === taxClassificationId);
+  if (!isOpen) return null;
 
   return (
-    <Drawer
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Create Payment Schedule"
-      description="Setup recurring rent schedules or independent obligations with full tax classification & BAS tracking"
-      width="lg"
-      footer={footer}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto font-sans text-slate-900 dark:text-slate-100"
+      role="dialog"
+      aria-modal="true"
     >
-      <form onSubmit={handleSubmit} className="space-y-5 py-2">
-        {/* Schedule Type Segment Selector */}
-        <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-          <button
-            type="button"
-            onClick={() => {
-              setScheduleType('lease');
-              setScheduleName('');
-              setHasManualTaxOverride(false);
-            }}
-            className={cn(
-              'h-11 rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-2 border',
-              scheduleType === 'lease'
-                ? 'bg-[#008F83] text-white border-transparent shadow-xs'
-                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-[#008F83]/40'
-            )}
-          >
-            <FileText className="h-4 w-4" />
-            Lease-Based Schedule
-          </button>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-          <button
-            type="button"
-            onClick={() => {
-              setScheduleType('independent');
-              setSelectedLeaseId('');
-              setScheduleName('Recurring Maintenance / Obligation');
-              setHasManualTaxOverride(false);
-            }}
-            className={cn(
-              'h-11 rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-2 border',
-              scheduleType === 'independent'
-                ? 'bg-[#008F83] text-white border-transparent shadow-xs'
-                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-[#008F83]/40'
-            )}
-          >
-            <Layers className="h-4 w-4" />
-            Independent Schedule
-          </button>
+      {/* Modal Dialog Card */}
+      <div className="relative flex max-h-[92vh] w-full max-w-2xl flex-col rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xl z-10 p-6 sm:p-8">
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-5 right-5 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-[#008F83]/30"
+          aria-label="Close dialog"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Centered Header */}
+        <div className="text-center mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold font-heading tracking-tight text-slate-900 dark:text-white">
+            {scheduleType === 'lease' ? 'Create Lease-Based Schedule' : 'Create Independent Schedule'}
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            {scheduleType === 'lease'
+              ? 'Setup recurring rent schedules linked directly to active lease tenancies.'
+              : 'Setup recurring property obligations, maintenance contracts, or independent payments.'}
+          </p>
         </div>
 
-        {/* Lease Select (if Lease-Based) */}
-        {scheduleType === 'lease' && (
-          <Select
-            label="Select Lease *"
-            value={selectedLeaseId}
-            onChange={(e) => handleLeaseChange(e.target.value)}
-            options={[
-              { value: '', label: '-- Choose Active Lease --' },
-              ...leases.map((l) => {
-                const tenant = getLeaseTenant(l);
-                const tenantName = tenant ? `${tenant.first_name} ${tenant.last_name}` : 'Tenant';
-                return {
-                  value: l.id,
-                  label: `${l.property?.name || 'Property'} - ${tenantName} ($${l.rent_amount || 0}/${l.rent_frequency || 'm'})`,
-                };
-              }),
-            ]}
-          />
-        )}
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-4 px-0.5 py-1">
 
-        {/* Property & Category */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
-            label="Associated Property"
-            value={selectedPropertyId}
-            onChange={(e) => {
-              setSelectedPropertyId(e.target.value);
-              setHasManualTaxOverride(false);
-            }}
-            options={[
-              { value: '', label: '-- Workspace Level / None --' },
-              ...properties.map((p) => ({
-                value: p.id,
-                label: `${p.name}${p.gst_enabled ? ' (GST Registered)' : ''}`,
-              })),
-            ]}
-          />
-
-          <Select
-            label="Category"
-            value={selectedCategoryId}
-            onChange={(e) => {
-              setSelectedCategoryId(e.target.value);
-              setHasManualTaxOverride(false);
-            }}
-            options={[
-              { value: '', label: '-- Select Category --' },
-              ...categories.map((c) => ({
-                value: c.id,
-                label: `${c.name} (${c.transaction_type})`,
-              })),
-            ]}
-          />
-        </div>
-
-        {/* Schedule Name & Amount */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="Schedule Name *"
-            placeholder="e.g. Monthly Rent - Unit 4B"
-            value={scheduleName}
-            onChange={(e) => setScheduleName(e.target.value)}
-          />
-
-          <Input
-            label="Expected Amount ($) *"
-            type="number"
-            step="0.01"
-            placeholder="1000.00"
-            value={amount}
-            onChange={(e) => handleAmountChange(e.target.value)}
-            leftIcon={<DollarSign className="h-4 w-4 text-emerald-500" />}
-          />
-        </div>
-
-        {/* GST & Tax Treatment Financial Context Panel */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-[#008F83]" />
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                GST Treatment & Tax Classification
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowAdvancedTax(!showAdvancedTax)}
-              className="text-[11px] text-[#008F83] hover:underline flex items-center gap-1 font-semibold"
-            >
-              {showAdvancedTax ? 'Hide Details' : 'Advanced Tax Settings'}
-              {showAdvancedTax ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={cn(
-                'px-2.5 py-1 rounded-lg text-xs font-bold border',
-                gstInclusive
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                  : 'bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
-              )}
-            >
-              {gstInclusive ? `Taxable (${gstAmount ? `$${gstAmount} GST` : '10% GST'})` : 'GST-Free / Input Taxed ($0 GST)'}
-            </span>
-
-            {selectedTaxClass && (
-              <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#008F83]/10 text-[#008F83] border border-[#008F83]/20">
-                BAS: {selectedTaxClass.bas_code || 'G1'} — {selectedTaxClass.name}
-              </span>
-            )}
-          </div>
-
-          {originExplanation && (
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-              <Sparkles className="h-3 w-3 text-[#008F83]" />
-              {originExplanation}
-            </p>
+          {/* Lease Select (if Lease-Based) */}
+          {scheduleType === 'lease' && (
+            <Select
+              label="Select Lease *"
+              value={selectedLeaseId}
+              onChange={(e) => handleLeaseChange(e.target.value)}
+              className="bg-white dark:bg-slate-800"
+              options={[
+                { value: '', label: '-- Choose Active Lease --' },
+                ...leases.map((l) => {
+                  const tenant = getLeaseTenant(l);
+                  const tenantName = tenant ? `${tenant.first_name} ${tenant.last_name}` : 'Tenant';
+                  return {
+                    value: l.id,
+                    label: `${l.property?.name || 'Property'} - ${tenantName} ($${l.rent_amount || 0}/${l.rent_frequency || 'm'})`,
+                  };
+                }),
+              ]}
+            />
           )}
 
-          {showAdvancedTax && (
-            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 animate-in fade-in duration-150">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">GST Registration</label>
-                <div className="flex items-center gap-2 pt-1">
-                  <input
-                    type="checkbox"
-                    id="gstInclusiveToggle"
-                    checked={gstInclusive}
-                    onChange={(e) => handleGstToggle(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-[#008F83] focus:ring-[#008F83]"
-                  />
-                  <label htmlFor="gstInclusiveToggle" className="text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
-                    Amount includes GST
+          {/* Property & Category */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select
+              label="Associated Property"
+              value={selectedPropertyId}
+              onChange={(e) => {
+                setSelectedPropertyId(e.target.value);
+                setHasManualTaxOverride(false);
+              }}
+              className="bg-white dark:bg-slate-800"
+              options={[
+                { value: '', label: '-- Workspace Level / None --' },
+                ...properties.map((p) => ({
+                  value: p.id,
+                  label: `${p.name}${p.gst_enabled ? ' (GST Registered)' : ''}`,
+                })),
+              ]}
+            />
+
+            <Select
+              label="Category"
+              value={selectedCategoryId}
+              onChange={(e) => {
+                setSelectedCategoryId(e.target.value);
+                setHasManualTaxOverride(false);
+              }}
+              className="bg-white dark:bg-slate-800"
+              options={[
+                { value: '', label: '-- Select Category --' },
+                ...categories.map((c) => ({
+                  value: c.id,
+                  label: `${c.name} (${c.transaction_type})`,
+                })),
+              ]}
+            />
+          </div>
+
+          {/* Schedule Name & Amount */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Schedule Name *"
+              placeholder="e.g. Monthly Rent - Unit 4B"
+              value={scheduleName}
+              onChange={(e) => setScheduleName(e.target.value)}
+              className="bg-white dark:bg-slate-800"
+            />
+
+            <Input
+              label="Expected Amount ($) *"
+              type="number"
+              step="0.01"
+              placeholder="1000.00"
+              value={amount}
+              onChange={(e) => handleAmountChange(e.target.value)}
+              leftIcon={<DollarSign className="h-4 w-4 text-[#008F83]" />}
+              className="bg-white dark:bg-slate-800"
+            />
+          </div>
+
+          {/* GST & Tax Treatment Financial Context Panel */}
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-[#008F83]" />
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  GST Treatment & Tax Classification
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAdvancedTax(!showAdvancedTax)}
+                className="text-[11px] text-[#008F83] hover:underline flex items-center gap-1 font-semibold"
+              >
+                {showAdvancedTax ? 'Hide Details' : 'Advanced Tax Settings'}
+                {showAdvancedTax ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={cn(
+                  'px-2.5 py-1 rounded-lg text-xs font-bold border',
+                  gstInclusive
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                    : 'bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+                )}
+              >
+                {gstInclusive ? `Taxable (${gstAmount ? `$${gstAmount} GST` : '10% GST'})` : 'GST-Free / Input Taxed ($0 GST)'}
+              </span>
+
+              {selectedTaxClass && (
+                <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#008F83]/10 text-[#008F83] border border-[#008F83]/20">
+                  BAS: {selectedTaxClass.bas_code || 'G1'} — {selectedTaxClass.name}
+                </span>
+              )}
+            </div>
+
+            {originExplanation && (
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-[#008F83]" />
+                {originExplanation}
+              </p>
+            )}
+
+            {showAdvancedTax && (
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3 animate-in fade-in duration-150">
+                <div className="space-y-1.5 flex flex-col justify-center pt-2.5">
+                  <span className="text-[10.5px] font-medium text-slate-500 dark:text-slate-400">GST Registration</span>
+                  <label htmlFor="gstInclusiveToggle" className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      id="gstInclusiveToggle"
+                      checked={gstInclusive}
+                      onChange={(e) => handleGstToggle(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-[#008F83] focus:ring-[#008F83]"
+                    />
+                    <span>Amount includes GST</span>
                   </label>
                 </div>
-              </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">GST Amount ($)</label>
-                <input
+                <Input
+                  label="GST Amount ($)"
                   type="number"
                   step="0.01"
                   disabled={!gstInclusive}
@@ -509,113 +503,135 @@ export function CreateScheduleModal({
                     setHasManualTaxOverride(true);
                     setGstAmount(e.target.value);
                   }}
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-1.5 text-xs text-slate-900 dark:text-white disabled:opacity-50"
+                  className="bg-white dark:bg-slate-900"
                 />
-              </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">BAS Classification</label>
-                <select
+                <Select
+                  label="BAS Classification"
                   value={taxClassificationId}
                   onChange={(e) => handleTaxClassChange(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-1.5 text-xs text-slate-900 dark:text-white"
-                >
-                  <option value="">-- Auto-resolve / None --</option>
-                  {taxClassifications.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.bas_code ? `[${t.bas_code}] ` : ''}{t.name} ({t.applies_to})
-                    </option>
-                  ))}
-                </select>
+                  className="bg-white dark:bg-slate-900"
+                  options={[
+                    { value: '', label: '-- Auto-resolve / None --' },
+                    ...taxClassifications.map((t) => ({
+                      value: t.id,
+                      label: `${t.bas_code ? `[${t.bas_code}] ` : ''}${t.name} (${t.applies_to})`,
+                    })),
+                  ]}
+                />
+              </div>
+            )}
+
+          </div>
+
+          {/* Frequency & Dates */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Select
+              label="Frequency *"
+              value={frequency}
+              onChange={(e) => setFrequency(e.target.value as ScheduleFrequency)}
+              className="bg-white dark:bg-slate-800"
+              options={[
+                { value: 'weekly', label: 'Weekly' },
+                { value: 'fortnightly', label: 'Fortnightly' },
+                { value: 'monthly', label: 'Monthly' },
+                { value: 'quarterly', label: 'Quarterly' },
+                { value: 'yearly', label: 'Yearly' },
+                { value: 'custom', label: 'Custom / One-off' },
+              ]}
+            />
+
+            <Input
+              label="Start Date *"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-white dark:bg-slate-800"
+            />
+
+            <Input
+              label="End Date *"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-white dark:bg-slate-800"
+            />
+          </div>
+
+          <Textarea
+            label="Schedule Notes"
+            placeholder="Optional notes or internal reference..."
+            rows={2}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="bg-white dark:bg-slate-800"
+          />
+
+          {/* Live Preview Table */}
+          {previewEntries.length > 0 && (
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 space-y-3">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
+                <span className="flex items-center gap-1.5">
+                  <Info className="h-4 w-4 text-[#008F83]" />
+                  Generated Schedule Preview
+                </span>
+                <span className="rounded-full bg-[#008F83]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#008F83]">
+                  {previewEntries.length} entries to create
+                </span>
+              </div>
+
+              <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+                {previewEntries.slice(0, 8).map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between text-xs py-2 px-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-slate-800 dark:text-slate-200">{item.schedule_name}</span>
+                      {item.gst_inclusive && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600">
+                          GST: ${item.gst_amount?.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-slate-500 font-mono text-[11px]">Due: {item.due_date}</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        ${item.amount.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {previewEntries.length > 8 && (
+                  <p className="text-[11px] text-center text-slate-500 pt-1">
+                    ...and {previewEntries.length - 8} more entries
+                  </p>
+                )}
               </div>
             </div>
           )}
-        </div>
 
-        {/* Frequency & Dates */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Select
-            label="Frequency *"
-            value={frequency}
-            onChange={(e) => setFrequency(e.target.value as ScheduleFrequency)}
-            options={[
-              { value: 'weekly', label: 'Weekly' },
-              { value: 'fortnightly', label: 'Fortnightly' },
-              { value: 'monthly', label: 'Monthly' },
-              { value: 'quarterly', label: 'Quarterly' },
-              { value: 'yearly', label: 'Yearly' },
-              { value: 'custom', label: 'Custom / One-off' },
-            ]}
-          />
-
-          <Input
-            label="Start Date *"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-
-          <Input
-            label="End Date *"
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </div>
-
-        <Textarea
-          label="Schedule Notes"
-          placeholder="Optional notes or internal reference..."
-          rows={2}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
-
-        {/* Live Preview Table */}
-        {previewEntries.length > 0 && (
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 space-y-3">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
-              <span className="flex items-center gap-1.5">
-                <Info className="h-4 w-4 text-[#008F83]" />
-                Generated Schedule Preview
-              </span>
-              <span className="rounded-full bg-[#008F83]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#008F83]">
-                {previewEntries.length} entries to create
-              </span>
-            </div>
-
-            <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
-              {previewEntries.slice(0, 8).map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between text-xs py-2 px-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-800 dark:text-slate-200">{item.schedule_name}</span>
-                    {item.gst_inclusive && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600">
-                        GST: ${item.gst_amount?.toFixed(2)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-slate-500 font-mono text-[11px]">Due: {item.due_date}</span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                      ${item.amount.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {previewEntries.length > 8 && (
-                <p className="text-[11px] text-center text-slate-500 pt-1">
-                  ...and {previewEntries.length - 8} more entries
-                </p>
-              )}
-            </div>
+          {/* Footer Actions */}
+          <div className="flex items-center gap-3 mt-6 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="flex-1 h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors focus:outline-none"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting || previewEntries.length === 0}
+              className="flex-1 h-12 rounded-xl bg-[#008F83] hover:bg-[#007A70] text-white font-semibold text-sm shadow-md transition-all duration-150 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#008F83]/25 active:scale-[0.99]"
+            >
+              {isSubmitting ? 'Generating...' : `Generate Schedule (${previewEntries.length} entries)`}
+            </button>
           </div>
-        )}
-      </form>
-    </Drawer>
+        </form>
+      </div>
+    </div>
   );
 }
 

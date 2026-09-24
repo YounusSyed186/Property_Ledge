@@ -538,7 +538,7 @@ export function CreateInvoiceModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in font-sans">
       <div className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-3xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
-        
+
         {/* Top Header & Wizard Stepper */}
         <div className="px-6 py-4 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -582,8 +582,8 @@ export function CreateInvoiceModal({
                     step === s.idx
                       ? 'bg-[#008F83] text-white border-[#008F83] shadow-xs'
                       : step > s.idx
-                      ? 'bg-[#008F83]/10 text-[#008F83] border-[#008F83]/30 hover:bg-[#008F83]/20'
-                      : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-800 opacity-60'
+                        ? 'bg-[#008F83]/10 text-[#008F83] border-[#008F83]/30 hover:bg-[#008F83]/20'
+                        : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-800 opacity-60'
                   )}
                 >
                   {step > s.idx ? (
@@ -619,7 +619,7 @@ export function CreateInvoiceModal({
 
         {/* Scrollable Wizard Body */}
         <div className="p-6 overflow-y-auto flex-1 space-y-6 text-sm">
-          
+
           {/* ═══════════════════════════════════════════════════════
               STEP 0: CHOOSE INVOICE TYPE (STANDALONE VS PROPERTY LEASE RENT)
              ═══════════════════════════════════════════════════════ */}
@@ -1085,7 +1085,7 @@ export function CreateInvoiceModal({
              ═══════════════════════════════════════════════════════ */}
           {step === 2 && (
             <div className="space-y-6">
-              
+
               {/* Type Indicator Banner (Selection choice made at opening, no internal tabs) */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80">
                 <div className="flex items-center gap-3">
@@ -1131,8 +1131,8 @@ export function CreateInvoiceModal({
                         detailSubStep === 0
                           ? '0%'
                           : detailSubStep === 1
-                          ? '50%'
-                          : 'calc(100% - 48px)',
+                            ? '50%'
+                            : 'calc(100% - 48px)',
                     }}
                   />
 
@@ -1155,8 +1155,8 @@ export function CreateInvoiceModal({
                               isCurrent
                                 ? 'bg-[#008F83] text-white shadow-xs ring-3 ring-[#008F83]/20 scale-105'
                                 : isCompleted
-                                ? 'bg-[#008F83] text-white shadow-2xs hover:bg-[#008F83]/90'
-                                : 'bg-white dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'
+                                  ? 'bg-[#008F83] text-white shadow-2xs hover:bg-[#008F83]/90'
+                                  : 'bg-white dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'
                             )}
                             title={`Jump to ${s.name}`}
                           >
@@ -1168,8 +1168,8 @@ export function CreateInvoiceModal({
                               isCurrent
                                 ? 'text-[#008F83] font-bold'
                                 : isCompleted
-                                ? 'text-slate-700 dark:text-slate-300'
-                                : 'text-slate-400 dark:text-slate-500'
+                                  ? 'text-slate-700 dark:text-slate-300'
+                                  : 'text-slate-400 dark:text-slate-500'
                             )}
                           >
                             {s.name}

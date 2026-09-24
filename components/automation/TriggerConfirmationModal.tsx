@@ -38,32 +38,41 @@ export function TriggerConfirmationModal({
     : automation.metadata?.description || 'Service Invoice';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-admin-surface border border-admin-border text-admin-foreground rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-admin-border flex items-center justify-between bg-admin-surface-subtle/50">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-admin-primary/10 text-admin-primary border border-admin-primary/20">
-              {isInvoiceAction ? <Receipt className="w-5 h-5" /> : <Send className="w-5 h-5" />}
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-admin-foreground">
-                {isInvoiceAction ? 'Generate & Send Invoice Now?' : 'Send Lease Document Now?'}
-              </h2>
-              <p className="text-xs text-admin-muted mt-0.5">Manual Automation Trigger</p>
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto font-sans">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
+        onClick={onClose}
+      />
+
+      {/* Modal Container */}
+      <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] z-10 p-6 sm:p-8 text-slate-900 dark:text-slate-100 animate-in zoom-in-95 duration-200">
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-5 right-5 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-[#008F83]/30"
+          aria-label="Close dialog"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Centered Header */}
+        <div className="text-center mb-6">
+          <div className="w-12 h-12 rounded-2xl bg-[#008F83]/10 text-[#008F83] border border-[#008F83]/20 flex items-center justify-center mx-auto mb-3">
+            {isInvoiceAction ? <Receipt className="w-6 h-6" /> : <Send className="w-6 h-6" />}
           </div>
-          <button
-            onClick={onClose}
-            className="text-admin-muted hover:text-admin-foreground p-1.5 rounded-lg hover:bg-admin-surface-subtle transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <h2 className="text-xl sm:text-2xl font-bold font-heading tracking-tight text-slate-900 dark:text-white">
+            {isInvoiceAction ? 'Generate & Send Invoice Now?' : 'Send Lease Document Now?'}
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Manual Automation Trigger Confirmation
+          </p>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-4 text-sm">
-          <p className="text-admin-foreground text-xs leading-relaxed">
+        <div className="space-y-4 text-sm">
+          <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed text-center">
             {isInvoiceAction ? (
               <>
                 This will generate a <strong>fresh invoice with PDF attachment</strong> and immediately email it to:
@@ -75,22 +84,22 @@ export function TriggerConfirmationModal({
             )}
           </p>
 
-          <div className="bg-admin-surface-subtle border border-admin-border rounded-xl p-3.5 space-y-1.5 text-xs">
+          <div className="bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-admin-muted">{isLease ? 'Tenant:' : 'Customer:'}</span>
-              <strong className="text-admin-foreground">{recipientName}</strong>
+              <span className="text-slate-500 dark:text-slate-400">{isLease ? 'Tenant:' : 'Customer:'}</span>
+              <strong className="text-slate-900 dark:text-white font-bold">{recipientName}</strong>
             </div>
             <div className="flex justify-between">
-              <span className="text-admin-muted">Recipient Email:</span>
-              <span className="font-mono text-admin-primary font-bold">{recipientEmail}</span>
+              <span className="text-slate-500 dark:text-slate-400">Recipient Email:</span>
+              <span className="font-mono text-[#008F83] font-bold">{recipientEmail}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-admin-muted">{isLease ? 'Property:' : 'Description:'}</span>
-              <strong className="text-admin-foreground">{sourceName}</strong>
+              <span className="text-slate-500 dark:text-slate-400">{isLease ? 'Property:' : 'Description:'}</span>
+              <strong className="text-slate-900 dark:text-white font-bold">{sourceName}</strong>
             </div>
           </div>
 
-          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2.5 text-amber-600 dark:text-amber-400 text-xs">
+          <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-2xl flex items-start gap-2.5 text-amber-700 dark:text-amber-400 text-xs">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>
               This execution will run immediately. <strong>The recurring schedule and next delivery timestamp will remain unchanged.</strong>
@@ -98,22 +107,28 @@ export function TriggerConfirmationModal({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-admin-border bg-admin-surface-subtle/50 flex items-center justify-end gap-3">
-          <Button variant="ghost" onClick={onClose} disabled={loading} className="text-admin-muted text-xs">
+        {/* Footer Actions */}
+        <div className="flex items-center gap-3 mt-6 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors focus:outline-none"
+          >
             Cancel
-          </Button>
-          <Button
-            variant="primary"
+          </button>
+          <button
+            type="button"
             onClick={onConfirm}
             disabled={loading}
-            className="gap-1.5 font-bold shadow-xs text-xs"
+            className="flex-1 h-12 rounded-xl bg-[#008F83] hover:bg-[#007A70] text-white font-semibold text-sm shadow-md transition-all duration-150 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#008F83]/25 active:scale-[0.99] flex items-center justify-center gap-2"
           >
-            <Send className="w-3.5 h-3.5" />
+            <Send className="w-4 h-4" />
             {loading ? 'Executing...' : 'Trigger Now'}
-          </Button>
+          </button>
         </div>
       </div>
     </div>
   );
 }
+

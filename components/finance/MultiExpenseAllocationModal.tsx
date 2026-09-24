@@ -240,210 +240,234 @@ export function MultiExpenseAllocationModal({
     }
   };
 
-  const footer = (
-    <div className="flex items-center justify-between w-full">
-      <Button type="button" variant="ghost" onClick={() => setAllocations({})} disabled={isSubmitting}>
-        <RotateCcw className="h-4 w-4 mr-1.5" /> Clear Selection
-      </Button>
+  if (!isOpen) return null;
 
-      <div className="flex items-center gap-3">
-        <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
-          Cancel
-        </Button>
-        <Button
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto font-sans">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
+        onClick={onClose}
+      />
+
+      {/* Modal Container */}
+      <div className="relative w-full max-w-xl sm:max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-y-auto max-h-[92vh] z-10 p-6 sm:p-8 text-slate-900 dark:text-slate-100 animate-in zoom-in-95 duration-200">
+        {/* Close button */}
+        <button
           type="button"
-          onClick={handleSubmit}
-          disabled={isSubmitting || !selectedTxId || Object.keys(allocations).length === 0}
-          className="bg-[#008F83] hover:bg-[#007A70] text-white font-bold"
+          onClick={onClose}
+          className="absolute top-5 right-5 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-[#008F83]/30"
+          aria-label="Close dialog"
         >
-          {isSubmitting ? 'Processing...' : `Process Allocations (${Object.keys(allocations).length})`}
-        </Button>
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Centered Header */}
+        <div className="text-center mb-6">
+          <div className="w-12 h-12 rounded-2xl bg-[#008F83]/10 text-[#008F83] border border-[#008F83]/20 flex items-center justify-center mx-auto mb-3">
+            <Layers className="w-6 h-6" />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold font-heading tracking-tight text-slate-900 dark:text-white">
+            Multi-Expense Batch Allocation
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Allocate a single bank payout across multiple operating expenses.
+          </p>
+        </div>
+
+        <div className="space-y-5 py-2">
+          {/* Ledger Transaction Selector */}
+          <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                Step 1: Select Expense Ledger Transaction
+              </span>
+              {selectedTx && (
+                <span className="text-xs font-mono font-bold text-[#008F83]">
+                  Available: {formatCurrency(totalAvailableTxAmount)}
+                </span>
+              )}
+            </div>
+
+            {isLoadingTx ? (
+              <div className="p-3 text-xs text-slate-400 text-center">Loading transactions...</div>
+            ) : availableTransactions.length === 0 ? (
+              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 text-xs text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/40">
+                No unallocated expense transactions found in general ledger.
+              </div>
+            ) : (
+              <select
+                value={selectedTxId}
+                onChange={(e) => setSelectedTxId(e.target.value)}
+                className="w-full h-11 px-3 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#008F83]"
+              >
+                {availableTransactions.map((tx) => (
+                  <option key={tx.id} value={tx.id}>
+                    {tx.transaction_date} — {tx.description || tx.vendor_name || 'Expense'} (${formatCurrency(tx.amount)} total, ${formatCurrency(tx.available_to_allocate)} available)
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {/* Allocation Progress Meter */}
+            {selectedTx && (
+              <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between text-xs font-medium">
+                  <span className="text-slate-500">Allocation Progress:</span>
+                  <span className="font-mono text-slate-900 dark:text-white font-bold">
+                    {formatCurrency(totalAllocated)} of {formatCurrency(totalAvailableTxAmount)} allocated ({formatCurrency(remainingTxBalance)} remaining)
+                  </span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                  <div
+                    className="h-full bg-[#008F83] transition-all duration-300"
+                    style={{
+                      width: `${Math.min(100, (totalAllocated / (totalAvailableTxAmount || 1)) * 100)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Step 2: Select & Distribute Expenses */}
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                Step 2: Select & Allocate Operating Expenses ({filteredExpenses.length})
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleAutoDistribute}
+                  className="h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-[#008F83] hover:bg-[#008F83]/10 transition-colors flex items-center gap-1.5"
+                >
+                  <CheckCheck className="h-3.5 w-3.5 text-[#008F83]" />
+                  Auto Distribute
+                </button>
+              </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by payee, property, description..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#008F83] text-slate-900 dark:text-white"
+              />
+            </div>
+
+            {/* Expense Allocation List */}
+            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              {filteredExpenses.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                  No pending or partially paid expenses found.
+                </div>
+              ) : (
+                filteredExpenses.map((exp) => {
+                  const rem = exp.remaining_amount ?? Math.max(0, exp.amount - (exp.total_allocated || 0));
+                  const currentAlloc = allocations[exp.id];
+                  const isSelected = currentAlloc !== undefined;
+
+                  return (
+                    <div
+                      key={exp.id}
+                      className={cn(
+                        'p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3',
+                        isSelected
+                          ? 'border-[#008F83] bg-[#008F83]/5 dark:bg-[#008F83]/10 shadow-2xs'
+                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
+                      )}
+                    >
+                      <div className="flex items-start gap-3 min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleExpense(exp)}
+                          className="mt-0.5 text-slate-400 hover:text-[#008F83] transition-colors shrink-0"
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="w-5 h-5 text-[#008F83]" />
+                          ) : (
+                            <Square className="w-5 h-5" />
+                          )}
+                        </button>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                              {exp.description || exp.category?.name || 'Expense'}
+                            </span>
+                            <span className="text-[11px] font-mono text-slate-400">{exp.expense_date}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            {exp.vendor_name && <span>Payee: {exp.vendor_name}</span>}
+                            {exp.property && (
+                              <span className="flex items-center gap-1">
+                                <Building className="w-3 h-3 text-[#008F83]" /> {exp.property.name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 dark:border-slate-800">
+                        <div className="text-right">
+                          <span className="text-[11px] text-slate-400 block">Remaining Due</span>
+                          <span className="text-xs font-bold font-mono text-rose-600 dark:text-rose-400">
+                            {formatCurrency(rem)}
+                          </span>
+                        </div>
+
+                        <div className="w-32">
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            disabled={!isSelected}
+                            value={currentAlloc !== undefined ? currentAlloc : ''}
+                            onChange={(e) => handleAmountChange(exp.id, e.target.value, rem)}
+                            className={cn(
+                              'w-full px-2.5 py-1.5 text-xs font-mono font-bold rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#008F83]',
+                              isSelected
+                                ? 'border-[#008F83] bg-white dark:bg-slate-900 text-slate-900 dark:text-white'
+                                : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-400 cursor-not-allowed'
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="flex items-center gap-3 mt-6 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="flex-1 h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors focus:outline-none"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isSubmitting || !selectedTxId || Object.keys(allocations).length === 0}
+            className="flex-1 h-12 rounded-xl bg-[#008F83] hover:bg-[#007A70] text-white font-semibold text-sm shadow-md transition-all duration-150 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#008F83]/25 active:scale-[0.99] flex items-center justify-center gap-2"
+          >
+            {isSubmitting ? 'Processing...' : `Process Allocations (${Object.keys(allocations).length})`}
+          </button>
+        </div>
       </div>
     </div>
   );
-
-  return (
-    <Drawer
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Multi-Expense Batch Allocation"
-      description="Allocate a single bulk bank payout or ledger transaction across multiple operating expenses"
-      width="xl"
-      footer={footer}
-    >
-      <div className="space-y-5 py-2">
-        {/* Ledger Transaction Selector */}
-        <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-              Step 1: Select Expense Ledger Transaction
-            </span>
-            {selectedTx && (
-              <span className="text-xs font-mono font-bold text-[#008F83]">
-                Available: {formatCurrency(totalAvailableTxAmount)}
-              </span>
-            )}
-          </div>
-
-          {isLoadingTx ? (
-            <div className="p-3 text-xs text-slate-400 text-center">Loading transactions...</div>
-          ) : availableTransactions.length === 0 ? (
-            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 text-xs text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/40">
-              No unallocated expense transactions found in general ledger.
-            </div>
-          ) : (
-            <select
-              value={selectedTxId}
-              onChange={(e) => setSelectedTxId(e.target.value)}
-              className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#008F83]"
-            >
-              {availableTransactions.map((tx) => (
-                <option key={tx.id} value={tx.id}>
-                  {tx.transaction_date} — {tx.description || tx.vendor_name || 'Expense'} (${formatCurrency(tx.amount)} total, ${formatCurrency(tx.available_to_allocate)} available)
-                </option>
-              ))}
-            </select>
-          )}
-
-          {/* Allocation Progress Meter */}
-          {selectedTx && (
-            <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-slate-800">
-              <div className="flex items-center justify-between text-xs font-medium">
-                <span className="text-slate-500">Allocation Progress:</span>
-                <span className="font-mono text-slate-900 dark:text-white font-bold">
-                  {formatCurrency(totalAllocated)} of {formatCurrency(totalAvailableTxAmount)} allocated ({formatCurrency(remainingTxBalance)} remaining)
-                </span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                <div
-                  className="h-full bg-[#008F83] transition-all duration-300"
-                  style={{
-                    width: `${Math.min(100, (totalAllocated / (totalAvailableTxAmount || 1)) * 100)}%`,
-                  }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Step 2: Select & Distribute Expenses */}
-        <div className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-              Step 2: Select & Allocate Operating Expenses ({filteredExpenses.length})
-            </span>
-
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleAutoDistribute}
-                leftIcon={<CheckCheck className="h-3.5 w-3.5 text-[#008F83]" />}
-                className="text-xs"
-              >
-                Auto Distribute
-              </Button>
-            </div>
-          </div>
-
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search by payee, property, description..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#008F83] text-slate-900 dark:text-white"
-            />
-          </div>
-
-          {/* Expense Allocation List */}
-          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-            {filteredExpenses.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-                No pending or partially paid expenses found.
-              </div>
-            ) : (
-              filteredExpenses.map((exp) => {
-                const rem = exp.remaining_amount ?? Math.max(0, exp.amount - (exp.total_allocated || 0));
-                const currentAlloc = allocations[exp.id];
-                const isSelected = currentAlloc !== undefined;
-
-                return (
-                  <div
-                    key={exp.id}
-                    className={cn(
-                      'p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3',
-                      isSelected
-                        ? 'border-[#008F83] bg-[#008F83]/5 dark:bg-[#008F83]/10 shadow-2xs'
-                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
-                    )}
-                  >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleExpense(exp)}
-                        className="mt-0.5 text-slate-400 hover:text-[#008F83] transition-colors shrink-0"
-                      >
-                        {isSelected ? (
-                          <CheckSquare className="w-5 h-5 text-[#008F83]" />
-                        ) : (
-                          <Square className="w-5 h-5" />
-                        )}
-                      </button>
-
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                            {exp.description || exp.category?.name || 'Expense'}
-                          </span>
-                          <span className="text-[11px] font-mono text-slate-400">{exp.expense_date}</span>
-                        </div>
-                        <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                          {exp.vendor_name && <span>Payee: {exp.vendor_name}</span>}
-                          {exp.property && (
-                            <span className="flex items-center gap-1">
-                              <Building className="w-3 h-3 text-[#008F83]" /> {exp.property.name}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 dark:border-slate-800">
-                      <div className="text-right">
-                        <span className="text-[11px] text-slate-400 block">Remaining Due</span>
-                        <span className="text-xs font-bold font-mono text-rose-600 dark:text-rose-400">
-                          {formatCurrency(rem)}
-                        </span>
-                      </div>
-
-                      <div className="w-32">
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          disabled={!isSelected}
-                          value={currentAlloc !== undefined ? currentAlloc : ''}
-                          onChange={(e) => handleAmountChange(exp.id, e.target.value, rem)}
-                          className={cn(
-                            'w-full px-2.5 py-1 text-xs font-mono font-bold rounded-xl border focus:outline-none focus:ring-1 focus:ring-[#008F83]',
-                            isSelected
-                              ? 'border-[#008F83] bg-white dark:bg-slate-900 text-slate-900 dark:text-white'
-                              : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-400 cursor-not-allowed'
-                          )}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </div>
-    </Drawer>
-  );
 }
+

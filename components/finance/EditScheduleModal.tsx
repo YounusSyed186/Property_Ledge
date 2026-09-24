@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Pencil, Trash2, Lock, AlertTriangle } from 'lucide-react';
-import { Button, Input, Select, Textarea, useToast, Drawer } from '@/components/admin/ui';
+import { Pencil, Trash2, Lock, AlertTriangle, X } from 'lucide-react';
+import { Button, Input, Select, Textarea, useToast } from '@/components/admin/ui';
 import { updateExpectedEntryAction, deleteExpectedEntryAction } from '@/app/actions/schedules';
 import { ExpectedPaymentScheduleDTO } from '@/modules/finance/domain/types';
 
@@ -101,136 +101,174 @@ export function EditScheduleModal({
     }
   };
 
-  const footer = (
-    <div className="flex items-center justify-between w-full">
-      <button
-        type="button"
-        onClick={() => {
-          if (hasAllocations) {
-            toast({
-              title: 'Delete Blocked',
-              description: 'Entries with linked financial transactions cannot be deleted.',
-              variant: 'destructive',
-            });
-          } else {
-            setShowConfirmDelete(true);
-          }
-        }}
-        className={`flex items-center gap-1.5 text-xs font-semibold transition-colors ${
-          hasAllocations ? 'text-slate-400 cursor-not-allowed' : 'text-rose-600 hover:text-rose-700'
-        }`}
-      >
-        <Trash2 className="h-4 w-4" />
-        Delete Entry
-      </button>
-
-      <div className="flex items-center gap-3">
-        <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
-          Cancel
-        </Button>
-        <Button
-          type="button"
-          onClick={handleUpdate as any}
-          disabled={isSubmitting}
-          className="bg-[#008F83] hover:bg-[#007A70] text-white"
-        >
-          {isSubmitting ? 'Saving...' : 'Save Changes'}
-        </Button>
-      </div>
-    </div>
-  );
-
   return (
-    <Drawer
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Edit Expected Payment Entry"
-      description="Modify expected entry details or update status"
-      width="md"
-      footer={footer}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto font-sans text-slate-900 dark:text-slate-100"
+      role="dialog"
+      aria-modal="true"
     >
-      <form onSubmit={handleUpdate} className="space-y-4 py-2">
-        {/* Protection Warning Banner (Journey 8) */}
-        {hasAllocations && (
-          <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3.5 flex items-start gap-3 text-xs text-amber-600 dark:text-amber-400">
-            <Lock className="h-4 w-4 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold">Referential Integrity Protection Active</p>
-              <p className="text-[11px] opacity-90">
-                This entry has {expectedPayment.allocations?.length} linked actual transaction allocation(s). Amount
-                modification and deletion are locked to preserve financial history integrity.
-              </p>
-            </div>
-          </div>
-        )}
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-        <Input
-          label="Schedule Name *"
-          value={scheduleName}
-          onChange={(e) => setScheduleName(e.target.value)}
-        />
+      {/* Modal Dialog Card */}
+      <div className="relative flex max-h-[92vh] w-full max-w-xl flex-col rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xl z-10 p-6 sm:p-8">
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-5 right-5 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-[#008F83]/30"
+          aria-label="Close dialog"
+        >
+          <X className="w-5 h-5" />
+        </button>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="Expected Amount ($) *"
-            type="number"
-            step="0.01"
-            disabled={hasAllocations}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-
-          <Input
-            label="Due Date *"
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-          />
+        {/* Centered Header */}
+        <div className="text-center mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold font-heading tracking-tight text-slate-900 dark:text-white">
+            Edit Expected Payment Entry
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Modify expected entry details or update payment status.
+          </p>
         </div>
 
-        <Select
-          label="Status"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          options={[
-            { value: 'pending', label: 'Pending' },
-            { value: 'partially_paid', label: 'Partially Paid' },
-            { value: 'paid', label: 'Paid' },
-            { value: 'overdue', label: 'Overdue' },
-            { value: 'cancelled', label: 'Cancelled' },
-          ]}
-        />
-
-        <Textarea
-          label="Notes"
-          rows={3}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
-
-        {showConfirmDelete && (
-          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 space-y-3">
-            <p className="text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              Are you sure you want to delete this expected payment entry?
-            </p>
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="ghost" size="sm" onClick={() => setShowConfirmDelete(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="bg-rose-600 hover:bg-rose-700 text-white"
-              >
-                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
-              </Button>
+        {/* Form Body */}
+        <form onSubmit={handleUpdate} className="flex-1 overflow-y-auto space-y-4 px-0.5 py-1">
+          {/* Protection Warning Banner (Journey 8) */}
+          {hasAllocations && (
+            <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3.5 flex items-start gap-3 text-xs text-amber-600 dark:text-amber-400">
+              <Lock className="h-4 w-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">Referential Integrity Protection Active</p>
+                <p className="text-[11px] opacity-90">
+                  This entry has {expectedPayment.allocations?.length} linked actual transaction allocation(s). Amount
+                  modification and deletion are locked to preserve financial history integrity.
+                </p>
+              </div>
             </div>
+          )}
+
+          <Input
+            label="Schedule Name *"
+            value={scheduleName}
+            onChange={(e) => setScheduleName(e.target.value)}
+            className="bg-white dark:bg-slate-800"
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Expected Amount ($) *"
+              type="number"
+              step="0.01"
+              disabled={hasAllocations}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="bg-white dark:bg-slate-800"
+            />
+
+            <Input
+              label="Due Date *"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="bg-white dark:bg-slate-800"
+            />
           </div>
-        )}
-      </form>
-    </Drawer>
+
+          <Select
+            label="Status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="bg-white dark:bg-slate-800"
+            options={[
+              { value: 'pending', label: 'Pending' },
+              { value: 'partially_paid', label: 'Partially Paid' },
+              { value: 'paid', label: 'Paid' },
+              { value: 'overdue', label: 'Overdue' },
+              { value: 'cancelled', label: 'Cancelled' },
+            ]}
+          />
+
+          <Textarea
+            label="Notes"
+            rows={3}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="bg-white dark:bg-slate-800"
+          />
+
+          {showConfirmDelete && (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 space-y-3">
+              <p className="text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Are you sure you want to delete this expected payment entry?
+              </p>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="ghost" size="sm" onClick={() => setShowConfirmDelete(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="bg-rose-600 hover:bg-rose-700 text-white"
+                >
+                  {isDeleting ? 'Deleting...' : 'Confirm Delete'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Footer Actions */}
+          <div className="flex items-center gap-3 mt-6 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (hasAllocations) {
+                  toast({
+                    title: 'Delete Blocked',
+                    description: 'Entries with linked financial transactions cannot be deleted.',
+                    variant: 'destructive',
+                  });
+                } else {
+                  setShowConfirmDelete(true);
+                }
+              }}
+              disabled={isSubmitting || isDeleting}
+              className={`h-12 px-4 rounded-xl border font-semibold text-xs transition-colors flex items-center gap-1.5 focus:outline-none ${
+                hasAllocations
+                  ? 'border-slate-200 dark:border-slate-800 text-slate-400 cursor-not-allowed'
+                  : 'border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+              }`}
+              title="Delete Entry"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Delete</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="flex-1 h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors focus:outline-none"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 h-12 rounded-xl bg-[#008F83] hover:bg-[#007A70] text-white font-semibold text-sm shadow-md transition-all duration-150 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#008F83]/25 active:scale-[0.99]"
+            >
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }

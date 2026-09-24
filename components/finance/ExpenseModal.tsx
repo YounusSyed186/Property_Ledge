@@ -1,23 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  DollarSign,
-  TrendingDown,
-  Building,
-  Calendar,
-  CreditCard,
-  Tag,
-  AlertCircle,
-  FileText,
-  User,
-  Receipt,
-  CheckCircle2,
-  Zap,
-  Info,
-  Layers,
-} from 'lucide-react';
-import { Button, Input, Select, Textarea, useToast, Drawer } from '@/components/admin/ui';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
+import { Input, Select, Textarea, useToast } from '@/components/admin/ui';
 import {
   ExpenseDTO,
   CategoryDTO,
@@ -26,7 +12,6 @@ import {
   CreateExpenseInput,
   UpdateExpenseInput,
 } from '@/modules/finance/domain/types';
-import { formatCurrency } from '@/lib/format/currency';
 import {
   createExpenseAction,
   updateExpenseAction,
@@ -35,7 +20,6 @@ import {
   getCachedDropdownOptionsSync,
   getDropdownOptions,
 } from '@/lib/cache/optionsCache';
-import { cn } from '@/lib/utils';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -87,6 +71,23 @@ export function ExpenseModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Body scroll lock on open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [isOpen, onClose]);
 
   // Fast single-roundtrip sync on open
   useEffect(() => {
@@ -314,239 +315,287 @@ export function ExpenseModal({
     }
   };
 
-  const footer = (
-    <div className="flex items-center justify-end gap-3 w-full">
-      <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
-        Cancel
-      </Button>
-      <Button
-        type="button"
-        onClick={handleSubmit as any}
-        disabled={isSubmitting}
-        className="bg-[#008F83] hover:bg-[#007A70] text-white font-bold"
-      >
-        {isSubmitting ? 'Saving...' : isEdit ? 'Save Changes' : 'Record Unpaid Bill'}
-      </Button>
-    </div>
-  );
-
   return (
-    <Drawer
-      isOpen={isOpen}
-      onClose={onClose}
-      title={isEdit ? 'Edit Operating Expense' : 'Record Operating Expense'}
-      description="Record an unpaid operating expense or vendor bill. You can process and settle payment once received."
-      width="lg"
-      footer={footer}
-    >
-      <form onSubmit={handleSubmit} className="space-y-5 py-2">
-        {/* Property & Optional Lease Selector */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
-            label="Property *"
-            value={propertyId}
-            onChange={(e) => handlePropertyChange(e.target.value)}
-            error={formErrors.propertyId}
-            options={[
-              { value: '', label: '-- Select Mandatory Property --' },
-              ...properties.map((p) => ({ value: p.id, label: p.name })),
-            ]}
+    <AnimatePresence>
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+        >
+          {/* Backdrop (matching Property Modal exactly) */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
           />
 
-          <Select
-            label="Associated Lease (Optional)"
-            value={leaseId}
-            onChange={(e) => handleLeaseChange(e.target.value)}
-            options={[
-              { value: '', label: '-- No Lease / Vacant Property --' },
-              ...availableLeases.map((l) => {
-                const tenantName = l.tenant ? `${l.tenant.first_name} ${l.tenant.last_name}` : 'Tenant';
-                const propName = l.property?.name || 'Property';
-                return {
-                  value: l.id,
-                  label: `${propName} - ${tenantName} (${l.start_date || 'Start'} to ${l.end_date || 'End'})`,
-                };
-              }),
-            ]}
-          />
-        </div>
+          {/* Modal Dialog Card (matching Property Modal exactly) */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            transition={{ duration: 0.2 }}
+            className="relative w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-y-auto max-h-[90vh] z-10 p-6 sm:p-8 my-auto"
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close dialog"
+              className="absolute top-5 right-5 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-[#008F83]/30"
+            >
+              <X className="w-5 h-5" />
+            </button>
 
-        {/* Amount & Category */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="Expense Amount ($) *"
-            type="number"
-            step="0.01"
-            placeholder="0.00"
-            value={amount}
-            onChange={(e) => {
-              const newAmt = e.target.value;
-              handleAmountOrGstChange(newAmt, gstInclusive);
-              if (formErrors.amount) setFormErrors((prev) => ({ ...prev, amount: '' }));
-            }}
-            error={formErrors.amount}
-            leftIcon={<DollarSign className="h-4 w-4 text-emerald-500" />}
-          />
+            {/* Content Container (matching Property Form) */}
+            <div className="w-full max-w-xl mx-auto font-sans text-slate-900 dark:text-slate-100">
+              {/* Centered Header */}
+              <div className="text-center mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold font-heading tracking-tight text-slate-900 dark:text-white">
+                  {isEdit ? 'Edit Operating Expense' : 'Record Operating Expense'}
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  Record an operating expense or vendor bill for your portfolio.
+                </p>
+              </div>
 
-          <Select
-            label="Expense Category *"
-            value={categoryId}
-            onChange={(e) => {
-              const newCatId = e.target.value;
-              setCategoryId(newCatId);
-              const cat = categories.find((c) => c.id === newCatId);
-              if (cat?.default_tax_classification_id) {
-                setTaxClassificationId(cat.default_tax_classification_id);
-                const tc = taxClassifications.find((t) => t.id === cat.default_tax_classification_id);
-                const isTaxable = tc?.bas_code === '1B' || tc?.bas_code === 'G10' || tc?.bas_code === 'G1';
-                if (isTaxable && !gstInclusive) {
-                  handleAmountOrGstChange(amount, true);
-                }
-              }
-              if (formErrors.categoryId) setFormErrors((prev) => ({ ...prev, categoryId: '' }));
-            }}
-            error={formErrors.categoryId}
-            options={[
-              { value: '', label: '-- Select Expense Category --' },
-              ...categories.map((c) => ({ value: c.id, label: c.name })),
-            ]}
-          />
-        </div>
+              {/* Form Body */}
+              <form onSubmit={handleSubmit} className="space-y-4 px-0.5 py-1">
+                {/* SECTION 1 — PROPERTY CONTEXT */}
+                {/* Property * */}
+                <div>
+                  <Select
+                    label="Property *"
+                    name="propertyId"
+                    value={propertyId}
+                    onChange={(e) => handlePropertyChange(e.target.value)}
+                    error={formErrors.propertyId}
+                    options={[
+                      { value: '', label: '-- Select Property --' },
+                      ...properties.map((p) => ({ value: p.id, label: p.name })),
+                    ]}
+                  />
+                </div>
 
-        {/* Australian GST & Tax Classification Panel */}
-        {isGstEnabledOnProperty ? (
-          <div className="p-4 rounded-2xl border border-sky-200 bg-sky-50/50 dark:border-sky-900/50 dark:bg-sky-950/20 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-sky-900 dark:text-sky-300">
-                🇦🇺 Australian GST & BAS Classification
-              </span>
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={gstInclusive}
-                  onChange={(e) => handleAmountOrGstChange(amount, e.target.checked)}
-                  className="rounded border-slate-300 text-sky-600 focus:ring-sky-500 h-4 w-4"
-                />
-                <span>Amount includes 10% GST</span>
-              </label>
+                {/* Associated Lease (Optional) */}
+                <div>
+                  <Select
+                    label="Associated Lease (Optional)"
+                    name="leaseId"
+                    value={leaseId}
+                    onChange={(e) => handleLeaseChange(e.target.value)}
+                    options={[
+                      { value: '', label: '-- No Lease / Vacant Property --' },
+                      ...availableLeases.map((l) => {
+                        const tenantName = l.tenant ? `${l.tenant.first_name} ${l.tenant.last_name}` : 'Tenant';
+                        const propName = l.property?.name || 'Property';
+                        return {
+                          value: l.id,
+                          label: `${propName} - ${tenantName} (${l.start_date || 'Start'} to ${l.end_date || 'End'})`,
+                        };
+                      }),
+                    ]}
+                  />
+                </div>
+
+                {/* SECTION 2 — EXPENSE DETAILS */}
+                {/* Expense Amount & Expense Category */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Input
+                      label="Expense Amount ($) *"
+                      name="amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={amount}
+                      onChange={(e) => {
+                        const newAmt = e.target.value;
+                        handleAmountOrGstChange(newAmt, gstInclusive);
+                        if (formErrors.amount) setFormErrors((prev) => ({ ...prev, amount: '' }));
+                      }}
+                      error={formErrors.amount}
+                      leftIcon={<span className="text-xs font-bold text-slate-400 dark:text-slate-500">$</span>}
+                    />
+                  </div>
+
+                  <div>
+                    <Select
+                      label="Expense Category *"
+                      name="categoryId"
+                      value={categoryId}
+                      onChange={(e) => {
+                        const newCatId = e.target.value;
+                        setCategoryId(newCatId);
+                        const cat = categories.find((c) => c.id === newCatId);
+                        if (cat?.default_tax_classification_id) {
+                          setTaxClassificationId(cat.default_tax_classification_id);
+                          const tc = taxClassifications.find((t) => t.id === cat.default_tax_classification_id);
+                          const isTaxable = tc?.bas_code === '1B' || tc?.bas_code === 'G10' || tc?.bas_code === 'G1';
+                          if (isTaxable && !gstInclusive) {
+                            handleAmountOrGstChange(amount, true);
+                          }
+                        }
+                        if (formErrors.categoryId) setFormErrors((prev) => ({ ...prev, categoryId: '' }));
+                      }}
+                      error={formErrors.categoryId}
+                      options={[
+                        { value: '', label: '-- Select Expense Category --' },
+                        ...categories.map((c) => ({ value: c.id, label: c.name })),
+                      ]}
+                    />
+                  </div>
+                </div>
+
+                {/* Expense Date & Payee / Vendor Name */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Input
+                      label="Expense Date *"
+                      name="expenseDate"
+                      type="date"
+                      value={expenseDate}
+                      onChange={(e) => {
+                        setExpenseDate(e.target.value);
+                        if (formErrors.expenseDate) setFormErrors((prev) => ({ ...prev, expenseDate: '' }));
+                      }}
+                      error={formErrors.expenseDate}
+                    />
+                  </div>
+
+                  <div>
+                    <Input
+                      label="Payee / Vendor Name"
+                      name="vendorName"
+                      placeholder="e.g. Apex Plumbing, Council Rates, AGL Energy"
+                      value={vendorName}
+                      onChange={(e) => setVendorName(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* SECTION 3 — REFERENCE */}
+                {/* Description & Invoice Reference */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Input
+                      label="Description / Purpose"
+                      name="description"
+                      placeholder="e.g. Hot water system replacement"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <Input
+                      label="Invoice # / Reference"
+                      name="reference"
+                      placeholder="e.g. INV-2026-981"
+                      value={reference}
+                      onChange={(e) => setReference(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* SECTION 4 — TAX */}
+                {/* GST Portion & Tax Classification */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Input
+                      label="GST Portion ($ 10% Incl)"
+                      name="gstAmount"
+                      type="number"
+                      step="0.01"
+                      value={gstAmount}
+                      onChange={(e) => setGstAmount(e.target.value)}
+                      placeholder="0.00"
+                      leftIcon={<span className="text-xs font-bold text-slate-400 dark:text-slate-500">$</span>}
+                    />
+                  </div>
+
+                  <div>
+                    <Select
+                      label="Tax Classification (BAS)"
+                      name="taxClassificationId"
+                      value={taxClassificationId}
+                      onChange={(e) => setTaxClassificationId(e.target.value)}
+                      options={[
+                        { value: '', label: 'Default Operating Expense [G11]' },
+                        ...filteredTaxClassifications.map((tc: any) => ({
+                          value: tc.id,
+                          label: `${tc.name} ${tc.bas_code ? `[${tc.bas_code}]` : ''}`,
+                        })),
+                      ]}
+                    />
+                  </div>
+                </div>
+
+                {/* Status (if editing existing expense) */}
+                {isEdit && (
+                  <div>
+                    <Select
+                      label="Expense Status"
+                      name="status"
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value as ExpenseStatus)}
+                      options={[
+                        { value: 'pending', label: 'Pending / Unpaid' },
+                        { value: 'partially_paid', label: 'Partially Paid' },
+                        { value: 'paid', label: 'Paid & Settled' },
+                        { value: 'cancelled', label: 'Cancelled' },
+                      ]}
+                    />
+                  </div>
+                )}
+
+                {/* SECTION 5 — NOTES */}
+                {/* Internal Notes & Memo */}
+                <div>
+                  <Textarea
+                    label="Internal Notes & Memo"
+                    name="notes"
+                    placeholder="Optional private notes regarding this expense..."
+                    rows={3}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
+                </div>
+
+                {/* Footer Actions (matching Property Form exactly) */}
+                <div className="flex items-center gap-3 mt-6 pt-2">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    disabled={isSubmitting}
+                    className="flex-1 h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors focus:outline-none"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 h-12 rounded-xl bg-[#008F83] hover:bg-[#007A70] text-white font-semibold text-sm shadow-md transition-all duration-150 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#008F83]/25 active:scale-[0.99]"
+                  >
+                    {isSubmitting
+                      ? isEdit
+                        ? 'Saving changes...'
+                        : 'Saving expense...'
+                      : isEdit
+                      ? 'Save Changes'
+                      : 'Save Expense'}
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input
-                label="GST Portion ($)"
-                type="number"
-                step="0.01"
-                value={gstAmount}
-                onChange={(e) => setGstAmount(e.target.value)}
-                placeholder="0.00"
-                className="bg-white dark:bg-slate-800 text-xs font-mono"
-              />
-
-              <Select
-                label="Tax Classification (for BAS)"
-                value={taxClassificationId}
-                onChange={(e) => setTaxClassificationId(e.target.value)}
-                options={[
-                  { value: '', label: 'Default Operating Expense [G11]' },
-                  ...filteredTaxClassifications.map((tc: any) => ({
-                    value: tc.id,
-                    label: `${tc.name} ${tc.bas_code ? `[${tc.bas_code}]` : ''}`,
-                  })),
-                ]}
-              />
-            </div>
-          </div>
-        ) : propertyId ? (
-          <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-            <AlertCircle className="w-4 h-4 text-slate-400 shrink-0" />
-            <span>Property is not registered for GST. Expenses are recorded as GST-Free / Input-Taxed.</span>
-          </div>
-        ) : null}
-
-        {/* Expense Date & Payee / Vendor */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="Expense Date *"
-            type="date"
-            value={expenseDate}
-            onChange={(e) => {
-              setExpenseDate(e.target.value);
-              if (formErrors.expenseDate) setFormErrors((prev) => ({ ...prev, expenseDate: '' }));
-            }}
-            error={formErrors.expenseDate}
-          />
-
-          <Input
-            label="Payee / Vendor Name"
-            placeholder="e.g. Apex Plumbing, Council Rates, AGL Energy"
-            value={vendorName}
-            onChange={(e) => setVendorName(e.target.value)}
-          />
+          </motion.div>
         </div>
-
-        {/* Description & Reference */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="Description / Purpose"
-            placeholder="e.g. Hot water system replacement"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-
-          <Input
-            label="Invoice # / Reference"
-            placeholder="e.g. INV-2026-981"
-            value={reference}
-            onChange={(e) => setReference(e.target.value)}
-          />
-        </div>
-
-        {/* Status (if editing) */}
-        {isEdit && (
-          <Select
-            label="Expense Status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as ExpenseStatus)}
-            options={[
-              { value: 'pending', label: 'Pending / Unpaid' },
-              { value: 'partially_paid', label: 'Partially Paid' },
-              { value: 'paid', label: 'Paid & Settled' },
-              { value: 'cancelled', label: 'Cancelled' },
-            ]}
-          />
-        )}
-
-        {/* Notes & Memo */}
-        <Textarea
-          label="Internal Notes & Memo"
-          placeholder="Optional private notes regarding this expense..."
-          rows={2}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
-
-        {/* Live Preview Summary */}
-        {amount && parseFloat(amount) > 0 && (
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
-              <span className="flex items-center gap-1.5">
-                <Info className="h-4 w-4 text-[#008F83]" />
-                Expense Bill Summary
-              </span>
-              <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                Unpaid / Pending Bill
-              </span>
-            </div>
-            <div className="flex items-baseline justify-between pt-1">
-              <span className="text-xs text-slate-500">Bill Amount Due:</span>
-              <span className="text-base font-black text-slate-900 dark:text-white">
-                {formatCurrency(parseFloat(amount))}
-              </span>
-            </div>
-          </div>
-        )}
-      </form>
-    </Drawer>
+      )}
+    </AnimatePresence>
   );
 }
-

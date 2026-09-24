@@ -12,8 +12,9 @@ import {
   AlertCircle,
   Receipt,
   Zap,
+  X,
 } from 'lucide-react';
-import { Button, Input, Select, Textarea, useToast, Drawer } from '@/components/admin/ui';
+import { Button, Input, Select, Textarea, useToast } from '@/components/admin/ui';
 import {
   ExpenseDTO,
   PaymentMethod,
@@ -122,91 +123,112 @@ export function ProcessExpenseModal({
     }
   };
 
-  const footer = (
-    <div className="flex items-center justify-end gap-3 w-full">
-      <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
-        Cancel
-      </Button>
-      <Button
-        type="button"
-        onClick={handleSubmit as any}
-        disabled={isSubmitting}
-        className="bg-[#008F83] hover:bg-[#007A70] text-white font-bold gap-2"
-      >
-        <Zap className="h-4 w-4" />
-        {isSubmitting ? 'Processing Payment...' : 'Confirm & Settle Payment'}
-      </Button>
-    </div>
-  );
+  if (!expense || !isOpen) return null;
 
   return (
-    <Drawer
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Process & Settle Bill"
-      description="Record a financial ledger payment to settle this operating expense bill."
-      width="md"
-      footer={footer}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto font-sans text-slate-900 dark:text-slate-100"
+      role="dialog"
+      aria-modal="true"
     >
-      <form onSubmit={handleSubmit} className="space-y-5 py-2">
-        {/* Bill Summary Banner */}
-        <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
-              <Building className="h-4 w-4 text-[#008F83]" />
-              <span>{expense.property?.name || 'Property'}</span>
-            </div>
-            {expense.category && (
-              <span className="inline-flex items-center rounded-full bg-slate-200 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                {expense.category.name}
-              </span>
-            )}
-          </div>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-          <div className="grid grid-cols-2 gap-3 text-xs pt-1 border-t border-slate-200 dark:border-slate-800">
-            <div>
-              <span className="text-slate-500 font-medium">Vendor / Payee:</span>
-              <p className="font-semibold text-slate-900 dark:text-slate-100 truncate">
-                {expense.vendor_name || 'Not specified'}
-              </p>
-            </div>
-            <div>
-              <span className="text-slate-500 font-medium">Bill Date / Ref:</span>
-              <p className="font-semibold text-slate-900 dark:text-slate-100 truncate">
-                {formatAuDisplayDate(expense.expense_date)} {expense.reference ? `(${expense.reference})` : ''}
-              </p>
-            </div>
-          </div>
+      {/* Modal Dialog Card */}
+      <div className="relative flex max-h-[92vh] w-full max-w-xl flex-col rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xl z-10 p-6 sm:p-8">
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-5 right-5 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-[#008F83]/30"
+          aria-label="Close dialog"
+        >
+          <X className="w-5 h-5" />
+        </button>
 
-          <div className="grid grid-cols-3 gap-2 p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
-            <div>
-              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Total Bill</span>
-              <p className="text-sm font-black text-slate-900 dark:text-white">
-                {formatCurrency(expense.amount)}
-              </p>
-            </div>
-            <div>
-              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Paid to Date</span>
-              <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                {formatCurrency(expense.total_allocated || 0)}
-              </p>
-            </div>
-            <div>
-              <span className="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400 font-bold">Balance Due</span>
-              <p className="text-sm font-black text-amber-600 dark:text-amber-400">
-                {formatCurrency(remainingBalance)}
-              </p>
-            </div>
-          </div>
+        {/* Centered Header */}
+        <div className="text-center mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold font-heading tracking-tight text-slate-900 dark:text-white">
+            Process & Settle Bill
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Record a payment against this operating expense bill.
+          </p>
         </div>
 
-        {/* Settlement Form Inputs */}
-        <div className="space-y-4">
-          <div className="space-y-1.5">
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-4 px-0.5 py-1">
+          {/* Bill Summary Banner */}
+          <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Settlement Amount ($) *
-              </label>
+              <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
+                <Building className="h-4 w-4 text-[#008F83]" />
+                <span>{expense.property?.name || 'Property'}</span>
+              </div>
+              {expense.category && (
+                <span className="inline-flex items-center rounded-full bg-slate-200 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  {expense.category.name}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs pt-1 border-t border-slate-200 dark:border-slate-800">
+              <div>
+                <span className="text-slate-500 font-medium">Vendor / Payee:</span>
+                <p className="font-semibold text-slate-900 dark:text-slate-100 truncate">
+                  {expense.vendor_name || 'Not specified'}
+                </p>
+              </div>
+              <div>
+                <span className="text-slate-500 font-medium">Bill Date / Ref:</span>
+                <p className="font-semibold text-slate-900 dark:text-slate-100 truncate">
+                  {formatAuDisplayDate(expense.expense_date)} {expense.reference ? `(${expense.reference})` : ''}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+              <div>
+                <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Total Bill</span>
+                <p className="text-sm font-black text-slate-900 dark:text-white">
+                  {formatCurrency(expense.amount)}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Paid to Date</span>
+                <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(expense.total_allocated || 0)}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400 font-bold">Balance Due</span>
+                <p className="text-sm font-black text-amber-600 dark:text-amber-400">
+                  {formatCurrency(remainingBalance)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Settlement Form Inputs */}
+          <div className="space-y-4">
+            <div className="relative">
+              <Input
+                label="Settlement Amount ($) *"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={paymentAmount}
+                onChange={(e) => {
+                  setPaymentAmount(e.target.value);
+                  if (formErrors.paymentAmount) setFormErrors((p) => ({ ...p, paymentAmount: '' }));
+                }}
+                error={formErrors.paymentAmount}
+                leftIcon={<DollarSign className="h-4 w-4 text-[#008F83]" />}
+              />
               {remainingBalance > 0 && parseFloat(paymentAmount) !== remainingBalance && (
                 <button
                   type="button"
@@ -214,71 +236,79 @@ export function ProcessExpenseModal({
                     setPaymentAmount(remainingBalance.toFixed(2));
                     if (formErrors.paymentAmount) setFormErrors((p) => ({ ...p, paymentAmount: '' }));
                   }}
-                  className="text-[11px] font-bold text-[#008F83] hover:underline"
+                  className="absolute right-3 top-3 text-[11px] font-bold text-[#008F83] hover:underline bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded-md"
                 >
-                  Pay Full Balance ({formatCurrency(remainingBalance)})
+                  Pay Full ({formatCurrency(remainingBalance)})
                 </button>
               )}
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Payment / Settlement Date *"
+                type="date"
+                value={paymentDate}
+                onChange={(e) => {
+                  setPaymentDate(e.target.value);
+                  if (formErrors.paymentDate) setFormErrors((p) => ({ ...p, paymentDate: '' }));
+                }}
+                error={formErrors.paymentDate}
+              />
+
+              <Select
+                label="Payment Method *"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                options={[
+                  { value: 'bank_transfer', label: 'Direct Bank Transfer / EFT' },
+                  { value: 'credit_card', label: 'Credit Card' },
+                  { value: 'debit_card', label: 'Debit Card' },
+                  { value: 'bpay', label: 'BPAY' },
+                  { value: 'direct_debit', label: 'Direct Debit' },
+                  { value: 'cheque', label: 'Cheque' },
+                  { value: 'cash', label: 'Cash' },
+                  { value: 'other', label: 'Other' },
+                ]}
+              />
+            </div>
+
             <Input
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={paymentAmount}
-              onChange={(e) => {
-                setPaymentAmount(e.target.value);
-                if (formErrors.paymentAmount) setFormErrors((p) => ({ ...p, paymentAmount: '' }));
-              }}
-              error={formErrors.paymentAmount}
-              leftIcon={<DollarSign className="h-4 w-4 text-emerald-500" />}
+              label="Payment Reference / Receipt #"
+              placeholder="e.g. EFT-2026-9481, receipt #, or bank transfer reference"
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+            />
+
+            <Textarea
+              label="Payment Notes / Memo"
+              placeholder="Optional settlement notes (e.g. Paid from main operating account)"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Payment / Settlement Date *"
-              type="date"
-              value={paymentDate}
-              onChange={(e) => {
-                setPaymentDate(e.target.value);
-                if (formErrors.paymentDate) setFormErrors((p) => ({ ...p, paymentDate: '' }));
-              }}
-              error={formErrors.paymentDate}
-            />
-
-            <Select
-              label="Settlement Payment Method *"
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-              options={[
-                { value: 'bank_transfer', label: 'Direct Bank Transfer / EFT' },
-                { value: 'credit_card', label: 'Credit Card' },
-                { value: 'debit_card', label: 'Debit Card' },
-                { value: 'bpay', label: 'BPAY' },
-                { value: 'direct_debit', label: 'Direct Debit' },
-                { value: 'cheque', label: 'Cheque' },
-                { value: 'cash', label: 'Cash' },
-                { value: 'other', label: 'Other' },
-              ]}
-            />
+          {/* Dual Full-Width Action Buttons */}
+          <div className="grid grid-cols-2 gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="w-full py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-3 px-4 rounded-xl bg-[#008F83] hover:bg-[#008F83]/90 text-white font-bold text-sm shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-[#008F83]/50 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Zap className="h-4 w-4" />
+              {isSubmitting ? 'Processing...' : 'Settle Payment'}
+            </button>
           </div>
-
-          <Input
-            label="Payment Reference / Receipt #"
-            placeholder="e.g. EFT-2026-9481, receipt #, or bank transfer reference"
-            value={reference}
-            onChange={(e) => setReference(e.target.value)}
-          />
-
-          <Textarea
-            label="Payment Notes / Memo"
-            placeholder="Optional settlement notes (e.g. Paid from main operating account)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-          />
-        </div>
-      </form>
-    </Drawer>
+        </form>
+      </div>
+    </div>
   );
 }

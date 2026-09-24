@@ -33,6 +33,7 @@ import {
 } from '@/modules/finance/domain/types';
 import { fetchExpectedSchedulesAction, deleteExpectedEntryAction } from '@/app/actions/schedules';
 import { CreateScheduleModal } from './CreateScheduleModal';
+import { ScheduleTypeSelectModal } from './ScheduleTypeSelectModal';
 import { LinkTransactionModal } from './LinkTransactionModal';
 import { MultiAllocationModal } from './MultiAllocationModal';
 import { EditScheduleModal } from './EditScheduleModal';
@@ -114,6 +115,8 @@ export function ExpectedScheduleList({ initialSchedules }: ExpectedScheduleListP
   const [scheduleNameFilter, setScheduleNameFilter] = useState<string>('All');
 
   // Dialog States
+  const [isTypeSelectOpen, setIsTypeSelectOpen] = useState(false);
+  const [createScheduleType, setCreateScheduleType] = useState<ScheduleType>('lease');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isLinkOpen, setIsLinkOpen] = useState(false);
   const [isMultiOpen, setIsMultiOpen] = useState(false);
@@ -641,7 +644,7 @@ export function ExpectedScheduleList({ initialSchedules }: ExpectedScheduleListP
 
       <Button
         size="sm"
-        onClick={() => setIsCreateOpen(true)}
+        onClick={() => setIsTypeSelectOpen(true)}
         leftIcon={<Plus className="h-4 w-4" />}
         className="bg-[#008F83] hover:bg-[#007A70] text-white font-bold rounded-xl shadow-xs transition-all"
       >
@@ -962,11 +965,22 @@ export function ExpectedScheduleList({ initialSchedules }: ExpectedScheduleListP
       )}
 
       {/* Modals & Drawers */}
+      <ScheduleTypeSelectModal
+        isOpen={isTypeSelectOpen}
+        onClose={() => setIsTypeSelectOpen(false)}
+        onSelectType={(type) => {
+          setIsTypeSelectOpen(false);
+          setCreateScheduleType(type);
+          setIsCreateOpen(true);
+        }}
+      />
+
       <CreateScheduleModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onSuccess={loadData}
         defaultPropertyId={selectedProperty?.propertyId}
+        defaultScheduleType={createScheduleType}
       />
 
       <LinkTransactionModal
