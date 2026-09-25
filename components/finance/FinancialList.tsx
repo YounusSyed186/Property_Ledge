@@ -24,6 +24,7 @@ import {
   LayoutTemplate,
   FileText,
   Link2,
+  FolderUp,
 } from 'lucide-react';
 import { ColDef } from 'ag-grid-community';
 import { Button, useToast } from '@/components/admin/ui';
@@ -56,7 +57,7 @@ import { TransactionDetailModal } from './TransactionDetailModal';
 import { TransactionTypeSelectModal } from './TransactionTypeSelectModal';
 import { LedgerReportModal } from './LedgerReportModal';
 import { MultiAllocationModal } from './MultiAllocationModal';
-import { MultiExpenseAllocationModal } from './MultiExpenseAllocationModal';
+import { BulkExpenseUploadModal } from './BulkExpenseUploadModal';
 import { isIncome, isExpense } from '@/modules/finance/domain/calculations';
 import { cn } from '@/lib/utils';
 
@@ -96,6 +97,7 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const [isLinkScheduleOpen, setIsLinkScheduleOpen] = useState(false);
   const [selectedTxForLink, setSelectedTxForLink] = useState<TransactionDTO | null>(null);
   const [isLinkExpenseOpen, setIsLinkExpenseOpen] = useState(false);
@@ -314,10 +316,18 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
         valueGetter: (p) => p.data?.description || p.data?.notes || p.data?.category?.name || '—',
         cellRenderer: (params: any) => {
           const desc = params.data?.description || params.data?.notes || params.data?.category?.name || '—';
+          const hasReceipt = Boolean(params.data?.receipt_url);
           return (
-            <span className="font-medium text-admin-foreground text-[13px] truncate block" title={desc}>
-              {desc}
-            </span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              {hasReceipt && (
+                <span className="text-slate-400 dark:text-slate-500 shrink-0 text-xs" title="Receipt attached">
+                  📎
+                </span>
+              )}
+              <span className="font-medium text-admin-foreground text-[13px] truncate block" title={desc}>
+                {desc}
+              </span>
+            </div>
           );
         },
       },
@@ -736,6 +746,15 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
           </Button>
 
           <Button
+            variant="outline"
+            onClick={() => setIsBulkUploadOpen(true)}
+            className="font-bold gap-2 text-xs text-admin-foreground hover:text-admin-primary border-admin-border"
+          >
+            <FolderUp className="w-4 h-4 text-[#008F83]" />
+            Bulk Upload
+          </Button>
+
+          <Button
             onClick={() => setIsTypeSelectOpen(true)}
             className="font-bold gap-2"
           >
@@ -1083,17 +1102,6 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
         onSuccess={loadData}
       />
 
-      {/* Link Expense Transaction to Pending Bills/Expenses Modal */}
-      <MultiExpenseAllocationModal
-        isOpen={isLinkExpenseOpen}
-        initialTransactionId={selectedTxForLinkExpense?.id}
-        onClose={() => {
-          setIsLinkExpenseOpen(false);
-          setSelectedTxForLinkExpense(null);
-        }}
-        onSuccess={loadData}
-      />
-
       {/* Delete Confirmation Modal */}
       {transactionToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
@@ -1145,6 +1153,14 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
         transactions={transactions}
         ledgerEntries={ledgerEntries}
         properties={properties}
+        defaultPropertyId={activePropertyId || ''}
+      />
+
+      {/* Bulk Expense Folder Upload Modal */}
+      <BulkExpenseUploadModal
+        isOpen={isBulkUploadOpen}
+        onClose={() => setIsBulkUploadOpen(false)}
+        onSuccess={loadData}
         defaultPropertyId={activePropertyId || ''}
       />
     </ListPage>

@@ -36,3 +36,5 @@ node_modules/
 /screenshots/
 /user_journey_screenshots/
 /invoice-workflow-walkthrough/
+.vercel
+.env*

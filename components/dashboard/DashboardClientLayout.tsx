@@ -67,6 +67,7 @@ const NAV_GROUPS: { label: string; items: NavItemConfig[] }[] = [
       { id: 'finances', label: 'Transactions', href: '/dashboard/money', icon: CurrencyDollar, comingSoon: false },
       { id: 'finances', label: 'Payment Schedules', href: '/dashboard/schedules', icon: CalendarBlank, comingSoon: false },
       { id: 'bas', label: 'BAS Activity Statement', href: '/dashboard/bas', icon: Calculator, comingSoon: false },
+      { id: 'reports', label: 'Reports', href: '/dashboard/reports', icon: ChartBar, comingSoon: false },
     ],
   },
   {
@@ -80,15 +81,15 @@ const NAV_GROUPS: { label: string; items: NavItemConfig[] }[] = [
     ],
   },
   {
-    label: 'Insights',
+    label: 'Reports',
     items: [
-      { id: 'reports', label: 'Reports', href: '/dashboard/reports', icon: ChartBar, comingSoon: true },
+      { id: 'reports', label: 'Reports Hub', href: '/dashboard/reports', icon: ChartBar, comingSoon: false },
     ],
   },
 ];
 
 function buildNavSections(persona: Persona, permissions: string[] = []): NavSection[] {
-  const COMING_SOON_SECTIONS = new Set(['Insights']);
+  const COMING_SOON_SECTIONS = new Set<string>([]);
 
   const sections: NavSection[] = NAV_GROUPS.map((group) => ({
     label: group.label,

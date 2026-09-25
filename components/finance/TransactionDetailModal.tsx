@@ -20,10 +20,11 @@ import {
   Link2,
 } from 'lucide-react';
 import { Button, Badge } from '@/components/admin/ui';
-import { TransactionDTO } from '@/modules/finance/domain/types';
+import { TransactionDTO, ReceiptAttachment as ReceiptAttachmentType } from '@/modules/finance/domain/types';
 import { formatCurrency } from '@/lib/format/currency';
 import { formatAuDisplayDate, formatAuDisplayDateTime } from '@/lib/format/australian-time';
 import { cn } from '@/lib/utils';
+import { ReceiptAttachment } from './ReceiptAttachment';
 
 interface TransactionDetailModalProps {
   transaction: TransactionDTO | null;
@@ -33,6 +34,7 @@ interface TransactionDetailModalProps {
   onDelete?: (tx: TransactionDTO) => void;
   onLinkSchedule?: (tx: TransactionDTO) => void;
   onLinkExpense?: (tx: TransactionDTO) => void;
+  onReceiptUpdated?: (tx: TransactionDTO) => void;
 }
 
 export function TransactionDetailModal({
@@ -43,6 +45,7 @@ export function TransactionDetailModal({
   onDelete,
   onLinkSchedule,
   onLinkExpense,
+  onReceiptUpdated,
 }: TransactionDetailModalProps) {
   if (!isOpen || !transaction) return null;
 
@@ -153,6 +156,105 @@ export function TransactionDetailModal({
               </p>
             </div>
           </div>
+
+          {/* Tax & GST Breakdown Card */}
+          <div className="p-4 rounded-xl border border-sky-200 dark:border-sky-900/50 bg-sky-50/40 dark:bg-sky-950/20 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-sky-900 dark:text-sky-300 flex items-center gap-1.5">
+                <span>🇦🇺</span> Tax & GST Classification
+              </span>
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                {transaction.gst_inclusive
+                  ? 'GST Inclusive (10%)'
+                  : Number(transaction.gst_amount || 0) > 0
+                  ? 'GST Exclusive (+10%)'
+                  : 'GST-Free / No Tax'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+              <div>
+                <p className="text-slate-500 dark:text-slate-400 font-medium">Tax Classification</p>
+                <p className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
+                  {transaction.tax_classification?.name || (isIncome ? 'GST on Sales' : 'GST on Purchases')}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-slate-500 dark:text-slate-400 font-medium">GST Portion</p>
+                <p className="font-mono font-bold text-sky-700 dark:text-sky-400 mt-0.5">
+                  {formatCurrency(Number(transaction.gst_amount || 0))}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-slate-500 dark:text-slate-400 font-medium">Net Amount (Ex-GST)</p>
+                <p className="font-mono font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
+                  {formatCurrency(Math.max(0, Number(transaction.amount || 0) - Number(transaction.gst_amount || 0)))}
+                </p>
+              </div>
+            </div>
+
+            {/* BAS Impact */}
+            <div className="pt-2 border-t border-sky-200/60 dark:border-sky-900/40 text-[11px] text-sky-800 dark:text-sky-300 flex items-center justify-between">
+              <span>
+                <strong>BAS Reporting:</strong>{' '}
+                {isIncome
+                  ? (Number(transaction.gst_amount || 0) > 0 ? 'Taxable Sales [1A / G1]' : 'GST-free Income [G3]')
+                  : (Number(transaction.gst_amount || 0) > 0 ? 'Taxable Purchases [1B / G11]' : 'GST-free Purchases [G14]')}
+              </span>
+              <span className="font-medium">
+                {transaction.status === 'completed' ? '✓ Eligible for BAS' : 'Pending Payment (Cash Basis)'}
+              </span>
+            </div>
+          </div>
+
+          {/* Receipt / Tax Invoice Section (Expense Only) */}
+          {!isIncome && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-admin-muted uppercase tracking-wider">
+                Receipt / Tax Invoice
+              </h3>
+              <ReceiptAttachment
+                receipt={
+                  transaction.receipt_url
+                    ? {
+                        url: transaction.receipt_url,
+                        blobPath: transaction.receipt_blob_path || '',
+                        fileName: transaction.receipt_file_name || 'receipt',
+                        fileSize: transaction.receipt_file_size || 0,
+                        mimeType: transaction.receipt_mime_type || '',
+                        uploadedAt: transaction.receipt_uploaded_at || transaction.created_at,
+                      }
+                    : null
+                }
+                transactionId={transaction.id}
+                editable={true}
+                onReceiptUploaded={(uploaded) => {
+                  onReceiptUpdated?.({
+                    ...transaction,
+                    receipt_url: uploaded.url,
+                    receipt_blob_path: uploaded.blobPath,
+                    receipt_file_name: uploaded.fileName,
+                    receipt_file_size: uploaded.fileSize,
+                    receipt_mime_type: uploaded.mimeType,
+                    receipt_uploaded_at: uploaded.uploadedAt,
+                  });
+                }}
+                onReceiptRemoved={() => {
+                  onReceiptUpdated?.({
+                    ...transaction,
+                    receipt_url: null,
+                    receipt_blob_path: null,
+                    receipt_file_name: null,
+                    receipt_file_size: null,
+                    receipt_mime_type: null,
+                    receipt_uploaded_at: null,
+                  });
+                }}
+              />
+            </div>
+          )}
 
           {/* Description & Memo */}
           {transaction.description && (

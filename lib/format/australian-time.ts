@@ -60,10 +60,13 @@ export function createAuDate(
   day: number,
   hour: number = 0,
   minute: number = 0,
+  secondOrTimeZone: number | string = 0,
   timeZone: string = DEFAULT_AU_TIMEZONE
 ): Date {
-  const guess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
-  const auParts = getAuDateParts(guess, timeZone);
+  const second = typeof secondOrTimeZone === 'number' ? secondOrTimeZone : 0;
+  const tz = typeof secondOrTimeZone === 'string' ? secondOrTimeZone : timeZone;
+  const guess = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  const auParts = getAuDateParts(guess, tz);
   const auAsUtc = Date.UTC(
     auParts.year,
     auParts.month - 1,

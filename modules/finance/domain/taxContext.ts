@@ -16,23 +16,33 @@ export interface ScheduleTaxContextResolution {
 
 /**
  * Calculates mathematically consistent proportional GST for partial or split payments.
- * For example: Schedule $1,100 ($100 GST) with $550 payment -> $50.00 GST.
+ * Supports exact rounding remainder absorption on the final installment.
+ * For example: Schedule $1,100 ($100 GST) with $333.33 + $333.33 + $433.34 -> $30.30 + $30.30 + $39.40 = $100.00 exact.
  */
 export function calculateProportionalGst(
   expectedGross: number,
   expectedGst: number,
   paymentGross: number,
-  isGstInclusive: boolean = true
+  isGstInclusive: boolean = true,
+  alreadyAllocatedGross: number = 0,
+  alreadyAllocatedGst: number = 0
 ): number {
   const gross = Number(paymentGross) || 0;
   const expectedTotal = Number(expectedGross) || 0;
   const expectedTax = Number(expectedGst) || 0;
+  const prevGross = Number(alreadyAllocatedGross) || 0;
+  const prevGst = Number(alreadyAllocatedGst) || 0;
 
   if (gross <= 0 || !isGstInclusive) {
     return 0;
   }
 
   if (expectedTotal > 0 && expectedTax > 0) {
+    // If this payment settles the remaining balance (or exceeds it), absorb the exact rounding remainder
+    if (prevGross + gross >= expectedTotal - 0.001) {
+      const remainingGst = Math.round((expectedTax - prevGst) * 100) / 100;
+      return Math.max(0, remainingGst);
+    }
     const proportional = (gross / expectedTotal) * expectedTax;
     return Math.round(proportional * 100) / 100;
   }

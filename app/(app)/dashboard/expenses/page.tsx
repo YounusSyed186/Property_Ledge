@@ -24,7 +24,7 @@ export default async function ExpensesPage() {
   return (
     <Suspense
       fallback={
-        <div className="p-8 text-center text-slate-400 text-sm">
+        <div className="p-8 text-center text-admin-muted">
           Loading property expenses...
         </div>
       }

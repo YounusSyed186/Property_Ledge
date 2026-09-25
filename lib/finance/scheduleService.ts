@@ -15,6 +15,7 @@ import {
   calculateTransactionUnallocatedAmount,
   validateAllocation,
 } from '@/modules/finance/domain/allocationCalculations';
+import { calculateProportionalGst } from '@/modules/finance/domain/taxContext';
 import { createTransaction } from '@/lib/finance/service';
 
 /**
@@ -679,21 +680,24 @@ export async function recordTransactionForExpectedPayment(
     txType = expected.category.transaction_type;
   }
 
-  // Calculate proportional or explicit GST amount
+  // Calculate proportional or explicit GST amount with remainder absorption
   const isGstInc = input.gst_inclusive !== undefined ? input.gst_inclusive : (expected.gst_inclusive || false);
   let resolvedGstAmount = 0;
+
+  const alreadyAllocatedGross = (expected.allocations || []).reduce((sum: number, a: any) => sum + Number(a.allocated_amount || 0), 0);
+  const alreadyAllocatedGst = (expected.allocations || []).reduce((sum: number, a: any) => sum + Number(a.allocated_gst || 0), 0);
 
   if (input.gst_amount !== undefined) {
     resolvedGstAmount = Number(input.gst_amount) || 0;
   } else if (isGstInc) {
-    if (expected.amount > 0 && expected.gst_amount) {
-      // Proportional calculation
-      resolvedGstAmount = Math.round((input.amount / expected.amount) * expected.gst_amount * 100) / 100;
-    } else {
-      // Standard 1/11th calculation
-      const net = Math.round((input.amount / 1.1) * 100) / 100;
-      resolvedGstAmount = Math.round((input.amount - net) * 100) / 100;
-    }
+    resolvedGstAmount = calculateProportionalGst(
+      Number(expected.amount) || 0,
+      Number(expected.gst_amount) || 0,
+      input.amount,
+      isGstInc,
+      alreadyAllocatedGross,
+      alreadyAllocatedGst
+    );
   }
 
   const resolvedTaxClassId = input.tax_classification_id !== undefined

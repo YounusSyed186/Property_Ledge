@@ -1,0 +1,2 @@
+This is an invalid plain text document for upload validation testing.
+It should be rejected because only PDF, JPG, JPEG, PNG, and WebP are allowed.

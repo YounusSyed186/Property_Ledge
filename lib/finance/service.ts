@@ -308,6 +308,12 @@ export async function createTransaction(
     gst_inclusive: validated.gst_inclusive || false,
     gst_amount: validated.gst_amount || 0,
     tax_classification_id: validated.tax_classification_id || null,
+    receipt_url: validated.receipt_url || null,
+    receipt_blob_path: validated.receipt_blob_path || null,
+    receipt_file_name: validated.receipt_file_name || null,
+    receipt_file_size: validated.receipt_file_size || null,
+    receipt_mime_type: validated.receipt_mime_type || null,
+    receipt_uploaded_at: validated.receipt_uploaded_at || null,
   };
 
   const { data: insertData, error } = await supabase
@@ -458,6 +464,12 @@ export async function updateTransaction(
   if (validated.gst_inclusive !== undefined) updatePayload.gst_inclusive = validated.gst_inclusive;
   if (validated.gst_amount !== undefined) updatePayload.gst_amount = validated.gst_amount;
   if (validated.tax_classification_id !== undefined) updatePayload.tax_classification_id = validated.tax_classification_id;
+  if (validated.receipt_url !== undefined) updatePayload.receipt_url = validated.receipt_url;
+  if (validated.receipt_blob_path !== undefined) updatePayload.receipt_blob_path = validated.receipt_blob_path;
+  if (validated.receipt_file_name !== undefined) updatePayload.receipt_file_name = validated.receipt_file_name;
+  if (validated.receipt_file_size !== undefined) updatePayload.receipt_file_size = validated.receipt_file_size;
+  if (validated.receipt_mime_type !== undefined) updatePayload.receipt_mime_type = validated.receipt_mime_type;
+  if (validated.receipt_uploaded_at !== undefined) updatePayload.receipt_uploaded_at = validated.receipt_uploaded_at;
 
   const { error } = await supabase
     .from('transactions')

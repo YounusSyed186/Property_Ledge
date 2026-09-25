@@ -183,9 +183,8 @@ export class SupabasePropertyRepository implements PropertyRepository {
       await this.client.from('lease_tenants').delete().eq('property_id', id);
       await this.client.from('leases').delete().eq('property_id', id);
       await this.client.from('tenants').delete().eq('property_id', id);
-      await this.client.from('invoices').delete().eq('property_id', id);
-      await this.client.from('payments').delete().eq('property_id', id);
-      await this.client.from('expenses').delete().eq('property_id', id);
+      await this.client.from('transactions').delete().eq('property_id', id);
+      await this.client.from('expected_payment_schedule').delete().eq('property_id', id);
       await this.client.from('maintenance_requests').delete().eq('property_id', id);
       await this.client.from('inspections').delete().eq('property_id', id);
       await this.client.from('documents').delete().eq('property_id', id);

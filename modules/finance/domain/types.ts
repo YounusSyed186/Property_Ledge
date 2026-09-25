@@ -49,6 +49,15 @@ export interface CategoryDTO {
   default_tax_classification?: TaxClassificationDTO | null;
 }
 
+export interface ReceiptAttachment {
+  url: string;
+  blobPath: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  uploadedAt: string;
+}
+
 export interface TransactionDTO {
   id: string;
   amount: number;
@@ -74,6 +83,14 @@ export interface TransactionDTO {
   gst_inclusive?: boolean;
   gst_amount?: number;
   tax_classification_id?: string | null;
+
+  // Receipt Attachment (Stored in Vercel Blob)
+  receipt_url?: string | null;
+  receipt_blob_path?: string | null;
+  receipt_file_name?: string | null;
+  receipt_file_size?: number | null;
+  receipt_mime_type?: string | null;
+  receipt_uploaded_at?: string | null;
 
   // Populated relations
   category?: CategoryDTO | null;
@@ -173,6 +190,14 @@ export interface CreateTransactionInput {
   gst_inclusive?: boolean;
   gst_amount?: number;
   tax_classification_id?: string | null;
+
+  // Receipt Attachment
+  receipt_url?: string | null;
+  receipt_blob_path?: string | null;
+  receipt_file_name?: string | null;
+  receipt_file_size?: number | null;
+  receipt_mime_type?: string | null;
+  receipt_uploaded_at?: string | null;
 }
 
 export interface UpdateTransactionInput {
@@ -195,6 +220,14 @@ export interface UpdateTransactionInput {
   gst_inclusive?: boolean;
   gst_amount?: number;
   tax_classification_id?: string | null;
+
+  // Receipt Attachment
+  receipt_url?: string | null;
+  receipt_blob_path?: string | null;
+  receipt_file_name?: string | null;
+  receipt_file_size?: number | null;
+  receipt_mime_type?: string | null;
+  receipt_uploaded_at?: string | null;
 }
 
 export interface TransactionFilterParams {
@@ -391,38 +424,46 @@ export interface RecordTransactionFromExpectedInput {
 }
 
 // ====================================================================
-// 3-Tier Expense Tracking & Transaction Mapping Types
+// Expense Tracking — Direct View/Filter Over Transactions
 // ====================================================================
 
-export type ExpenseStatus = 'pending' | 'partially_paid' | 'paid' | 'cancelled';
+export type ExpenseStatus = 'pending' | 'completed' | 'cancelled' | 'partially_paid' | 'paid';
 
-export interface ExpenseTransactionDTO {
+export interface TransactionAttachmentDTO {
   id: string;
-  expense_id: string;
+  workspace_id: string;
   transaction_id: string;
-  allocated_amount: number;
-  notes: string | null;
-  created_by: string | null;
+  blob_url: string;
+  blob_path: string;
+  file_name: string;
+  mime_type?: string | null;
+  file_size?: number | null;
+  source_path?: string | null;
   created_at: string;
-  updated_at: string;
-  transaction?: TransactionDTO | null;
 }
 
 export interface ExpenseDTO {
   id: string;
   workspace_id: string;
   property_id: string;
-  lease_id: string | null;
-  transaction_category_id: string | null;
+  lease_id?: string | null;
+  transaction_category_id?: string | null;
   amount: number;
-  expense_date: string;
-  vendor_name: string | null;
-  description: string | null;
-  reference: string | null;
-  notes: string | null;
-  status: ExpenseStatus;
-  receipt_url: string | null;
-  created_by: string | null;
+  transaction_date: string;
+  expense_date?: string; // Virtual/alias for transaction_date
+  vendor_name?: string | null;
+  description?: string | null;
+  reference?: string | null;
+  notes?: string | null;
+  payment_method?: string | null;
+  status: TransactionStatus | ExpenseStatus;
+  receipt_url?: string | null;
+  receipt_blob_path?: string | null;
+  receipt_file_name?: string | null;
+  receipt_file_size?: number | null;
+  receipt_mime_type?: string | null;
+  receipt_uploaded_at?: string | null;
+  created_by?: string | null;
   created_at: string;
   updated_at: string;
 
@@ -432,8 +473,6 @@ export interface ExpenseDTO {
   tax_classification_id?: string | null;
 
   // Computed & Relation fields
-  total_allocated?: number;
-  remaining_amount?: number;
   category?: CategoryDTO | null;
   tax_classification?: TaxClassificationDTO | null;
   property?: {
@@ -451,7 +490,7 @@ export interface ExpenseDTO {
     rent_amount?: number | null;
     status?: string | null;
   } | null;
-  allocations?: ExpenseTransactionDTO[];
+  attachments?: TransactionAttachmentDTO[];
 }
 
 export interface CreateExpenseInput {
@@ -460,23 +499,34 @@ export interface CreateExpenseInput {
   lease_id?: string | null;
   transaction_category_id?: string | null;
   amount: number;
-  expense_date: string;
+  transaction_date?: string;
+  expense_date?: string; // Accepted for UI compatibility
   vendor_name?: string | null;
   description?: string | null;
   reference?: string | null;
   notes?: string | null;
-  status?: ExpenseStatus;
+  payment_method?: PaymentMethod | string | null;
+  status?: TransactionStatus | ExpenseStatus;
   receipt_url?: string | null;
+  receipt_blob_path?: string | null;
+  receipt_file_name?: string | null;
+  receipt_file_size?: number | null;
+  receipt_mime_type?: string | null;
+  receipt_uploaded_at?: string | null;
 
   // Australian GST & Tax Classification
   gst_inclusive?: boolean;
   gst_amount?: number;
   tax_classification_id?: string | null;
 
-  // Optional: simultaneous ledger transaction creation & allocation
-  create_transaction?: boolean;
-  record_transaction?: boolean;
-  payment_method?: PaymentMethod | null;
+  // Multi-file attachments
+  attachments?: Array<{
+    blob_url: string;
+    blob_path: string;
+    file_name: string;
+    mime_type?: string;
+    file_size?: number;
+  }>;
 }
 
 export interface UpdateExpenseInput {
@@ -484,13 +534,20 @@ export interface UpdateExpenseInput {
   lease_id?: string | null;
   transaction_category_id?: string | null;
   amount?: number;
+  transaction_date?: string;
   expense_date?: string;
   vendor_name?: string | null;
   description?: string | null;
   reference?: string | null;
   notes?: string | null;
-  status?: ExpenseStatus;
+  payment_method?: PaymentMethod | string | null;
+  status?: TransactionStatus | ExpenseStatus;
   receipt_url?: string | null;
+  receipt_blob_path?: string | null;
+  receipt_file_name?: string | null;
+  receipt_file_size?: number | null;
+  receipt_mime_type?: string | null;
+  receipt_uploaded_at?: string | null;
 
   // Australian GST & Tax Classification
   gst_inclusive?: boolean;
@@ -498,28 +555,13 @@ export interface UpdateExpenseInput {
   tax_classification_id?: string | null;
 }
 
-export interface LinkExpenseTransactionInput {
-  expense_id: string;
-  transaction_id: string;
-  allocated_amount: number;
-  notes?: string;
-}
-
-export interface ProcessExpensePaymentInput {
-  expense_id: string;
-  amount: number;
-  payment_date: string;
-  payment_method: PaymentMethod;
-  reference?: string | null;
-  notes?: string | null;
-}
-
 export interface ExpenseFilterParams {
   workspace_id?: string;
   property_id?: string;
   lease_id?: string;
   transaction_category_id?: string;
-  status?: ExpenseStatus | 'all';
+  tax_classification_id?: string;
+  status?: TransactionStatus | ExpenseStatus | 'all';
   search_query?: string;
   start_date?: string;
   end_date?: string;

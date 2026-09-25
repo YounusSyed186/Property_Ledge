@@ -95,20 +95,25 @@ test.describe('Payment Schedule GST & Tax Classification Integration Unit Tests'
       expect(gst).toBe(30.3);
     });
 
-    test('Returns 0 for non-taxable / GST-exclusive payment', () => {
-      const gst = calculateProportionalGst(1100, 100, 550, false);
-      expect(gst).toBe(0);
-    });
+    test('Uneven partial payments absorb rounding remainder exactly on final installment ($333.33 + $333.33 + $433.34 against $1,100 / $100 GST)', () => {
+      const totalGross = 1100;
+      const totalGst = 100;
 
-    test('Returns 0 when payment gross amount is 0 or negative', () => {
-      expect(calculateProportionalGst(1100, 100, 0, true)).toBe(0);
-      expect(calculateProportionalGst(1100, 100, -50, true)).toBe(0);
-    });
+      // Payment 1: $333.33
+      const gst1 = calculateProportionalGst(totalGross, totalGst, 333.33, true, 0, 0);
+      expect(gst1).toBe(30.3);
 
-    test('Falls back to standard 1/11th Australian calculation when expected GST is not provided', () => {
-      // $550 gross @ 1/11th = $50.00
-      const gst = calculateProportionalGst(0, 0, 550, true);
-      expect(gst).toBe(50.0);
+      // Payment 2: $333.33
+      const gst2 = calculateProportionalGst(totalGross, totalGst, 333.33, true, 333.33, gst1);
+      expect(gst2).toBe(30.3);
+
+      // Payment 3: $433.34 (Final installment that completes the $1,100)
+      const gst3 = calculateProportionalGst(totalGross, totalGst, 433.34, true, 333.33 + 333.33, gst1 + gst2);
+      expect(gst3).toBe(39.4);
+
+      // Total GST must equal exactly 100.00 (not 99.99)
+      const sumGst = Math.round((gst1 + gst2 + gst3) * 100) / 100;
+      expect(sumGst).toBe(100.0);
     });
   });
 

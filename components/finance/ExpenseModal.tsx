@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, Receipt, Building, Tag, DollarSign, Calendar, FileText, User, ShieldCheck } from 'lucide-react';
 import { Input, Select, Textarea, useToast } from '@/components/admin/ui';
 import {
   ExpenseDTO,
   CategoryDTO,
-  ExpenseStatus,
   PaymentMethod,
   CreateExpenseInput,
   UpdateExpenseInput,
+  ReceiptAttachment as ReceiptAttachmentType,
 } from '@/modules/finance/domain/types';
 import {
   createExpenseAction,
@@ -20,6 +20,7 @@ import {
   getCachedDropdownOptionsSync,
   getDropdownOptions,
 } from '@/lib/cache/optionsCache';
+import { ReceiptAttachment } from './ReceiptAttachment';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -39,7 +40,7 @@ export function ExpenseModal({
   const isEdit = Boolean(expenseToEdit);
   const { toast } = useToast();
 
-  // Initialize immediately from synchronous in-memory cache for 0ms dropdown delays
+  // Initialize immediately from synchronous in-memory cache
   const syncCache = getCachedDropdownOptionsSync();
   const initialExpenseCats = (syncCache.categories || []).filter((c) => c.transaction_type === 'expense');
 
@@ -53,21 +54,21 @@ export function ExpenseModal({
   const [description, setDescription] = useState('');
   const [reference, setReference] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('bank_transfer');
-  const [createTransaction, setCreateTransaction] = useState(true);
-  const [status, setStatus] = useState<ExpenseStatus>('pending');
   const [notes, setNotes] = useState('');
 
   // GST & Tax Classification State
-  const [gstInclusive, setGstInclusive] = useState(false);
+  const [gstTreatment, setGstTreatment] = useState<'inclusive' | 'exclusive' | 'none'>('inclusive');
+  const [gstInclusive, setGstInclusive] = useState(true);
   const [gstAmount, setGstAmount] = useState('');
   const [taxClassificationId, setTaxClassificationId] = useState('');
 
-  // Options State (instantly populated)
+  // Options State
   const [categories, setCategories] = useState<CategoryDTO[]>(initialExpenseCats);
   const [properties, setProperties] = useState<any[]>(syncCache.properties || []);
   const [leases, setLeases] = useState<any[]>(syncCache.leases || []);
-  const [tenants, setTenants] = useState<any[]>(syncCache.tenants || []);
   const [taxClassifications, setTaxClassifications] = useState<any[]>(syncCache.taxClassifications || []);
+  const [selectedReceiptFile, setSelectedReceiptFile] = useState<File | null>(null);
+  const [existingReceipt, setExistingReceipt] = useState<ReceiptAttachmentType | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -100,7 +101,6 @@ export function ExpenseModal({
       setCategories(expCats);
       setProperties(opts.properties || []);
       setLeases(opts.leases || []);
-      setTenants(opts.tenants || []);
       setTaxClassifications(opts.taxClassifications || []);
       if (!categoryId && expCats.length > 0 && !isEdit) {
         setCategoryId(expCats[0].id);
@@ -110,7 +110,7 @@ export function ExpenseModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen]);
+  }, [isOpen, categoryId, isEdit]);
 
   // Populate on Edit or Open
   useEffect(() => {
@@ -118,18 +118,35 @@ export function ExpenseModal({
       if (expenseToEdit) {
         setAmount(String(expenseToEdit.amount));
         setCategoryId(expenseToEdit.transaction_category_id || '');
-        setExpenseDate(expenseToEdit.expense_date);
+        setExpenseDate(expenseToEdit.transaction_date || expenseToEdit.expense_date || new Date().toISOString().split('T')[0]);
         setPropertyId(expenseToEdit.property_id);
         setLeaseId(expenseToEdit.lease_id || '');
         setVendorName(expenseToEdit.vendor_name || '');
         setDescription(expenseToEdit.description || '');
         setReference(expenseToEdit.reference || '');
-        setStatus(expenseToEdit.status || 'pending');
+        setPaymentMethod((expenseToEdit.payment_method as PaymentMethod) || 'bank_transfer');
         setNotes(expenseToEdit.notes || '');
-        setCreateTransaction(false);
-        setGstInclusive(Boolean(expenseToEdit.gst_inclusive));
+
+        const isInc = Boolean(expenseToEdit.gst_inclusive);
+        const hasGst = Number(expenseToEdit.gst_amount || 0) > 0;
+        setGstInclusive(isInc);
+        setGstTreatment(isInc ? 'inclusive' : hasGst ? 'exclusive' : 'none');
         setGstAmount(expenseToEdit.gst_amount !== undefined && expenseToEdit.gst_amount !== null ? String(expenseToEdit.gst_amount) : '');
         setTaxClassificationId(expenseToEdit.tax_classification_id || '');
+
+        if (expenseToEdit.receipt_url) {
+          setExistingReceipt({
+            url: expenseToEdit.receipt_url,
+            blobPath: expenseToEdit.receipt_blob_path || '',
+            fileName: expenseToEdit.receipt_file_name || 'Receipt.pdf',
+            fileSize: expenseToEdit.receipt_file_size || 0,
+            mimeType: expenseToEdit.receipt_mime_type || 'application/pdf',
+            uploadedAt: expenseToEdit.receipt_uploaded_at || expenseToEdit.created_at || new Date().toISOString(),
+          });
+        } else {
+          setExistingReceipt(null);
+        }
+        setSelectedReceiptFile(null);
       } else {
         setAmount('');
         setExpenseDate(new Date().toISOString().split('T')[0]);
@@ -139,10 +156,11 @@ export function ExpenseModal({
         setDescription('');
         setReference('');
         setPaymentMethod('bank_transfer');
-        setCreateTransaction(true);
-        setStatus('pending');
+        setExistingReceipt(null);
+        setSelectedReceiptFile(null);
         setNotes('');
-        setGstInclusive(false);
+        setGstTreatment('inclusive');
+        setGstInclusive(true);
         setGstAmount('');
         setTaxClassificationId('');
       }
@@ -164,15 +182,28 @@ export function ExpenseModal({
     );
   }, [taxClassifications]);
 
-  // Auto-calculate 1/11th GST when amount or inclusive toggle changes
-  const handleAmountOrGstChange = (newAmount: string, isInc: boolean) => {
+  // Auto-calculate GST when amount or treatment changes
+  const handleAmountOrGstChange = (
+    newAmount: string,
+    treatment: 'inclusive' | 'exclusive' | 'none' = gstTreatment
+  ) => {
     setAmount(newAmount);
+    setGstTreatment(treatment);
+    const isInc = treatment === 'inclusive';
     setGstInclusive(isInc);
-    if (isInc && newAmount && !isNaN(parseFloat(newAmount))) {
-      const val = parseFloat(newAmount);
-      const calculatedGst = (val / 11).toFixed(2);
-      setGstAmount(calculatedGst);
-    } else if (!isInc) {
+
+    const val = parseFloat(newAmount);
+    if (!isNaN(val) && val > 0) {
+      if (treatment === 'exclusive') {
+        const calculatedGst = (val * 0.1).toFixed(2);
+        setGstAmount(calculatedGst);
+      } else if (treatment === 'inclusive') {
+        const calculatedGst = (val - val / 1.1).toFixed(2);
+        setGstAmount(calculatedGst);
+      } else {
+        setGstAmount('0.00');
+      }
+    } else {
       setGstAmount('0.00');
     }
   };
@@ -191,10 +222,6 @@ export function ExpenseModal({
       if (!isLeaseValid) {
         setLeaseId('');
       }
-    }
-    const prop = properties.find((p: any) => p.id === newPropId);
-    if (prop?.gst_enabled && !gstInclusive) {
-      handleAmountOrGstChange(amount, true);
     }
     if (formErrors.propertyId) {
       setFormErrors((prev) => ({ ...prev, propertyId: '' }));
@@ -240,7 +267,7 @@ export function ExpenseModal({
     setIsSubmitting(true);
     try {
       const parsedAmount = Math.round(parseFloat(amount) * 100) / 100;
-      const parsedGst = gstInclusive && gstAmount ? Math.round(parseFloat(gstAmount) * 100) / 100 : 0;
+      const parsedGst = gstTreatment !== 'none' && gstAmount ? Math.round(parseFloat(gstAmount) * 100) / 100 : 0;
 
       if (isEdit && expenseToEdit) {
         const updatePayload: UpdateExpenseInput = {
@@ -248,15 +275,22 @@ export function ExpenseModal({
           lease_id: leaseId || null,
           transaction_category_id: categoryId,
           amount: parsedAmount,
-          expense_date: expenseDate,
+          transaction_date: expenseDate,
           vendor_name: vendorName.trim() || null,
           description: description.trim() || null,
           reference: reference.trim() || null,
+          payment_method: paymentMethod,
           notes: notes.trim() || null,
-          status: status,
-          gst_inclusive: gstInclusive,
+          status: 'completed',
+          gst_inclusive: gstTreatment === 'inclusive',
           gst_amount: parsedGst,
           tax_classification_id: taxClassificationId || null,
+          receipt_url: existingReceipt?.url || null,
+          receipt_blob_path: existingReceipt?.blobPath || null,
+          receipt_file_name: existingReceipt?.fileName || null,
+          receipt_file_size: existingReceipt?.fileSize || null,
+          receipt_mime_type: existingReceipt?.mimeType || null,
+          receipt_uploaded_at: existingReceipt?.uploadedAt || null,
         };
 
         const res = await updateExpenseAction(expenseToEdit.id, updatePayload);
@@ -266,7 +300,7 @@ export function ExpenseModal({
 
         toast({
           title: 'Expense Updated',
-          description: 'The operating expense record was updated successfully.',
+          description: 'The operating expense transaction was updated successfully.',
           variant: 'success',
         });
         onSuccess?.(res.data);
@@ -277,27 +311,32 @@ export function ExpenseModal({
           lease_id: leaseId || null,
           transaction_category_id: categoryId,
           amount: parsedAmount,
-          expense_date: expenseDate,
+          transaction_date: expenseDate,
           vendor_name: vendorName.trim() || null,
           description: description.trim() || null,
           reference: reference.trim() || null,
+          payment_method: paymentMethod,
           notes: notes.trim() || null,
-          record_transaction: false,
-          create_transaction: false,
-          status: 'pending',
-          gst_inclusive: gstInclusive,
+          status: 'completed',
+          gst_inclusive: gstTreatment === 'inclusive',
           gst_amount: parsedGst,
           tax_classification_id: taxClassificationId || null,
+          receipt_url: existingReceipt?.url || null,
+          receipt_blob_path: existingReceipt?.blobPath || null,
+          receipt_file_name: existingReceipt?.fileName || null,
+          receipt_file_size: existingReceipt?.fileSize || null,
+          receipt_mime_type: existingReceipt?.mimeType || null,
+          receipt_uploaded_at: existingReceipt?.uploadedAt || null,
         };
 
         const res = await createExpenseAction(createPayload);
         if (!res.success || !res.data) {
-          throw new Error(res.error || 'Failed to record expense bill');
+          throw new Error(res.error || 'Failed to record expense');
         }
 
         toast({
-          title: 'Expense Bill Recorded',
-          description: 'Unpaid operating expense bill recorded successfully. You can process and settle it anytime from the actions column.',
+          title: 'Expense Recorded',
+          description: 'Operating expense recorded directly in the financial ledger.',
           variant: 'success',
         });
         onSuccess?.(res.data);
@@ -307,7 +346,7 @@ export function ExpenseModal({
       console.error('Submit expense error:', err);
       toast({
         title: 'Error Saving Expense',
-        description: err.message || 'Could not save expense record.',
+        description: err.message || 'Could not save expense transaction.',
         variant: 'destructive',
       });
     } finally {
@@ -323,7 +362,7 @@ export function ExpenseModal({
           role="dialog"
           aria-modal="true"
         >
-          {/* Backdrop (matching Property Modal exactly) */}
+          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -332,7 +371,7 @@ export function ExpenseModal({
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
           />
 
-          {/* Modal Dialog Card (matching Property Modal exactly) */}
+          {/* Modal Dialog Card */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -350,7 +389,7 @@ export function ExpenseModal({
               <X className="w-5 h-5" />
             </button>
 
-            {/* Content Container (matching Property Form) */}
+            {/* Content Container */}
             <div className="w-full max-w-xl mx-auto font-sans text-slate-900 dark:text-slate-100">
               {/* Centered Header */}
               <div className="text-center mb-6">
@@ -358,14 +397,13 @@ export function ExpenseModal({
                   {isEdit ? 'Edit Operating Expense' : 'Record Operating Expense'}
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-                  Record an operating expense or vendor bill for your portfolio.
+                  Actual expense transaction saved directly into the financial ledger.
                 </p>
               </div>
 
               {/* Form Body */}
               <form onSubmit={handleSubmit} className="space-y-4 px-0.5 py-1">
                 {/* SECTION 1 — PROPERTY CONTEXT */}
-                {/* Property * */}
                 <div>
                   <Select
                     label="Property *"
@@ -402,7 +440,6 @@ export function ExpenseModal({
                 </div>
 
                 {/* SECTION 2 — EXPENSE DETAILS */}
-                {/* Expense Amount & Expense Category */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Input
@@ -415,7 +452,7 @@ export function ExpenseModal({
                       value={amount}
                       onChange={(e) => {
                         const newAmt = e.target.value;
-                        handleAmountOrGstChange(newAmt, gstInclusive);
+                        handleAmountOrGstChange(newAmt, gstTreatment);
                         if (formErrors.amount) setFormErrors((prev) => ({ ...prev, amount: '' }));
                       }}
                       error={formErrors.amount}
@@ -434,11 +471,6 @@ export function ExpenseModal({
                         const cat = categories.find((c) => c.id === newCatId);
                         if (cat?.default_tax_classification_id) {
                           setTaxClassificationId(cat.default_tax_classification_id);
-                          const tc = taxClassifications.find((t) => t.id === cat.default_tax_classification_id);
-                          const isTaxable = tc?.bas_code === '1B' || tc?.bas_code === 'G10' || tc?.bas_code === 'G1';
-                          if (isTaxable && !gstInclusive) {
-                            handleAmountOrGstChange(amount, true);
-                          }
                         }
                         if (formErrors.categoryId) setFormErrors((prev) => ({ ...prev, categoryId: '' }));
                       }}
@@ -448,6 +480,76 @@ export function ExpenseModal({
                         ...categories.map((c) => ({ value: c.id, label: c.name })),
                       ]}
                     />
+                  </div>
+                </div>
+
+                {/* SECTION 3 — AUSTRALIAN GST & TAX CLASSIFICATION */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#008F83]" />
+                      Australian Tax & GST Treatment
+                    </span>
+                    {isGstEnabledOnProperty && (
+                      <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                        Property GST Registered
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* GST Treatment Options */}
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                        GST Calculation
+                      </label>
+                      <select
+                        aria-label="GST Calculation"
+                        value={gstTreatment}
+                        onChange={(e) => handleAmountOrGstChange(amount, e.target.value as any)}
+                        className="w-full h-10 px-3 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#008F83]/30"
+                      >
+                        <option value="inclusive">GST Inclusive (1/11th)</option>
+                        <option value="exclusive">GST Exclusive (+10%)</option>
+                        <option value="none">GST-Free / Non-Taxable</option>
+                      </select>
+                    </div>
+
+                    {/* Calculated GST Amount */}
+                    <div>
+                      <Input
+                        label="GST Component ($)"
+                        name="gstAmount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={gstAmount}
+                        onChange={(e) => setGstAmount(e.target.value)}
+                        disabled={gstTreatment === 'none'}
+                        leftIcon={<span className="text-xs font-bold text-slate-400">$</span>}
+                      />
+                    </div>
+
+                    {/* Tax Classification */}
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">
+                        BAS Tax Classification
+                      </label>
+                      <select
+                        aria-label="BAS Tax Classification"
+                        value={taxClassificationId}
+                        onChange={(e) => setTaxClassificationId(e.target.value)}
+                        className="w-full h-10 px-3 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#008F83]/30"
+                      >
+                        <option value="">-- Standard (Auto) --</option>
+                        {filteredTaxClassifications.map((tc: any) => (
+                          <option key={tc.id} value={tc.id}>
+                            {tc.name} {tc.bas_code ? `(${tc.bas_code})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -478,16 +580,23 @@ export function ExpenseModal({
                   </div>
                 </div>
 
-                {/* SECTION 3 — REFERENCE */}
-                {/* Description & Invoice Reference */}
+                {/* Payment Method & Invoice Reference */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Input
-                      label="Description / Purpose"
-                      name="description"
-                      placeholder="e.g. Hot water system replacement"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
+                    <Select
+                      label="Payment Method"
+                      name="paymentMethod"
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                      options={[
+                        { value: 'bank_transfer', label: 'Bank Transfer (EFT)' },
+                        { value: 'card', label: 'Credit / Debit Card' },
+                        { value: 'bpay', label: 'BPAY' },
+                        { value: 'direct_debit', label: 'Direct Debit' },
+                        { value: 'cash', label: 'Cash' },
+                        { value: 'cheque', label: 'Cheque' },
+                        { value: 'other', label: 'Other' },
+                      ]}
                     />
                   </div>
 
@@ -502,71 +611,51 @@ export function ExpenseModal({
                   </div>
                 </div>
 
-                {/* SECTION 4 — TAX */}
-                {/* GST Portion & Tax Classification */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Input
-                      label="GST Portion ($ 10% Incl)"
-                      name="gstAmount"
-                      type="number"
-                      step="0.01"
-                      value={gstAmount}
-                      onChange={(e) => setGstAmount(e.target.value)}
-                      placeholder="0.00"
-                      leftIcon={<span className="text-xs font-bold text-slate-400 dark:text-slate-500">$</span>}
-                    />
-                  </div>
-
-                  <div>
-                    <Select
-                      label="Tax Classification (BAS)"
-                      name="taxClassificationId"
-                      value={taxClassificationId}
-                      onChange={(e) => setTaxClassificationId(e.target.value)}
-                      options={[
-                        { value: '', label: 'Default Operating Expense [G11]' },
-                        ...filteredTaxClassifications.map((tc: any) => ({
-                          value: tc.id,
-                          label: `${tc.name} ${tc.bas_code ? `[${tc.bas_code}]` : ''}`,
-                        })),
-                      ]}
-                    />
-                  </div>
+                {/* Description */}
+                <div>
+                  <Input
+                    label="Description / Purpose"
+                    name="description"
+                    placeholder="e.g. Hot water system replacement"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
                 </div>
 
-                {/* Status (if editing existing expense) */}
-                {isEdit && (
-                  <div>
-                    <Select
-                      label="Expense Status"
-                      name="status"
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value as ExpenseStatus)}
-                      options={[
-                        { value: 'pending', label: 'Pending / Unpaid' },
-                        { value: 'partially_paid', label: 'Partially Paid' },
-                        { value: 'paid', label: 'Paid & Settled' },
-                        { value: 'cancelled', label: 'Cancelled' },
-                      ]}
-                    />
-                  </div>
-                )}
-
-                {/* SECTION 5 — NOTES */}
-                {/* Internal Notes & Memo */}
+                {/* SECTION 4 — NOTES */}
                 <div>
                   <Textarea
                     label="Internal Notes & Memo"
                     name="notes"
                     placeholder="Optional private notes regarding this expense..."
-                    rows={3}
+                    rows={2}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                   />
                 </div>
 
-                {/* Footer Actions (matching Property Form exactly) */}
+                {/* SECTION 5 — RECEIPT ATTACHMENT */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Receipt Attachment
+                    </label>
+                    <span className="text-[11px] text-slate-500">Optional</span>
+                  </div>
+                  <ReceiptAttachment
+                    receipt={existingReceipt}
+                    selectedFile={selectedReceiptFile}
+                    onFileSelect={setSelectedReceiptFile}
+                    onReceiptUploaded={(uploaded) => setExistingReceipt(uploaded)}
+                    onReceiptRemoved={() => {
+                      setExistingReceipt(null);
+                      setSelectedReceiptFile(null);
+                    }}
+                    editable={true}
+                  />
+                </div>
+
+                {/* Footer Actions */}
                 <div className="flex items-center gap-3 mt-6 pt-2">
                   <button
                     type="button"
@@ -588,7 +677,7 @@ export function ExpenseModal({
                         : 'Saving expense...'
                       : isEdit
                       ? 'Save Changes'
-                      : 'Save Expense'}
+                      : 'Record Expense'}
                   </button>
                 </div>
               </form>

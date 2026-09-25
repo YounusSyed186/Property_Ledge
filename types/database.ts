@@ -1471,6 +1471,198 @@ export interface Database {
           updated_at?: string
         }
       }
+      transaction_attachments: {
+        Row: {
+          id: string
+          workspace_id: string
+          transaction_id: string
+          blob_url: string
+          blob_path: string
+          file_name: string
+          mime_type: string | null
+          file_size: number | null
+          source_path: string | null
+          import_batch_id: string | null
+          uploaded_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          transaction_id: string
+          blob_url: string
+          blob_path: string
+          file_name: string
+          mime_type?: string | null
+          file_size?: number | null
+          source_path?: string | null
+          import_batch_id?: string | null
+          uploaded_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          transaction_id?: string
+          blob_url?: string
+          blob_path?: string
+          file_name?: string
+          mime_type?: string | null
+          file_size?: number | null
+          source_path?: string | null
+          import_batch_id?: string | null
+          uploaded_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      expense_import_batches: {
+        Row: {
+          id: string
+          workspace_id: string
+          property_id: string | null
+          lease_id: string | null
+          status: string
+          total_documents: number
+          ready_count: number
+          attention_count: number
+          total_amount: number
+          total_gst: number
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          property_id?: string | null
+          lease_id?: string | null
+          status?: string
+          total_documents?: number
+          ready_count?: number
+          attention_count?: number
+          total_amount?: number
+          total_gst?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          property_id?: string | null
+          lease_id?: string | null
+          status?: string
+          total_documents?: number
+          ready_count?: number
+          attention_count?: number
+          total_amount?: number
+          total_gst?: number
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      expense_import_items: {
+        Row: {
+          id: string
+          batch_id: string
+          workspace_id: string
+          source_path: string
+          folder_name: string | null
+          file_name: string
+          file_type: string | null
+          file_size: number | null
+          document_type: string
+          description: string | null
+          supplier: string | null
+          amount: number | null
+          transaction_date: string | null
+          gst_inclusive: boolean
+          gst_treatment: string
+          gst_amount: number
+          tax_classification_id: string | null
+          category_id: string | null
+          property_id: string | null
+          lease_id: string | null
+          extraction_status: string
+          validation_status: string
+          conflict_type: string | null
+          conflict_message: string | null
+          extraction_metadata: Json | null
+          blob_url: string | null
+          blob_path: string | null
+          created_transaction_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          batch_id: string
+          workspace_id: string
+          source_path: string
+          folder_name?: string | null
+          file_name: string
+          file_type?: string | null
+          file_size?: number | null
+          document_type?: string
+          description?: string | null
+          supplier?: string | null
+          amount?: number | null
+          transaction_date?: string | null
+          gst_inclusive?: boolean
+          gst_treatment?: string
+          gst_amount?: number
+          tax_classification_id?: string | null
+          category_id?: string | null
+          property_id?: string | null
+          lease_id?: string | null
+          extraction_status?: string
+          validation_status?: string
+          conflict_type?: string | null
+          conflict_message?: string | null
+          extraction_metadata?: Json | null
+          blob_url?: string | null
+          blob_path?: string | null
+          created_transaction_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          batch_id?: string
+          workspace_id?: string
+          source_path?: string
+          folder_name?: string | null
+          file_name?: string
+          file_type?: string | null
+          file_size?: number | null
+          document_type?: string
+          description?: string | null
+          supplier?: string | null
+          amount?: number | null
+          transaction_date?: string | null
+          gst_inclusive?: boolean
+          gst_treatment?: string
+          gst_amount?: number
+          tax_classification_id?: string | null
+          category_id?: string | null
+          property_id?: string | null
+          lease_id?: string | null
+          extraction_status?: string
+          validation_status?: string
+          conflict_type?: string | null
+          conflict_message?: string | null
+          extraction_metadata?: Json | null
+          blob_url?: string | null
+          blob_path?: string | null
+          created_transaction_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

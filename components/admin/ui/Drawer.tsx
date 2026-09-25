@@ -54,11 +54,14 @@ export function Drawer({
       });
     } else {
       setAnimateIn(false);
-      timer = setTimeout(() => setMounted(false), 280);
+      timer = setTimeout(() => setMounted(false), 200);
     }
     return () => {
       clearTimeout(timer);
       cancelAnimationFrame(animFrame);
+      if (!isOpen) {
+        setMounted(false);
+      }
     };
   }, [isOpen]);
 

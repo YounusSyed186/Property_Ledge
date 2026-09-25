@@ -42,11 +42,19 @@ export const DEFAULT_CATEGORY_GROUPS = [
 ];
 
 export const DEFAULT_TAX_CLASSIFICATIONS = [
-  { id: 'tc-1', name: 'Taxable Sales (10% GST)', bas_code: 'G1', description: 'Standard commercial rent and taxable supplies', applies_to: 'income' as const, is_active: true },
-  { id: 'tc-2', name: 'GST-Free Rental Income', bas_code: 'G1', description: 'Residential rent (input taxed / GST-free)', applies_to: 'income' as const, is_active: true },
-  { id: 'tc-3', name: 'Operating Expense (Taxable)', bas_code: '1B', description: 'Maintenance, utilities, and management fees with GST', applies_to: 'expense' as const, is_active: true },
-  { id: 'tc-4', name: 'Capital Acquisition (G10)', bas_code: 'G10', description: 'Major property capital assets & structural improvements', applies_to: 'expense' as const, is_active: true },
-  { id: 'tc-5', name: 'GST-Free / Non-Taxable Expense', bas_code: null, description: 'Council rates, water access charges, and interest', applies_to: 'expense' as const, is_active: true },
+  // Exact 9 Tax Classifications for expenses (Part 17)
+  { id: 'tc-repair-maint', name: 'Repair & Maintenance', bas_code: '1B', description: 'Repairs and recurring maintenance to existing assets', applies_to: 'expense' as const, is_active: true },
+  { id: 'tc-initial-repair', name: 'Initial Repair', bas_code: 'G10', description: 'Repairs made immediately after acquisition (capital in nature)', applies_to: 'expense' as const, is_active: true },
+  { id: 'tc-capital-works', name: 'Capital Works', bas_code: 'G10', description: 'Structural additions, alterations, and improvements (Div 43)', applies_to: 'expense' as const, is_active: true },
+  { id: 'tc-depreciating-asset', name: 'Depreciating Asset', bas_code: 'G10', description: 'Plant and equipment assets subject to decline in value (Div 40)', applies_to: 'expense' as const, is_active: true },
+  { id: 'tc-borrowing-expense', name: 'Borrowing Expense', bas_code: null, description: 'Loan establishment, mortgage documentation, and borrowing fees', applies_to: 'expense' as const, is_active: true },
+  { id: 'tc-other-deductible', name: 'Other Deductible Expense', bas_code: '1B', description: 'Rates, insurance, management fees, and general deductions', applies_to: 'expense' as const, is_active: true },
+  { id: 'tc-non-deductible', name: 'Non-Deductible Expense', bas_code: null, description: 'Fines, penalties, and non-claimable expenditures', applies_to: 'expense' as const, is_active: true },
+  { id: 'tc-private-personal', name: 'Private / Personal', bas_code: null, description: 'Owner private proportion and non-business items', applies_to: 'expense' as const, is_active: true },
+  { id: 'tc-cgt-capital', name: 'CGT / Capital Expense', bas_code: 'G10', description: 'Cost base additions and non-depreciable capital items', applies_to: 'expense' as const, is_active: true },
+  // Income classifications
+  { id: 'tc-taxable-sales', name: 'Taxable Sales (10% GST)', bas_code: 'G1', description: 'Standard commercial rent and taxable supplies', applies_to: 'income' as const, is_active: true },
+  { id: 'tc-gst-free-income', name: 'GST-Free Rental Income', bas_code: 'G1', description: 'Residential rent (input taxed / GST-free)', applies_to: 'income' as const, is_active: true },
 ];
 
 /**

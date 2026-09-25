@@ -16,6 +16,7 @@
     "@phosphor-icons/react": "2.1.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.48.1",
+    "@vercel/blob": "^2.8.0",
     "ag-grid-community": "^36.1.0",
     "ag-grid-react": "^36.1.0",
     "caniuse-lite": "^1.0.30001810",

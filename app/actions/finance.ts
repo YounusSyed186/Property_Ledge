@@ -15,6 +15,7 @@ import {
   UpdateTransactionInput,
   TransactionFilterParams,
   TransactionType,
+  ReceiptAttachment,
 } from '@/modules/finance/domain/types';
 
 async function getAuthContext() {
@@ -317,4 +318,143 @@ export async function createBatchAutoAllocatedTransactionsAction(input: {
     return { success: false, error: err.message || 'Failed to auto-allocate transactions' };
   }
 }
+
+/**
+ * Upload or replace a receipt for an expense transaction
+ */
+export async function uploadTransactionReceiptAction(
+  formData: FormData
+): Promise<{ success: boolean; data?: ReceiptAttachment; error?: string }> {
+  try {
+    const { user, context } = await getAuthContext();
+    const transactionId = formData.get('transactionId') as string;
+    const file = formData.get('receipt') as File | null;
+
+    if (!transactionId) {
+      return { success: false, error: 'Transaction ID is required.' };
+    }
+
+    if (!file || !(file instanceof Blob) || file.size === 0) {
+      return { success: false, error: 'Please select a receipt file to upload.' };
+    }
+
+    // Server-side file validation
+    const { validateReceiptFile } = await import('@/modules/finance/domain/validation');
+    const validation = validateReceiptFile({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+    });
+
+    if (!validation.valid) {
+      return { success: false, error: validation.error || 'Invalid receipt file.' };
+    }
+
+    // Verify transaction exists and belongs to user's workspace
+    const transaction = await financeService.getTransactionById(transactionId);
+    if (!transaction) {
+      return { success: false, error: 'This expense could not be found.' };
+    }
+
+    if (transaction.workspace_id !== context.workspaceId) {
+      return { success: false, error: "You don't have permission to modify this expense." };
+    }
+
+    const { uploadReceiptToBlob, deleteReceiptFromBlob } = await import(
+      '@/lib/finance/receipt-storage'
+    );
+
+    // 1. Upload new receipt to Vercel Blob
+    const attachment = await uploadReceiptToBlob({
+      workspaceId: context.workspaceId,
+      transactionId,
+      file,
+      fileName: file.name,
+      mimeType: file.type,
+    });
+
+    // 2. Update transaction metadata in Supabase
+    try {
+      await financeService.updateTransaction(
+        transactionId,
+        {
+          receipt_url: attachment.url,
+          receipt_blob_path: attachment.blobPath,
+          receipt_file_name: attachment.fileName,
+          receipt_file_size: attachment.fileSize,
+          receipt_mime_type: attachment.mimeType,
+          receipt_uploaded_at: attachment.uploadedAt,
+        },
+        user.id
+      );
+    } catch (dbError: any) {
+      // Rollback newly uploaded blob if DB update fails to avoid orphan
+      await deleteReceiptFromBlob(attachment.blobPath);
+      throw new Error(`Failed to save receipt metadata: ${dbError.message}`);
+    }
+
+    // 3. Clean up previous receipt blob if replacing an existing receipt
+    if (transaction.receipt_blob_path && transaction.receipt_blob_path !== attachment.blobPath) {
+      await deleteReceiptFromBlob(transaction.receipt_blob_path);
+    }
+
+    revalidateFinancialPaths();
+    return { success: true, data: attachment };
+  } catch (err: any) {
+    console.error('[RECEIPT_UPLOAD_ACTION_ERROR]', err);
+    return { success: false, error: err.message || "We couldn't upload the receipt. Please try again." };
+  }
+}
+
+/**
+ * Remove a receipt from a transaction
+ */
+export async function removeTransactionReceiptAction(
+  transactionId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { user, context } = await getAuthContext();
+
+    if (!transactionId) {
+      return { success: false, error: 'Transaction ID is required.' };
+    }
+
+    const transaction = await financeService.getTransactionById(transactionId);
+    if (!transaction) {
+      return { success: false, error: 'This expense could not be found.' };
+    }
+
+    if (transaction.workspace_id !== context.workspaceId) {
+      return { success: false, error: "You don't have permission to modify this expense." };
+    }
+
+    const { deleteReceiptFromBlob } = await import('@/lib/finance/receipt-storage');
+
+    // 1. Delete from Vercel Blob
+    if (transaction.receipt_blob_path) {
+      await deleteReceiptFromBlob(transaction.receipt_blob_path);
+    }
+
+    // 2. Clear metadata in Supabase
+    await financeService.updateTransaction(
+      transactionId,
+      {
+        receipt_url: null,
+        receipt_blob_path: null,
+        receipt_file_name: null,
+        receipt_file_size: null,
+        receipt_mime_type: null,
+        receipt_uploaded_at: null,
+      },
+      user.id
+    );
+
+    revalidateFinancialPaths();
+    return { success: true };
+  } catch (err: any) {
+    console.error('[RECEIPT_REMOVE_ACTION_ERROR]', err);
+    return { success: false, error: err.message || 'Failed to remove receipt.' };
+  }
+}
+
 
