@@ -15,11 +15,39 @@ export interface AttentionItem {
   variant?: AttentionVariant;
 }
 
-const VARIANT_STYLES: Record<AttentionVariant, { border: string; iconBg: string; iconColor: string }> = {
-  danger: { border: 'border-red-200/70', iconBg: 'bg-admin-danger-soft', iconColor: 'text-admin-danger' },
-  warning: { border: 'border-amber-200/70', iconBg: 'bg-admin-warning-soft', iconColor: 'text-admin-warning' },
-  info: { border: 'border-blue-200/70', iconBg: 'bg-admin-info-soft', iconColor: 'text-admin-info' },
-  default: { border: 'border-admin-border', iconBg: 'bg-admin-primary-soft', iconColor: 'text-admin-primary' },
+const VARIANT_STYLES: Record<AttentionVariant, { border: string; bg: string; iconBg: string; iconColor: string; badge: string; badgeText: string }> = {
+  danger: {
+    border: 'border-rose-500/20 hover:border-rose-500/40',
+    bg: 'bg-rose-500/[0.02] dark:bg-rose-500/[0.04]',
+    iconBg: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20',
+    iconColor: 'text-rose-600 dark:text-rose-400',
+    badge: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+    badgeText: 'Urgent',
+  },
+  warning: {
+    border: 'border-amber-500/20 hover:border-amber-500/40',
+    bg: 'bg-amber-500/[0.02] dark:bg-amber-500/[0.04]',
+    iconBg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20',
+    iconColor: 'text-amber-600 dark:text-amber-400',
+    badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+    badgeText: 'Review',
+  },
+  info: {
+    border: 'border-sky-500/20 hover:border-sky-500/40',
+    bg: 'bg-sky-500/[0.02] dark:bg-sky-500/[0.04]',
+    iconBg: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20',
+    iconColor: 'text-sky-600 dark:text-sky-400',
+    badge: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
+    badgeText: 'Upcoming',
+  },
+  default: {
+    border: 'border-admin-border hover:border-admin-primary/40',
+    bg: 'bg-admin-surface',
+    iconBg: 'bg-admin-primary-soft text-admin-primary border border-admin-primary/20',
+    iconColor: 'text-admin-primary',
+    badge: 'bg-admin-surface-subtle text-admin-muted border-admin-border',
+    badgeText: 'Notice',
+  },
 };
 
 function AttentionIcon({ item }: { item: AttentionItem }) {
@@ -54,7 +82,12 @@ export function AttentionPanel({
   }
 
   if (items.length === 0) {
-    return <p className={cn('text-body-sm text-admin-muted py-2', className)}>{emptyMessage}</p>;
+    return (
+      <div className={cn('flex items-center gap-2 py-4 px-3 rounded-lg border border-dashed border-admin-border/70 text-admin-muted text-xs', className)}>
+        <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
+        <span>{emptyMessage}</span>
+      </div>
+    );
   }
 
   return (
@@ -67,25 +100,30 @@ export function AttentionPanel({
             <Link
               href={item.href}
               className={cn(
-                'flex items-center justify-between gap-4 rounded-xl border bg-admin-surface p-4 transition-all hover:shadow-sm group',
+                'flex items-center justify-between gap-3 sm:gap-4 rounded-xl border p-3 sm:p-3.5 transition-all hover:shadow-xs group',
                 styles.border,
-                'hover:border-admin-primary/30'
+                styles.bg
               )}
             >
               <div className="flex min-w-0 items-center gap-3">
-                <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', styles.iconBg)}>
+                <div className={cn('flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg', styles.iconBg)}>
                   <AttentionIcon item={item} />
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-admin-foreground group-hover:text-admin-primary transition-colors">
+                  <p className="truncate text-xs sm:text-sm font-semibold text-admin-foreground group-hover:text-admin-primary transition-colors">
                     {item.label}
                   </p>
                   {item.sublabel && (
-                    <p className="truncate text-body-sm text-admin-muted">{item.sublabel}</p>
+                    <p className="truncate text-[11px] text-admin-muted mt-0.5">{item.sublabel}</p>
                   )}
                 </div>
               </div>
-              <ArrowRight className="h-4 w-4 shrink-0 text-admin-muted opacity-0 transition-opacity group-hover:opacity-100" />
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={cn('hidden sm:inline-flex text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border', styles.badge)}>
+                  {styles.badgeText}
+                </span>
+                <ArrowRight className="h-3.5 w-3.5 text-admin-muted transition-transform group-hover:translate-x-0.5 group-hover:text-admin-primary" />
+              </div>
             </Link>
           </li>
         );

@@ -10,6 +10,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { PageContainer, Card, CardContent } from '@/components/admin/ui';
+import { CompactKpiCard } from '@/components/workspace';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import { fetchDashboardOverview, fetchNeedsAttention } from '@/app/actions/dashboard';
 import { NeedsAttentionSection, buildAttentionItems } from '@/components/dashboard/overview/NeedsAttentionSection';
@@ -78,19 +79,23 @@ export function StaffDashboard({ userName }: { userName: string }) {
         </div>
 
         {selectedProperty && stats && (
-          <div className="grid grid-cols-2 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-caption text-admin-muted">Open Maintenance</p>
-                <p className="text-display font-heading tabular-nums">{stats.openMaintenanceRequests}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-caption text-admin-muted">Active Tenants</p>
-                <p className="text-display font-heading tabular-nums">{stats.activeTenants}</p>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <CompactKpiCard
+              label="Open Maintenance"
+              value={stats.openMaintenanceRequests}
+              href="/dashboard/maintenance"
+              icon={Wrench}
+              accent="amber"
+              hint={stats.openMaintenanceRequests > 0 ? 'Work orders assigned' : 'Queue cleared'}
+            />
+            <CompactKpiCard
+              label="Active Tenants"
+              value={stats.activeTenants}
+              href="/dashboard/people"
+              icon={Wrench}
+              accent="indigo"
+              hint="Tenants on property"
+            />
           </div>
         )}
 

@@ -151,13 +151,13 @@ export function EntityDetailHeader({
 export type KpiAccent = 'blue' | 'indigo' | 'teal' | 'amber' | 'emerald' | 'rose' | 'neutral';
 
 const KPI_ACCENT_STYLES: Record<KpiAccent, string> = {
-  blue: 'bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/50',
-  indigo: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/50',
-  teal: 'bg-[#008F83]/10 text-[#008F83] dark:bg-[#008F83]/20 dark:text-[#008F83] border border-[#008F83]/20',
-  emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/50',
-  amber: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/50',
-  rose: 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/50',
-  neutral: 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700',
+  blue: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20',
+  indigo: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20',
+  teal: 'bg-[#008F83]/10 text-[#008F83] dark:text-[#32D5C4] border border-[#008F83]/20',
+  emerald: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20',
+  amber: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20',
+  rose: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20',
+  neutral: 'bg-admin-surface-subtle text-admin-muted border border-admin-border',
 };
 
 interface CompactKpiCardProps {
@@ -175,44 +175,44 @@ export function CompactKpiCard({ label, value, hint, trend, href, icon: Icon, ac
   const inner = (
     <div
       className={cn(
-        'rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 transition-all duration-200 w-full h-full min-h-[120px] flex flex-col justify-between shadow-[0_2px_10px_rgba(0,0,0,0.03)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)]',
-        href && 'hover:border-[#008F83]/40 cursor-pointer',
+        'group relative rounded-xl border border-admin-border bg-admin-surface p-4 sm:p-5 transition-all duration-200 w-full h-full min-h-[110px] flex flex-col justify-between shadow-xs hover:shadow-md hover:border-admin-primary/40',
+        href && 'cursor-pointer',
         className
       )}
     >
       {/* Top row: Label + Icon */}
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-tight">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-admin-muted truncate">{label}</p>
         {Icon && (
-          <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', KPI_ACCENT_STYLES[accent])}>
-            <Icon className="h-4.5 w-4.5" />
+          <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform duration-200 group-hover:scale-105', KPI_ACCENT_STYLES[accent])}>
+            <Icon className="h-4 w-4" />
           </div>
         )}
       </div>
 
       {/* Middle row: Big Value */}
-      <div className="my-1">
-        <p className="font-heading text-2xl sm:text-[28px] font-extrabold tabular-nums tracking-tight text-slate-900 dark:text-white leading-tight">
+      <div className="my-1.5">
+        <p className="font-heading text-2xl sm:text-[26px] font-bold tabular-nums tracking-tight text-admin-foreground leading-tight">
           {value}
         </p>
       </div>
 
       {/* Bottom row: Trend badge & comparison text */}
       {(trend || hint) && (
-        <div className="flex items-center gap-2 pt-0.5">
+        <div className="flex items-center gap-2 pt-0.5 min-w-0">
           {trend && (
             <span
               className={cn(
-                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border',
+                'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold border shrink-0',
                 trend.positive !== false
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40'
-                  : 'bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40'
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
               )}
             >
-              {trend.positive !== false ? '↗' : '↘'} {trend.value}
+              {trend.positive !== false ? '↑' : '↓'} {trend.value}
             </span>
           )}
-          {hint && <span className="text-[11px] text-slate-400 dark:text-slate-500 font-normal">{hint}</span>}
+          {hint && <span className="text-[11px] text-admin-muted truncate font-normal">{hint}</span>}
         </div>
       )}
     </div>
@@ -234,12 +234,12 @@ export function SectionPanel({
   className?: string;
 }) {
   return (
-    <section className={cn('rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 w-full shadow-[0_2px_10px_rgba(0,0,0,0.03)] overflow-hidden', className)}>
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 px-5 py-3.5 bg-slate-50/50 dark:bg-slate-800/30">
-        <h2 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white">{title}</h2>
+    <section className={cn('rounded-xl border border-admin-border bg-admin-surface w-full shadow-xs overflow-hidden', className)}>
+      <div className="flex items-center justify-between gap-3 border-b border-admin-border/70 px-4 sm:px-5 py-3 bg-admin-surface-subtle/30">
+        <h2 className="text-xs sm:text-sm font-semibold text-admin-foreground tracking-tight">{title}</h2>
         {action}
       </div>
-      <div className="p-5">{children}</div>
+      <div className="p-4 sm:p-5">{children}</div>
     </section>
   );
 }

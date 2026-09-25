@@ -61,7 +61,7 @@ export function GlobalNavbar({
 
   return (
     <header
-      className="flex h-[var(--shell-navbar-height,48px)] shrink-0 items-center justify-between gap-2 bg-admin-sidebar px-2 sm:px-3 text-admin-sidebar-foreground z-40"
+      className="flex h-[var(--shell-navbar-height,48px)] shrink-0 items-center justify-between gap-2 bg-admin-sidebar px-2 sm:px-4 text-admin-sidebar-foreground z-40 border-b border-admin-sidebar-border"
       style={{ height: SHELL_NAVBAR_HEIGHT }}
     >
       {/* Left: brand + context */}

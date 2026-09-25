@@ -120,7 +120,7 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
 
   const isNavbar = variant === 'navbar';
   const triggerClass = isNavbar
-    ? 'flex h-8 items-center gap-2 rounded-lg px-2 text-xs font-semibold text-admin-sidebar-foreground transition-colors hover:bg-admin-sidebar-hover focus:outline-none'
+    ? 'flex h-8 items-center gap-2 rounded-lg border border-admin-sidebar-border bg-[#071526]/80 px-2.5 text-xs font-medium text-admin-sidebar-foreground transition-all hover:bg-[#0E1E33] hover:border-admin-primary/40 focus:outline-none focus:ring-1 focus:ring-admin-primary/30'
     : 'flex w-full min-w-[180px] items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 transition-colors hover:bg-muted';
 
   if (isLoading && !hasKnownWorkspace) {
@@ -176,38 +176,41 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        <Avatar seed={activeWorkspaceId || displayName} avatarUrl={selectedWorkspace?.avatarUrl} name={displayName} size="xs" className="shrink-0" />
+        <Avatar seed={activeWorkspaceId || displayName} avatarUrl={selectedWorkspace?.avatarUrl} name={displayName} size="xs" className="shrink-0 ring-1 ring-white/10" />
         <span className="max-w-[130px] truncate text-left font-semibold text-admin-sidebar-foreground" data-testid="current-workspace">
           {displayName}
         </span>
         {isNavbar && (
-          <span className="rounded-full bg-admin-sidebar-surface px-2 py-0.5 text-[10px] font-medium text-admin-sidebar-muted border border-admin-sidebar-border">
+          <span className="rounded-full bg-admin-sidebar-surface px-1.5 py-px text-[9px] font-semibold text-admin-sidebar-muted border border-admin-sidebar-border/80 uppercase tracking-wider">
             {selectedWorkspace?.role ? (selectedWorkspace.role.charAt(0).toUpperCase() + selectedWorkspace.role.slice(1)) : (roleName || 'Owner')}
           </span>
         )}
-        <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-admin-sidebar-muted" />
+        <ChevronsUpDown className="h-3 w-3 shrink-0 text-admin-sidebar-muted" />
       </button>
 
       {isOpen && (
         <div
           className={cn(
-            'absolute z-50 mt-1.5 overflow-hidden rounded-lg border border-admin-border bg-admin-surface shadow-elevation-2 animate-in fade-in zoom-in-95 duration-100',
-            isNavbar ? 'left-0 w-72' : 'left-0 right-0'
+            'absolute z-50 mt-1.5 overflow-hidden rounded-xl border border-admin-border bg-admin-surface shadow-elevation-3 animate-in fade-in zoom-in-95 duration-120',
+            isNavbar ? 'left-0 w-76' : 'left-0 right-0'
           )}
         >
-          <div className="border-b border-admin-border px-3 py-2 flex items-center justify-between">
-            <p className="text-[11px] font-semibold text-admin-foreground">Organization / Workspace</p>
-            <span className="text-[10px] text-admin-muted font-normal">{workspaces.length} active</span>
+          <div className="border-b border-admin-border/70 px-3.5 py-2.5 flex items-center justify-between bg-admin-surface-subtle/40">
+            <div>
+              <p className="text-[11px] font-semibold text-admin-foreground">Workspace</p>
+              <p className="text-[10px] text-admin-muted">Switch active organization</p>
+            </div>
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-admin-primary-soft text-admin-primary border border-admin-primary/20">{workspaces.length} active</span>
           </div>
-          <div className="border-b border-admin-border p-2">
+          <div className="border-b border-admin-border/70 p-2.5 bg-admin-surface">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-admin-muted" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search workspaces..."
-                className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-3 text-xs text-foreground placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+                className="w-full rounded-lg border border-admin-border bg-admin-surface-subtle py-1.5 pl-8 pr-3 text-xs text-admin-foreground placeholder:text-admin-muted focus:outline-none focus:ring-1 focus:ring-admin-primary focus:border-admin-primary/50 transition-colors"
               />
             </div>
           </div>

@@ -9,9 +9,12 @@ import {
   DollarSign,
   Plus,
   ArrowUpRight,
-  Home,
   Percent,
   Wallet,
+  CreditCard,
+  TrendingUp,
+  Receipt,
+  Sparkles,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/admin/ui';
 import { Button } from '@/components/admin/ui/Button';
@@ -37,11 +40,19 @@ import {
   ActivityTimeline,
   WORKSPACE_PAGE_HEADER,
 } from '@/components/workspace';
+import { CashFlowChart } from '@/components/dashboard/overview/CashFlowChart';
+import { PropertiesOverviewCard } from '@/components/dashboard/overview/PropertiesOverviewCard';
 import { useEntityCacheStore } from '@/lib/stores/useEntityCacheStore';
 import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
 import { cn } from '@/lib/utils';
 
-function QuickAction({ label, href, icon: Icon, description, onClick }: {
+function QuickAction({
+  label,
+  href,
+  icon: Icon,
+  description,
+  onClick,
+}: {
   label: string;
   href?: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -49,15 +60,17 @@ function QuickAction({ label, href, icon: Icon, description, onClick }: {
   onClick?: () => void;
 }) {
   const content = (
-    <div className="flex items-center gap-4 p-4 rounded-xl border border-admin-border bg-admin-surface hover:border-admin-primary/50 hover:shadow-md transition-all group">
-      <div className="w-10 h-10 rounded-xl bg-admin-primary-soft flex items-center justify-center shrink-0">
-        <Icon className="w-4 h-4 text-admin-primary" />
+    <div className="flex items-center gap-3.5 p-3.5 rounded-xl border border-admin-border bg-admin-surface hover:border-admin-primary/50 hover:shadow-xs transition-all group cursor-pointer">
+      <div className="w-9 h-9 rounded-lg bg-admin-primary-soft flex items-center justify-center shrink-0 border border-admin-primary/20 text-admin-primary transition-transform group-hover:scale-105">
+        <Icon className="w-4 h-4" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-admin-foreground group-hover:text-admin-primary transition-colors">{label}</p>
-        {description && <p className="text-body-sm text-admin-muted mt-0.5">{description}</p>}
+        <p className="text-xs sm:text-sm font-semibold text-admin-foreground group-hover:text-admin-primary transition-colors leading-tight">
+          {label}
+        </p>
+        {description && <p className="text-[11px] text-admin-muted truncate mt-0.5">{description}</p>}
       </div>
-      <ArrowUpRight className="w-4 h-4 text-admin-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+      <ArrowUpRight className="w-3.5 h-3.5 text-admin-muted opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
     </div>
   );
 
@@ -87,14 +100,14 @@ function OwnerDashboard({
   const setCachedDashboard = useEntityCacheStore((s) => s.setDashboard);
 
   const propertyId = selectedProperty?.propertyId ?? null;
-  const hasMatchingCache = cachedDashboard && 
-    cachedDashboard.workspaceId === activeWorkspaceId && 
+  const hasMatchingCache = cachedDashboard &&
+    cachedDashboard.workspaceId === activeWorkspaceId &&
     cachedDashboard.propertyId === propertyId;
 
   const [overview, setOverview] = useState<any>(() => initialData?.overview ?? (hasMatchingCache ? cachedDashboard.data.overview : null));
   const [reports, setReports] = useState<any>(() => initialData?.reports ?? (hasMatchingCache ? cachedDashboard.data.reports : null));
   const [needsAttention, setNeedsAttention] = useState<any>(() => initialData?.needsAttention ?? (hasMatchingCache ? cachedDashboard.data.needsAttention : null));
-  const [leases, setLeases] = useState<Array<{ id: string; end_date: string | null; status: string; unit?: { name?: string; unit_number?: string } }>>(
+  const [leases, setLeases] = useState<Array<{ id: string; property_id?: string; end_date: string | null; status: string; rent_amount?: number; unit?: { name?: string; unit_number?: string } }>>(
     () => initialData?.leases ?? (hasMatchingCache ? (cachedDashboard.data.leases as any[]) : [])
   );
   const [isLoading, setIsLoading] = useState(() => !initialData && !hasMatchingCache);
@@ -134,13 +147,14 @@ function OwnerDashboard({
   const hasProperties = availableProperties.length > 0;
   const attentionItems = buildAttentionItems(needsAttention);
   const upcomingItems = buildUpcomingItems(needsAttention, leases);
-  const totalUnits = stats?.totalUnits ?? 0;
-  const occupied = reports?.occupiedUnits ?? 0;
-  const occupancyPct = totalUnits > 0 ? Math.round((occupied / totalUnits) * 100) : 0;
-  const collected = reports?.totalRevenue ?? 0;
-  const outstanding = reports?.outstandingBalance ?? 0;
-  const expected = collected + outstanding;
-  const collectionPct = expected > 0 ? Math.round((collected / expected) * 100) : 0;
+
+  // Financial calculations
+  const totalIncome = reports?.totalRevenue ?? 0;
+  const totalExpenses = reports?.totalExpenses ?? 0;
+  const netCashFlow = totalIncome - totalExpenses;
+  const outstandingIncome = reports?.outstandingBalance ?? 0;
+  const activeLeasesCount = stats?.activeLeases ?? 0;
+  const activeTenantsCount = stats?.activeTenants ?? 0;
 
   const activityItems = (overview?.recentActivity || []).slice(0, 6).map((log: Record<string, unknown>) => {
     const action = String(log.action || '');
@@ -159,8 +173,8 @@ function OwnerDashboard({
   });
 
   const contextSubtitle = selectedProperty
-    ? `Here's what's happening with ${selectedProperty.propertyName}.`
-    : "Here's an overview of what's happening across your portfolio.";
+    ? `Financial and operational overview for ${selectedProperty.propertyName}.`
+    : `Portfolio overview across ${availableProperties.length} managed ${availableProperties.length === 1 ? 'property' : 'properties'}.`;
 
   return (
     <PageLayout>
@@ -169,105 +183,196 @@ function OwnerDashboard({
           greeting={`${greeting}, ${userName.split(' ')[0]}`}
           subtitle={contextSubtitle}
           actions={
-            <Button href="/dashboard/properties?new=true" size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />}>
-              Add property
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button href="/dashboard/money?tab=payments" variant="secondary" size="sm" leftIcon={<DollarSign className="h-3.5 w-3.5" />}>
+                Record Payment
+              </Button>
+              <Button href="/dashboard/properties?new=true" size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />}>
+                Add Property
+              </Button>
+            </div>
           }
         />
       </div>
+
       <PageContent>
         {showSetup && <SetupChecklist progress={setupProgress!} />}
 
         {propertyLoading || isLoading ? (
           <PageSkeleton />
         ) : !hasProperties ? (
-          <Card className="border-dashed">
-            <CardContent className="p-8 text-center">
-              <Building2 className="mx-auto mb-3 h-12 w-12 text-admin-primary/60" />
-              <h3 className="text-base font-semibold text-admin-foreground mb-1.5">No properties yet</h3>
-              <p className="mx-auto mb-5 max-w-sm text-xs text-admin-muted leading-relaxed">
-                Add your first property to start managing tenants, leases, and payments all in one place.
+          <Card className="border-dashed bg-admin-surface border-admin-border my-6">
+            <CardContent className="p-10 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-admin-primary-soft text-admin-primary border border-admin-primary/20">
+                <Building2 className="h-7 w-7" />
+              </div>
+              <h3 className="text-base font-bold text-admin-foreground mb-1.5">No properties in workspace</h3>
+              <p className="mx-auto mb-6 max-w-md text-xs text-admin-muted leading-relaxed">
+                Add your first commercial or residential property to start tracking leases, recording tenant payments, and managing automated compliance.
               </p>
               <Button href="/dashboard/properties?new=true" size="md" leftIcon={<Plus className="h-4 w-4" />}>
-                Add property
+                Create Your First Property
               </Button>
             </CardContent>
           </Card>
         ) : stats ? (
-          <div className="space-y-5">
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between gap-3">
+          <div className="space-y-6">
+            {/* 1. Executive KPI Row (Section 10) */}
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-2.5">
                 <div>
-                  <p className="text-xs font-semibold text-admin-foreground">
-                    {selectedProperty ? selectedProperty.propertyName : 'All Properties'} at a glance
+                  <p className="text-xs font-semibold uppercase tracking-wider text-admin-foreground">
+                    {selectedProperty ? selectedProperty.propertyName : 'Portfolio Executive Summary'}
                   </p>
-                  <p className="text-[11px] text-admin-muted">Key numbers and daily operational metrics.</p>
+                  <p className="text-[11px] text-admin-muted">Key financial metrics and daily operational health.</p>
                 </div>
-                <Link href="/dashboard/properties" className="hidden text-xs font-medium text-admin-primary hover:underline sm:block">
-                  View properties →
+                <Link href="/dashboard/reports" className="hidden sm:inline-flex items-center gap-1 text-xs font-medium text-admin-primary hover:underline">
+                  <span>Full Financial Report</span>
+                  <ArrowUpRight className="h-3 w-3" />
                 </Link>
               </div>
+
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
-                <CompactKpiCard label="Properties" value={availableProperties.length} href="/dashboard/properties" icon={Building2} accent="blue" />
-                <CompactKpiCard label="Tenants" value={stats?.activeTenants ?? 0} href="/dashboard/tenants" icon={Users} accent="indigo" />
-                <CompactKpiCard label="Active Leases" value={stats?.activeLeases ?? 0} href="/dashboard/leases" icon={Percent} accent="teal" />
-                <CompactKpiCard label="Rent collected" value={formatCurrency(collected)} href="/dashboard/money" icon={Wallet} accent="blue" hint={outstanding > 0 ? `${formatCurrency(outstanding)} to collect` : undefined} />
+                <CompactKpiCard
+                  label="Total Income"
+                  value={formatCurrency(totalIncome)}
+                  href="/dashboard/money"
+                  icon={TrendingUp}
+                  accent="teal"
+                  hint={outstandingIncome > 0 ? `${formatCurrency(outstandingIncome)} outstanding` : 'All realized'}
+                />
+                <CompactKpiCard
+                  label="Total Expenses"
+                  value={formatCurrency(totalExpenses)}
+                  href="/dashboard/expenses"
+                  icon={CreditCard}
+                  accent="rose"
+                  hint="Operating & vendor costs"
+                />
+                <CompactKpiCard
+                  label="Net Cash Flow"
+                  value={formatCurrency(netCashFlow)}
+                  href="/dashboard/money"
+                  icon={Wallet}
+                  accent={netCashFlow >= 0 ? 'emerald' : 'amber'}
+                  trend={{ value: netCashFlow >= 0 ? 'Surplus' : 'Deficit', positive: netCashFlow >= 0 }}
+                />
+                <CompactKpiCard
+                  label="Properties Managed"
+                  value={availableProperties.length}
+                  href="/dashboard/properties"
+                  icon={Building2}
+                  accent="blue"
+                  hint={`${activeLeasesCount} active lease${activeLeasesCount === 1 ? '' : 's'}`}
+                />
               </div>
             </div>
 
-            <SectionPanel
-              title="Needs attention"
-              action={
-                attentionItems.length > 0 ? (
-                  <span className="rounded-full bg-admin-warning-soft px-2 py-1 text-metadata font-semibold text-admin-warning">
-                    {attentionItems.length} {attentionItems.length === 1 ? 'item' : 'items'}
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-admin-success-soft px-2 py-1 text-metadata font-semibold text-admin-success">All clear</span>
-                )
-              }
-            >
-                <NeedsAttentionSection items={attentionItems} />
-            </SectionPanel>
+            {/* 2. Visual Financial Data & Cash Flow Performance (Section 11) */}
+            <CashFlowChart
+              totalIncome={totalIncome}
+              totalExpenses={totalExpenses}
+              outstandingIncome={outstandingIncome}
+              activeLeasesCount={activeLeasesCount}
+              totalPropertiesCount={availableProperties.length}
+            />
 
-            {upcomingItems.length > 0 && (
-              <SectionPanel title="Upcoming">
-                <AttentionPanel items={upcomingItems} emptyMessage="Nothing scheduled in the next 60 days." />
-              </SectionPanel>
-            )}
+            {/* 3. Action Items: Needs Attention & Upcoming (Section 14) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+              <div className="lg:col-span-7">
+                <SectionPanel
+                  title="Needs Attention"
+                  action={
+                    attentionItems.length > 0 ? (
+                      <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                        {attentionItems.length} {attentionItems.length === 1 ? 'Action' : 'Actions'}
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        All Clear
+                      </span>
+                    )
+                  }
+                >
+                  <NeedsAttentionSection items={attentionItems} />
+                </SectionPanel>
+              </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              <SectionPanel title="Rent collection" action={<Button variant="soft" size="sm" href="/dashboard/money">View Payments</Button>}>
-                <p className="mb-2 text-body-sm text-admin-muted">
-                  {formatCurrency(collected)} collected · {formatCurrency(outstanding)} outstanding
-                </p>
-                <ProgressBar value={collectionPct} />
-                <p className="mt-2 text-caption font-medium">{collectionPct}% collected</p>
-              </SectionPanel>
-              <SectionPanel title="Lease Status" action={<Button variant="soft" size="sm" href="/dashboard/properties">View Properties</Button>}>
-                <p className="text-display font-heading font-semibold tabular-nums">{stats?.activeLeases ?? 0} Active</p>
-                <p className="mt-1 text-body-sm text-admin-muted">Active leases across {availableProperties.length} standalone properties</p>
-                <ProgressBar value={availableProperties.length > 0 ? Math.round(((stats?.activeLeases ?? 0) / availableProperties.length) * 100) : 0} accent="teal" className="mt-3" />
-              </SectionPanel>
+              <div className="lg:col-span-5">
+                <SectionPanel
+                  title="Upcoming Events"
+                  action={
+                    upcomingItems.length > 0 ? (
+                      <span className="text-[10px] font-medium text-admin-muted">Next 60 Days</span>
+                    ) : undefined
+                  }
+                >
+                  <AttentionPanel
+                    items={upcomingItems}
+                    emptyMessage="No upcoming lease renewals or due dates in next 60 days."
+                  />
+                </SectionPanel>
+              </div>
             </div>
 
-            {activityItems.length > 0 && (
-              <SectionPanel title="Recent activity" action={<Link href="/dashboard/activity" className="text-caption text-admin-primary hover:underline">View all</Link>}>
-                <ActivityTimeline items={activityItems} />
-              </SectionPanel>
+            {/* 4. Properties Overview (Section 15) */}
+            {!selectedProperty && (
+              <PropertiesOverviewCard
+                properties={availableProperties}
+                leases={leases}
+              />
             )}
+
+            {/* 5. Recent Activity & Quick Actions (Sections 13, 18, 19) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+              {/* Activity Timeline (7 cols) */}
+              <div className="lg:col-span-7">
+                <SectionPanel
+                  title="Recent Activity"
+                  action={
+                    <Link href="/dashboard/activity" className="text-[11px] font-medium text-admin-primary hover:underline">
+                      View Audit Log
+                    </Link>
+                  }
+                >
+                  <ActivityTimeline items={activityItems} />
+                </SectionPanel>
+              </div>
+
+              {/* Quick Actions (5 cols) */}
+              <div className="lg:col-span-5">
+                <SectionPanel title="Quick Actions">
+                  <div className="space-y-2">
+                    <QuickAction
+                      label="Add Property"
+                      href="/dashboard/properties?new=true"
+                      icon={Building2}
+                      description="Create and configure a new property"
+                    />
+                    <QuickAction
+                      label="Register Tenant"
+                      href="/dashboard/people"
+                      icon={Users}
+                      description="Add a new tenant profile"
+                    />
+                    <QuickAction
+                      label="Create Lease"
+                      icon={FileText}
+                      description="Set terms and start a lease agreement"
+                      onClick={() => setLeaseWizardOpen(true)}
+                    />
+                    <QuickAction
+                      label="Record Transaction"
+                      href="/dashboard/money?tab=payments"
+                      icon={DollarSign}
+                      description="Log rental payment or operating expense"
+                    />
+                  </div>
+                </SectionPanel>
+              </div>
+            </div>
           </div>
         ) : null}
-
-        <section className="mt-6 space-y-3">
-          <h2 className="text-section-title font-semibold text-admin-foreground">Quick actions</h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <QuickAction label="Add Property" href="/dashboard/properties?new=true" icon={Building2} description="Create a new property" />
-            <QuickAction label="Add Tenant" href="/dashboard/people" icon={Users} description="Register a tenant" />
-            <QuickAction label="Create Lease" icon={FileText} description="Start a lease" onClick={() => setLeaseWizardOpen(true)} />
-            <QuickAction label="Record Payment" href="/dashboard/money?tab=payments" icon={DollarSign} description="Log a payment" />
-          </div>
-        </section>
       </PageContent>
 
       <CreateLeaseWizard isOpen={leaseWizardOpen} onClose={() => setLeaseWizardOpen(false)} />

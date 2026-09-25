@@ -8,9 +8,11 @@ import {
   CheckSquare,
   Users,
   FileText,
+  DollarSign,
   ArrowUpRight,
 } from 'lucide-react';
 import { PageContainer, Card, CardContent } from '@/components/admin/ui';
+import { CompactKpiCard } from '@/components/workspace';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import { fetchDashboardOverview, fetchNeedsAttention } from '@/app/actions/dashboard';
 import { NeedsAttentionSection, buildAttentionItems } from '@/components/dashboard/overview/NeedsAttentionSection';
@@ -75,31 +77,37 @@ export function ManagerDashboard({ userName }: { userName: string }) {
         </div>
 
         {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-caption text-admin-muted">Open Maintenance</p>
-                <p className="text-display font-heading tabular-nums">{stats.openMaintenanceRequests}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-caption text-admin-muted">Active Tenants</p>
-                <p className="text-display font-heading tabular-nums">{stats.activeTenants}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-caption text-admin-muted">Active Leases</p>
-                <p className="text-display font-heading tabular-nums">{stats.activeLeases}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-caption text-admin-muted">Outstanding Invoices</p>
-                <p className="text-display font-heading tabular-nums">{stats.outstandingInvoices}</p>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <CompactKpiCard
+              label="Open Maintenance"
+              value={stats.openMaintenanceRequests}
+              href="/dashboard/maintenance"
+              icon={Wrench}
+              accent="amber"
+              hint={stats.openMaintenanceRequests > 0 ? 'Requires attention' : 'All clear'}
+            />
+            <CompactKpiCard
+              label="Active Tenants"
+              value={stats.activeTenants}
+              href="/dashboard/people"
+              icon={Users}
+              accent="indigo"
+            />
+            <CompactKpiCard
+              label="Active Leases"
+              value={stats.activeLeases}
+              href="/dashboard/leases"
+              icon={FileText}
+              accent="teal"
+            />
+            <CompactKpiCard
+              label="Outstanding Invoices"
+              value={stats.outstandingInvoices}
+              href="/dashboard/money?tab=invoices"
+              icon={DollarSign}
+              accent="rose"
+              hint={stats.outstandingInvoices > 0 ? 'Pending payment' : 'No overdue'}
+            />
           </div>
         )}
 

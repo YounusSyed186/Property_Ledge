@@ -649,8 +649,8 @@ export function AppShell({
             headerExtras={headerExtras}
           />
 
-          <div className="app-workspace relative flex flex-1 flex-col min-h-0 overflow-hidden bg-admin-surface text-admin-foreground rounded-lg text-body mb-14 md:mb-0 md:mt-0 md:mr-0 md:ml-0 md:rounded-tl-xl">
-            <main className="flex h-full w-full flex-1 flex-col min-w-0 min-h-0 overflow-hidden p-0.5">
+          <div className="app-workspace relative flex flex-1 flex-col min-h-0 overflow-hidden bg-admin-surface text-admin-foreground rounded-lg text-body mb-14 md:mb-0 md:mt-0 md:mr-0 md:ml-0 md:rounded-tl-xl border-t md:border-l border-admin-sidebar-border/60 shadow-xs">
+            <main className="flex h-full w-full flex-1 flex-col min-w-0 min-h-0 overflow-hidden">
               <div className="flex h-full min-h-0 w-full flex-1 flex-col">
                 {!mounted ? (
                   <div className="flex flex-1 items-center justify-center">
