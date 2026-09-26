@@ -136,13 +136,13 @@ export function ReportsHubView({
     <div className="h-full w-full min-h-0 flex-1 overflow-y-auto overscroll-contain">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-admin-border pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
-            <PieChart className="w-6 h-6 text-emerald-600" />
+          <h1 className="font-heading text-page-title font-bold tracking-tight text-admin-foreground flex items-center gap-2.5">
+            <PieChart className="w-6 h-6 text-admin-primary" />
             Financial Reporting & Insights
           </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-body-sm text-admin-muted">
             Australian Financial Year compliant reporting, cash flow analysis, BAS tracking, and tax categorization.
           </p>
         </div>
@@ -162,7 +162,7 @@ export function ReportsHubView({
       />
 
       {/* Report Navigation Tabs */}
-      <div className="border-b border-slate-200 dark:border-slate-800">
+      <div className="border-b border-admin-border">
         <nav className="flex space-x-2 overflow-x-auto pb-2 scrollbar-none" aria-label="Reports">
           {REPORT_TABS.map((tab) => {
             const Icon = tab.icon;
@@ -171,10 +171,10 @@ export function ReportsHubView({
               <button
                 key={tab.id}
                 onClick={() => handleTabSelect(tab.id)}
-                className={`flex items-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-2 py-2.5 px-4 rounded-xl text-body-sm font-semibold transition-all whitespace-nowrap cursor-pointer min-h-[42px] ${
                   isActive
-                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/20'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                    ? 'bg-admin-primary text-white shadow-sm shadow-admin-primary/20'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-admin-foreground hover:bg-admin-surface-subtle/80'
                 }`}
               >
                 <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
@@ -188,16 +188,16 @@ export function ReportsHubView({
       {/* Active Tab Content Area */}
       <div className="mt-6">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-            <Loader2 className="w-8 h-8 animate-spin text-emerald-600 mb-3" />
-            <div className="text-sm font-medium text-slate-600 dark:text-slate-400">
+          <div className="flex flex-col items-center justify-center py-20 bg-admin-surface rounded-2xl border border-admin-border">
+            <Loader2 className="w-8 h-8 animate-spin text-admin-primary mb-3" />
+            <div className="text-body-sm font-medium text-admin-muted">
               Aggregating Australian Financial Year data...
             </div>
           </div>
         ) : errorMessage ? (
           <div className="p-6 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl text-rose-700 dark:text-rose-300">
             <h3 className="text-base font-bold">Error loading report</h3>
-            <p className="mt-1 text-sm">{errorMessage}</p>
+            <p className="mt-1 text-body-sm">{errorMessage}</p>
           </div>
         ) : reportData ? (
           <div>

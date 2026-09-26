@@ -137,14 +137,14 @@ export function BasActivityStatementView({ initialData }: BasActivityStatementVi
   // Filter Bar Component
   const filterToolbar = (
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-border pb-4 pt-1">
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-3">
         {/* Property Selector */}
-        <div className="flex items-center gap-1.5 rounded-lg border border-admin-border bg-admin-surface px-2.5 py-1.5 shadow-2xs">
-          <Building className="h-3.5 w-3.5 text-admin-muted" />
+        <div className="flex items-center gap-2 rounded-xl border border-admin-border bg-admin-surface px-3 py-2 shadow-2xs min-h-[40px]">
+          <Building className="h-4 w-4 text-admin-muted" />
           <select
             value={selectedPropertyId || 'all'}
             onChange={(e) => handlePropertyChange(e.target.value)}
-            className="bg-transparent text-xs font-medium text-admin-foreground focus:outline-none cursor-pointer"
+            className="bg-transparent text-body-sm font-medium text-admin-foreground focus:outline-none cursor-pointer"
           >
             <option value="all">All Properties (Portfolio)</option>
             {pageData.properties.map((p: any) => (
@@ -156,12 +156,12 @@ export function BasActivityStatementView({ initialData }: BasActivityStatementVi
         </div>
 
         {/* Financial Year Selector */}
-        <div className="flex items-center gap-1.5 rounded-lg border border-admin-border bg-admin-surface px-2.5 py-1.5 shadow-2xs">
-          <Calendar className="h-3.5 w-3.5 text-admin-muted" />
+        <div className="flex items-center gap-2 rounded-xl border border-admin-border bg-admin-surface px-3 py-2 shadow-2xs min-h-[40px]">
+          <Calendar className="h-4 w-4 text-admin-muted" />
           <select
             value={selectedYear}
             onChange={(e) => handleYearChange(parseInt(e.target.value, 10))}
-            className="bg-transparent text-xs font-medium text-admin-foreground focus:outline-none cursor-pointer"
+            className="bg-transparent text-body-sm font-medium text-admin-foreground focus:outline-none cursor-pointer"
           >
             {pageData.availableYears.map((yr: number) => (
               <option key={yr} value={yr}>
@@ -172,12 +172,12 @@ export function BasActivityStatementView({ initialData }: BasActivityStatementVi
         </div>
 
         {/* Period Selector */}
-        <div className="flex items-center gap-1.5 rounded-lg border border-admin-border bg-admin-surface px-2.5 py-1.5 shadow-2xs">
-          <Layers className="h-3.5 w-3.5 text-admin-muted" />
+        <div className="flex items-center gap-2 rounded-xl border border-admin-border bg-admin-surface px-3 py-2 shadow-2xs min-h-[40px]">
+          <Layers className="h-4 w-4 text-admin-muted" />
           <select
             value={selectedPeriod}
             onChange={(e) => handlePeriodChange(e.target.value as BasPeriod)}
-            className="bg-transparent text-xs font-medium text-admin-foreground focus:outline-none cursor-pointer"
+            className="bg-transparent text-body-sm font-medium text-admin-foreground focus:outline-none cursor-pointer"
           >
             <option value="Q1">Q1 (1 Jul – 30 Sep)</option>
             <option value="Q2">Q2 (1 Oct – 31 Dec)</option>
@@ -189,32 +189,32 @@ export function BasActivityStatementView({ initialData }: BasActivityStatementVi
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 rounded-lg border border-admin-border bg-admin-surface-subtle p-1">
+      <div className="flex items-center gap-1.5 rounded-xl border border-admin-border bg-admin-surface-subtle p-1 min-h-[42px]">
         <button
           type="button"
           onClick={() => setActiveTab('worksheet')}
-          className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-all ${
+          className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-body-sm font-semibold transition-all min-h-[36px] ${
             activeTab === 'worksheet'
-              ? 'bg-admin-surface text-admin-foreground shadow-2xs'
-              : 'text-admin-muted hover:text-admin-foreground'
+              ? 'bg-admin-surface text-admin-foreground shadow-2xs border border-admin-border/60'
+              : 'text-slate-600 dark:text-slate-400 hover:text-admin-foreground'
           }`}
         >
-          <FileSpreadsheet className="h-3.5 w-3.5 text-admin-primary" />
+          <FileSpreadsheet className="h-4 w-4 text-admin-primary" />
           <span>Worksheet</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('details')}
-          className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-all ${
+          className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-body-sm font-semibold transition-all min-h-[36px] ${
             activeTab === 'details'
-              ? 'bg-admin-surface text-admin-foreground shadow-2xs'
-              : 'text-admin-muted hover:text-admin-foreground'
+              ? 'bg-admin-surface text-admin-foreground shadow-2xs border border-admin-border/60'
+              : 'text-slate-600 dark:text-slate-400 hover:text-admin-foreground'
           }`}
         >
-          <FileText className="h-3.5 w-3.5 text-admin-teal" />
+          <FileText className="h-4 w-4 text-admin-teal" />
           <span>Details</span>
-          <span className="ml-0.5 rounded-full bg-admin-surface-subtle px-1.5 py-0.2 text-[10px] font-bold text-admin-muted border border-admin-border">
+          <span className="ml-0.5 rounded-md bg-admin-surface-subtle px-2 py-0.5 text-xs font-bold text-admin-foreground border border-admin-border">
             {pageData.details.length}
           </span>
         </button>
@@ -222,13 +222,13 @@ export function BasActivityStatementView({ initialData }: BasActivityStatementVi
         <button
           type="button"
           onClick={() => setActiveTab('guidance')}
-          className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-all ${
+          className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-body-sm font-semibold transition-all min-h-[36px] ${
             activeTab === 'guidance'
-              ? 'bg-admin-surface text-admin-foreground shadow-2xs'
-              : 'text-admin-muted hover:text-admin-foreground'
+              ? 'bg-admin-surface text-admin-foreground shadow-2xs border border-admin-border/60'
+              : 'text-slate-600 dark:text-slate-400 hover:text-admin-foreground'
           }`}
         >
-          <HelpCircle className="h-3.5 w-3.5 text-admin-indigo" />
+          <HelpCircle className="h-4 w-4 text-admin-indigo" />
           <span>ATO Guide</span>
         </button>
       </div>

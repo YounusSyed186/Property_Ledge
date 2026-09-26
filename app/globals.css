@@ -41,21 +41,21 @@
 
   /* ---------- ADMIN & SHELL TOKENS ---------- */
   --admin-background: #F8FAFC;
-  --admin-shell: #0B1728;
-  --shell-navbar-height: 48px;
-  --admin-sidebar: #0B1728;
-  --admin-sidebar-surface: #0E1E33;
-  --admin-sidebar-border: #1E293B;
-  --admin-sidebar-border-subtle: #162234;
+  --admin-shell: #061222;
+  --shell-navbar-height: 58px;
+  --admin-sidebar: #061222;
+  --admin-sidebar-surface: #071526;
+  --admin-sidebar-border: #17283A;
+  --admin-sidebar-border-subtle: #112030;
   --admin-sidebar-foreground: #E2E8F0;
   --admin-sidebar-muted: #94A3B8;
-  --admin-sidebar-hover: #13243B;
+  --admin-sidebar-hover: #08182A;
   --admin-sidebar-active-pill: #008F83;
   --admin-sidebar-active-pill-border: #008F83;
   --admin-sidebar-active-text: #FFFFFF;
   --admin-sidebar-active-icon: #FFFFFF;
-  --admin-shell-search-bg: #0E1E33;
-  --admin-shell-search-border: #1E293B;
+  --admin-shell-search-bg: #071526;
+  --admin-shell-search-border: #17283A;
   --admin-surface: #FFFFFF;
   --admin-surface-elevated: #FFFFFF;
   --admin-surface-subtle: #F8FAFC;

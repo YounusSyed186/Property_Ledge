@@ -189,21 +189,37 @@ test.describe('PropertyLedge — Expense UI Full CRUD Testing Suite', () => {
     // STEP 6: DELETE / REVERSE EXPENSE TRANSACTION
     // ----------------------------------------------------
     console.log('▶ [Step 6] DELETE: Deleting / Reversing Expense Transaction...');
-    page.once('dialog', async (dialog) => {
-      await dialog.accept();
-    });
 
-    // Can delete from open drawer or open the drawer again
-    const drawerDeleteBtn = page.locator('button:has-text("Delete Expense")').first();
-    const tableDeleteBtn = page.locator('button[title="Delete Expense"]').first();
+    // Close any open drawer or modal
+    const closeDrawerBtn = page.locator('button[aria-label="Close drawer"], button[aria-label="Close dialog"]').first();
+    if (await closeDrawerBtn.isVisible()) {
+      await closeDrawerBtn.click();
+      await page.waitForTimeout(500);
+    }
 
-    if (await drawerDeleteBtn.isVisible()) {
-      await drawerDeleteBtn.click();
-    } else if (await tableDeleteBtn.isVisible()) {
+    // Find the row for our updated expense and click its Delete button
+    const expenseRow = page.locator(`div[role="row"]:has-text("${uniqueDesc}")`);
+    if (await expenseRow.isVisible()) {
+      const deleteRowBtn = expenseRow.locator('button[title="Delete Expense"]');
+      await deleteRowBtn.click();
+    } else {
+      const tableDeleteBtn = page.locator('button[title="Delete Expense"]').first();
       await tableDeleteBtn.click();
     }
+
+    await page.waitForTimeout(800);
+
+    // Click confirm delete in ConfirmDialog
+    const confirmModal = page.locator('div[role="dialog"]:has-text("Delete Expense Transaction")');
+    if (await confirmModal.isVisible()) {
+      const modalBtn = confirmModal.locator('button:has-text("Delete Expense")');
+      await modalBtn.click({ force: true });
+    } else {
+      const fallbackBtn = page.locator('button:has-text("Delete Expense")').last();
+      await fallbackBtn.click({ force: true });
+    }
     
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(2500);
     await expect(page.locator('body')).toContainText('Expense Deleted', { timeout: 10000 });
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, '08-expense-deleted.png'), fullPage: true });
     console.log('✓ Successfully executed delete on expense transaction!');

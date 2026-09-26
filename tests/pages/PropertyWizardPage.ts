@@ -29,10 +29,10 @@ export class PropertyWizardPage {
     this.bathroomsInput = page.locator('input[name="bathrooms"]');
     this.carSpacesInput = page.locator('input[name="carSpaces"]');
     this.rentAmountInput = page.locator('input[name="rentAmount"]');
-    this.nextButton = page.locator('button:has-text("Proceed to Next")');
-    this.backButton = page.locator('button:has-text("Previous Step")');
-    this.submitButton = page.locator('button:has-text("Save Property")');
-    this.toastError = page.locator('text=Validation Failed');
+    this.nextButton = page.locator('button:has-text("Save & Continue"), button:has-text("Proceed to Next"), button:has-text("Next")').first();
+    this.backButton = page.locator('button:has-text("Back"), button:has-text("Previous Step"), button:has-text("Cancel")').first();
+    this.submitButton = page.locator('button:has-text("Save property"), button:has-text("Save Property")').first();
+    this.toastError = page.locator('text=Validation Failed').or(page.locator('text=Street address is required'));
   }
 
   async fillStep1Location(address: string, suburb: string, postcode: string, state = 'NSW', type = 'House') {

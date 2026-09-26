@@ -2,14 +2,12 @@ import { test, expect } from '@playwright/test';
 import { LoginPage } from '../pages/LoginPage';
 import { TEST_USERS } from '../config/test-env';
 
-test.use({ baseURL: 'http://localhost:3001' });
-
 test('verify 4-step create invoice modal with category choice', async ({ page }) => {
   test.setTimeout(60000);
 
   // 1. Log in
   const loginPage = new LoginPage(page);
-  await page.goto('http://localhost:3001/login');
+  await loginPage.goto();
   await loginPage.login(TEST_USERS.landlord.email, TEST_USERS.landlord.password);
   await page.waitForURL(/\/(dashboard|onboarding)/, { timeout: 15000 });
 

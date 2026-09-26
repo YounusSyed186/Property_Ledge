@@ -20,7 +20,7 @@ test.describe('P0 — Property Creation Wizard & CRUD Operations', () => {
     await loginAs(page, 'landlord');
     await page.goto('/dashboard/properties');
     await page.click('button:has-text("Add Property"), button:has-text("Create Property")');
-    await expect(page.locator('text=Property Location').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Location').or(page.locator('text=Property Location')).first()).toBeVisible({ timeout: 10000 });
   });
 
   test('06.3: Validation failure on Step 1 when mandatory fields are missing', async ({ page }) => {
@@ -29,10 +29,10 @@ test.describe('P0 — Property Creation Wizard & CRUD Operations', () => {
     await page.click('button:has-text("Add Property"), button:has-text("Create Property")');
     
     await wizard.next();
-    await expect(page.locator('text=Validation Failed').first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=Validation Failed').or(page.locator('text=Street address is required')).first()).toBeVisible({ timeout: 5000 });
   });
 
-  test('06.4: Complete full 4-step Property Creation Wizard flow', async ({ page }) => {
+  test('06.4: Complete full 3-step Property Creation Wizard flow', async ({ page }) => {
     await loginAs(page, 'landlord');
     await page.goto('/dashboard/properties');
     await page.click('button:has-text("Add Property"), button:has-text("Create Property")');
@@ -43,15 +43,12 @@ test.describe('P0 — Property Creation Wizard & CRUD Operations', () => {
     await wizard.fillStep1Location(testAddress, 'Surry Hills', '2010', 'NSW', 'House');
     await wizard.next();
 
-    // Step 1: Features & Rent
+    // Step 1: Details & Rent
     await wizard.fillStep2Features('3', '2', '1', '850');
     await wizard.next();
 
-    // Step 2: Image
-    await wizard.next();
-
-    // Step 3: Final Review & Submission
-    await expect(page.locator(`text=${testAddress}`).first()).toBeVisible();
+    // Step 2: Final Review & Submission
+    await expect(page.locator(`text=${testAddress}`).first()).toBeVisible({ timeout: 10000 });
     await wizard.submit();
 
     // Verify property appears in list

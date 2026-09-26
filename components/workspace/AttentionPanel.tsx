@@ -91,7 +91,7 @@ export function AttentionPanel({
   }
 
   return (
-    <ul className={cn('space-y-2', className)}>
+    <ul className={cn('space-y-2.5', className)}>
       {items.map((item) => {
         const v = item.variant || 'default';
         const styles = VARIANT_STYLES[v];
@@ -100,29 +100,29 @@ export function AttentionPanel({
             <Link
               href={item.href}
               className={cn(
-                'flex items-center justify-between gap-3 sm:gap-4 rounded-xl border p-3 sm:p-3.5 transition-all hover:shadow-xs group',
+                'flex items-center justify-between gap-3 sm:gap-4 rounded-xl border p-3.5 sm:p-4 transition-all hover:shadow-xs group',
                 styles.border,
                 styles.bg
               )}
             >
-              <div className="flex min-w-0 items-center gap-3">
-                <div className={cn('flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg', styles.iconBg)}>
+              <div className="flex min-w-0 items-center gap-3.5">
+                <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', styles.iconBg)}>
                   <AttentionIcon item={item} />
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-xs sm:text-sm font-semibold text-admin-foreground group-hover:text-admin-primary transition-colors">
+                  <p className="truncate text-body-sm font-semibold text-admin-foreground group-hover:text-admin-primary transition-colors">
                     {item.label}
                   </p>
                   {item.sublabel && (
-                    <p className="truncate text-[11px] text-admin-muted mt-0.5">{item.sublabel}</p>
+                    <p className="truncate text-caption text-slate-500 dark:text-slate-400 mt-0.5">{item.sublabel}</p>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className={cn('hidden sm:inline-flex text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border', styles.badge)}>
+              <div className="flex items-center gap-2.5 shrink-0">
+                <span className={cn('hidden sm:inline-flex text-xs font-semibold px-2 py-0.5 rounded-md border', styles.badge)}>
                   {styles.badgeText}
                 </span>
-                <ArrowRight className="h-3.5 w-3.5 text-admin-muted transition-transform group-hover:translate-x-0.5 group-hover:text-admin-primary" />
+                <ArrowRight className="h-4 w-4 text-admin-muted transition-transform group-hover:translate-x-0.5 group-hover:text-admin-primary" />
               </div>
             </Link>
           </li>

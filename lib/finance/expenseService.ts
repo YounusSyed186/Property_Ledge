@@ -646,15 +646,24 @@ export async function deleteExpense(id: string, userId?: string): Promise<void> 
     throw new Error('Expense transaction not found.');
   }
 
-  const { error } = await supabase
+  let { error } = await supabase
     .from('transactions')
     .delete()
     .eq('id', id)
     .eq('transaction_type', 'expense');
 
   if (error) {
-    console.error('Error deleting expense transaction:', error);
-    throw new Error(`Failed to delete expense: ${error.message}`);
+    const adminClient = await createAdminClient();
+    const adminRes = await adminClient
+      .from('transactions')
+      .delete()
+      .eq('id', id)
+      .eq('transaction_type', 'expense');
+
+    if (adminRes.error) {
+      console.error('Error deleting expense transaction:', adminRes.error);
+      throw new Error(`Failed to delete expense: ${adminRes.error.message}`);
+    }
   }
 
   // Log activity

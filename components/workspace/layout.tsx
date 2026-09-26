@@ -67,16 +67,16 @@ interface ListPageHeaderProps {
 
 export function ListPageHeader({ title, description, breadcrumb, actions, className }: ListPageHeaderProps) {
   return (
-    <header className={cn('shrink-0 space-y-1 border-b border-admin-border pb-5', className)}>
+    <header className={cn('shrink-0 space-y-1.5 border-b border-admin-border pb-5', className)}>
       {breadcrumb && breadcrumb.length > 0 && <Breadcrumb items={breadcrumb} />}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <h1 className="font-heading text-page-title font-semibold tracking-tight text-admin-foreground">{title}</h1>
           {description && (
-            <p className="mt-1 max-w-2xl text-caption leading-relaxed text-admin-muted">{description}</p>
+            <p className="mt-1 max-w-2xl text-body-sm leading-relaxed text-admin-muted">{description}</p>
           )}
         </div>
-        {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+        {actions && <div className="flex shrink-0 items-center gap-2.5">{actions}</div>}
       </div>
     </header>
   );
@@ -93,10 +93,10 @@ export function DashboardHeader({ greeting, subtitle, actions, className }: Dash
   return (
     <header className={cn('flex shrink-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between', className)}>
       <div className="min-w-0 space-y-1">
-        <h1 className="font-heading text-page-title font-semibold tracking-tight text-admin-foreground">{greeting}</h1>
-        <p className="text-caption text-admin-muted">{subtitle}</p>
+        <h1 className="font-heading text-page-title font-bold tracking-tight text-admin-foreground">{greeting}</h1>
+        <p className="text-body-sm text-admin-muted">{subtitle}</p>
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {actions && <div className="flex shrink-0 items-center gap-2.5">{actions}</div>}
     </header>
   );
 }
@@ -133,14 +133,14 @@ export function EntityDetailHeader({
       <Breadcrumb items={breadcrumb} />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-heading text-entity-title font-semibold tracking-tight text-admin-foreground">{title}</h1>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="font-heading text-entity-title font-bold tracking-tight text-admin-foreground">{title}</h1>
             {status}
           </div>
           {subtitle && <p className="text-body-sm text-admin-muted">{subtitle}</p>}
           {meta}
         </div>
-        {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+        {actions && <div className="flex shrink-0 flex-wrap items-center gap-2.5">{actions}</div>}
       </div>
     </header>
   );
@@ -175,24 +175,24 @@ export function CompactKpiCard({ label, value, hint, trend, href, icon: Icon, ac
   const inner = (
     <div
       className={cn(
-        'group relative rounded-xl border border-admin-border bg-admin-surface p-4 sm:p-5 transition-all duration-200 w-full h-full min-h-[110px] flex flex-col justify-between shadow-xs hover:shadow-md hover:border-admin-primary/40',
+        'group relative rounded-xl border border-admin-border bg-admin-surface p-4 sm:p-5 transition-all duration-200 w-full h-full min-h-[118px] flex flex-col justify-between shadow-xs hover:shadow-md hover:border-admin-primary/40',
         href && 'cursor-pointer',
         className
       )}
     >
       {/* Top row: Label + Icon */}
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-admin-muted truncate">{label}</p>
+        <p className="text-[12.5px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">{label}</p>
         {Icon && (
-          <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform duration-200 group-hover:scale-105', KPI_ACCENT_STYLES[accent])}>
-            <Icon className="h-4 w-4" />
+          <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-transform duration-200 group-hover:scale-105', KPI_ACCENT_STYLES[accent])}>
+            <Icon className="h-4.5 w-4.5" />
           </div>
         )}
       </div>
 
       {/* Middle row: Big Value */}
-      <div className="my-1.5">
-        <p className="font-heading text-2xl sm:text-[26px] font-bold tabular-nums tracking-tight text-admin-foreground leading-tight">
+      <div className="my-2">
+        <p className="font-heading text-2xl sm:text-[28px] font-bold tabular-nums tracking-tight text-admin-foreground leading-tight">
           {value}
         </p>
       </div>
@@ -203,16 +203,16 @@ export function CompactKpiCard({ label, value, hint, trend, href, icon: Icon, ac
           {trend && (
             <span
               className={cn(
-                'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold border shrink-0',
+                'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold border shrink-0',
                 trend.positive !== false
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25'
+                  : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/25'
               )}
             >
-              {trend.positive !== false ? '↑' : '↓'} {trend.value}
+              <span aria-hidden>{trend.positive !== false ? '↑' : '↓'}</span> {trend.value}
             </span>
           )}
-          {hint && <span className="text-[11px] text-admin-muted truncate font-normal">{hint}</span>}
+          {hint && <span className="text-[12.5px] text-slate-500 dark:text-slate-400 truncate font-normal">{hint}</span>}
         </div>
       )}
     </div>
@@ -235,8 +235,8 @@ export function SectionPanel({
 }) {
   return (
     <section className={cn('rounded-xl border border-admin-border bg-admin-surface w-full shadow-xs overflow-hidden', className)}>
-      <div className="flex items-center justify-between gap-3 border-b border-admin-border/70 px-4 sm:px-5 py-3 bg-admin-surface-subtle/30">
-        <h2 className="text-xs sm:text-sm font-semibold text-admin-foreground tracking-tight">{title}</h2>
+      <div className="flex items-center justify-between gap-3 border-b border-admin-border/80 px-4 sm:px-5 py-3.5 bg-admin-surface-subtle/50">
+        <h2 className="text-sm sm:text-base font-semibold text-admin-foreground tracking-tight">{title}</h2>
         {action}
       </div>
       <div className="p-4 sm:p-5">{children}</div>
@@ -279,7 +279,7 @@ export function HubTabs({
   return (
     <div
       className={cn(
-        'flex gap-0 overflow-x-auto border-b border-admin-border no-scrollbar w-full',
+        'flex gap-1 overflow-x-auto border-b border-admin-border no-scrollbar w-full',
         className
       )}
       role="tablist"
@@ -294,23 +294,23 @@ export function HubTabs({
             aria-selected={active}
             onClick={() => onChange(tab.value)}
             className={cn(
-              'relative shrink-0 px-3 py-2.5 text-body-sm font-medium transition-colors',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-primary/30',
+              'relative shrink-0 px-4 py-3 text-body-sm font-medium transition-colors min-h-[44px] flex items-center',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-primary/30 rounded-t-lg',
               active
-                ? 'text-admin-primary-hover bg-admin-primary-soft/50'
-                : 'text-admin-muted hover:text-admin-foreground'
+                ? 'text-admin-primary font-semibold bg-admin-primary-soft/40'
+                : 'text-slate-600 dark:text-slate-400 hover:text-admin-foreground hover:bg-admin-surface-subtle/50'
             )}
           >
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-2">
               {tab.label}
               {tab.count !== undefined && (
-                <span className="rounded bg-admin-surface-subtle px-1.5 py-px text-metadata font-semibold text-admin-muted">
+                <span className="rounded-md bg-admin-surface-subtle border border-admin-border/50 px-2 py-0.5 text-xs font-semibold text-admin-foreground">
                   {tab.count}
                 </span>
               )}
             </span>
             {active && (
-              <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-admin-primary" />
+              <span className="absolute bottom-0 left-2 right-2 h-[2.5px] rounded-full bg-admin-primary" />
             )}
           </button>
         );
@@ -337,21 +337,21 @@ export function ActivityTimeline({
   };
 
   if (items.length === 0) {
-    return <p className="text-body-sm text-admin-muted">{emptyMessage}</p>;
+    return <p className="text-body-sm text-admin-muted py-2">{emptyMessage}</p>;
   }
 
   return (
     <ul className="space-y-4 w-full">
       {items.map((item, i) => (
-        <li key={item.id} className="relative flex gap-3 pl-0">
+        <li key={item.id} className="relative flex gap-3.5 pl-0">
           {i < items.length - 1 && (
             <span className="absolute left-[5px] top-3 h-[calc(100%+8px)] w-px bg-admin-border" aria-hidden />
           )}
-          <span className={cn('relative z-10 mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full border-2', dotColor(item.tone))} />
+          <span className={cn('relative z-10 mt-1.5 h-3 w-3 shrink-0 rounded-full border-2', dotColor(item.tone))} />
           <div className="min-w-0 pb-1 flex-1">
-            <p className="text-body-sm font-medium text-admin-foreground">{item.title}</p>
-            {item.detail && <p className="mt-0.5 text-caption text-admin-muted">{item.detail}</p>}
-            <p className="mt-0.5 text-metadata text-admin-muted/80">{item.time}</p>
+            <p className="text-body-sm font-semibold text-admin-foreground">{item.title}</p>
+            {item.detail && <p className="mt-0.5 text-body-sm text-slate-500 dark:text-slate-400">{item.detail}</p>}
+            <p className="mt-1 text-caption text-slate-400 dark:text-slate-500">{item.time}</p>
           </div>
         </li>
       ))}

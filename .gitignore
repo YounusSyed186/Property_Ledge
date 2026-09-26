@@ -36,5 +36,18 @@ node_modules/
 /screenshots/
 /user_journey_screenshots/
 /invoice-workflow-walkthrough/
+/artifacts/
+artifacts/
 .vercel
 .env*
+
+# Test data & fixtures
+testdata/
+test-data/
+test_data/
+"test data/"
+test data/
+/testdata/
+/test-data/
+/test data/
+

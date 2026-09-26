@@ -1,0 +1,12 @@
+{
+  "auto-retry-agent-errors": {
+    "enabled": true,
+    "Stop": [
+      {
+        "type": "command",
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/auto-retry.ps1",
+        "timeout": 30
+      }
+    ]
+  }
+}

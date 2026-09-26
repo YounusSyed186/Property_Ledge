@@ -21,8 +21,11 @@ import { ToastProvider } from '@/components/admin/ui';
 import { cn } from '@/lib/utils';
 import type { AppShellProps, NavSection } from './types';
 
-export const SHELL_SIDEBAR_WIDTH_EXPANDED = 212;
-export const SHELL_SIDEBAR_WIDTH_COLLAPSED = 52;
+export const SHELL_SIDEBAR_WIDTH_DEFAULT = 256;
+export const SHELL_SIDEBAR_WIDTH_MIN = 200;
+export const SHELL_SIDEBAR_WIDTH_MAX = 380;
+export const SHELL_SIDEBAR_WIDTH_COLLAPSED = 64;
+export const SHELL_SIDEBAR_WIDTH_EXPANDED = 256;
 
 export function isNavActive(
   pathname: string,
@@ -74,21 +77,21 @@ function SidebarItem({ label, href, icon: Icon, isActive, isCollapsed, onNavigat
     <div className="relative w-full" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
       <Link href={href} onClick={onNavigate} className={cn('block select-none w-full', comingSoon && 'opacity-50 pointer-events-none')}>
         <motion.div
-          whileHover={{ scale: isCollapsed ? 1.04 : 1.01, x: isCollapsed ? 0 : 1 }}
+          whileHover={{ scale: isCollapsed ? 1.04 : 1.01, x: isCollapsed ? 0 : 2 }}
           whileTap={{ scale: 0.98 }}
           className={cn(
-            'relative flex items-center rounded-lg text-[12.5px] font-medium transition-colors cursor-pointer w-full',
+            'relative flex items-center rounded-xl text-[14px] font-medium transition-all duration-150 cursor-pointer w-full',
             isActive
-              ? 'text-admin-sidebar-active-text font-semibold'
-              : 'text-admin-sidebar-muted hover:text-admin-sidebar-foreground hover:bg-admin-sidebar-hover',
-            isCollapsed ? 'w-8 h-8 mx-auto justify-center p-0' : 'gap-2 px-2.5 py-1.5 h-8.5'
+              ? 'text-white font-semibold shadow-xs'
+              : 'text-[#94A3B8] hover:text-white hover:bg-[#0E1E33]',
+            isCollapsed ? 'w-10 h-10 mx-auto justify-center p-0' : 'gap-3 px-3 py-2.5 min-h-[42px]'
           )}
           aria-current={isActive ? 'page' : undefined}
         >
           {isActive && (
             <motion.div
               layoutId={layoutId}
-              className="absolute inset-0 bg-[#008F83] rounded-lg shadow-xs z-0"
+              className="absolute inset-0 bg-[#008F83] rounded-xl shadow-xs z-0"
               transition={{ type: 'spring', stiffness: 400, damping: 34 }}
             />
           )}
@@ -97,8 +100,8 @@ function SidebarItem({ label, href, icon: Icon, isActive, isCollapsed, onNavigat
           >
             <Icon
               className={cn(
-                'w-4 h-4 transition-colors',
-                isActive ? 'text-white' : 'text-[#D5DCE3] group-hover:text-white'
+                'w-[18px] h-[18px] transition-colors',
+                isActive ? 'text-white' : 'text-[#94A3B8] group-hover:text-white'
               )}
             />
           </motion.div>
@@ -113,7 +116,7 @@ function SidebarItem({ label, href, icon: Icon, isActive, isCollapsed, onNavigat
               >
                 <span className="truncate">{label}</span>
                 {comingSoon && (
-                  <span className="inline-flex items-center px-1 py-px rounded text-[8px] font-semibold bg-[#008F83]/15 text-[#32D5C4] leading-none tracking-wide ml-1.5 shrink-0">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#008F83]/20 text-[#32D5C4] leading-none tracking-wide ml-1.5 shrink-0 border border-[#008F83]/30">
                     Soon
                   </span>
                 )}
@@ -129,11 +132,11 @@ function SidebarItem({ label, href, icon: Icon, isActive, isCollapsed, onNavigat
             animate={{ opacity: 1, scale: 1, x: 12 }}
             exit={{ opacity: 0, scale: 0.92, x: 6 }}
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute left-full top-1/2 -translate-y-1/2 z-50 px-2 py-1 rounded-md bg-admin-sidebar-surface text-admin-sidebar-foreground border border-admin-sidebar-border font-medium text-xs shadow-lg whitespace-nowrap pointer-events-none flex items-center gap-1.5"
+            className="absolute left-full top-1/2 -translate-y-1/2 z-50 px-3 py-1.5 rounded-lg bg-[#0E1E33] text-white border border-[#1E293B] font-medium text-[13px] shadow-elevation-2 whitespace-nowrap pointer-events-none flex items-center gap-2"
           >
             {label}
             {comingSoon && (
-              <span className="inline-flex items-center px-1 py-px rounded text-[8px] font-semibold bg-[#008F83]/15 text-[#32D5C4]">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-[#008F83]/20 text-[#32D5C4]">
                 Soon
               </span>
             )}
@@ -161,6 +164,11 @@ interface SidebarProps {
   onNavigate?: () => void;
   themeMode: string;
   activeNavLayoutId: string;
+  sidebarWidth: number;
+  onStartResizing: (e: React.MouseEvent) => void;
+  onResetWidth: () => void;
+  onChangeWidth: (delta: number) => void;
+  isResizing: boolean;
 }
 
 function Sidebar({
@@ -180,6 +188,11 @@ function Sidebar({
   onNavigate,
   themeMode,
   activeNavLayoutId,
+  sidebarWidth,
+  onStartResizing,
+  onResetWidth,
+  onChangeWidth,
+  isResizing,
 }: SidebarProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const isShellDark = themeMode === 'light' || themeMode === 'full-dark' || themeMode === 'dark';
@@ -187,33 +200,33 @@ function Sidebar({
   return (
     <motion.aside
       initial={false}
-      animate={{ width: isCollapsed ? SHELL_SIDEBAR_WIDTH_COLLAPSED : SHELL_SIDEBAR_WIDTH_EXPANDED }}
-      transition={{ type: 'spring', stiffness: 300, damping: 32 }}
+      animate={{ width: isCollapsed ? SHELL_SIDEBAR_WIDTH_COLLAPSED : sidebarWidth }}
+      transition={isResizing ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 32 }}
       className={cn(
-        'hidden md:flex flex-col shrink-0 h-full bg-admin-sidebar text-admin-sidebar-foreground z-30 select-none overflow-hidden border-r border-admin-sidebar-border',
-        isCollapsed ? 'px-1' : 'px-2'
+        'relative hidden md:flex flex-col shrink-0 h-full bg-admin-sidebar text-admin-sidebar-foreground z-30 select-none overflow-hidden border-r border-admin-sidebar-border',
+        isCollapsed ? 'px-2' : 'px-3'
       )}
     >
       {/* Sidebar Branding Header (occupies full width of the sidebar) */}
       <div
         className={cn(
-          'flex items-center shrink-0 border-b border-admin-sidebar-border mb-1',
-          isCollapsed ? 'h-[52px] justify-center px-1' : 'h-[52px] px-2 w-full'
+          'flex items-center shrink-0 border-b border-admin-sidebar-border mb-1.5',
+          isCollapsed ? 'h-[58px] justify-center px-1' : 'h-[58px] px-2 w-full'
         )}
       >
-        <Link href={homeHref} className="flex items-center gap-2.5 group w-full min-w-0">
+        <Link href={homeHref} className="flex items-center gap-3 group w-full min-w-0">
           <img
             src={isShellDark ? '/logo_Dark.png' : '/logo_Light.png'}
             alt="PropertyLedge"
-            className="h-7 w-auto object-contain shrink-0"
+            className="h-8 w-auto object-contain shrink-0"
           />
           {!isCollapsed && (
             <div className="flex items-center justify-between flex-1 min-w-0">
-              <span className="font-heading text-[15px] font-bold tracking-tight text-admin-sidebar-foreground truncate">
+              <span className="font-heading text-[16px] font-bold tracking-tight text-white truncate">
                 PropertyLedge
               </span>
               {brandBadge && (
-                <span className="rounded bg-[#008F83]/15 text-[#32D5C4] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider shrink-0 ml-1">
+                <span className="rounded-full bg-[#008F83]/20 text-[#32D5C4] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shrink-0 ml-1 border border-[#008F83]/30">
                   {brandBadge}
                 </span>
               )}
@@ -222,7 +235,7 @@ function Sidebar({
         </Link>
       </div>
 
-      <nav className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-1.5 pt-1.5 pb-1">
+      <nav className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pt-2 pb-2">
           {navSections.map((section) => {
             const isGroupCollapsed = !!collapsedGroups[section.label];
             return (
@@ -231,22 +244,22 @@ function Sidebar({
                   <button
                     type="button"
                     onClick={() => setCollapsedGroups((prev) => ({ ...prev, [section.label]: !prev[section.label] }))}
-                    className="w-full flex items-center justify-between px-2.5 py-1 text-[10px] font-semibold text-[#7F8B99] hover:text-[#D5DCE3] uppercase tracking-[0.10em] transition-colors group/header select-none"
+                    className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-bold text-[#8C9BAE] hover:text-white uppercase tracking-[0.10em] transition-colors group/header select-none rounded-lg hover:bg-[#0E1E33]/40"
                   >
                     <span className="flex items-center gap-1.5">
                       {section.label}
                       {section.badge && (
-                        <span className="px-1 py-px rounded text-[8px] font-semibold bg-[#008F83]/15 text-[#32D5C4] leading-none normal-case tracking-normal">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-[#008F83]/20 text-[#32D5C4] leading-none normal-case tracking-normal">
                           {section.badge}
                         </span>
                       )}
                     </span>
                     <motion.div animate={{ rotate: isGroupCollapsed ? -90 : 0 }} transition={{ duration: 0.2 }}>
-                      <ChevronDown className="w-3 h-3 opacity-60 group-hover/header:opacity-100 transition-opacity" />
+                      <ChevronDown className="w-3.5 h-3.5 opacity-70 group-hover/header:opacity-100 transition-opacity" />
                     </motion.div>
                   </button>
                 ) : (
-                  <div className="h-px bg-admin-sidebar-border my-1.5 mx-1" />
+                  <div className="h-px bg-admin-sidebar-border my-2 mx-1" />
                 )}
                 <AnimatePresence initial={false}>
                   {(!isGroupCollapsed || isCollapsed) && (
@@ -278,7 +291,7 @@ function Sidebar({
           })}
       </nav>
 
-      <div className={cn('pt-1.5 border-t border-admin-sidebar-border/50 shrink-0 pb-2', isCollapsed ? 'px-0.5' : '')}>
+      <div className={cn('pt-2 border-t border-admin-sidebar-border shrink-0 pb-3 space-y-1', isCollapsed ? 'px-0.5' : '')}>
         {footerLink && !isCollapsed && (
           <motion.button
             type="button"
@@ -287,51 +300,98 @@ function Sidebar({
             onClick={() => {
               window.location.href = footerLink.href;
             }}
-            className="w-full h-8 px-2.5 rounded-md bg-admin-sidebar-surface border border-admin-sidebar-border hover:bg-admin-sidebar-hover text-admin-sidebar-muted hover:text-admin-sidebar-foreground text-[11px] font-semibold flex items-center justify-between transition-all mb-2"
+            className="w-full h-9 px-3 rounded-xl bg-admin-sidebar-surface border border-admin-sidebar-border hover:bg-admin-sidebar-hover text-admin-sidebar-muted hover:text-white text-[12px] font-semibold flex items-center justify-between transition-all mb-1.5"
           >
             <span className="flex items-center gap-2">
-              <footerLink.icon className="w-3.5 h-3.5" />
+              <footerLink.icon className="w-4 h-4" />
               {footerLink.label}
             </span>
-            <ArrowUpRight className="w-3 h-3 text-admin-sidebar-muted" />
+            <ArrowUpRight className="w-3.5 h-3.5 text-admin-sidebar-muted" />
           </motion.button>
         )}
 
         {settingsHref && !isCollapsed && (
           <Link
             href={settingsHref}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] text-admin-sidebar-muted hover:text-admin-sidebar-foreground hover:bg-admin-sidebar-hover transition-colors mb-1.5"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13.5px] font-medium text-[#94A3B8] hover:text-white hover:bg-[#0E1E33] transition-colors"
           >
-            <Settings className="w-3.5 h-3.5" />
+            <Settings className="w-4 h-4 shrink-0 text-[#94A3B8]" />
             Settings
           </Link>
         )}
 
-        <motion.button
-          type="button"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleCollapse();
-          }}
-          className={cn(
-            'flex items-center gap-2 rounded-md text-admin-sidebar-muted hover:text-admin-sidebar-foreground hover:bg-admin-sidebar-hover transition-colors',
-            isCollapsed ? 'w-8 h-8 mx-auto justify-center p-0' : 'w-full px-2.5 py-1.5 text-[11px] font-medium'
+        <div className="flex items-center justify-between gap-1 w-full">
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleCollapse();
+            }}
+            className={cn(
+              'flex items-center gap-2.5 rounded-xl text-[#94A3B8] hover:text-white hover:bg-[#0E1E33] transition-colors cursor-pointer flex-1',
+              isCollapsed ? 'w-10 h-10 mx-auto justify-center p-0' : 'px-3 py-2 text-[13px] font-medium'
+            )}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isCollapsed ? (
+              <PanelLeftOpen className="w-4 h-4" />
+            ) : (
+              <>
+                <PanelLeftClose className="w-4 h-4 shrink-0" />
+                <span>Collapse</span>
+              </>
+            )}
+          </motion.button>
+
+          {!isCollapsed && (
+            <div className="flex items-center gap-0.5 px-1 py-1 rounded-lg bg-[#0E1E33]/60 border border-admin-sidebar-border">
+              <button
+                type="button"
+                onClick={() => onChangeWidth(-20)}
+                className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-[#94A3B8] hover:text-white hover:bg-[#1E293B] transition-colors"
+                title="Narrower sidebar"
+              >
+                −
+              </button>
+              <button
+                type="button"
+                onClick={onResetWidth}
+                className="px-1.5 h-6 rounded flex items-center justify-center text-[10px] font-semibold text-[#64748B] hover:text-white hover:bg-[#1E293B] transition-colors"
+                title="Reset width to default (256px)"
+              >
+                {sidebarWidth}
+              </button>
+              <button
+                type="button"
+                onClick={() => onChangeWidth(20)}
+                className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-[#94A3B8] hover:text-white hover:bg-[#1E293B] transition-colors"
+                title="Wider sidebar"
+              >
+                +
+              </button>
+            </div>
           )}
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {isCollapsed ? (
-            <PanelLeftOpen className="w-3.5 h-3.5" />
-          ) : (
-            <>
-              <PanelLeftClose className="w-3.5 h-3.5 shrink-0" />
-              <span>Collapse</span>
-            </>
-          )}
-        </motion.button>
+        </div>
       </div>
+
+      {/* Interactive Drag-to-Resize Right Border Handle */}
+      {!isCollapsed && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-valuenow={sidebarWidth}
+          title="Drag to resize sidebar width · Double-click to reset"
+          onMouseDown={onStartResizing}
+          onDoubleClick={onResetWidth}
+          className={cn(
+            'absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize z-40 group hover:bg-[#008F83] transition-colors',
+            isResizing && 'bg-[#008F83] w-2'
+          )}
+        />
+      )}
     </motion.aside>
   );
 }
@@ -530,8 +590,75 @@ export function AppShell({
   const [mounted, setMounted] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(SHELL_SIDEBAR_WIDTH_DEFAULT);
+  const [isResizing, setIsResizing] = useState(false);
+  const isDraggingRef = React.useRef(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [avatarUrlState, setAvatarUrlState] = useState<string | undefined>(userAvatarUrl);
+
+  useEffect(() => {
+    try {
+      const storedWidth = localStorage.getItem('propertyledge_sidebar_width');
+      if (storedWidth) {
+        const parsed = parseInt(storedWidth, 10);
+        if (!isNaN(parsed) && parsed >= SHELL_SIDEBAR_WIDTH_MIN && parsed <= SHELL_SIDEBAR_WIDTH_MAX) {
+          setSidebarWidth(parsed);
+        }
+      }
+    } catch {}
+  }, []);
+
+  const handleStartResizing = React.useCallback((mouseDownEvent: React.MouseEvent) => {
+    mouseDownEvent.preventDefault();
+    isDraggingRef.current = true;
+    setIsResizing(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handleMouseMove = (mouseMoveEvent: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      const newWidth = Math.min(
+        SHELL_SIDEBAR_WIDTH_MAX,
+        Math.max(SHELL_SIDEBAR_WIDTH_MIN, mouseMoveEvent.clientX)
+      );
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      setIsResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      setSidebarWidth((currentWidth) => {
+        try {
+          localStorage.setItem('propertyledge_sidebar_width', String(currentWidth));
+        } catch {}
+        return currentWidth;
+      });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  }, []);
+
+  const handleResetWidth = React.useCallback(() => {
+    setSidebarWidth(SHELL_SIDEBAR_WIDTH_DEFAULT);
+    try {
+      localStorage.setItem('propertyledge_sidebar_width', String(SHELL_SIDEBAR_WIDTH_DEFAULT));
+    } catch {}
+  }, []);
+
+  const handleChangeWidth = React.useCallback((delta: number) => {
+    setSidebarWidth((prev) => {
+      const next = Math.min(SHELL_SIDEBAR_WIDTH_MAX, Math.max(SHELL_SIDEBAR_WIDTH_MIN, prev + delta));
+      try {
+        localStorage.setItem('propertyledge_sidebar_width', String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     setAvatarUrlState(userAvatarUrl);
@@ -617,6 +744,11 @@ export function AppShell({
           {...sidebarProps}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          sidebarWidth={sidebarWidth}
+          onStartResizing={handleStartResizing}
+          onResetWidth={handleResetWidth}
+          onChangeWidth={handleChangeWidth}
+          isResizing={isResizing}
         />
 
         <AnimatePresence>

@@ -120,8 +120,8 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
 
   const isNavbar = variant === 'navbar';
   const triggerClass = isNavbar
-    ? 'flex h-8 items-center gap-2 rounded-lg border border-admin-sidebar-border bg-[#071526]/80 px-2.5 text-xs font-medium text-admin-sidebar-foreground transition-all hover:bg-[#0E1E33] hover:border-admin-primary/40 focus:outline-none focus:ring-1 focus:ring-admin-primary/30'
-    : 'flex w-full min-w-[180px] items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 transition-colors hover:bg-muted';
+    ? 'flex h-10 items-center gap-2.5 rounded-xl border border-admin-sidebar-border bg-[#071526] px-3 text-[13.5px] font-medium text-admin-sidebar-foreground transition-all hover:bg-[#0E1E33] hover:border-[#008F83]/50 focus:outline-none focus:ring-2 focus:ring-[#008F83]/30 cursor-pointer shadow-xs'
+    : 'flex w-full min-w-[200px] items-center gap-2.5 rounded-xl border border-border bg-background px-3.5 py-2.5 transition-colors hover:bg-muted cursor-pointer';
 
   if (isLoading && !hasKnownWorkspace) {
     return (
@@ -141,7 +141,7 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
           type="button"
           onClick={() => refreshBootstrap()}
           title="Click to retry loading workspaces"
-          className="flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-xs font-medium hover:bg-red-100 transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-xs font-medium hover:bg-red-100 transition-colors"
         >
           <span>Couldn&apos;t load organization</span>
           <span className="underline font-semibold text-[11px]">Try again</span>
@@ -156,10 +156,10 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
         <button
           type="button"
           onClick={() => showCreateLink && router.push('/onboarding/workspace')}
-          className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 transition-colors hover:bg-muted"
+          className="flex w-full items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 transition-colors hover:bg-muted text-[13px]"
         >
-          <Briefcase className="h-3.5 w-3.5 text-muted" />
-          <span className="truncate text-xs font-medium">No Workspace</span>
+          <Briefcase className="h-4 w-4 text-muted" />
+          <span className="truncate font-medium">No Workspace</span>
         </button>
       </div>
     );
@@ -177,15 +177,15 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
         aria-haspopup="listbox"
       >
         <Avatar seed={activeWorkspaceId || displayName} avatarUrl={selectedWorkspace?.avatarUrl} name={displayName} size="xs" className="shrink-0 ring-1 ring-white/10" />
-        <span className="max-w-[130px] truncate text-left font-semibold text-admin-sidebar-foreground" data-testid="current-workspace">
+        <span className="max-w-[150px] truncate text-left font-semibold text-white text-[13.5px]" data-testid="current-workspace">
           {displayName}
         </span>
         {isNavbar && (
-          <span className="rounded-full bg-admin-sidebar-surface px-1.5 py-px text-[9px] font-semibold text-admin-sidebar-muted border border-admin-sidebar-border/80 uppercase tracking-wider">
+          <span className="rounded-full bg-[#0E1E33] px-2 py-0.5 text-[10px] font-bold text-[#94A3B8] border border-admin-sidebar-border uppercase tracking-wider">
             {selectedWorkspace?.role ? (selectedWorkspace.role.charAt(0).toUpperCase() + selectedWorkspace.role.slice(1)) : (roleName || 'Owner')}
           </span>
         )}
-        <ChevronsUpDown className="h-3 w-3 shrink-0 text-admin-sidebar-muted" />
+        <ChevronsUpDown className="h-4 w-4 shrink-0 text-[#94A3B8]" />
       </button>
 
       {isOpen && (
