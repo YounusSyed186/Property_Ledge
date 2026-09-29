@@ -294,14 +294,14 @@ export function ExpectedScheduleList({ initialSchedules }: ExpectedScheduleListP
           const basCode = row.tax_classification?.bas_code;
           return (
             <div className="py-1 flex flex-col justify-center">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-baseline gap-0.5">
                 <span className="font-bold text-slate-900 dark:text-white text-xs tracking-tight">
                   ${Number(row.amount || 0).toFixed(2)}
                 </span>
                 {basCode && (
-                  <span className="text-[9.5px] font-bold px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[#008F83] border border-slate-200 dark:border-slate-700">
+                  <sup className="ml-1 text-[9px] font-bold px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[#008F83] border border-slate-200 dark:border-slate-700 align-super">
                     {basCode}
-                  </span>
+                  </sup>
                 )}
               </div>
               {row.gst_inclusive && (
@@ -908,7 +908,14 @@ export function ExpectedScheduleList({ initialSchedules }: ExpectedScheduleListP
                       <div className="flex justify-between text-slate-500">
                         <span>Expected Amount:</span>
                         <div className="text-right">
-                          <span className="font-bold text-slate-900 dark:text-white">${item.amount.toFixed(2)}</span>
+                          <span className="font-bold text-slate-900 dark:text-white inline-flex items-baseline">
+                            ${item.amount.toFixed(2)}
+                            {item.tax_classification?.bas_code && (
+                              <sup className="ml-1 text-[9px] font-bold px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[#008F83] border border-slate-200 dark:border-slate-700">
+                                {item.tax_classification.bas_code}
+                              </sup>
+                            )}
+                          </span>
                           {item.gst_inclusive && (
                             <span className="block text-[10px] text-emerald-600 dark:text-emerald-400">
                               (Inc ${Number(item.gst_amount || 0).toFixed(2)} GST)

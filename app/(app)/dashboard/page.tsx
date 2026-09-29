@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { container } from '@/composition';
+import { getCurrentUser, getUserProfile } from '@/lib/auth/queries';
 import { DashboardOverview } from '@/components/dashboard/overview/DashboardOverview';
 import { getSetupProgress } from '@/lib/dashboard/setupProgress';
 import { fetchDashboardDataAction } from '@/app/actions/dashboard';
@@ -12,19 +12,17 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardPage() {
-  const authService = await container.resolve('authService');
-  const userRes = await authService.getCurrentUser();
-  const user = userRes.success ? userRes.data : null;
+  const user = await getCurrentUser();
   if (!user) redirect('/login');
 
-  const [profileRes, setupProgress, dashboardData] = await Promise.all([
-    authService.getUserProfile(user.id),
+  const [profile, setupProgress, dashboardData] = await Promise.all([
+    getUserProfile(user.id),
     getSetupProgress(user.id),
     fetchDashboardDataAction().catch(() => null),
   ]);
 
-  const profile = profileRes.success ? profileRes.data : null;
-  const userName = profile?.fullName || user.fullName || 'User';
+  const userName = profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+
 
   return (
     <DashboardOverview

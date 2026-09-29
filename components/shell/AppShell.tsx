@@ -320,7 +320,7 @@ function Sidebar({
           </Link>
         )}
 
-        <div className="flex items-center justify-between gap-1 w-full">
+        <div className="w-full">
           <motion.button
             type="button"
             whileHover={{ scale: 1.02 }}
@@ -330,7 +330,7 @@ function Sidebar({
               onToggleCollapse();
             }}
             className={cn(
-              'flex items-center gap-2.5 rounded-xl text-[#94A3B8] hover:text-white hover:bg-[#0E1E33] transition-colors cursor-pointer flex-1',
+              'flex items-center gap-2.5 rounded-xl text-[#94A3B8] hover:text-white hover:bg-[#0E1E33] transition-colors cursor-pointer w-full',
               isCollapsed ? 'w-10 h-10 mx-auto justify-center p-0' : 'px-3 py-2 text-[13px] font-medium'
             )}
             title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -345,35 +345,6 @@ function Sidebar({
               </>
             )}
           </motion.button>
-
-          {!isCollapsed && (
-            <div className="flex items-center gap-0.5 px-1 py-1 rounded-lg bg-[#0E1E33]/60 border border-admin-sidebar-border">
-              <button
-                type="button"
-                onClick={() => onChangeWidth(-20)}
-                className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-[#94A3B8] hover:text-white hover:bg-[#1E293B] transition-colors"
-                title="Narrower sidebar"
-              >
-                −
-              </button>
-              <button
-                type="button"
-                onClick={onResetWidth}
-                className="px-1.5 h-6 rounded flex items-center justify-center text-[10px] font-semibold text-[#64748B] hover:text-white hover:bg-[#1E293B] transition-colors"
-                title="Reset width to default (256px)"
-              >
-                {sidebarWidth}
-              </button>
-              <button
-                type="button"
-                onClick={() => onChangeWidth(20)}
-                className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-[#94A3B8] hover:text-white hover:bg-[#1E293B] transition-colors"
-                title="Wider sidebar"
-              >
-                +
-              </button>
-            </div>
-          )}
         </div>
       </div>
 

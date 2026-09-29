@@ -11,6 +11,7 @@ import {
   tenantColumns,
   leaseColumns,
 } from '@/components/dashboard/entities/config';
+import { ConditionReportsDashboard } from '@/components/dashboard/inspections/ConditionReportsDashboard';
 import {
   fetchDashboardProperty,
   fetchDashboardTenants,
@@ -282,11 +283,9 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
         )}
 
         {activeTab === 'inspections' && (
-          <ComingSoonPage
-            title="Inspections"
-            description="Schedule and record property inspections with photos, checklists, and sign-offs. Coming soon."
-            icon={ClipboardCheck}
-          />
+          <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar">
+            <ConditionReportsDashboard propertyFilterId={property.id} />
+          </div>
         )}
 
         {activeTab === 'documents' && (

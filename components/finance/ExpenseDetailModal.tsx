@@ -130,8 +130,13 @@ export function ExpenseDetailModal({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-admin-border">
             <div>
               <span className="text-[11px] font-semibold text-admin-muted block">Total Amount</span>
-              <span className="text-xl font-bold font-mono text-admin-foreground">
+              <span className="text-xl font-bold font-mono text-admin-foreground inline-flex items-baseline">
                 {formatCurrency(currentExpense.amount)}
+                {currentExpense.tax_classification?.bas_code && (
+                  <sup className="ml-1 text-[10px] font-bold px-1 py-0.2 rounded bg-[#008F83]/10 text-[#008F83] border border-[#008F83]/20">
+                    {currentExpense.tax_classification.bas_code}
+                  </sup>
+                )}
               </span>
             </div>
             <div>

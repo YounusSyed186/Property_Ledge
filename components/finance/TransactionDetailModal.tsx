@@ -108,8 +108,13 @@ export function TransactionDetailModal({
                 </span>
                 {getStatusBadge(transaction.status)}
               </div>
-              <h2 className="text-2xl font-bold text-admin-foreground mt-0.5">
-                {formatCurrency(transaction.amount)}
+              <h2 className="text-2xl font-bold text-admin-foreground mt-0.5 inline-flex items-baseline">
+                <span>{formatCurrency(transaction.amount)}</span>
+                {transaction.tax_classification?.bas_code && (
+                  <sup className="ml-1.5 text-xs font-bold px-1.5 py-0.5 rounded bg-[#008F83]/10 text-[#008F83] border border-[#008F83]/20">
+                    {transaction.tax_classification.bas_code}
+                  </sup>
+                )}
               </h2>
             </div>
           </div>

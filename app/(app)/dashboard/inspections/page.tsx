@@ -1,14 +1,17 @@
-'use client';
+import React from 'react';
+import type { Metadata } from 'next';
+import { fetchConditionReportsAction } from '@/app/actions/condition-reports';
+import { ConditionReportsDashboard } from '@/components/dashboard/inspections/ConditionReportsDashboard';
 
-import { ClipboardCheck } from 'lucide-react';
-import { ComingSoonPage } from '@/components/dashboard/ComingSoonPage';
+export const metadata: Metadata = {
+  title: 'Condition Reports & Inspections | PropertyLedge',
+  description:
+    'Digital move-in, routine, and exit condition inspections with checklists, defects, photos, and PDF sign-offs.',
+};
 
-export default function InspectionsPage() {
-  return (
-    <ComingSoonPage
-      title="Inspections"
-      description="Schedule and record property inspections with photos, checklists, and tenant sign-offs. Coming soon."
-      icon={ClipboardCheck}
-    />
-  );
+export default async function InspectionsPage() {
+  const res = await fetchConditionReportsAction();
+  const initialReports = res.success && res.data ? res.data : [];
+
+  return <ConditionReportsDashboard initialReports={initialReports} />;
 }

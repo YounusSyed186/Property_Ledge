@@ -19,15 +19,34 @@ export interface SetupProgress {
   dismissed: boolean;
 }
 
+import { getCurrentUser } from '@/lib/auth/queries';
+
 export async function getSetupProgress(userId: string): Promise<SetupProgress> {
+  const authUser = await getCurrentUser();
+  const onboardingMeta = authUser?.user_metadata?.onboarding as
+    | { data?: { setupChecklistDismissed?: boolean } }
+    | undefined;
+
+  const isDismissed = !!onboardingMeta?.data?.setupChecklistDismissed;
+  if (isDismissed) {
+    return {
+      tasks: [],
+      completedCount: 7,
+      totalCount: 7,
+      percent: 100,
+      allComplete: true,
+      dismissed: true,
+    };
+  }
+
   const supabase = await createClient();
 
-  const [{ data: workspaces }, { data: properties }, subscription, { data: authUser }] = await Promise.all([
+  const [{ data: workspaces }, { data: properties }, subscription] = await Promise.all([
     supabase.from('workspaces').select('id').eq('owner_id', userId).eq('status', 'active').limit(1),
     supabase.from('properties').select('id, workspace_id').eq('owner_id', userId).eq('status', 'active'),
     getSubscription(userId),
-    supabase.auth.getUser(),
   ]);
+
 
   const workspaceId = (workspaces?.[0] as { id?: string } | undefined)?.id;
   const propertyIds = (properties || []).map((p) => (p as { id: string }).id);
@@ -58,11 +77,8 @@ export async function getSetupProgress(userId: string): Promise<SetupProgress> {
     teamCount = count ?? 0;
   }
 
-  const onboardingMeta = authUser.user?.user_metadata?.onboarding as
-    | { data?: { setupChecklistDismissed?: boolean } }
-    | undefined;
-
   const hasWorkspace = !!workspaceId;
+
   const hasSubscription =
     !!subscription &&
     (isSubscriptionActive(subscription.status) ||

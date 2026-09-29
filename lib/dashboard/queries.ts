@@ -463,7 +463,7 @@ export async function getActivityLogs(propertyId: string) {
   const supabase = await createClient();
   const { data: logs, error } = await supabase
     .from('activity_logs')
-    .select('*')
+    .select('*, properties(id, name)')
     .eq('property_id', propertyId)
     .order('created_at', { ascending: false })
     .limit(500);
@@ -487,6 +487,50 @@ export async function getActivityLogs(propertyId: string) {
     const profile = log.user_id ? profileMap.get(log.user_id) : undefined;
     return {
       ...log,
+      property: log.properties || null,
+      user: {
+        full_name: profile?.full_name || 'System',
+        email: profile?.public_id || '',
+      },
+    };
+  });
+}
+
+export async function getWorkspaceActivityLogs(workspaceId: string, propertyId?: string | null) {
+  const supabase = await createClient();
+  let query = supabase
+    .from('activity_logs')
+    .select('*, properties(id, name)')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false })
+    .limit(500);
+
+  if (propertyId) {
+    query = query.eq('property_id', propertyId);
+  }
+
+  const { data: logs, error } = await query;
+
+  if (error) {
+    console.error('Error fetching workspace activity logs:', error);
+    return [];
+  }
+
+  const logItems = (logs || []) as any[];
+  if (!logItems.length) return [];
+
+  const userIds = [...new Set(logItems.map((l) => l.user_id).filter(Boolean))] as string[];
+  const { data: profiles } = userIds.length
+    ? await supabase.from('profiles').select('id, full_name, public_id').in('id', userIds)
+    : { data: [] };
+
+  const profileMap = new Map(((profiles || []) as any[]).map((p) => [p.id, p]));
+
+  return logItems.map((log: any) => {
+    const profile = log.user_id ? profileMap.get(log.user_id) : undefined;
+    return {
+      ...log,
+      property: log.properties || null,
       user: {
         full_name: profile?.full_name || 'System',
         email: profile?.public_id || '',
@@ -533,10 +577,26 @@ export async function getReportsSummary(propertyId: string) {
 export async function getWorkspaceReportsSummary(workspaceId: string) {
   const supabase = await createClient();
   const [invoices, transactions, tenants, leases] = await Promise.all([
-    supabase.from('invoices').select('status, total_amount, balance_due, properties!inner(workspace_id)').eq('properties.workspace_id', workspaceId),
-    supabase.from('transactions').select('amount, status, transaction_type, properties!inner(workspace_id)').eq('properties.workspace_id', workspaceId),
-    supabase.from('tenants').select('status, properties!inner(workspace_id)').eq('properties.workspace_id', workspaceId),
-    supabase.from('leases').select('status, rent_amount, properties!inner(workspace_id)').eq('properties.workspace_id', workspaceId),
+    supabase
+      .from('invoices')
+      .select('status, total_amount, balance_due')
+      .eq('workspace_id', workspaceId)
+      .in('status', ['issued', 'partially_paid', 'overdue']),
+    supabase
+      .from('transactions')
+      .select('amount, status, transaction_type')
+      .eq('workspace_id', workspaceId)
+      .eq('status', 'completed'),
+    supabase
+      .from('tenants')
+      .select('status, properties!inner(workspace_id)')
+      .eq('properties.workspace_id', workspaceId)
+      .eq('status', 'active'),
+    supabase
+      .from('leases')
+      .select('status, rent_amount, properties!inner(workspace_id)')
+      .eq('properties.workspace_id', workspaceId)
+      .eq('status', 'active'),
   ]);
 
   const invoiceData = (invoices.data || []) as { status: string; total_amount: number; balance_due: number }[];
@@ -564,6 +624,7 @@ export async function getWorkspaceReportsSummary(workspaceId: string) {
     overdueInvoices: invoiceData.filter((i) => i.status === 'overdue').length,
   };
 }
+
 
 export async function getUserWorkspaces() {
   const supabase = await createClient();
@@ -670,8 +731,8 @@ export async function getWorkspaceNeedsAttention(workspaceId: string) {
   const [overdueInvoices, openMaintenance, outstandingInvoices] = await Promise.all([
     supabase
       .from('invoices')
-      .select('id, invoice_number, balance_due, due_date, properties!inner(workspace_id)')
-      .eq('properties.workspace_id', workspaceId)
+      .select('id, invoice_number, balance_due, due_date')
+      .eq('workspace_id', workspaceId)
       .eq('status', 'overdue')
       .order('due_date', { ascending: true })
       .limit(5),
@@ -684,12 +745,13 @@ export async function getWorkspaceNeedsAttention(workspaceId: string) {
       .limit(5),
     supabase
       .from('invoices')
-      .select('id, invoice_number, balance_due, due_date, properties!inner(workspace_id)')
-      .eq('properties.workspace_id', workspaceId)
+      .select('id, invoice_number, balance_due, due_date')
+      .eq('workspace_id', workspaceId)
       .in('status', ['issued', 'partially_paid'])
       .order('due_date', { ascending: true })
       .limit(5),
   ]);
+
 
   return {
     overdueInvoices: overdueInvoices.data || [],

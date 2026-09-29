@@ -305,18 +305,26 @@ export function AdminDataGrid<TData = any>({
   }, [gridApi, syncPaginationFromGrid]);
 
   // Recalculate auto page size when grid container resizes (sidebar collapse, etc.)
+  const resizeRafRef = useRef<number | null>(null);
   useEffect(() => {
     const el = gridContainerRef.current;
     if (!el || !gridApi || isServerSide) return;
 
     const observer = new ResizeObserver(() => {
-      requestAnimationFrame(() => {
+      if (resizeRafRef.current) {
+        cancelAnimationFrame(resizeRafRef.current);
+      }
+      resizeRafRef.current = requestAnimationFrame(() => {
         syncPaginationFromGrid(gridApi);
       });
     });
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      if (resizeRafRef.current) cancelAnimationFrame(resizeRafRef.current);
+      observer.disconnect();
+    };
   }, [gridApi, isServerSide, syncPaginationFromGrid]);
+
 
   // Client-side pagination calculations
   const effectiveTotalItems = isServerSide ? totalItems || 0 : rowData?.length || 0;

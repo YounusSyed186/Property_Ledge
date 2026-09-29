@@ -134,19 +134,20 @@ export function PropertyProvider({ children, initialProperties }: PropertyProvid
   useEffect(() => {
     const prev = prevWorkspaceIdRef.current;
     if (prev !== activeWorkspaceId) {
+      const wasInitialized = prev !== null;
       prevWorkspaceIdRef.current = activeWorkspaceId;
-      // Only re-fetch if this is an actual workspace switch after initial mount
-      if (prev !== null && activeWorkspaceId) {
+      // Only re-fetch if this is an explicit workspace switch AFTER initial hydration
+      if (wasInitialized && activeWorkspaceId && isHydratedRef.current) {
         setSelectedPropertyState(null);
         fetchProperties();
         return;
       }
     }
 
-    if (!isHydratedRef.current && activeWorkspaceId) {
+    if (!isHydratedRef.current && activeWorkspaceId && initialProperties === undefined) {
       fetchProperties();
     }
-  }, [activeWorkspaceId, fetchProperties]);
+  }, [activeWorkspaceId, fetchProperties, initialProperties]);
 
   useEffect(() => {
     if (initialProperties !== undefined) {
@@ -158,6 +159,7 @@ export function PropertyProvider({ children, initialProperties }: PropertyProvid
       isHydratedRef.current = true;
     }
   }, [initialProperties, activeWorkspaceId]);
+
 
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {

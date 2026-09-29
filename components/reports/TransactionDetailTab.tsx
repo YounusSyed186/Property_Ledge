@@ -108,7 +108,14 @@ export function TransactionDetailTab({ data }: TransactionDetailTabProps) {
                         {propName}
                       </td>
                       <td className={`py-2.5 px-3 text-right font-bold whitespace-nowrap ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                        {formatCurrency(Number(tx.amount || 0))}
+                        <span className="inline-flex items-baseline">
+                          {formatCurrency(Number(tx.amount || 0))}
+                          {tx.tax_classification?.bas_code && (
+                            <sup className="ml-1 text-[9px] font-bold px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[#008F83] border border-slate-200 dark:border-slate-700">
+                              {tx.tax_classification.bas_code}
+                            </sup>
+                          )}
+                        </span>
                       </td>
                       <td className="py-2.5 px-3 text-right text-slate-500 text-xs whitespace-nowrap">
                         {formatCurrency(Number(tx.gst_amount || 0))}

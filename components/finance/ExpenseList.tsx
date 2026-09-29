@@ -298,10 +298,16 @@ export function ExpenseList({ initialExpenses, initialCategories }: ExpenseListP
         cellRenderer: (params: any) => {
           const row = params.data as ExpenseDTO;
           if (!row) return null;
+          const basCode = row.tax_classification?.bas_code;
           return (
             <div className="py-1">
-              <span className="font-mono font-bold text-rose-600 dark:text-rose-400 text-xs block">
+              <span className="font-mono font-bold text-rose-600 dark:text-rose-400 text-xs inline-flex items-baseline">
                 -{formatCurrency(row.amount)}
+                {basCode && (
+                  <sup className="ml-1 text-[9px] font-bold px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[#008F83] border border-slate-200 dark:border-slate-700 align-super">
+                    {basCode}
+                  </sup>
+                )}
               </span>
             </div>
           );
@@ -786,8 +792,13 @@ export function ExpenseList({ initialExpenses, initialCategories }: ExpenseListP
                     <span className="text-xs font-bold text-admin-muted uppercase tracking-wider block">
                       Amount
                     </span>
-                    <span className="font-mono text-base font-black text-rose-600 dark:text-rose-400">
+                    <span className="font-mono text-base font-black text-rose-600 dark:text-rose-400 inline-flex items-baseline">
                       -{formatCurrency(exp.amount)}
+                      {exp.tax_classification?.bas_code && (
+                        <sup className="ml-1 text-[9px] font-bold px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[#008F83] border border-slate-200 dark:border-slate-700">
+                          {exp.tax_classification.bas_code}
+                        </sup>
+                      )}
                     </span>
                   </div>
                   <div className="text-right">

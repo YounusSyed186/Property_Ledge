@@ -36,8 +36,9 @@ export async function fetchDashboardDataAction(propertyId?: string | null) {
     queries.getWorkspaceDashboardOverview(workspaceId),
     queries.getWorkspaceNeedsAttention(workspaceId),
     queries.getWorkspaceReportsSummary(workspaceId),
-    queries.getAllWorkspaceLeases(),
+    queries.getAllWorkspaceLeases(workspaceId),
   ]);
+
 
   return { overview, needsAttention, reports, leases };
 }
@@ -141,9 +142,15 @@ export async function fetchDashboardTasks(propertyId: string) {
   return queries.getTasks(propertyId);
 }
 
-export async function fetchDashboardActivity(propertyId: string) {
-  await requirePropertyAccess(propertyId);
-  return queries.getActivityLogs(propertyId);
+export async function fetchDashboardActivity(propertyId?: string | null) {
+  if (propertyId) {
+    await requirePropertyAccess(propertyId);
+    return queries.getActivityLogs(propertyId);
+  }
+  await requireAuthenticatedUser();
+  const workspaceId = await getActiveWorkspaceId();
+  if (!workspaceId) return [];
+  return queries.getWorkspaceActivityLogs(workspaceId);
 }
 
 export async function fetchDashboardReports(propertyId?: string | null) {

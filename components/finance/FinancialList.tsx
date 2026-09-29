@@ -356,9 +356,15 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
           if (!tx) return null;
           const isExp = isExpense(tx.transaction_type);
           if (!isExp || !tx.amount) return <span className="text-admin-muted text-xs">—</span>;
+          const basCode = tx.tax_classification?.bas_code;
           return (
-            <span className="font-mono font-bold text-sm text-rose-600 dark:text-rose-400">
+            <span className="font-mono font-bold text-sm text-rose-600 dark:text-rose-400 inline-flex items-baseline">
               -{formatCurrency(tx.amount)}
+              {basCode && (
+                <sup className="ml-1 text-[9px] font-bold px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[#008F83] border border-slate-200 dark:border-slate-700 align-super">
+                  {basCode}
+                </sup>
+              )}
             </span>
           );
         },
@@ -371,9 +377,15 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
           if (!tx) return null;
           const isInc = isIncome(tx.transaction_type);
           if (!isInc || !tx.amount) return <span className="text-admin-muted text-xs">—</span>;
+          const basCode = tx.tax_classification?.bas_code;
           return (
-            <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
+            <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400 inline-flex items-baseline">
               +{formatCurrency(tx.amount)}
+              {basCode && (
+                <sup className="ml-1 text-[9px] font-bold px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[#008F83] border border-slate-200 dark:border-slate-700 align-super">
+                  {basCode}
+                </sup>
+              )}
             </span>
           );
         },
@@ -547,7 +559,17 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
         cellRenderer: (params: any) => {
           const val = params.data?.money_out;
           if (!val || val === 0) return <span className="text-admin-muted text-xs">—</span>;
-          return <span className="font-mono font-bold text-rose-600 dark:text-rose-400">-{formatCurrency(val)}</span>;
+          const basCode = params.data?.transaction?.tax_classification?.bas_code;
+          return (
+            <span className="font-mono font-bold text-rose-600 dark:text-rose-400 inline-flex items-baseline">
+              -{formatCurrency(val)}
+              {basCode && (
+                <sup className="ml-1 text-[9px] font-bold px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[#008F83] border border-slate-200 dark:border-slate-700 align-super">
+                  {basCode}
+                </sup>
+              )}
+            </span>
+          );
         },
       },
       {
@@ -557,7 +579,17 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
         cellRenderer: (params: any) => {
           const val = params.data?.money_in;
           if (!val || val === 0) return <span className="text-admin-muted text-xs">—</span>;
-          return <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">+{formatCurrency(val)}</span>;
+          const basCode = params.data?.transaction?.tax_classification?.bas_code;
+          return (
+            <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 inline-flex items-baseline">
+              +{formatCurrency(val)}
+              {basCode && (
+                <sup className="ml-1 text-[9px] font-bold px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[#008F83] border border-slate-200 dark:border-slate-700 align-super">
+                  {basCode}
+                </sup>
+              )}
+            </span>
+          );
         },
       },
       {
@@ -1007,7 +1039,7 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
                   <div className="flex items-center justify-between pt-1 border-t border-admin-border/50">
                     <span
                       className={cn(
-                        'text-base font-mono font-black',
+                        'text-base font-mono font-black inline-flex items-baseline',
                         income
                           ? 'text-emerald-600 dark:text-emerald-400'
                           : 'text-rose-600 dark:text-rose-400'
@@ -1015,6 +1047,11 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
                     >
                       {income ? '+' : '-'}
                       {formatCurrency(tx.amount)}
+                      {tx.tax_classification?.bas_code && (
+                        <sup className="ml-1 text-[9px] font-bold px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[#008F83] border border-slate-200 dark:border-slate-700">
+                          {tx.tax_classification.bas_code}
+                        </sup>
+                      )}
                     </span>
                     <button
                       type="button"

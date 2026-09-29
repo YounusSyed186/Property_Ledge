@@ -64,13 +64,17 @@ export async function aggregateFinancialHealth(propertyIds: string[]): Promise<F
       .eq('transaction_type', 'income')
       .gte('transaction_date', prev.start.split('T')[0])
       .lte('transaction_date', end.split('T')[0]),
-    supabase.from('invoices').select('status, total_amount, balance_due').in('property_id', propertyIds),
+    supabase.from('invoices').select('status, total_amount, balance_due')
+      .in('property_id', propertyIds)
+      .in('status', ['issued', 'partially_paid', 'overdue']),
     supabase.from('transactions').select('amount, status, transaction_date')
       .in('property_id', propertyIds)
       .eq('transaction_type', 'expense')
       .gte('transaction_date', prev.start.split('T')[0])
       .lte('transaction_date', end.split('T')[0]),
-    supabase.from('leases').select('status, rent_amount, rent_frequency').in('property_id', propertyIds),
+    supabase.from('leases').select('status, rent_amount, rent_frequency')
+      .in('property_id', propertyIds)
+      .eq('status', 'active'),
   ]);
 
   const incomeTx = (incomeRes.data || []) as { amount: number; status: string; transaction_date: string }[];
@@ -129,11 +133,20 @@ export async function aggregateOperationalHealth(propertyIds: string[]): Promise
   const thirtyDays = new Date(now.getTime() + 30 * ONE_DAY);
 
   const [maintenanceRes, tasksRes, inspectionsRes, leasesRes] = await Promise.all([
-    supabase.from('maintenance_requests').select('status, scheduled_at, created_at, priority').in('property_id', propertyIds),
-    supabase.from('tasks').select('status, due_date').in('property_id', propertyIds),
-    supabase.from('inspections').select('status, scheduled_date').in('property_id', propertyIds),
-    supabase.from('leases').select('status, end_date').in('property_id', propertyIds),
+    supabase.from('maintenance_requests').select('status, scheduled_at, created_at, priority')
+      .in('property_id', propertyIds)
+      .in('status', ['open', 'in_progress', 'scheduled']),
+    supabase.from('tasks').select('status, due_date')
+      .in('property_id', propertyIds)
+      .in('status', ['pending', 'in_progress']),
+    supabase.from('inspections').select('status, scheduled_date')
+      .in('property_id', propertyIds)
+      .in('status', ['scheduled', 'pending']),
+    supabase.from('leases').select('status, end_date')
+      .in('property_id', propertyIds)
+      .eq('status', 'active'),
   ]);
+
 
   const maintenance = (maintenanceRes.data || []) as MaintenanceRow[];
   const tasks = (tasksRes.data || []) as TaskRow[];
