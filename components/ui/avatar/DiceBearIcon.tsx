@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import iconsData from '@/public/avatar/icons.json';
+import iconsData from '@/public/avatars/icons.json';
 
 export type DiceBearIconName =
   | 'building'
