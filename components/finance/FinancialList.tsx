@@ -82,6 +82,8 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
   const [categories, setCategories] = useState<CategoryDTO[]>(initialData?.categories || []);
   const [properties, setProperties] = useState<any[]>(availableProperties || []);
   const [isLoading, setIsLoading] = useState(!initialData);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
 
   // View & Filter States
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
@@ -111,8 +113,12 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
   }, [availableProperties]);
 
   // Load Transactions & Overview Data in a single consolidated pass
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
+  const loadData = useCallback(async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     try {
       const filterParams = {
         property_id: activePropertyId || undefined,
@@ -126,15 +132,20 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
       if (pageData.categories?.length > 0) {
         setCategories(pageData.categories);
       }
+      setLastRefreshedAt(new Date());
     } catch (err: any) {
       console.error('Failed to load transaction data:', err);
       toast({
-        title: 'Error Loading Transactions',
-        description: err.message || 'Could not fetch transaction records.',
+        title: isManualRefresh ? 'Unable to refresh transactions' : 'Error Loading Transactions',
+        description: isManualRefresh ? 'Please try again.' : (err.message || 'Could not fetch transaction records.'),
         variant: 'destructive',
       });
     } finally {
-      setIsLoading(false);
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   }, [activePropertyId, toast]);
 
@@ -920,6 +931,9 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
               rowData={filteredTransactionsWithBalance}
               columnDefs={transactionColumns}
               loading={isLoading}
+              onRefresh={() => loadData(true)}
+              isRefreshing={isRefreshing}
+              lastRefreshedAt={lastRefreshedAt}
               labelSingular="transaction"
               labelPlural="transactions"
               enableSelection={true}

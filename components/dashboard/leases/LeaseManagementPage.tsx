@@ -145,6 +145,8 @@ export function LeaseManagementPage({ initialLeases, initialProperties }: LeaseM
     return [];
   });
   const [isLoading, setIsLoading] = useState(() => !initialLeases && !hasMatchingCache);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
   const isInitialMount = React.useRef(true);
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Pending' | 'Expired' | 'Renewed'>('All');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
@@ -348,8 +350,10 @@ export function LeaseManagementPage({ initialLeases, initialProperties }: LeaseM
     []
   );
 
-  const loadData = async () => {
-    if (!hasMatchingCache) {
+  const loadData = async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else if (!hasMatchingCache) {
       setIsLoading(true);
     }
     try {
@@ -362,11 +366,16 @@ export function LeaseManagementPage({ initialLeases, initialProperties }: LeaseM
       setProperties(propertiesData);
       setCachedLeases(leasesData, activeWorkspaceId, activePropertyId);
       setCachedProperties(propertiesData, activeWorkspaceId);
+      setLastRefreshedAt(new Date());
     } catch (err: any) {
       console.error('Error loading leases:', err);
-      showError('Failed to load leases', err.message || 'Could not fetch lease agreements.');
+      showError(isManualRefresh ? 'Refresh failed' : 'Failed to load leases', isManualRefresh ? 'Unable to refresh leases. Please try again.' : (err.message || 'Could not fetch lease agreements.'));
     } finally {
-      setIsLoading(false);
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -648,6 +657,9 @@ export function LeaseManagementPage({ initialLeases, initialProperties }: LeaseM
               rowData={filteredLeases}
               columnDefs={agGridColumns}
               loading={isLoading}
+              onRefresh={() => loadData(true)}
+              isRefreshing={isRefreshing}
+              lastRefreshedAt={lastRefreshedAt}
               labelSingular="lease"
               labelPlural="leases"
               onRowClick={(row) => {

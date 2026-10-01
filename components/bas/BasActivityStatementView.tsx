@@ -325,6 +325,8 @@ export function BasActivityStatementView({ initialData }: BasActivityStatementVi
                 transactions={pageData.details}
                 periodLabel={pageData.worksheet.periodLabel}
                 initialTypeFilter={detailsTypeFilter}
+                onRefresh={() => handleRefresh()}
+                isRefreshing={isPending}
               />
             )}
 

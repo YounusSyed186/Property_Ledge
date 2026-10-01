@@ -32,9 +32,19 @@ function mapTeamRoleNameToPersona(roleName: string | null | undefined): Persona 
   }
 }
 
+import { serverCache } from '@/lib/cache/server-cache';
+
 export const getPersonaForUser = cache(async function getPersonaForUser(userId: string): Promise<PersonaContext> {
+  const cacheKey = `user:${userId}:persona`;
+  const cached = serverCache.get<PersonaContext>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   if (await isAdmin(userId)) {
-    return { persona: 'platform_admin' };
+    const res: PersonaContext = { persona: 'platform_admin' };
+    serverCache.set(cacheKey, res, 60_000);
+    return res;
   }
 
   const supabase = await createClient();
@@ -47,49 +57,52 @@ export const getPersonaForUser = cache(async function getPersonaForUser(userId: 
     .limit(1)
     .maybeSingle();
 
+  let result: PersonaContext = { persona: 'owner', workspaceRole: null };
+
   if (ownedWorkspace) {
-    return { persona: 'owner', workspaceRole: 'owner' };
-  }
+    result = { persona: 'owner', workspaceRole: 'owner' };
+  } else {
+    const { data: workspaceMembership } = await supabase
+      .from('workspace_members')
+      .select('role_id, team_roles(name)')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
-  const { data: workspaceMembership } = await supabase
-    .from('workspace_members')
-    .select('role_id, team_roles(name)')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    const membership = workspaceMembership as {
+      role_id?: string | null;
+      team_roles?: { name?: string } | null;
+    } | null;
 
-  const membership = workspaceMembership as {
-    role_id?: string | null;
-    team_roles?: { name?: string } | null;
-  } | null;
+    const roleName = membership?.team_roles?.name ?? null;
+    const persona = mapTeamRoleNameToPersona(roleName);
+    if (persona) {
+      result = { persona, workspaceRole: roleName?.toLowerCase() ?? null };
+    } else {
+      const { data: propertyMembership } = await supabase
+        .from('property_members')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
 
-  const roleName = membership?.team_roles?.name ?? null;
-  const persona = mapTeamRoleNameToPersona(roleName);
-  if (persona) {
-    return { persona, workspaceRole: roleName?.toLowerCase() ?? null };
-  }
+      const typedPropertyMembership = propertyMembership as { role: string } | null;
 
-  const { data: propertyMembership } = await supabase
-    .from('property_members')
-    .select('role')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  const typedPropertyMembership = propertyMembership as { role: string } | null;
-
-  if (typedPropertyMembership?.role) {
-    const role = typedPropertyMembership.role as Persona;
-    if (['owner', 'manager', 'agent', 'staff', 'viewer'].includes(role)) {
-      return { persona: role, workspaceRole: role };
+      if (typedPropertyMembership?.role) {
+        const role = typedPropertyMembership.role as Persona;
+        if (['owner', 'manager', 'agent', 'staff', 'viewer'].includes(role)) {
+          result = { persona: role, workspaceRole: role };
+        }
+      }
     }
   }
 
-  return { persona: 'owner', workspaceRole: null };
+  serverCache.set(cacheKey, result, 60_000);
+  return result;
 });
 
 export function getDefaultHomeForPersona(persona: Persona): string {

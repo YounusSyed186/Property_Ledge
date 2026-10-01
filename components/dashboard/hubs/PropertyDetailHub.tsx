@@ -70,14 +70,20 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
   const [reports, setReports] = useState<Awaited<ReturnType<typeof fetchDashboardReports>> | null>(null);
   const [needsAttention, setNeedsAttention] = useState<Awaited<ReturnType<typeof fetchNeedsAttention>> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
 
   const [isTenancyWizardOpen, setIsTenancyWizardOpen] = useState(false);
   const [isCreateLeaseWizardOpen, setIsCreateLeaseWizardOpen] = useState(false);
 
-  const loadAll = () => {
-    setIsLoading(true);
+  const loadAll = (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     setLoadError(null);
     Promise.all([
       fetchDashboardProperty(propertyId),
@@ -98,12 +104,19 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
         setActivity(a as unknown as typeof activity);
         setReports(r);
         setNeedsAttention(na);
+        setLastRefreshedAt(new Date());
       })
       .catch((err) => {
         console.error('Failed to load property detail:', err);
         setLoadError(err?.message || 'Failed to load property details. Please try again.');
       })
-      .finally(() => setIsLoading(false));
+      .finally(() => {
+        if (isManualRefresh) {
+          setIsRefreshing(false);
+        } else {
+          setIsLoading(false);
+        }
+      });
   };
 
   useEffect(() => {
@@ -128,7 +141,7 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
             <div className="flex justify-center gap-3 pt-2">
               <button
                 type="button"
-                onClick={loadAll}
+                onClick={() => loadAll()}
                 className="px-4 py-2 rounded-xl bg-admin-primary text-black font-semibold text-xs hover:bg-admin-primary/90 transition-all"
               >
                 Retry
@@ -249,6 +262,9 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
               labelPlural="tenants"
               onRowClick={(row) => router.push(`/dashboard/people/${row.id}`)}
               getRowId={(p) => p.data.id}
+              onRefresh={() => loadAll(true)}
+              isRefreshing={isRefreshing}
+              lastRefreshedAt={lastRefreshedAt}
             />
           </ListPageGrid>
         )}
@@ -262,6 +278,9 @@ export function PropertyDetailHub({ propertyId }: PropertyDetailHubProps) {
               labelPlural="leases"
               onRowClick={(row) => router.push(`/dashboard/leases/${row.id}`)}
               getRowId={(p) => p.data.id}
+              onRefresh={() => loadAll(true)}
+              isRefreshing={isRefreshing}
+              lastRefreshedAt={lastRefreshedAt}
             />
           </ListPageGrid>
         )}

@@ -23,10 +23,18 @@ export interface UserPropertyAccess {
 
 import { cache } from 'react';
 
+import { serverCache } from '@/lib/cache/server-cache';
+
 export const getUserProperties = cache(async function getUserProperties(
   userId: string,
   workspaceId?: string | null
 ): Promise<UserPropertyAccess[]> {
+  const cacheKey = `user:${userId}:properties:${workspaceId || 'all'}`;
+  const cached = serverCache.get<UserPropertyAccess[]>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const supabase = await createAdminClient();
 
   let ownedQuery = supabase
@@ -132,7 +140,9 @@ export const getUserProperties = cache(async function getUserProperties(
     }
   }
 
-  return Array.from(propertyMap.values());
+  const result = Array.from(propertyMap.values());
+  serverCache.set(cacheKey, result, 30_000); // 30s TTL
+  return result;
 });
 
 export const getUserOrganizations = cache(async function getUserOrganizations(

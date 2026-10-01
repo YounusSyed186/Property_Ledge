@@ -129,6 +129,8 @@ export function TenantDirectoryPage({ initialTenants, initialProperties }: Tenan
     return [];
   });
   const [isLoading, setIsLoading] = useState(() => !initialTenants && !hasMatchingCache);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
   const isInitialMount = React.useRef(true);
   const [statusFilter, setStatusFilter] = useState<
     'All' | 'Active Resident' | 'Inactive / Past Resident' | 'Prospect / Applicant' | 'Archived'
@@ -286,8 +288,10 @@ export function TenantDirectoryPage({ initialTenants, initialProperties }: Tenan
     []
   );
 
-  const loadData = async () => {
-    if (!hasMatchingCache) {
+  const loadData = async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else if (!hasMatchingCache) {
       setIsLoading(true);
     }
     try {
@@ -300,11 +304,16 @@ export function TenantDirectoryPage({ initialTenants, initialProperties }: Tenan
       setProperties(propertiesData as unknown as PropertyOption[]);
       setCachedTenants(tenantsData, activeWorkspaceId, activePropertyId);
       setCachedProperties(propertiesData, activeWorkspaceId);
+      setLastRefreshedAt(new Date());
     } catch (err: any) {
       console.error('Error loading tenants directory:', err);
-      showError('Failed to load tenants', err.message || 'Could not fetch tenant directory.');
+      showError(isManualRefresh ? 'Refresh failed' : 'Failed to load tenants', isManualRefresh ? 'Unable to refresh tenants. Please try again.' : (err.message || 'Could not fetch tenant directory.'));
     } finally {
-      setIsLoading(false);
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -530,6 +539,9 @@ export function TenantDirectoryPage({ initialTenants, initialProperties }: Tenan
               rowData={filteredTenants}
               columnDefs={agGridColumns}
               loading={isLoading}
+              onRefresh={() => loadData(true)}
+              isRefreshing={isRefreshing}
+              lastRefreshedAt={lastRefreshedAt}
               labelSingular="tenant"
               labelPlural="tenants"
               onRowClick={(row) => router.push(`/dashboard/people/${row.id}`)}

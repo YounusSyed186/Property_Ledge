@@ -20,10 +20,16 @@ export default function AdminSubscriptionsPage() {
   const [drawerData, setDrawerData] = useState<any>(null);
   const [subscriptionsList, setSubscriptionsList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
   const { success } = useToast();
 
-  const loadSubscriptions = async () => {
-    setIsLoading(true);
+  const loadSubscriptions = async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     try {
       const [subsRes, paymentsRes] = await Promise.all([
         fetchAdminSubscriptions({ limit: 100 }),
@@ -73,11 +79,16 @@ export default function AdminSubscriptionsPage() {
       }
 
       setSubscriptionsList(Array.from(itemsMap.values()));
+      setLastRefreshedAt(new Date());
     } catch (err) {
       console.warn('Failed to load server subscriptions:', err);
       setSubscriptionsList([]);
     } finally {
-      setIsLoading(false);
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -243,6 +254,10 @@ export default function AdminSubscriptionsPage() {
       <AdminDataGrid
         rowData={filteredSubscriptions}
         columnDefs={columnDefs}
+        loading={isLoading}
+        onRefresh={() => loadSubscriptions(true)}
+        isRefreshing={isRefreshing}
+        lastRefreshedAt={lastRefreshedAt}
         enableSelection={true}
         enableColumnChooser={true}
         enableExport={true}

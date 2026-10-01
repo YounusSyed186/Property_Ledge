@@ -65,6 +65,8 @@ export function ExpenseList({ initialExpenses, initialCategories }: ExpenseListP
   const [categories, setCategories] = useState<CategoryDTO[]>(initialCategories || []);
   const [properties, setProperties] = useState<any[]>(availableProperties || []);
   const [isLoading, setIsLoading] = useState(!initialExpenses);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
 
   // View & Filter States
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
@@ -89,8 +91,12 @@ export function ExpenseList({ initialExpenses, initialCategories }: ExpenseListP
   }, [availableProperties]);
 
   // Load Expenses Data from Transactions
-  const loadExpenses = useCallback(async () => {
-    setIsLoading(true);
+  const loadExpenses = useCallback(async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     try {
       const filterParams: ExpenseFilterParams = {
         property_id: activePropertyId || undefined,
@@ -102,15 +108,20 @@ export function ExpenseList({ initialExpenses, initialCategories }: ExpenseListP
       } else {
         setExpenses([]);
       }
+      setLastRefreshedAt(new Date());
     } catch (err: any) {
       console.error('Failed to load expenses:', err);
       toast({
-        title: 'Error Loading Expenses',
-        description: err.message || 'Could not fetch expense records.',
+        title: isManualRefresh ? 'Unable to refresh expenses' : 'Error Loading Expenses',
+        description: isManualRefresh ? 'Please try again.' : (err.message || 'Could not fetch expense records.'),
         variant: 'destructive',
       });
     } finally {
-      setIsLoading(false);
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   }, [activePropertyId, toast]);
 
@@ -661,6 +672,9 @@ export function ExpenseList({ initialExpenses, initialCategories }: ExpenseListP
               rowData={filteredExpenses}
               columnDefs={columnDefs}
               loading={isLoading}
+              onRefresh={() => loadExpenses(true)}
+              isRefreshing={isRefreshing}
+              lastRefreshedAt={lastRefreshedAt}
               labelSingular="expense"
               labelPlural="expenses"
               enableSelection={true}

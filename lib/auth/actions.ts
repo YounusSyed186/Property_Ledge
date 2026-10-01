@@ -5,6 +5,7 @@ import { AuthActionResult } from '@/types/auth';
 import { mapAuthError } from '@/lib/errors';
 import { logAuthEvent } from '@/lib/debug/logger';
 import { getAppBaseUrl } from '@/lib/routing/env';
+import { serverCache } from '@/lib/cache/server-cache';
 
 export async function signUpAction(formData: {
   email: string;
@@ -208,6 +209,7 @@ export async function updateProfileAction(formData: {
       return { success: false, error: mapAuthError(error) };
     }
 
+    serverCache.invalidateUser(user.id);
     return { success: true, message: 'Profile updated successfully.' };
   } catch (err) {
     return { success: false, error: mapAuthError(err) };

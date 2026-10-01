@@ -2,6 +2,7 @@ import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { Profile, AccountContext } from '@/types/auth';
 import { logAuthEvent } from '@/lib/debug/logger';
+import { serverCache } from '@/lib/cache/server-cache';
 
 export const getCurrentUser = cache(async function getCurrentUser() {
   try {
@@ -14,7 +15,15 @@ export const getCurrentUser = cache(async function getCurrentUser() {
 });
 
 export const getUserProfile = cache(async function getUserProfile(userId: string): Promise<Profile | null> {
-  logAuthEvent('PROFILE_LOAD_STARTED', { userId });
+  const cacheKey = `user:${userId}:profile`;
+  const cached = serverCache.get<Profile>(cacheKey);
+  if (cached) {
+    logAuthEvent('PROFILE_LOAD_SUCCESS', { userId, cacheHit: true, duration: '0ms' });
+    return cached;
+  }
+
+  const startTime = Date.now();
+  logAuthEvent('PROFILE_LOAD_STARTED', { userId, cacheHit: false });
   try {
     const supabase = await createClient();
     const { data, error } = await (supabase as any)
@@ -28,7 +37,15 @@ export const getUserProfile = cache(async function getUserProfile(userId: string
       return null;
     }
 
-    logAuthEvent('PROFILE_LOAD_SUCCESS', { userId });
+    if (data) {
+      serverCache.set(cacheKey, data, 60_000); // 60s TTL
+    }
+
+    logAuthEvent('PROFILE_LOAD_SUCCESS', {
+      userId,
+      cacheHit: false,
+      duration: `${Date.now() - startTime}ms`,
+    });
     return data;
   } catch (err) {
     logAuthEvent('PROFILE_LOAD_FAILED', { userId, err });
@@ -37,7 +54,15 @@ export const getUserProfile = cache(async function getUserProfile(userId: string
 });
 
 export const getAccountContext = cache(async function getAccountContext(userId: string): Promise<AccountContext | null> {
-  logAuthEvent('ACCOUNT_CONTEXT_LOAD_STARTED', { userId });
+  const cacheKey = `user:${userId}:account`;
+  const cached = serverCache.get<AccountContext>(cacheKey);
+  if (cached) {
+    logAuthEvent('ACCOUNT_CONTEXT_LOAD_SUCCESS', { userId, cacheHit: true, duration: '0ms' });
+    return cached;
+  }
+
+  const startTime = Date.now();
+  logAuthEvent('ACCOUNT_CONTEXT_LOAD_STARTED', { userId, cacheHit: false });
   try {
     const supabase = await createClient();
     const { data, error } = await (supabase as any)
@@ -51,10 +76,19 @@ export const getAccountContext = cache(async function getAccountContext(userId: 
       return null;
     }
 
-    logAuthEvent('ACCOUNT_CONTEXT_LOAD_SUCCESS', { userId });
+    if (data) {
+      serverCache.set(cacheKey, data, 60_000); // 60s TTL
+    }
+
+    logAuthEvent('ACCOUNT_CONTEXT_LOAD_SUCCESS', {
+      userId,
+      cacheHit: false,
+      duration: `${Date.now() - startTime}ms`,
+    });
     return data;
   } catch (err) {
     logAuthEvent('ACCOUNT_CONTEXT_LOAD_FAILED', { userId, err });
     return null;
   }
 });
+

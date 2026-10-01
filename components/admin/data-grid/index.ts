@@ -13,3 +13,4 @@ export * from './cells/BooleanCell';
 export * from './cells/CodeCell';
 export * from './cells/ActionsCell';
 export * from './theme/gridDefaults';
+export * from './GridRefreshButton';

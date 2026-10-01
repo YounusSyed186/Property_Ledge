@@ -45,11 +45,18 @@ export function TeamPageClient({
   const [seats, setSeats] = useState<{ current: number; limit: number; remaining: number; isOverLimit: boolean } | null>(initialSeats ?? null);
   const [tab, setTab] = useState<'members' | 'invitations'>('members');
   const [loading, setLoading] = useState(initialMembers === undefined);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<WorkspaceMemberRow | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isManualRefresh = false) => {
     if (!workspaceId) return;
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const [memberData, inviteData, seatData] = await Promise.all([
         fetchWorkspaceTeam(workspaceId),
@@ -59,10 +66,15 @@ export function TeamPageClient({
       setMembers(memberData);
       setInvitations(inviteData);
       setSeats(seatData);
+      setLastRefreshedAt(new Date());
     } catch (e) {
       toastAuthorizationError(e, toastError);
     } finally {
-      setLoading(false);
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, [workspaceId, toastError]);
 
@@ -257,6 +269,9 @@ export function TeamPageClient({
               rowData={members}
               columnDefs={memberColumns}
               onRowClick={(row) => setSelectedMember(row)}
+              onRefresh={() => load(true)}
+              isRefreshing={isRefreshing}
+              lastRefreshedAt={lastRefreshedAt}
             />
           )
         ) : invitations.length === 0 ? (
@@ -268,6 +283,9 @@ export function TeamPageClient({
           <AdminDataGrid
             rowData={invitations}
             columnDefs={inviteColumns}
+            onRefresh={() => load(true)}
+            isRefreshing={isRefreshing}
+            lastRefreshedAt={lastRefreshedAt}
           />
         )}
       </ListPage>

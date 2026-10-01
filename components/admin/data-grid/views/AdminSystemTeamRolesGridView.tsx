@@ -11,9 +11,19 @@ interface AdminSystemTeamRolesGridViewProps {
   roles: AdminSystemTeamRoleRow[];
   onView: (row: AdminSystemTeamRoleRow) => void;
   onEdit: (row: AdminSystemTeamRoleRow) => void;
+  onRefresh?: () => void | Promise<void>;
+  isRefreshing?: boolean;
+  lastRefreshedAt?: Date | null;
 }
 
-export function AdminSystemTeamRolesGridView({ roles, onView, onEdit }: AdminSystemTeamRolesGridViewProps) {
+export function AdminSystemTeamRolesGridView({
+  roles,
+  onView,
+  onEdit,
+  onRefresh,
+  isRefreshing,
+  lastRefreshedAt,
+}: AdminSystemTeamRolesGridViewProps) {
   const columnDefs: ColDef[] = useMemo(
     () => [
       { field: 'name', headerName: 'Role', minWidth: 140, flex: 1, cellRenderer: (p: { value: string }) => <span className="font-semibold text-[13.5px]">{p.value}</span> },
@@ -49,6 +59,9 @@ export function AdminSystemTeamRolesGridView({ roles, onView, onEdit }: AdminSys
       emptyTitle="No system team roles"
       emptyDescription="System roles are seeded by PropertyLedge."
       emptyIcon={<Users className="w-6 h-6" />}
+      onRefresh={onRefresh}
+      isRefreshing={isRefreshing}
+      lastRefreshedAt={lastRefreshedAt}
     />
   );
 }

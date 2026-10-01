@@ -91,6 +91,8 @@ export function EntityListPage<T extends { id: string }>({
   const { error: showError, info: showInfo, success: showSuccess } = useToast();
   const [rows, setRows] = useState<T[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
   const [selectedEntity, setSelectedEntity] = useState<T | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCreate, setIsCreate] = useState(false);
@@ -98,22 +100,31 @@ export function EntityListPage<T extends { id: string }>({
 
   const effectivePropertyId = selectedProperty?.propertyId || (availableProperties.length > 0 ? availableProperties[0].propertyId : '');
 
-  const loadData = async () => {
+  const loadData = async (isManualRefresh = false) => {
     const targetPropertyId = selectedProperty?.propertyId;
     if (!targetPropertyId) {
       setRows([]);
       setIsLoading(false);
       return;
     }
-    setIsLoading(true);
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     try {
       const data = await fetchAction(targetPropertyId);
       setRows(data || []);
+      setLastRefreshedAt(new Date());
     } catch (err) {
       console.error(`Failed to load ${entityLabelPlural}:`, err);
-      showError("Couldn't load " + entityLabelPlural, "Please check your connection and try again.");
+      showError(isManualRefresh ? 'Unable to refresh ' + entityLabelPlural : "Couldn't load " + entityLabelPlural, isManualRefresh ? 'Please try again.' : "Please check your connection and try again.");
     } finally {
-      setIsLoading(false);
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -215,6 +226,9 @@ export function EntityListPage<T extends { id: string }>({
               rowData={displayRows}
               columnDefs={columns}
               loading={isLoading}
+              onRefresh={() => loadData(true)}
+              isRefreshing={isRefreshing}
+              lastRefreshedAt={lastRefreshedAt}
               enableSelection={true}
               onDeleteSelected={deleteAction || onDeleteSelected ? handleBulkDelete : undefined}
               labelSingular={entityLabel}

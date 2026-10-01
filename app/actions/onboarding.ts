@@ -23,6 +23,7 @@ import { createTrialSubscription } from '@/lib/subscriptions/service';
 import { handleCreateManualCheckoutSession, handleSubmitManualPayment } from '@/app/actions/billing';
 import { BANK_DETAILS } from '@/lib/billing/types';
 import { getSubscriptionPaymentBySubId, getPaymentProofByPaymentId } from '@/lib/billing/service';
+import { serverCache } from '@/lib/cache/server-cache';
 
 const ONBOARDING_METADATA_KEY = 'onboarding';
 
@@ -60,7 +61,10 @@ async function markOnboardingCompleted(userId: string, supabase: Awaited<ReturnT
     } as never)
     .eq('user_id', userId);
 
-  if (!updateError) return;
+  if (!updateError) {
+    serverCache.invalidateUser(userId);
+    return;
+  }
 
   const admin = await createAdminClient();
   const { error: upsertError } = await admin.from('account_context').upsert(
@@ -76,6 +80,8 @@ async function markOnboardingCompleted(userId: string, supabase: Awaited<ReturnT
   if (upsertError) {
     throw new Error(upsertError.message || 'Failed to mark onboarding as complete');
   }
+
+  serverCache.invalidateUser(userId);
 }
 
 async function writeProgress(
@@ -114,6 +120,8 @@ async function writeProgress(
       { onConflict: 'user_id' }
     );
   }
+
+  serverCache.invalidateUser(userId);
 }
 
 async function completeStage(

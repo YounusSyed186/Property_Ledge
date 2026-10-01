@@ -70,6 +70,8 @@ export function PropertiesClientView({ initialProperties }: PropertiesClientView
   const [isLoading, setIsLoading] = useState(
     () => !initialProperties && !hasMatchingCache && (!availableProperties || availableProperties.length === 0)
   );
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
   const isInitialMount = useRef(true);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -93,18 +95,25 @@ export function PropertiesClientView({ initialProperties }: PropertiesClientView
     }
   };
 
-  const loadData = async () => {
-    if (!hasMatchingCache && (!availableProperties || availableProperties.length === 0)) {
+  const loadData = async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else if (!hasMatchingCache && (!availableProperties || availableProperties.length === 0)) {
       setIsLoading(true);
     }
     try {
       const data = await fetchDashboardProperties();
       setRows(data);
       setCachedProperties(data, activeWorkspaceId);
+      setLastRefreshedAt(new Date());
     } catch {
-      showError('Load failed', 'Could not load properties.');
+      showError(isManualRefresh ? 'Refresh failed' : 'Load failed', isManualRefresh ? 'Unable to refresh properties. Please try again.' : 'Could not load properties.');
     } finally {
-      setIsLoading(false);
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -334,6 +343,9 @@ export function PropertiesClientView({ initialProperties }: PropertiesClientView
               rowData={filteredRows}
               columnDefs={columns}
               loading={isLoading}
+              onRefresh={() => loadData(true)}
+              isRefreshing={isRefreshing}
+              lastRefreshedAt={lastRefreshedAt}
               labelSingular="property"
               labelPlural="properties"
               onRowClick={(row: any) => router.push(`/dashboard/properties/${row.id}`)}

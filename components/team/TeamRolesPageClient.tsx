@@ -36,6 +36,8 @@ export function TeamRolesPageClient() {
   const [activeTab, setActiveTab] = useState<'list' | 'matrix'>('list');
   const [roles, setRoles] = useState<WorkspaceRoleRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
   const [showBuilder, setShowBuilder] = useState(false);
   const [editRole, setEditRole] = useState<WorkspaceRoleRow | null>(null);
   const [viewRole, setViewRole] = useState<WorkspaceRoleRow | null>(null);
@@ -59,13 +61,22 @@ export function TeamRolesPageClient() {
     }
   }, [isMatrixExpanded, workspaceStore]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isManualRefresh = false) => {
     if (!workspaceId) return;
-    setLoading(true);
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
       setRoles(await fetchWorkspaceRoles(workspaceId));
+      setLastRefreshedAt(new Date());
     } finally {
-      setLoading(false);
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, [workspaceId]);
 
@@ -210,7 +221,17 @@ export function TeamRolesPageClient() {
                   <span className="text-xs text-admin-muted">Available to all workspaces</span>
                 </div>
                 <div className="h-[min(280px,40vh)] min-h-[160px]">
-                  <AdminDataGrid rowData={systemRoles} columnDefs={columns} onRowClick={setViewRole} labelSingular="role" labelPlural="roles" enableSelection={false} />
+                  <AdminDataGrid
+                    rowData={systemRoles}
+                    columnDefs={columns}
+                    onRowClick={setViewRole}
+                    labelSingular="role"
+                    labelPlural="roles"
+                    enableSelection={false}
+                    onRefresh={() => load(true)}
+                    isRefreshing={isRefreshing}
+                    lastRefreshedAt={lastRefreshedAt}
+                  />
                 </div>
               </div>
               <div className="flex-1 min-h-0">
@@ -232,6 +253,9 @@ export function TeamRolesPageClient() {
                     labelSingular="role"
                     labelPlural="roles"
                     enableSelection={false}
+                    onRefresh={() => load(true)}
+                    isRefreshing={isRefreshing}
+                    lastRefreshedAt={lastRefreshedAt}
                   />
                 )}
               </div>

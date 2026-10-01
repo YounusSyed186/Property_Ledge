@@ -5,6 +5,7 @@ import { createSubscription, updateSubscription } from '@/lib/subscriptions/serv
 import { getSubscription } from '@/lib/subscriptions/queries';
 import { logAuthEvent } from '@/lib/debug/logger';
 import { SubscriptionPayment, PaymentProof } from '@/types/subscriptions';
+import { serverCache } from '@/lib/cache/server-cache';
 
 export async function createCheckoutSession(options: CheckoutSessionOptions): Promise<CheckoutSessionResult> {
   logAuthEvent('CHECKOUT_STARTED', { accountId: options.accountId, planSlug: options.planSlug });
@@ -134,6 +135,8 @@ export async function createManualCheckoutSession(
     }
     subscriptionId = newSub.id;
   }
+
+  serverCache.invalidateAccount(accountId);
 
   // 6. Create subscription_payment record in DB
   const { data: payment, error: payErr } = await (supabase as any)
@@ -283,6 +286,10 @@ export async function approveManualPayment(paymentId: string, adminId: string) {
     })
     .eq('id', payment.subscription_id);
 
+  if (payment.account_id) {
+    serverCache.invalidateAccount(payment.account_id);
+  }
+
   return payment;
 }
 
@@ -312,6 +319,10 @@ export async function rejectManualPayment(paymentId: string, adminId: string) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', payment.subscription_id);
+
+  if (payment.account_id) {
+    serverCache.invalidateAccount(payment.account_id);
+  }
 
   return payment;
 }

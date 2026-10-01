@@ -11,9 +11,19 @@ interface AdminPlansGridViewProps {
   plans: any[];
   onToggleStatus: (planId: string, currentStatus: string) => Promise<void>;
   onCreateClick?: () => void;
+  onRefresh?: () => void | Promise<void>;
+  isRefreshing?: boolean;
+  lastRefreshedAt?: Date | null;
 }
 
-export function AdminPlansGridView({ plans, onToggleStatus, onCreateClick }: AdminPlansGridViewProps) {
+export function AdminPlansGridView({
+  plans,
+  onToggleStatus,
+  onCreateClick,
+  onRefresh,
+  isRefreshing,
+  lastRefreshedAt,
+}: AdminPlansGridViewProps) {
   const [activeFilter, setActiveFilter] = useState('all');
 
   const filterOptions: QuickFilterOption[] = useMemo(
@@ -163,6 +173,9 @@ export function AdminPlansGridView({ plans, onToggleStatus, onCreateClick }: Adm
       emptyTitle="No plans found"
       emptyDescription="Create your first subscription plan to begin offering tiers."
       emptyIcon={<Layers className="w-6 h-6" />}
+      onRefresh={onRefresh}
+      isRefreshing={isRefreshing}
+      lastRefreshedAt={lastRefreshedAt}
     />
   );
 }

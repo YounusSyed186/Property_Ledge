@@ -10,6 +10,7 @@ import { SystemTeamRoleDetailDrawer } from '@/components/admin/team-roles/System
 import { SystemTeamRoleBuilderDrawer } from '@/components/admin/team-roles/SystemTeamRoleBuilderDrawer';
 import { CrossRolePermissionMatrix } from '@/components/rbac/CrossRolePermissionMatrix';
 import {
+  fetchAdminSystemTeamRoles,
   fetchAdminSystemTeamRolesMatrixData,
   handleBatchUpdateSystemTeamRolePermissions,
 } from '@/app/actions/admin-config';
@@ -20,9 +21,27 @@ interface AdminSystemTeamRolesPageViewProps {
   roles: AdminSystemTeamRoleRow[];
 }
 
-export function AdminSystemTeamRolesPageView({ roles }: AdminSystemTeamRolesPageViewProps) {
+export function AdminSystemTeamRolesPageView({ roles: initialRoles }: AdminSystemTeamRolesPageViewProps) {
   const router = useRouter();
   const { success: toastSuccess, error: toastError } = useToast();
+  const [roles, setRoles] = useState<AdminSystemTeamRoleRow[]>(initialRoles);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const fresh = await fetchAdminSystemTeamRoles();
+      setRoles(fresh as AdminSystemTeamRoleRow[]);
+      setLastRefreshedAt(new Date());
+    } catch (e) {
+      toastError('Could not refresh', e instanceof Error ? e.message : 'Refresh failed');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing, toastError]);
+
   const [activeTab, setActiveTab] = useState<'list' | 'matrix'>('list');
   const [showHelp, setShowHelp] = useState(false);
   const [viewRole, setViewRole] = useState<AdminSystemTeamRoleRow | null>(null);
@@ -130,6 +149,9 @@ export function AdminSystemTeamRolesPageView({ roles }: AdminSystemTeamRolesPage
               roles={roles}
               onView={setViewRole}
               onEdit={(r) => { setViewRole(null); setEditRole(r); }}
+              onRefresh={handleRefresh}
+              isRefreshing={isRefreshing}
+              lastRefreshedAt={lastRefreshedAt}
             />
           </div>
         </>

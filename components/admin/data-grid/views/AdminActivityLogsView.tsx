@@ -1,17 +1,34 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { Activity, User, Building2, Home } from 'lucide-react';
 import { AdminDataGrid } from '@/components/admin/data-grid';
 import { Badge } from '@/components/admin/ui';
 import type { AdminActivityLogRow } from '@/lib/admin/types';
+import { fetchAdminActivityLogs } from '@/app/actions/admin';
 
 interface AdminActivityLogsViewProps {
   logs: AdminActivityLogRow[];
 }
 
-export function AdminActivityLogsView({ logs }: AdminActivityLogsViewProps) {
+export function AdminActivityLogsView({ logs: initialLogs }: AdminActivityLogsViewProps) {
+  const [logs, setLogs] = useState<AdminActivityLogRow[]>(initialLogs);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const freshLogs = await fetchAdminActivityLogs();
+      setLogs(freshLogs);
+      setLastRefreshedAt(new Date());
+    } catch (err) {
+      console.error('Failed to refresh activity logs:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
   const columnDefs = useMemo<ColDef<AdminActivityLogRow>[]>(
     () => [
       {
@@ -106,6 +123,9 @@ export function AdminActivityLogsView({ logs }: AdminActivityLogsViewProps) {
     <AdminDataGrid
       rowData={logs}
       columnDefs={columnDefs}
+      onRefresh={handleRefresh}
+      isRefreshing={isRefreshing}
+      lastRefreshedAt={lastRefreshedAt}
       searchPlaceholder="Search activity logs..."
       emptyTitle="No activity logs"
       emptyDescription="Activity logs will appear here as users perform actions."

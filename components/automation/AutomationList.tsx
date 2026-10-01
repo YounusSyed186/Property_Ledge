@@ -68,6 +68,8 @@ export function AutomationList() {
     hasMatchingCache ? (cachedAutomations.data as AutomationItem[]) : []
   );
   const [loading, setLoading] = useState(() => !hasMatchingCache);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
   const [activeFilter, setActiveFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
@@ -93,22 +95,29 @@ export function AutomationList() {
     []
   );
 
-  const loadAutomations = async () => {
-    if (!hasMatchingCache) {
+  const loadAutomations = async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else if (!hasMatchingCache) {
       setLoading(true);
     }
     try {
       const data = await fetchAutomationsAction();
       setAutomations(data);
       setCachedAutomations(data, activeWorkspaceId);
+      setLastRefreshedAt(new Date());
     } catch (err: any) {
       toast({
-        title: 'Error loading automations',
-        description: err.message,
+        title: isManualRefresh ? 'Unable to refresh automations' : 'Error loading automations',
+        description: isManualRefresh ? 'Please try again.' : err.message,
         variant: 'destructive',
       });
     } finally {
-      setLoading(false);
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -605,6 +614,9 @@ export function AutomationList() {
               rowData={filteredAutomations}
               columnDefs={agGridColumns}
               loading={loading}
+              onRefresh={() => loadAutomations(true)}
+              isRefreshing={isRefreshing}
+              lastRefreshedAt={lastRefreshedAt}
               labelSingular="automation"
               labelPlural="automations"
               getRowId={(p) => p.data.id}

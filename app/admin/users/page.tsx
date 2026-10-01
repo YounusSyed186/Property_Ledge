@@ -18,12 +18,18 @@ export default function AdminUsersPage() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [usersList, setUsersList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const { success, warning } = useToast();
 
-  const loadUsers = async () => {
-    setIsLoading(true);
+  const loadUsers = async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     try {
       const res = await fetchAdminUsers({ limit: 100 });
       if (res && Array.isArray(res.data)) {
@@ -56,10 +62,15 @@ export default function AdminUsersPage() {
         });
         setUsersList(formatted);
       }
+      setLastRefreshedAt(new Date());
     } catch (err) {
       console.warn('Failed to load server users:', err);
     } finally {
-      setIsLoading(false);
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -236,6 +247,10 @@ export default function AdminUsersPage() {
       <AdminDataGrid
         rowData={filteredUsers}
         columnDefs={columnDefs}
+        loading={isLoading}
+        onRefresh={() => loadUsers(true)}
+        isRefreshing={isRefreshing}
+        lastRefreshedAt={lastRefreshedAt}
         enableSelection={true}
         enableColumnChooser={true}
         enableExport={true}

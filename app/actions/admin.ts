@@ -18,6 +18,8 @@ import {
   getAdminPayments as getAdminPaymentsQuery,
   getAdminUsers as getAdminUsersQuery,
   getAdminWorkspaces as getAdminWorkspacesQuery,
+  getAdminActivityLogs as getAdminActivityLogsQuery,
+  getAdminAuditLogs as getAdminAuditLogsQuery,
 } from '@/lib/admin/queries';
 import { getPaymentProofByPaymentId } from '@/lib/billing/service';
 import { requireAdmin } from '@/lib/admin/authorization';
@@ -87,6 +89,16 @@ export async function fetchAdminEntitlements() {
 export async function fetchAdminBillingEvents(params: { page?: number; limit?: number } = {}) {
   await requireAdmin();
   return getAdminBillingEventsQuery(params);
+}
+
+export async function fetchAdminActivityLogs(limit = 500) {
+  await requireAdmin();
+  return getAdminActivityLogsQuery(limit);
+}
+
+export async function fetchAdminAuditLogs(params: { page?: number; limit?: number } = {}) {
+  await requireAdmin();
+  return getAdminAuditLogsQuery(params);
 }
 
 export async function handleCreatePlan(planData: {

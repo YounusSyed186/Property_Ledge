@@ -45,7 +45,7 @@ export type AuthLogEvent =
   | 'ADMIN_ACTION_EXECUTED'
   | 'ADMIN_ACTION_FAILED';
 
-export function logAuthEvent(event: AuthLogEvent, details?: Record<string, unknown>) {
+export function logAuthEvent(event: AuthLogEvent | string, details?: Record<string, unknown>) {
   if (!isDebugEnabled) return;
 
   const timestamp = new Date().toISOString();

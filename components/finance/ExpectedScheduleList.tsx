@@ -106,6 +106,8 @@ export function ExpectedScheduleList({ initialSchedules }: ExpectedScheduleListP
 
   const [schedules, setSchedules] = useState<ExpectedPaymentScheduleDTO[]>(initialSchedules || []);
   const [isLoading, setIsLoading] = useState(!initialSchedules);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
 
   // View & Filter States
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
@@ -136,22 +138,42 @@ export function ExpectedScheduleList({ initialSchedules }: ExpectedScheduleListP
     []
   );
 
-  const loadData = useCallback(() => {
-    setIsLoading(true);
-    fetchExpectedSchedulesAction({
-      workspace_id: activeWorkspaceId || undefined,
-      property_id: activePropertyId || undefined,
-      status: 'all',
-      schedule_type: 'all',
-    })
-      .then((res) => {
-        if (res.success && res.data) {
-          setSchedules(res.data);
-        } else {
-          toast({ title: 'Error', description: res.error || 'Failed to load schedules', variant: 'destructive' });
-        }
-      })
-      .finally(() => setIsLoading(false));
+  const loadData = useCallback(async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+    try {
+      const res = await fetchExpectedSchedulesAction({
+        workspace_id: activeWorkspaceId || undefined,
+        property_id: activePropertyId || undefined,
+        status: 'all',
+        schedule_type: 'all',
+      });
+      if (res.success && res.data) {
+        setSchedules(res.data);
+      } else {
+        toast({
+          title: isManualRefresh ? 'Unable to refresh schedules' : 'Error',
+          description: isManualRefresh ? 'Please try again.' : (res.error || 'Failed to load schedules'),
+          variant: 'destructive',
+        });
+      }
+      setLastRefreshedAt(new Date());
+    } catch (err: any) {
+      toast({
+        title: isManualRefresh ? 'Unable to refresh schedules' : 'Error',
+        description: isManualRefresh ? 'Please try again.' : (err?.message || 'Failed to load schedules'),
+        variant: 'destructive',
+      });
+    } finally {
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setIsLoading(false);
+      }
+    }
   }, [activeWorkspaceId, activePropertyId, toast]);
 
   useEffect(() => {
@@ -738,6 +760,9 @@ export function ExpectedScheduleList({ initialSchedules }: ExpectedScheduleListP
             rowData={filteredSchedules}
             columnDefs={columnDefs as any}
             loading={isLoading}
+            onRefresh={() => loadData(true)}
+            isRefreshing={isRefreshing}
+            lastRefreshedAt={lastRefreshedAt}
             labelSingular="schedule"
             labelPlural="schedules"
             enableSelection={true}
@@ -801,16 +826,6 @@ export function ExpectedScheduleList({ initialSchedules }: ExpectedScheduleListP
                   </select>
                   <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
-
-                {/* Refresh Action */}
-                <button
-                  type="button"
-                  onClick={loadData}
-                  className="h-10 w-10 flex items-center justify-center rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/50 shadow-xs transition-all"
-                  title="Refresh Data"
-                >
-                  <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin text-[#008F83]')} />
-                </button>
               </div>
             }
             rightToolbarContent={

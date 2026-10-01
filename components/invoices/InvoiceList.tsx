@@ -89,6 +89,8 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
     return hasMatchingCache ? cachedInvoices.data : [];
   });
   const [loading, setLoading] = useState(() => !initialInvoices && !hasMatchingCache);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
   const isInitialMount = React.useRef(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [includeIndependent, setIncludeIndependent] = useState(false);
@@ -144,22 +146,31 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
     return scopedInvoices.filter((inv) => inv.status === statusFilter);
   }, [scopedInvoices, statusFilter]);
 
-  const loadInvoices = async () => {
-    if (!hasMatchingCache) setLoading(true);
+  const loadInvoices = async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else if (!hasMatchingCache) {
+      setLoading(true);
+    }
     try {
       const res = await fetchInvoicesAction({
         limit: 150,
       });
       setInvoices(res.items);
       setCachedInvoices(res.items, activeWorkspaceId);
+      setLastRefreshedAt(new Date());
     } catch (err: any) {
       toast({
-        title: 'Error loading invoices',
-        description: err.message,
+        title: isManualRefresh ? 'Unable to refresh invoices' : 'Error loading invoices',
+        description: isManualRefresh ? 'Please try again.' : err.message,
         variant: 'destructive',
       });
     } finally {
-      setLoading(false);
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -791,6 +802,9 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
               rowData={displayedInvoices}
               columnDefs={agGridColumns}
               loading={loading}
+              onRefresh={() => loadInvoices(true)}
+              isRefreshing={isRefreshing}
+              lastRefreshedAt={lastRefreshedAt}
               labelSingular="invoice"
               labelPlural="invoices"
               enableSelection={true}

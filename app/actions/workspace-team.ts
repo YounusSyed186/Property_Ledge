@@ -8,6 +8,7 @@ import { requireAuthenticatedUser } from '@/lib/auth/authorization';
 import { ENTITLEMENT_KEYS } from '@/lib/entitlements/types';
 import { setActiveWorkspaceCookie } from '@/lib/auth/authorization';
 import { getAppBaseUrl } from '@/lib/routing/env';
+import { serverCache } from '@/lib/cache/server-cache';
 
 async function requireTeamManagement(workspaceId: string) {
   await authorizeOrThrow({
@@ -260,6 +261,8 @@ export async function addMemberByProfileId(workspaceId: string, publicId: string
     role_id: roleId,
   });
 
+  serverCache.invalidateWorkspace(workspaceId);
+  serverCache.invalidateUser(profile.id);
   revalidatePath('/dashboard/team');
   return {
     member_id: (member as { id: string }).id,
@@ -280,6 +283,7 @@ export async function changeMemberRole(workspaceId: string, memberId: string, ro
     { p_member_id: memberId, p_role_id: roleId } as never
   );
   if (error) throw new Error(error.message);
+  serverCache.invalidateWorkspace(workspaceId);
   revalidatePath('/dashboard/team');
 }
 
@@ -326,6 +330,8 @@ export async function removeMember(workspaceId: string, memberId: string) {
   );
 
   await logWorkspaceMemberActivity(workspaceId, user.id, 'member.removed', memberId);
+  serverCache.invalidateWorkspace(workspaceId);
+  serverCache.invalidateUser((member as { user_id: string }).user_id);
   revalidatePath('/dashboard/team');
 }
 
@@ -362,6 +368,8 @@ export async function suspendMember(workspaceId: string, memberId: string) {
   );
 
   await logWorkspaceMemberActivity(workspaceId, user.id, 'member.suspended', memberId);
+  serverCache.invalidateWorkspace(workspaceId);
+  serverCache.invalidateUser((member as { user_id: string }).user_id);
   revalidatePath('/dashboard/team');
 }
 

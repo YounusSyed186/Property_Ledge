@@ -1,43 +1,63 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ColDef } from 'ag-grid-community';
 import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
 import { History } from 'lucide-react';
+import { fetchAdminBillingEvents } from '@/app/actions/admin';
 
 interface AdminBillingEventsViewProps {
   initialEvents: any[];
 }
 
 export function AdminBillingEventsView({ initialEvents }: AdminBillingEventsViewProps) {
+  const [events, setEvents] = useState<any[]>(initialEvents);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const res = await fetchAdminBillingEvents({ page: 1, limit: 100 });
+      if (res && res.data) {
+        setEvents(res.data);
+      }
+      setLastRefreshedAt(new Date());
+    } catch (err) {
+      console.error('Failed to refresh billing events:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing]);
 
   const filterOptions: QuickFilterOption[] = useMemo(
     () => [
-      { value: 'all', label: 'All Events', count: initialEvents.length },
+      { value: 'all', label: 'All Events', count: events.length },
       {
         value: 'processed',
         label: 'Processed',
-        count: initialEvents.filter((e) => e.status === 'processed').length,
+        count: events.filter((e) => e.status === 'processed').length,
       },
       {
         value: 'received',
         label: 'Received',
-        count: initialEvents.filter((e) => e.status === 'received').length,
+        count: events.filter((e) => e.status === 'received').length,
       },
       {
         value: 'failed',
         label: 'Failed',
-        count: initialEvents.filter((e) => e.status === 'failed').length,
+        count: events.filter((e) => e.status === 'failed').length,
       },
     ],
-    [initialEvents]
+    [events]
   );
 
   const filteredEvents = useMemo(() => {
-    if (activeFilter === 'all') return initialEvents;
-    return initialEvents.filter((e) => e.status === activeFilter);
-  }, [initialEvents, activeFilter]);
+    if (activeFilter === 'all') return events;
+    return events.filter((e) => e.status === activeFilter);
+  }, [events, activeFilter]);
 
   const columnDefs: ColDef[] = useMemo(
     () => [
@@ -107,6 +127,9 @@ export function AdminBillingEventsView({ initialEvents }: AdminBillingEventsView
       emptyTitle="No billing events logged"
       emptyDescription="Billing webhook events will appear here as they are processed."
       emptyIcon={<History className="w-6 h-6" />}
+      onRefresh={handleRefresh}
+      isRefreshing={isRefreshing}
+      lastRefreshedAt={lastRefreshedAt}
     />
   );
 }

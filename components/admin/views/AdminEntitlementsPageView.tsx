@@ -10,7 +10,10 @@ import { CreateEntitlementDrawer } from '@/components/admin/entitlements/CreateE
 import { EntitlementDetailDrawer } from '@/components/admin/entitlements/EntitlementDetailDrawer';
 import { EditEntitlementDrawer } from '@/components/admin/entitlements/EditEntitlementDrawer';
 import { ImpactConfirmModal } from '@/components/admin/config';
-import { handleDeleteEntitlement } from '@/app/actions/admin-config';
+import {
+  handleDeleteEntitlement,
+  fetchAdminEntitlementsWithUsage,
+} from '@/app/actions/admin-config';
 import { getEntitlementKind } from '@/lib/entitlements/capability-catalog';
 import type { AdminEntitlementRow } from '@/lib/admin/types';
 
@@ -18,9 +21,27 @@ interface AdminEntitlementsPageViewProps {
   entitlements: AdminEntitlementRow[];
 }
 
-export function AdminEntitlementsPageView({ entitlements }: AdminEntitlementsPageViewProps) {
+export function AdminEntitlementsPageView({ entitlements: initialEntitlements }: AdminEntitlementsPageViewProps) {
   const router = useRouter();
   const { success: toastSuccess, error: toastError } = useToast();
+  const [entitlements, setEntitlements] = useState<AdminEntitlementRow[]>(initialEntitlements);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const fresh = await fetchAdminEntitlementsWithUsage();
+      setEntitlements(fresh as AdminEntitlementRow[]);
+      setLastRefreshedAt(new Date());
+    } catch (e) {
+      toastError('Could not refresh', e instanceof Error ? e.message : 'Refresh failed');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const [summaryFilter, setSummaryFilter] = useState('all');
   const [showHelp, setShowHelp] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -82,6 +103,9 @@ export function AdminEntitlementsPageView({ entitlements }: AdminEntitlementsPag
           onEdit={(row) => { setViewRow(null); setEditRow(row); }}
           onDelete={setDeleteRow}
           onCreateClick={() => setShowCreate(true)}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          lastRefreshedAt={lastRefreshedAt}
         />
       </div>
 

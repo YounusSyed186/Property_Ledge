@@ -97,17 +97,30 @@ export async function requireWorkspacePermission(workspaceId: string, permission
   return user;
 }
 
+import { serverCache } from '@/lib/cache/server-cache';
+
 export const getEffectiveWorkspacePermissions = cache(async function getEffectiveWorkspacePermissions(
   workspaceId: string,
   userId?: string
 ): Promise<string[]> {
+  const effectiveUserId = userId ?? (await getCurrentUser())?.id;
+  if (!effectiveUserId) return [];
+
+  const cacheKey = `workspace:${workspaceId}:user:${effectiveUserId}:permissions`;
+  const cached = serverCache.get<string[]>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.rpc(
     'get_effective_workspace_permissions' as never,
-    { p_workspace_id: workspaceId, p_user_id: userId ?? null } as never
+    { p_workspace_id: workspaceId, p_user_id: effectiveUserId } as never
   );
   if (error || !data) return [];
-  return data as string[];
+  const result = data as string[];
+  serverCache.set(cacheKey, result, 30_000); // 30s TTL
+  return result;
 });
 
 export const getActiveWorkspaceId = cache(async function getActiveWorkspaceId(): Promise<string | null> {

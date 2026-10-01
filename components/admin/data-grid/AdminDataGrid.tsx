@@ -76,6 +76,10 @@ export interface AdminDataGridProps<TData = any> {
   isExpanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
   defaultExpanded?: boolean;
+  onRefresh?: () => Promise<void> | void;
+  isRefreshing?: boolean;
+  lastRefreshedAt?: Date | null;
+  refreshLabel?: string;
 }
 
 export function AdminDataGrid<TData = any>({
@@ -113,6 +117,10 @@ export function AdminDataGrid<TData = any>({
   isExpanded: propIsExpanded,
   onExpandedChange,
   defaultExpanded = true,
+  onRefresh,
+  isRefreshing,
+  lastRefreshedAt,
+  refreshLabel,
 }: AdminDataGridProps<TData>) {
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
   const [searchValue, setSearchValue] = useState('');
@@ -418,6 +426,10 @@ export function AdminDataGrid<TData = any>({
     isExpanded,
     onToggleExpand: handleToggleExpand,
     loading: isLoadingState,
+    onRefresh,
+    isRefreshing,
+    lastRefreshedAt,
+    refreshLabel,
   };
 
   return (

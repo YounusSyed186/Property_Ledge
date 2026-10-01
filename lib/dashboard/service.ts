@@ -2,6 +2,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { requireAuthenticatedUser, requirePropertyPermission } from './authorization';
 import { createServerServices } from '@/composition/services';
 import type { Database } from '@/types/database';
+import { serverCache } from '@/lib/cache/server-cache';
 
 type Tables = Database['public']['Tables'];
 
@@ -119,11 +120,14 @@ export async function createProperty(input: Tables['properties']['Insert']) {
   if (error) throw new Error(error.message);
   const row = data as { id: string };
   await recordActivityLog({ propertyId: row.id, action: 'created', entityType: 'property', entityId: row.id });
+  serverCache.invalidateUser(user.id);
+  serverCache.invalidateWorkspace(workspaceId);
   return data;
 }
 
 export async function updateProperty(propertyId: string, input: Tables['properties']['Update']) {
   await requirePropertyPermission(propertyId, 'property.update');
+  const user = await requireAuthenticatedUser();
   const adminClient = await createAdminClient();
 
   const addressStr = (input as Record<string, unknown>).address as string || input.address_line_1;
@@ -154,11 +158,13 @@ export async function updateProperty(propertyId: string, input: Tables['properti
     .single();
   if (error) throw new Error(error.message);
   await recordActivityLog({ propertyId, action: 'updated', entityType: 'property', entityId: propertyId });
+  serverCache.invalidateUser(user.id);
   return data;
 }
 
 export async function deleteProperty(propertyId: string) {
   await requirePropertyPermission(propertyId, 'property.delete');
+  const user = await requireAuthenticatedUser();
   const adminClient = await createAdminClient();
 
   try {
@@ -186,6 +192,7 @@ export async function deleteProperty(propertyId: string) {
 
   const { error } = await adminClient.from('properties').delete().eq('id', propertyId);
   if (error) throw new Error(error.message);
+  serverCache.invalidateUser(user.id);
 }
 
 // Units (Deprecated in Standalone Property Model)

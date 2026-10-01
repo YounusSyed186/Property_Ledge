@@ -1,44 +1,64 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ColDef } from 'ag-grid-community';
 import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
 import { Badge } from '@/components/admin/ui';
 import { ShieldCheck } from 'lucide-react';
+import { fetchAdminAuditLogs } from '@/app/actions/admin';
 
 interface AdminAuditLogsViewProps {
   initialLogs: any[];
 }
 
 export function AdminAuditLogsView({ initialLogs }: AdminAuditLogsViewProps) {
+  const [logs, setLogs] = useState<any[]>(initialLogs);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const res = await fetchAdminAuditLogs({ page: 1, limit: 100 });
+      if (res && res.data) {
+        setLogs(res.data);
+      }
+      setLastRefreshedAt(new Date());
+    } catch (err) {
+      console.error('Failed to refresh audit logs:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing]);
 
   const filterOptions: QuickFilterOption[] = useMemo(
     () => [
-      { value: 'all', label: 'All Actions', count: initialLogs.length },
+      { value: 'all', label: 'All Actions', count: logs.length },
       {
         value: 'CREATED',
         label: 'Created',
-        count: initialLogs.filter((l) => l.action?.includes('CREATED')).length,
+        count: logs.filter((l) => l.action?.includes('CREATED')).length,
       },
       {
         value: 'UPDATED',
         label: 'Updated',
-        count: initialLogs.filter((l) => l.action?.includes('UPDATED')).length,
+        count: logs.filter((l) => l.action?.includes('UPDATED')).length,
       },
       {
         value: 'DELETED',
         label: 'Deleted / Removed',
-        count: initialLogs.filter((l) => l.action?.includes('DELETED') || l.action?.includes('REMOVED')).length,
+        count: logs.filter((l) => l.action?.includes('DELETED') || l.action?.includes('REMOVED')).length,
       },
     ],
-    [initialLogs]
+    [logs]
   );
 
   const filteredLogs = useMemo(() => {
-    if (activeFilter === 'all') return initialLogs;
-    return initialLogs.filter((l) => l.action?.includes(activeFilter));
-  }, [initialLogs, activeFilter]);
+    if (activeFilter === 'all') return logs;
+    return logs.filter((l) => l.action?.includes(activeFilter));
+  }, [logs, activeFilter]);
 
   const columnDefs: ColDef[] = useMemo(
     () => [
@@ -135,6 +155,9 @@ export function AdminAuditLogsView({ initialLogs }: AdminAuditLogsViewProps) {
       emptyTitle="No audit logs recorded"
       emptyDescription="Administrative actions will appear here in chronological order."
       emptyIcon={<ShieldCheck className="w-6 h-6" />}
+      onRefresh={handleRefresh}
+      isRefreshing={isRefreshing}
+      lastRefreshedAt={lastRefreshedAt}
     />
   );
 }

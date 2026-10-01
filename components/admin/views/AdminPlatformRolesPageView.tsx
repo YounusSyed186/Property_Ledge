@@ -11,6 +11,7 @@ import { PlatformRoleBuilderDrawer } from '@/components/admin/platform-roles/Pla
 import { CrossRolePermissionMatrix } from '@/components/rbac/CrossRolePermissionMatrix';
 import {
   handleDeletePlatformRole,
+  fetchAdminPlatformRoles,
   fetchAdminPlatformRolesMatrixData,
   handleBatchUpdatePlatformRolePermissions,
 } from '@/app/actions/admin-config';
@@ -21,9 +22,27 @@ interface AdminPlatformRolesPageViewProps {
   roles: AdminPlatformRoleRow[];
 }
 
-export function AdminPlatformRolesPageView({ roles }: AdminPlatformRolesPageViewProps) {
+export function AdminPlatformRolesPageView({ roles: initialRoles }: AdminPlatformRolesPageViewProps) {
   const router = useRouter();
   const { success: toastSuccess, error: toastError } = useToast();
+  const [roles, setRoles] = useState<AdminPlatformRoleRow[]>(initialRoles);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const fresh = await fetchAdminPlatformRoles();
+      setRoles(fresh as AdminPlatformRoleRow[]);
+      setLastRefreshedAt(new Date());
+    } catch (e) {
+      toastError('Could not refresh', e instanceof Error ? e.message : 'Refresh failed');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing, toastError]);
+
   const [activeTab, setActiveTab] = useState<'list' | 'matrix'>('list');
   const [showHelp, setShowHelp] = useState(false);
   const [builderRole, setBuilderRole] = useState<AdminPlatformRoleRow | null | undefined>(undefined);
@@ -157,6 +176,9 @@ export function AdminPlatformRolesPageView({ roles }: AdminPlatformRolesPageView
               onView={setViewRole}
               onEdit={(r) => { setViewRole(null); setBuilderRole(r); }}
               onDelete={setDeleteRole}
+              onRefresh={handleRefresh}
+              isRefreshing={isRefreshing}
+              lastRefreshedAt={lastRefreshedAt}
             />
           </div>
         </>

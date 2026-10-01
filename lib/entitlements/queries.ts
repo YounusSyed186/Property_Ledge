@@ -31,37 +31,71 @@ export function sanitizeEntitlementValue(rawVal: unknown, valueType: 'boolean' |
   return String(rawVal);
 }
 
+import { serverCache } from '@/lib/cache/server-cache';
+
 export const getEntitlements = cache(async function getEntitlements(accountId: string): Promise<EntitlementMap> {
   const maskedId = accountId ? `${accountId.slice(0, 8)}...` : 'unknown';
-  logAuthEvent('ENTITLEMENTS_LOAD_STARTED', { accountId: maskedId });
+  const cacheKey = `account:${accountId}:entitlements`;
+  const cached = serverCache.get<EntitlementMap>(cacheKey);
+  if (cached !== undefined) {
+    logAuthEvent('ENTITLEMENTS_LOAD_SUCCESS', {
+      accountId: maskedId,
+      count: Object.keys(cached).length,
+      cacheHit: true,
+      duration: '0ms',
+    });
+    return cached;
+  }
+
+  const startTime = Date.now();
+  logAuthEvent('ENTITLEMENTS_LOAD_STARTED', { accountId: maskedId, cacheHit: false });
   try {
     const sub = await getSubscription(accountId);
     if (!sub || !isSubscriptionActive(sub.status)) {
-      logAuthEvent('ENTITLEMENTS_LOAD_SUCCESS', { accountId: maskedId, count: 0, reason: 'inactive_or_missing_sub' });
+      serverCache.set(cacheKey, {}, 120_000);
+      logAuthEvent('ENTITLEMENTS_LOAD_SUCCESS', {
+        accountId: maskedId,
+        count: 0,
+        reason: 'inactive_or_missing_sub',
+        cacheHit: false,
+        duration: `${Date.now() - startTime}ms`,
+      });
       return {};
     }
 
-    const supabase = await createClient();
-    const { data: planEntitlements, error } = await (supabase as any)
-      .from('plan_entitlements')
-      .select('value, entitlements(key, value_type)')
-      .eq('plan_id', sub.plan_id);
+    const planCacheKey = `plan:${sub.plan_id}:entitlements`;
+    let map = serverCache.get<EntitlementMap>(planCacheKey);
 
-    if (error || !planEntitlements) {
-      logAuthEvent('ENTITLEMENTS_LOAD_FAILED', { accountId: maskedId, error: error?.message });
-      return {};
-    }
+    if (!map) {
+      const supabase = await createClient();
+      const { data: planEntitlements, error } = await (supabase as any)
+        .from('plan_entitlements')
+        .select('value, entitlements(key, value_type)')
+        .eq('plan_id', sub.plan_id);
 
-    const map: EntitlementMap = {};
-
-    for (const item of planEntitlements) {
-      const ent = item.entitlements;
-      if (ent && ent.key) {
-        map[ent.key] = sanitizeEntitlementValue(item.value, ent.value_type);
+      if (error || !planEntitlements) {
+        logAuthEvent('ENTITLEMENTS_LOAD_FAILED', { accountId: maskedId, error: error?.message });
+        return {};
       }
+
+      map = {};
+      for (const item of planEntitlements) {
+        const ent = item.entitlements;
+        if (ent && ent.key) {
+          map[ent.key] = sanitizeEntitlementValue(item.value, ent.value_type);
+        }
+      }
+      serverCache.set(planCacheKey, map, 300_000); // 300s TTL for static plan definitions
     }
 
-    logAuthEvent('ENTITLEMENTS_LOAD_SUCCESS', { accountId: maskedId, count: Object.keys(map).length });
+    serverCache.set(cacheKey, map, 120_000); // 120s TTL for account-specific entitlements
+
+    logAuthEvent('ENTITLEMENTS_LOAD_SUCCESS', {
+      accountId: maskedId,
+      count: Object.keys(map).length,
+      cacheHit: false,
+      duration: `${Date.now() - startTime}ms`,
+    });
     return map;
   } catch (err) {
     logAuthEvent('ENTITLEMENTS_LOAD_FAILED', { accountId: maskedId, err });

@@ -12,6 +12,9 @@ interface AdminPlatformRolesGridViewProps {
   onView: (row: AdminPlatformRoleRow) => void;
   onEdit: (row: AdminPlatformRoleRow) => void;
   onDelete: (row: AdminPlatformRoleRow) => void;
+  onRefresh?: () => void | Promise<void>;
+  isRefreshing?: boolean;
+  lastRefreshedAt?: Date | null;
 }
 
 export function AdminPlatformRolesGridView({
@@ -19,6 +22,9 @@ export function AdminPlatformRolesGridView({
   onView,
   onEdit,
   onDelete,
+  onRefresh,
+  isRefreshing,
+  lastRefreshedAt,
 }: AdminPlatformRolesGridViewProps) {
   const columnDefs: ColDef[] = useMemo(
     () => [
@@ -110,6 +116,9 @@ export function AdminPlatformRolesGridView({
       emptyTitle="No platform roles"
       emptyDescription="Create a platform role to manage administrator access."
       emptyIcon={<Shield className="w-6 h-6" />}
+      onRefresh={onRefresh}
+      isRefreshing={isRefreshing}
+      lastRefreshedAt={lastRefreshedAt}
     />
   );
 }

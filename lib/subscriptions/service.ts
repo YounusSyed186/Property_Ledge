@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/auth/queries';
 import { Subscription, SubscriptionStatus } from '@/types/subscriptions';
+import { serverCache } from '@/lib/cache/server-cache';
 
 async function assertCanManageSubscription(
   accountId: string,
@@ -72,6 +73,7 @@ export async function createSubscription(
     throw new Error(`Failed to create subscription: ${error.message}`);
   }
 
+  serverCache.invalidateAccount(accountId);
   return data;
 }
 
@@ -108,6 +110,7 @@ export async function updateSubscription(
     throw new Error(`Failed to update subscription: ${error.message}`);
   }
 
+  serverCache.invalidateAccount(row.account_id);
   return data;
 }
 
@@ -161,5 +164,6 @@ export async function createTrialSubscription(
     throw new Error(`Failed to create trial subscription: ${error.message}`);
   }
 
+  serverCache.invalidateAccount(accountId);
   return data;
 }

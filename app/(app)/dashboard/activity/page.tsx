@@ -111,6 +111,7 @@ export default function ActivityPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<EntityFilter>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
 
   const loadActivity = async () => {
     setIsLoading(true);
@@ -125,6 +126,7 @@ export default function ActivityPage() {
         };
       });
       setRows(formatted);
+      setLastRefreshedAt(new Date());
     } catch (err) {
       console.error('Failed to load activity logs:', err);
     } finally {
@@ -293,6 +295,9 @@ export default function ActivityPage() {
             rowData={filteredRows}
             columnDefs={columns}
             loading={isLoading}
+            onRefresh={handleRefresh}
+            isRefreshing={isRefreshing}
+            lastRefreshedAt={lastRefreshedAt}
             labelSingular="event"
             labelPlural="events"
             searchPlaceholder="Filter rows in view..."

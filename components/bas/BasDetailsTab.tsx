@@ -19,12 +19,16 @@ interface BasDetailsTabProps {
   transactions: BasTransactionDTO[];
   periodLabel: string;
   initialTypeFilter?: 'income' | 'expense' | 'all';
+  onRefresh?: () => Promise<void> | void;
+  isRefreshing?: boolean;
 }
 
 export function BasDetailsTab({
   transactions,
   periodLabel,
   initialTypeFilter = 'all',
+  onRefresh,
+  isRefreshing,
 }: BasDetailsTabProps) {
   const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>(initialTypeFilter);
   const [selectedClassification, setSelectedClassification] = useState<string>('all');
@@ -235,6 +239,8 @@ export function BasDetailsTab({
         <AdminDataGrid
           rowData={filteredTransactions}
           columnDefs={columnDefs}
+          onRefresh={onRefresh}
+          isRefreshing={isRefreshing}
           getRowId={(p) => p.data.id}
           enableColumnChooser
           enableExport

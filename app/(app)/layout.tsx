@@ -21,7 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const [workspaceContext, personaContext, profile, userWorkspaces, initialProperties, accountCtx] = await Promise.all([
-    resolveWorkspaceContext(activeWsId),
+    resolveWorkspaceContext(),
     getPersonaForUser(user.id),
     getUserProfile(user.id),
     getUserWorkspaces(user.id),

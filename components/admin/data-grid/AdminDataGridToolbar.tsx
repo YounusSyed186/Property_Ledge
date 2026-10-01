@@ -6,6 +6,8 @@ import { Button } from '@/components/admin/ui';
 import { GridApi } from 'ag-grid-community';
 import { cn } from '@/lib/utils';
 
+import { GridRefreshButton } from './GridRefreshButton';
+
 export interface ColumnItem {
   colId: string;
   headerName: string;
@@ -41,6 +43,10 @@ interface AdminDataGridToolbarProps {
   isExpanded?: boolean;
   onToggleExpand?: () => void;
   loading?: boolean;
+  onRefresh?: () => Promise<void> | void;
+  isRefreshing?: boolean;
+  lastRefreshedAt?: Date | null;
+  refreshLabel?: string;
 }
 
 export type { AdminDataGridToolbarProps };
@@ -66,6 +72,10 @@ export function AdminDataGridToolbar({
   isExpanded = true,
   onToggleExpand,
   loading = false,
+  onRefresh,
+  isRefreshing,
+  lastRefreshedAt,
+  refreshLabel,
 }: AdminDataGridToolbarProps) {
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
   const [columns, setColumns] = useState<ColumnItem[]>([]);
@@ -218,6 +228,17 @@ export function AdminDataGridToolbar({
           {/* Right: Dropdown Filters, Columns & Export (Modelled after reference mockup) */}
           <div className="flex flex-wrap items-center gap-2 shrink-0 self-start sm:self-center">
             {rightContent}
+
+            {/* Refresh Button */}
+            {onRefresh && (
+              <GridRefreshButton
+                onRefresh={onRefresh}
+                isRefreshing={isRefreshing}
+                lastRefreshedAt={lastRefreshedAt}
+                label={refreshLabel}
+                showLastUpdated={!compact}
+              />
+            )}
 
             {/* Column Visibility Menu */}
             {enableColumnChooser && (

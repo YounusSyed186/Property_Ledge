@@ -20,10 +20,16 @@ export default function AdminPaymentsPage() {
   const [drawerData, setDrawerData] = useState<any>(null);
   const [paymentsList, setPaymentsList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
   const { success } = useToast();
 
-  const loadPayments = async () => {
-    setIsLoading(true);
+  const loadPayments = async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     try {
       const res = await fetchAdminPayments({ limit: 100 });
       if (res && Array.isArray(res.data) && res.data.length > 0) {
@@ -41,14 +47,19 @@ export default function AdminPaymentsPage() {
           created_at: p.created_at,
         }));
         setPaymentsList(formatted);
-        return;
+      } else {
+        setPaymentsList([]);
       }
-      setPaymentsList([]);
+      setLastRefreshedAt(new Date());
     } catch (err) {
       console.warn('Failed to load server payments:', err);
       setPaymentsList([]);
     } finally {
-      setIsLoading(false);
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -200,6 +211,10 @@ export default function AdminPaymentsPage() {
       <AdminDataGrid
         rowData={filteredPayments}
         columnDefs={columnDefs}
+        loading={isLoading}
+        onRefresh={() => loadPayments(true)}
+        isRefreshing={isRefreshing}
+        lastRefreshedAt={lastRefreshedAt}
         enableSelection={true}
         enableColumnChooser={true}
         enableExport={true}

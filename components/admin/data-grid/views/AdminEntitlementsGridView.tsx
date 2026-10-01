@@ -22,6 +22,9 @@ interface AdminEntitlementsGridViewProps {
   onCreateClick?: () => void;
   summaryFilter?: string;
   onSummaryFilterChange?: (filter: string) => void;
+  onRefresh?: () => void | Promise<void>;
+  isRefreshing?: boolean;
+  lastRefreshedAt?: Date | null;
 }
 
 export function AdminEntitlementsGridView({
@@ -32,6 +35,9 @@ export function AdminEntitlementsGridView({
   onCreateClick,
   summaryFilter = 'all',
   onSummaryFilterChange,
+  onRefresh,
+  isRefreshing,
+  lastRefreshedAt,
 }: AdminEntitlementsGridViewProps) {
   const [activeFilter, setActiveFilter] = useState('all');
 
@@ -190,6 +196,9 @@ export function AdminEntitlementsGridView({
       emptyTitle="No entitlements found"
       emptyDescription="Try another search or clear your filters."
       emptyIcon={<Key className="w-6 h-6" />}
+      onRefresh={onRefresh}
+      isRefreshing={isRefreshing}
+      lastRefreshedAt={lastRefreshedAt}
     />
   );
 }
