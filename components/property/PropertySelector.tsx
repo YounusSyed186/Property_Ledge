@@ -59,8 +59,8 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
 
   const isNavbar = variant === 'navbar';
   const triggerClass = isNavbar
-    ? 'flex h-10 items-center gap-2.5 rounded-xl border border-admin-sidebar-border bg-[#071526] px-3 text-[13.5px] font-medium text-admin-sidebar-foreground transition-all hover:bg-[#0E1E33] hover:border-[#008F83]/50 focus:outline-none focus:ring-2 focus:ring-[#008F83]/30 cursor-pointer shadow-xs'
-    : 'flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-border bg-background hover:bg-muted transition-colors min-w-[220px] max-w-[320px] cursor-pointer';
+    ? 'flex h-10 items-center gap-2.5 rounded-xl border border-admin-sidebar-border bg-admin-sidebar-surface px-3 text-[13.5px] font-medium text-admin-sidebar-foreground transition-all hover:bg-admin-sidebar-hover hover:border-admin-primary/40 focus:outline-none focus:ring-2 focus:ring-admin-primary/30 cursor-pointer shadow-xs'
+    : 'flex items-center gap-2.5 px-3.5 py-2 rounded-xl border border-border bg-surface text-foreground hover:bg-surface-subtle transition-colors min-w-[200px] max-w-[320px] cursor-pointer shadow-2xs';
 
   const handleSelectAll = () => {
     setSelectedProperty(null);
@@ -93,15 +93,15 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#32D5C4] bg-[#008F83]/20 px-1.5 py-0.5 rounded border border-[#008F83]/30 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-admin-teal bg-admin-teal-soft px-1.5 py-0.5 rounded border border-admin-primary/25 shrink-0">
             Property
           </span>
-          <span className="max-w-[160px] sm:max-w-[220px] truncate text-left font-semibold text-white" data-testid="current-property">
+          <span className="max-w-[150px] sm:max-w-[210px] truncate text-left font-semibold text-admin-sidebar-foreground" data-testid="current-property">
             {selectedProperty ? selectedProperty.propertyName : 'All Properties'}
           </span>
         </div>
-        <ChevronsUpDown className="h-4 w-4 shrink-0 text-[#94A3B8] ml-0.5" />
+        <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-admin-sidebar-muted ml-0.5 opacity-70" />
       </button>
 
       {isOpen && (

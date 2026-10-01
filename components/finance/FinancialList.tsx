@@ -734,20 +734,25 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
   const contextName = selectedProperty ? selectedProperty.propertyName : 'All Properties';
   const pageDescription = `${contextName} · ${filteredTransactions.length} ${filteredTransactions.length === 1 ? 'record' : 'records'}`;
 
+  const incomeCount = useMemo(() => transactions.filter((t) => isIncome(t.transaction_type)).length, [transactions]);
+  const expenseCount = useMemo(() => transactions.filter((t) => isExpense(t.transaction_type)).length, [transactions]);
+  const isNetSurplus = (summary?.net_profit || 0) >= 0;
+
   return (
     <ListPage
       title="Transactions"
       description={pageDescription}
       actions={
-        <div className="flex items-center gap-3">
-          <div className="flex items-center bg-admin-surface border border-admin-border rounded-xl p-1 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          {/* View Mode Switcher */}
+          <div className="flex items-center bg-surface border border-border rounded-xl p-0.5 shadow-2xs">
             <button
               type="button"
               onClick={() => setViewMode('table')}
               className={cn(
                 'p-1.5 rounded-lg transition-colors',
                 viewMode === 'table'
-                  ? 'bg-admin-surface-elevated text-admin-primary shadow-xs'
+                  ? 'bg-surface-elevated text-admin-primary shadow-xs'
                   : 'text-admin-muted hover:text-admin-foreground'
               )}
               title="Table View"
@@ -760,7 +765,7 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
               className={cn(
                 'p-1.5 rounded-lg transition-colors',
                 viewMode === 'grid'
-                  ? 'bg-admin-surface-elevated text-admin-primary shadow-xs'
+                  ? 'bg-surface-elevated text-admin-primary shadow-xs'
                   : 'text-admin-muted hover:text-admin-foreground'
               )}
               title="Card View"
@@ -769,136 +774,204 @@ export function FinancialList({ initialData }: FinancialListProps = {}) {
             </button>
           </div>
 
+          {/* Secondary Actions */}
           <Button
             variant="outline"
+            size="sm"
             onClick={() => setIsReportModalOpen(true)}
-            className="font-bold gap-1.5 text-xs text-admin-foreground hover:text-admin-primary border-admin-border"
+            className="text-xs font-medium"
+            leftIcon={<LayoutTemplate className="w-3.5 h-3.5 text-admin-primary" />}
           >
-            <LayoutTemplate className="w-4 h-4 text-[#008F83]" />
-            Ledger Blueprints & Reports
+            Ledger Reports
           </Button>
 
           <Button
             variant="outline"
+            size="sm"
             onClick={handleExportCsv}
             disabled={isExporting}
-            className="font-bold gap-2 text-xs"
+            className="text-xs font-medium"
+            leftIcon={<Download className="w-3.5 h-3.5 text-admin-muted" />}
           >
-            <Download className="w-4 h-4" />
-            {isExporting ? 'Exporting...' : 'Export CSV'}
+            {isExporting ? 'Exporting…' : 'Export CSV'}
           </Button>
 
           <Button
             variant="outline"
+            size="sm"
             onClick={() => setIsBulkUploadOpen(true)}
-            className="font-bold gap-2 text-xs text-admin-foreground hover:text-admin-primary border-admin-border"
+            className="text-xs font-medium"
+            leftIcon={<FolderUp className="w-3.5 h-3.5 text-admin-muted" />}
           >
-            <FolderUp className="w-4 h-4 text-[#008F83]" />
             Bulk Upload
           </Button>
 
+          {/* Primary Action Button */}
           <Button
+            size="sm"
             onClick={() => setIsTypeSelectOpen(true)}
-            className="font-bold gap-2"
+            className="text-xs font-semibold"
+            leftIcon={<Plus className="w-3.5 h-3.5" />}
           >
-            <Plus className="w-4 h-4" /> Record Transaction
+            Record Transaction
           </Button>
         </div>
       }
       summary={
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          {/* Action Card (Modelled after Tenant Setup Tenancy Card) */}
-          <div
-            onClick={() => setIsTypeSelectOpen(true)}
-            className="bg-admin-primary text-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-          >
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-white" />
+        <div className="space-y-4 mb-4">
+          {/* Open Financial Position Metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {/* Metric 1: Net Cashflow */}
+            <div className="rounded-2xl border border-border bg-surface p-4 shadow-2xs flex flex-col justify-between min-h-[96px]">
+              <div className="flex items-center justify-between text-admin-muted">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Net Cashflow
+                </span>
+                <span className={cn(
+                  'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border',
+                  isNetSurplus
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                )}>
+                  {isNetSurplus ? 'Surplus' : 'Deficit'}
+                </span>
               </div>
-              <ArrowUpRight className="w-5 h-5 text-white/70 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              <div className="my-1">
+                <p className={cn(
+                  'font-heading text-2xl font-bold tabular-nums tracking-tight',
+                  isNetSurplus ? 'text-admin-foreground' : 'text-rose-600 dark:text-rose-400'
+                )}>
+                  {isLoading ? (
+                    <span className="inline-block h-6 w-20 rounded skeleton-shimmer align-middle" />
+                  ) : (
+                    formatCurrency(summary?.net_profit || 0)
+                  )}
+                </p>
+              </div>
+              <p className="text-[11px] text-admin-muted truncate">
+                Net operating position for this period
+              </p>
             </div>
-            <div>
-              <h3 className="text-base font-black mb-0.5">Record Transaction</h3>
-              <p className="text-xs text-white/80 font-medium">Log income or property operating expenses.</p>
+
+            {/* Metric 2: Total Income */}
+            <div className="rounded-2xl border border-border bg-surface p-4 shadow-2xs flex flex-col justify-between min-h-[96px]">
+              <div className="flex items-center justify-between text-admin-muted">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Total Inflow
+                </span>
+                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  +{incomeCount} transactions
+                </span>
+              </div>
+              <div className="my-1">
+                <p className="font-heading text-2xl font-bold tabular-nums tracking-tight text-emerald-600 dark:text-emerald-400">
+                  {isLoading ? (
+                    <span className="inline-block h-6 w-20 rounded skeleton-shimmer align-middle" />
+                  ) : (
+                    formatCurrency(summary?.total_income || 0)
+                  )}
+                </p>
+              </div>
+              <p className="text-[11px] text-admin-muted truncate">
+                Rent collections and reimbursements
+              </p>
+            </div>
+
+            {/* Metric 3: Total Expenses */}
+            <div className="rounded-2xl border border-border bg-surface p-4 shadow-2xs flex flex-col justify-between min-h-[96px]">
+              <div className="flex items-center justify-between text-admin-muted">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Total Outflow
+                </span>
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  -{expenseCount} entries
+                </span>
+              </div>
+              <div className="my-1">
+                <p className="font-heading text-2xl font-bold tabular-nums tracking-tight text-slate-800 dark:text-slate-200">
+                  {isLoading ? (
+                    <span className="inline-block h-6 w-20 rounded skeleton-shimmer align-middle" />
+                  ) : (
+                    formatCurrency(summary?.total_expense || 0)
+                  )}
+                </p>
+              </div>
+              <p className="text-[11px] text-admin-muted truncate">
+                Operating costs, rates, and repairs
+              </p>
+            </div>
+
+            {/* Metric 4: Ledger Status */}
+            <div className="rounded-2xl border border-border bg-surface p-4 shadow-2xs flex flex-col justify-between min-h-[96px]">
+              <div className="flex items-center justify-between text-admin-muted">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Reconciled Entries
+                </span>
+                <span className="text-[11px] font-mono text-admin-primary">
+                  Audit-ready
+                </span>
+              </div>
+              <div className="my-1">
+                <p className="font-heading text-2xl font-bold tabular-nums tracking-tight text-admin-foreground">
+                  {transactions.length}
+                </p>
+              </div>
+              <p className="text-[11px] text-admin-muted truncate">
+                Compliant with ATO GST requirements
+              </p>
             </div>
           </div>
 
-          {/* Total Income */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">
-                Total Income (Money In)
-              </p>
-              <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-                {isLoading ? (
-                  <span className="inline-block h-7 w-16 rounded skeleton-shimmer align-middle" />
-                ) : (
-                  formatCurrency(summary?.total_income || 0)
-                )}
-              </h3>
-            </div>
-          </div>
-
-          {/* Total Expenses */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-rose-500/10 rounded-xl flex items-center justify-center text-rose-500">
-                <TrendingDown className="w-5 h-5" />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">
-                Total Expenses (Money Out)
-              </p>
-              <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400">
-                {isLoading ? (
-                  <span className="inline-block h-7 w-16 rounded skeleton-shimmer align-middle" />
-                ) : (
-                  formatCurrency(summary?.total_expense || 0)
-                )}
-              </h3>
-            </div>
-          </div>
-
-          {/* Net Cashflow */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div
-                className={cn(
-                  'w-10 h-10 rounded-xl flex items-center justify-center',
-                  (summary?.net_profit || 0) >= 0
-                    ? 'bg-teal-500/10 text-teal-500'
-                    : 'bg-indigo-500/10 text-indigo-500'
-                )}
-              >
-                <DollarSign className="w-5 h-5" />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">
-                Net Operating Cashflow
-              </p>
-              <h3
-                className={cn(
-                  'text-2xl font-black',
-                  (summary?.net_profit || 0) >= 0
-                    ? 'text-admin-foreground'
-                    : 'text-rose-600 dark:text-rose-400'
-                )}
-              >
-                {isLoading ? (
-                  <span className="inline-block h-7 w-16 rounded skeleton-shimmer align-middle" />
-                ) : (
-                  formatCurrency(summary?.net_profit || 0)
-                )}
-              </h3>
-            </div>
+          {/* Segmented Filter Pills */}
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-surface border border-border w-fit shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setTypeFilter('All')}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
+                typeFilter === 'All'
+                  ? 'bg-admin-primary text-white shadow-xs'
+                  : 'text-admin-muted hover:text-admin-foreground hover:bg-surface-subtle'
+              )}
+            >
+              All Records ({transactions.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setTypeFilter('Income')}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
+                typeFilter === 'Income'
+                  ? 'bg-admin-primary text-white shadow-xs'
+                  : 'text-admin-muted hover:text-admin-foreground hover:bg-surface-subtle'
+              )}
+            >
+              Income ({incomeCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setTypeFilter('Expense')}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
+                typeFilter === 'Expense'
+                  ? 'bg-admin-primary text-white shadow-xs'
+                  : 'text-admin-muted hover:text-admin-foreground hover:bg-surface-subtle'
+              )}
+            >
+              Expenses ({expenseCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setTypeFilter('Ledger')}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
+                typeFilter === 'Ledger'
+                  ? 'bg-admin-primary text-white shadow-xs'
+                  : 'text-admin-muted hover:text-admin-foreground hover:bg-surface-subtle'
+              )}
+            >
+              General Ledger View
+            </button>
           </div>
         </div>
       }

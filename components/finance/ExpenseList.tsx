@@ -279,7 +279,7 @@ export function ExpenseList({ initialExpenses, initialCategories }: ExpenseListP
     const operatingExpenses = totalExpenses - capitalG10;
     const transactionCount = filteredExpenses.length;
 
-    return { totalExpenses, totalGst, capitalG10, operatingExpenses, transactionCount };
+    return { totalExpenses, totalGst, capitalG10, operatingExpenses, nonCapitalG11: operatingExpenses, transactionCount };
   }, [filteredExpenses]);
 
   // AG-Grid Column Definitions
@@ -503,16 +503,16 @@ export function ExpenseList({ initialExpenses, initialCategories }: ExpenseListP
       description={pageDescription}
       breadcrumb={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Expenses' }]}
       actions={
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-2.5">
           {/* View Mode Switcher */}
-          <div className="flex items-center bg-admin-surface border border-admin-border rounded-xl p-1 shadow-xs">
+          <div className="flex items-center bg-surface border border-border rounded-xl p-0.5 shadow-2xs">
             <button
               type="button"
               onClick={() => setViewMode('table')}
               className={cn(
                 'p-1.5 rounded-lg transition-colors',
                 viewMode === 'table'
-                  ? 'bg-admin-surface-elevated text-admin-primary shadow-xs'
+                  ? 'bg-surface-elevated text-admin-primary shadow-xs'
                   : 'text-admin-muted hover:text-admin-foreground'
               )}
               title="Table View"
@@ -525,7 +525,7 @@ export function ExpenseList({ initialExpenses, initialCategories }: ExpenseListP
               className={cn(
                 'p-1.5 rounded-lg transition-colors',
                 viewMode === 'grid'
-                  ? 'bg-admin-surface-elevated text-admin-primary shadow-xs'
+                  ? 'bg-surface-elevated text-admin-primary shadow-xs'
                   : 'text-admin-muted hover:text-admin-foreground'
               )}
               title="Card View"
@@ -538,109 +538,125 @@ export function ExpenseList({ initialExpenses, initialCategories }: ExpenseListP
           <Button
             type="button"
             variant="outline"
+            size="sm"
             onClick={() => setIsBulkUploadOpen(true)}
-            className="font-bold gap-2 text-xs text-admin-foreground hover:text-admin-primary border-admin-border"
+            className="text-xs font-medium"
+            leftIcon={<FolderUp className="w-3.5 h-3.5 text-admin-muted" />}
           >
-            <FolderUp className="w-4 h-4 text-[#008F83]" />
             Bulk Upload
           </Button>
 
           {/* Record Expense Primary Button */}
           <Button
             type="button"
+            size="sm"
             onClick={() => {
               setExpenseToEdit(null);
               setIsCreateOpen(true);
             }}
-            className="font-bold gap-2"
+            className="text-xs font-semibold"
+            leftIcon={<Plus className="w-3.5 h-3.5" />}
           >
-            <Plus className="w-4 h-4" /> Record Expense
+            Record Expense
           </Button>
         </div>
       }
       summary={
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          {/* Action Card (Modelled after Transactions & Tenants Primary Action Cards) */}
-          <div
-            onClick={() => {
-              setExpenseToEdit(null);
-              setIsCreateOpen(true);
-            }}
-            className="bg-admin-primary text-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-          >
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                <Receipt className="w-5 h-5 text-white" />
-              </div>
-              <ArrowUpRight className="w-5 h-5 text-white/70 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-            </div>
-            <div>
-              <h3 className="text-base font-black mb-0.5">Record Expense</h3>
-              <p className="text-xs text-white/80 font-medium">Log supplier costs, utilities, or repairs.</p>
-            </div>
-          </div>
-
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 mb-4">
           {/* Total Operating Expenses */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-rose-500/10 rounded-xl flex items-center justify-center text-rose-500">
-                <TrendingDown className="w-5 h-5" />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-2xs flex flex-col justify-between min-h-[96px]">
+            <div className="flex items-center justify-between text-admin-muted">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Total Expenses
-              </p>
-              <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400">
+              </span>
+              <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                {filteredExpenses.length} entries
+              </span>
+            </div>
+            <div className="my-1">
+              <p className="font-heading text-2xl font-bold tabular-nums tracking-tight text-rose-600 dark:text-rose-400">
                 {isLoading ? (
-                  <span className="inline-block h-7 w-20 rounded skeleton-shimmer align-middle" />
+                  <span className="inline-block h-6 w-20 rounded skeleton-shimmer align-middle" />
                 ) : (
                   formatCurrency(kpis.totalExpenses)
                 )}
-              </h3>
+              </p>
             </div>
+            <p className="text-[11px] text-admin-muted truncate">
+              Operating costs, repairs, and rates
+            </p>
           </div>
 
           {/* GST Claimable (1B) */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-2xs flex flex-col justify-between min-h-[96px]">
+            <div className="flex items-center justify-between text-admin-muted">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 GST Claimable (1B)
-              </p>
-              <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+              </span>
+              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                ATO Refundable
+              </span>
+            </div>
+            <div className="my-1">
+              <p className="font-heading text-2xl font-bold tabular-nums tracking-tight text-emerald-600 dark:text-emerald-400">
                 {isLoading ? (
-                  <span className="inline-block h-7 w-20 rounded skeleton-shimmer align-middle" />
+                  <span className="inline-block h-6 w-20 rounded skeleton-shimmer align-middle" />
                 ) : (
                   formatCurrency(kpis.totalGst)
                 )}
-              </h3>
+              </p>
             </div>
+            <p className="text-[11px] text-admin-muted truncate">
+              Input tax credits for BAS return
+            </p>
+          </div>
+
+          {/* Operating Purchases (G11) */}
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-2xs flex flex-col justify-between min-h-[96px]">
+            <div className="flex items-center justify-between text-admin-muted">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Operating (G11)
+              </span>
+              <span className="text-[11px] font-mono text-admin-muted">
+                Non-capital
+              </span>
+            </div>
+            <div className="my-1">
+              <p className="font-heading text-2xl font-bold tabular-nums tracking-tight text-admin-foreground">
+                {isLoading ? (
+                  <span className="inline-block h-6 w-20 rounded skeleton-shimmer align-middle" />
+                ) : (
+                  formatCurrency(kpis.nonCapitalG11)
+                )}
+              </p>
+            </div>
+            <p className="text-[11px] text-admin-muted truncate">
+              Day-to-day property operational expenses
+            </p>
           </div>
 
           {/* Capital Works (G10) */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-500">
-                <Building className="w-5 h-5" />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-2xs flex flex-col justify-between min-h-[96px]">
+            <div className="flex items-center justify-between text-admin-muted">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Capital Works (G10)
-              </p>
-              <h3 className="text-2xl font-black text-admin-foreground">
+              </span>
+              <span className="text-[11px] font-mono text-admin-muted">
+                Depreciable
+              </span>
+            </div>
+            <div className="my-1">
+              <p className="font-heading text-2xl font-bold tabular-nums tracking-tight text-admin-foreground">
                 {isLoading ? (
-                  <span className="inline-block h-7 w-20 rounded skeleton-shimmer align-middle" />
+                  <span className="inline-block h-6 w-20 rounded skeleton-shimmer align-middle" />
                 ) : (
                   formatCurrency(kpis.capitalG10)
                 )}
-              </h3>
+              </p>
             </div>
+            <p className="text-[11px] text-admin-muted truncate">
+              Capital improvements & major replacements
+            </p>
           </div>
         </div>
       }

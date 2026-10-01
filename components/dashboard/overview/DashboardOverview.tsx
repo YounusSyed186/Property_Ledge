@@ -1,20 +1,29 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
   Building2,
   Plus,
-  MoreVertical,
-  ChevronRight,
-  ArrowUp,
-  Sparkles,
-  MapPin,
-  Users,
-  FileText,
-  ArrowUpRight,
   RefreshCw,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  FileText,
+  Users,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  ArrowUpRight,
+  ShieldCheck,
+  Calendar,
+  Layers,
+  Activity,
+  ChevronRight,
+  MapPin,
+  Wrench,
+  Receipt,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/admin/ui';
 import { Button } from '@/components/admin/ui/Button';
@@ -24,7 +33,9 @@ import { formatCurrency } from '@/lib/format/currency';
 import { fetchDashboardDataAction } from '@/app/actions/dashboard';
 import { ManagerDashboard } from '@/components/dashboard/overview/ManagerDashboard';
 import { StaffDashboard } from '@/components/dashboard/overview/StaffDashboard';
-import { buildAttentionItems } from '@/components/dashboard/overview/NeedsAttentionSection';
+import { CashFlowChart } from '@/components/dashboard/overview/CashFlowChart';
+import { PropertiesOverviewCard } from '@/components/dashboard/overview/PropertiesOverviewCard';
+import { buildAttentionItems, buildUpcomingItems } from '@/components/dashboard/overview/NeedsAttentionSection';
 import { SetupChecklist } from '@/components/dashboard/setup/SetupChecklist';
 import type { SetupProgress } from '@/lib/dashboard/setupProgress';
 import {
@@ -47,15 +58,6 @@ const CreateLeaseWizard = dynamic(
   () => import('@/components/dashboard/workflows/CreateLeaseWizard').then((m) => m.CreateLeaseWizard),
   { ssr: false }
 );
-
-interface TransactionItem {
-  id: string;
-  title: string;
-  date: string;
-  amount: string;
-  avatar: string;
-  isBrand: boolean;
-}
 
 export function OwnerDashboard({
   userName,
@@ -133,7 +135,6 @@ export function OwnerDashboard({
       currentCache.workspaceId === activeWorkspaceId &&
       currentCache.propertyId === propertyId;
 
-    // 5-second freshness window: if data is fresh, skip background fetch
     if (!isManual && isCurrentMatching && isDataFresh(currentCache, FRESHNESS_THRESHOLDS.live)) {
       return;
     }
@@ -147,7 +148,6 @@ export function OwnerDashboard({
     try {
       const data = await fetchWithDeduplication(cacheKey, () => fetchDashboardDataAction(propertyId));
 
-      // Sequence guard: ignore response if user navigated or switched property in the meantime
       if (requestId !== latestRequestIdRef.current) {
         return;
       }
@@ -193,7 +193,7 @@ export function OwnerDashboard({
     loadData(false);
   }, [propertyId, activeWorkspaceId, loadData]);
 
-  // Visibility handler: pause while hidden, revalidate if stale when returning
+  // Visibility handler
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -209,54 +209,25 @@ export function OwnerDashboard({
   }, [loadData]);
 
   const hasProperties = availableProperties.length > 0;
-  const attentionItems = buildAttentionItems(needsAttention);
+  const attentionItems = useMemo(() => buildAttentionItems(needsAttention), [needsAttention]);
+  const upcomingItems = useMemo(() => buildUpcomingItems(needsAttention, leases), [needsAttention, leases]);
 
   const stats = overview?.stats;
   const activeLeasesCount = stats?.activeLeases ?? leases.length ?? 0;
   const activeTenantsCount = stats?.activeTenants ?? 0;
 
-  // Financial calculations
-  const totalIncome = reports?.totalRevenue ?? 0;
-  const totalExpenses = reports?.totalExpenses ?? 0;
-  const outstandingIncome = reports?.outstandingBalance ?? 0;
+  // Real financial figures
+  const totalRevenue = Number(reports?.totalRevenue || 0);
+  const totalExpenses = Number(reports?.totalExpenses || 0);
+  const netCashFlow = totalRevenue - totalExpenses;
+  const outstandingBalance = Number(reports?.outstandingBalance || 0);
+  const isNetPositive = netCashFlow >= 0;
 
-  // Percentage splits for Expenses & Income
-  const totalFlow = (totalIncome + totalExpenses) || 1;
-  const expenseRatio = Math.max(10, Math.min(90, Math.round((totalExpenses / totalFlow) * 100))) || 60;
-  const incomeRatio = 100 - expenseRatio;
+  const totalFlow = totalRevenue + totalExpenses;
+  const incomeRatio = totalFlow > 0 ? Math.round((totalRevenue / totalFlow) * 100) : 100;
+  const expenseRatio = 100 - incomeRatio;
 
-  // Collection / Analytics gauge
-  const collectionRate = totalIncome + outstandingIncome > 0
-    ? Math.round((totalIncome / (totalIncome + outstandingIncome)) * 100)
-    : 90;
-
-  // Transactions list from activity / logs or defaults
-  const recentLogs = overview?.recentActivity || [];
-  const transactions: TransactionItem[] = recentLogs.length > 0 ? recentLogs.slice(0, 4).map((log: Record<string, unknown>, idx: number) => {
-    const isPayment = String(log.action || '').toLowerCase().includes('paid') || String(log.action || '').toLowerCase().includes('payment');
-    const amount = log.amount ? Number(log.amount) : isPayment ? 2643 : (idx === 0 ? 653 : idx === 1 ? 2643 : 20);
-    return {
-      id: String(log.id || `tx-${idx}`),
-      title: String(log.action || (idx === 0 ? 'Apple' : idx === 1 ? 'Ralph Edwards' : 'Jerome Bell')),
-      date: log.created_at ? new Date(String(log.created_at)).toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' }) : '03 April, 2024',
-      amount: `$${amount.toLocaleString()}`,
-      avatar: idx === 0 ? '' : idx === 1 ? 'RE' : 'JB',
-      isBrand: idx === 0,
-    };
-  }) : [
-    { id: 'tx-1', title: 'Apple', date: '03 April, 2024', amount: '$653', avatar: '', isBrand: true },
-    { id: 'tx-2', title: 'Ralph Edwards', date: '01 April, 2024', amount: '$2,643', avatar: 'RE', isBrand: false },
-    { id: 'tx-3', title: 'Jerome Bell', date: '27 March, 2024', amount: '$20', avatar: 'JB', isBrand: false },
-  ];
-
-  // Month trajectory bars
-  const trajectory = [
-    { label: 'Nov', height: '35%', active: false },
-    { label: 'Dec', height: '25%', active: false },
-    { label: 'Jan', height: '75%', active: false },
-    { label: 'Feb', height: '60%', active: false },
-    { label: 'Mar', height: '90%', active: true },
-  ];
+  const recentActivityLogs = overview?.recentActivity || [];
 
   return (
     <PageLayout>
@@ -281,390 +252,420 @@ export function OwnerDashboard({
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-6 pb-12">
-            {/* Top Greeting Header with Property Avatars Strip */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-2">
-              <div>
-                <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Finance Dashboard</p>
-                <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white mt-0.5">
-                  Hello, <span className="text-[#008F83] dark:text-[#32D5C4]">{userName || 'Alif Reza'}</span>
+          <div className="space-y-8 pb-16">
+            {/* Header: Identity, Context & Primary Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pt-1 border-b border-border-subtle pb-5">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-admin-muted">
+                    {selectedProperty ? 'Property Workspace' : 'Portfolio Overview'}
+                  </span>
+                  <span className="text-admin-muted select-none">·</span>
+                  <span className="text-[11px] font-medium text-admin-primary">
+                    {selectedProperty ? selectedProperty.propertyName : `${availableProperties.length} Properties`}
+                  </span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-heading font-semibold tracking-tight text-admin-foreground">
+                  {selectedProperty ? selectedProperty.propertyName : 'Dashboard'}
                 </h1>
-                <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <p className="text-sm font-medium text-slate-400 dark:text-slate-400">
-                    View and control your finances here!
+                <div className="flex items-center gap-2.5 pt-0.5">
+                  <p className="text-body-sm text-admin-muted">
+                    {selectedProperty
+                      ? 'Real-time performance, active tenancies, and compliance activity'
+                      : 'Aggregated revenue, operational cash flow, and property activities'}
                   </p>
-                  <span className="text-slate-300 dark:text-slate-700 select-none hidden sm:inline">·</span>
+                  <span className="text-border-strong select-none hidden md:inline">·</span>
                   <button
                     type="button"
                     onClick={() => loadData(true)}
                     disabled={isRefreshing}
-                    className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors focus:outline-none"
-                    title="Click to refresh data"
+                    className="hidden md:inline-flex items-center gap-1.5 text-xs text-admin-muted hover:text-admin-foreground transition-colors"
+                    title="Refresh data"
                   >
-                    <RefreshCw className={cn('w-3 h-3 text-[#008F83] dark:text-[#32D5C4]', isRefreshing && 'animate-spin')} />
+                    <RefreshCw className={cn('w-3 h-3 text-admin-primary', isRefreshing && 'animate-spin')} />
                     <span>{isRefreshing ? 'Refreshing…' : `Updated ${lastUpdatedText}`}</span>
                   </button>
                 </div>
               </div>
 
-              {/* Right Side: Properties / Team Avatar Strip */}
-              <div className="flex items-center gap-2.5 self-start md:self-auto bg-white/70 dark:bg-[#1E293B]/70 backdrop-blur-md p-1.5 px-3 rounded-full border border-slate-200/80 dark:border-slate-800 shadow-xs">
-                <div className="flex items-center -space-x-2 overflow-hidden py-0.5">
-                  {availableProperties.slice(0, 6).map((prop, idx) => (
-                    <div
-                      key={prop.propertyId}
-                      title={prop.propertyName}
-                      className={cn(
-                        'w-9 h-9 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center font-bold text-xs shadow-xs text-white shrink-0',
-                        idx % 4 === 0 && 'bg-gradient-to-br from-teal-500 to-emerald-600',
-                        idx % 4 === 1 && 'bg-gradient-to-br from-blue-500 to-indigo-600',
-                        idx % 4 === 2 && 'bg-gradient-to-br from-amber-500 to-orange-600',
-                        idx % 4 === 3 && 'bg-gradient-to-br from-purple-500 to-pink-600'
-                      )}
-                    >
-                      {prop.propertyName.slice(0, 2).toUpperCase()}
-                    </div>
-                  ))}
-                  {availableProperties.length === 0 && (
-                    <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300">
-                      PL
-                    </div>
-                  )}
-                </div>
-                <Link
-                  href="/dashboard/properties"
-                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-colors ml-1"
-                  title="View all properties"
+              {/* Contextual Actions */}
+              <div className="flex items-center gap-2.5 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  href="/dashboard/money?action=record"
+                  className="font-medium text-xs"
+                  leftIcon={<DollarSign className="w-3.5 h-3.5 text-admin-primary" />}
                 >
-                  <ChevronRight className="w-4 h-4" />
-                </Link>
+                  Record Payment
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setLeaseWizardOpen(true)}
+                  className="font-medium text-xs"
+                  leftIcon={<Plus className="w-3.5 h-3.5" />}
+                >
+                  New Lease
+                </Button>
               </div>
             </div>
 
-            {/* Optional Attention Banner if pending actions */}
-            {attentionItems.length > 0 && (
-              <div className="rounded-2xl bg-amber-500/10 border border-amber-500/25 p-4 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-sm shrink-0">
-                    !
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                      {attentionItems.length} Action{attentionItems.length === 1 ? '' : 's'} Required
-                    </p>
-                    <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                      {attentionItems[0]?.label || 'Pending items requiring your attention.'}
-                    </p>
-                  </div>
-                </div>
-                <Link
-                  href="/dashboard/money?tab=payments"
-                  className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs transition-colors shrink-0 shadow-xs"
-                >
-                  Review Items
-                </Link>
-              </div>
-            )}
-
-            {/* TOP ROW: 3 Key Cards (Balance Statistics, Asset Card, Analytics Gauge) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-              {/* Card 1 (Left, 4 cols): Balance Statistics */}
-              <div className="lg:col-span-4 rounded-3xl bg-white dark:bg-[#1E293B] border border-slate-200/80 dark:border-slate-800 p-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-shadow">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Balance Statistics</h3>
-                  <div className="flex items-baseline gap-2 mt-3">
-                    <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                      {formatCurrency(totalIncome > 0 ? totalIncome : 38729.61)}
-                    </span>
-                    <span className="text-xs font-medium text-slate-400 dark:text-slate-500">Total amount</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 mt-4">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                      <ArrowUp className="w-3 h-3" />
-                      14%
-                    </span>
-                    <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-                      Always see your earning updates
-                    </span>
-                  </div>
-                </div>
-
-                {/* 5-Bar Trajectory Chart */}
-                <div className="flex items-end justify-between gap-3 pt-6 border-t border-slate-100 dark:border-slate-800/80 mt-4">
-                  {trajectory.map((item) => (
-                    <div key={item.label} className="flex flex-col items-center gap-2 flex-1">
-                      <div className="w-full max-w-[20px] h-12 bg-slate-100 dark:bg-slate-800/90 rounded-full flex items-end justify-center p-0.5">
-                        <div
-                          className={cn(
-                            'w-full rounded-full transition-all duration-500',
-                            item.active
-                              ? 'bg-[#5479F7] shadow-xs'
-                              : 'bg-[#94A9D9] dark:bg-[#4A6296]'
-                          )}
-                          style={{ height: item.height }}
-                        />
-                      </div>
-                      <span className={cn(
-                        'text-[10px] font-semibold',
-                        item.active ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'
-                      )}>
-                        {item.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+            {/* RHYTHM 1: SUMMARY — 4 Intentional High-Level Metrics */}
+            <section aria-label="Portfolio Summary Metrics" className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-admin-muted">
+                  Executive Summary
+                </h2>
+                <span className="text-[11px] text-admin-muted font-mono">
+                  Currency: AUD ($)
+                </span>
               </div>
 
-              {/* Card 2 (Middle, 5 cols): Sleek Real Property Showcase Card */}
-              <div className="lg:col-span-5 rounded-3xl bg-gradient-to-br from-[#1E293B] via-[#0F172A] to-[#0A0F1D] text-white p-6 shadow-md relative overflow-hidden flex flex-col justify-between min-h-[220px] border border-slate-700/60">
-                {/* Ambient subtle glow background */}
-                <div className="absolute -right-10 -top-10 w-44 h-44 rounded-full bg-[#008F83]/15 pointer-events-none blur-2xl" />
-                <div className="absolute -left-10 -bottom-10 w-44 h-44 rounded-full bg-blue-500/10 pointer-events-none blur-2xl" />
-
-                {/* Top Badge & Property Type */}
-                <div className="relative z-10 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-[#008F83]/20 border border-[#008F83]/40 flex items-center justify-center text-[#32D5C4]">
-                      <Building2 className="w-4 h-4" />
-                    </div>
-                    <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">
-                      {selectedProperty ? (selectedProperty.organizationName || 'Commercial Property') : 'Portfolio Overview'}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Metric 1: Net Cash Flow */}
+                <div className="rounded-2xl border border-border bg-surface p-5 shadow-2xs hover:border-admin-primary/40 transition-all flex flex-col justify-between min-h-[120px]">
+                  <div className="flex items-center justify-between text-admin-muted">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Net Cash Flow
+                    </span>
+                    <span className={cn(
+                      'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border',
+                      isNetPositive
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                    )}>
+                      {isNetPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                      {isNetPositive ? 'Surplus' : 'Deficit'}
                     </span>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    {selectedProperty?.status || 'Active'}
-                  </span>
-                </div>
-
-                {/* Property Main Info */}
-                <div className="relative z-10 my-3">
-                  <h3 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight line-clamp-1">
-                    {selectedProperty ? selectedProperty.propertyName : 'All Properties'}
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5 line-clamp-1">
-                    <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-400" />
-                    {selectedProperty ? `Property ID: ${selectedProperty.propertyId.slice(0, 8)}` : `${availableProperties.length} properties managed in this workspace`}
+                  <div className="my-2">
+                    <p className={cn(
+                      'font-heading text-2xl sm:text-[26px] font-bold tabular-nums tracking-tight',
+                      isNetPositive ? 'text-admin-foreground' : 'text-rose-600 dark:text-rose-400'
+                    )}>
+                      {formatCurrency(netCashFlow)}
+                    </p>
+                  </div>
+                  <p className="text-[11px] text-admin-muted truncate">
+                    Income minus all operating expenses
                   </p>
                 </div>
 
-                {/* Key Operational Metrics Pills */}
-                <div className="relative z-10 grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
-                  <div className="flex items-center gap-2 bg-white/5 rounded-xl p-2 px-3 border border-white/5">
-                    <FileText className="w-4 h-4 text-[#32D5C4] shrink-0" />
-                    <div className="truncate">
-                      <p className="text-[10px] text-slate-400 font-medium">Active Leases</p>
-                      <p className="text-xs font-bold text-white font-mono">{activeLeasesCount} Lease{activeLeasesCount === 1 ? '' : 's'}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 bg-white/5 rounded-xl p-2 px-3 border border-white/5">
-                    <Users className="w-4 h-4 text-amber-400 shrink-0" />
-                    <div className="truncate">
-                      <p className="text-[10px] text-slate-400 font-medium">Tenants</p>
-                      <p className="text-xs font-bold text-white font-mono">{activeTenantsCount} Active</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom Action Footer */}
-                <div className="relative z-10 flex items-center justify-between pt-3">
-                  <span className="text-[11px] text-slate-400 font-medium">
-                    {selectedProperty ? `Role: ${selectedProperty.role}` : `${availableProperties.length} Properties`}
-                  </span>
-                  <Link
-                    href={selectedProperty ? `/dashboard/properties/${selectedProperty.propertyId}` : '/dashboard/properties'}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#32D5C4] hover:text-white transition-colors"
-                  >
-                    View Details <ArrowUpRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </div>
-
-              {/* Card 3 (Right, 3 cols): Analytics Gauge */}
-              <div className="lg:col-span-3 rounded-3xl bg-white dark:bg-[#1E293B] border border-slate-200/80 dark:border-slate-800 p-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Analytics</h3>
-                  <button type="button" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Legend */}
-                <div className="space-y-1 my-2">
-                  <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
-                    <span className="w-2 h-2 rounded-full bg-[#5479F7]" />
-                    Done
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
-                    <span className="w-2 h-2 rounded-full bg-[#E5C378]" />
-                    In progres
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
-                    <span className="w-2 h-2 rounded-full bg-[#E8637A]" />
-                    To do
-                  </div>
-                </div>
-
-                {/* Semi-circular SVG Gauge */}
-                <div className="relative flex flex-col items-center justify-center pt-2">
-                  <svg viewBox="0 0 100 55" className="w-full max-w-[140px] overflow-visible">
-                    {/* Background track arc */}
-                    <path
-                      d="M 12,50 A 38,38 0 0,1 88,50"
-                      fill="none"
-                      stroke="currentColor"
-                      className="text-slate-100 dark:text-slate-800"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                    />
-                    {/* Blue segment (Done) */}
-                    <path
-                      d="M 12,50 A 38,38 0 0,1 55,12"
-                      fill="none"
-                      stroke="#5479F7"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                    />
-                    {/* Yellow segment (In progress) */}
-                    <path
-                      d="M 55,12 A 38,38 0 0,1 78,24"
-                      fill="none"
-                      stroke="#E5C378"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                    />
-                    {/* Pink/Coral segment (To do) */}
-                    <path
-                      d="M 78,24 A 38,38 0 0,1 88,50"
-                      fill="none"
-                      stroke="#E8637A"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <div className="text-center mt-[-18px]">
-                    <span className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                      {collectionRate}%
+                {/* Metric 2: Income */}
+                <div className="rounded-2xl border border-border bg-surface p-5 shadow-2xs hover:border-admin-primary/40 transition-all flex flex-col justify-between min-h-[120px]">
+                  <div className="flex items-center justify-between text-admin-muted">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Total Income
                     </span>
-                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 -mt-0.5">
-                      Done
+                    <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      {incomeRatio}% of volume
+                    </span>
+                  </div>
+                  <div className="my-2">
+                    <p className="font-heading text-2xl sm:text-[26px] font-bold tabular-nums tracking-tight text-admin-foreground">
+                      {formatCurrency(totalRevenue)}
                     </p>
                   </div>
+                  <div className="w-full bg-surface-subtle h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-admin-teal h-full rounded-full transition-all duration-500"
+                      style={{ width: `${incomeRatio}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Metric 3: Operating Expenses */}
+                <div className="rounded-2xl border border-border bg-surface p-5 shadow-2xs hover:border-admin-primary/40 transition-all flex flex-col justify-between min-h-[120px]">
+                  <div className="flex items-center justify-between text-admin-muted">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Operating Expenses
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      {expenseRatio}% of volume
+                    </span>
+                  </div>
+                  <div className="my-2">
+                    <p className="font-heading text-2xl sm:text-[26px] font-bold tabular-nums tracking-tight text-admin-foreground">
+                      {formatCurrency(totalExpenses)}
+                    </p>
+                  </div>
+                  <div className="w-full bg-surface-subtle h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-rose-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${expenseRatio}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Metric 4: Active Tenancies */}
+                <div className="rounded-2xl border border-border bg-surface p-5 shadow-2xs hover:border-admin-primary/40 transition-all flex flex-col justify-between min-h-[120px]">
+                  <div className="flex items-center justify-between text-admin-muted">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Active Tenancies
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-admin-primary">
+                      <Users className="w-3 h-3" />
+                      {activeTenantsCount} Tenant{activeTenantsCount === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                  <div className="my-2">
+                    <p className="font-heading text-2xl sm:text-[26px] font-bold tabular-nums tracking-tight text-admin-foreground">
+                      {activeLeasesCount} Active {activeLeasesCount === 1 ? 'Lease' : 'Leases'}
+                    </p>
+                  </div>
+                  <p className="text-[11px] text-admin-muted truncate">
+                    {reports?.monthlyRent ? `${formatCurrency(reports.monthlyRent)}/mo rent roll` : 'Lease contracts in good standing'}
+                  </p>
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* BOTTOM ROW: 2 Columns (Last Transactions & Expenses/Income Stack) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-              {/* Left Column (6 cols): Last Transactions */}
-              <div className="lg:col-span-6 rounded-3xl bg-white dark:bg-[#1E293B] border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Last Transactions</h3>
-                  <button type="button" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                  {transactions.map((tx) => (
-                    <div key={tx.id} className="py-3.5 flex items-center justify-between gap-3 group">
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div className={cn(
-                          'w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm shrink-0 shadow-xs',
-                          tx.isBrand
-                            ? 'bg-slate-900 text-white'
-                            : 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white'
-                        )}>
-                          {tx.avatar}
-                        </div>
-                        <div className="truncate">
-                          <p className="text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-[#008F83] dark:group-hover:text-[#32D5C4] transition-colors">
-                            {tx.title}
-                          </p>
-                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                            {tx.date}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-sm font-extrabold text-slate-900 dark:text-white font-mono">
-                          {tx.amount}
-                        </span>
-                        <button type="button" className="text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-300 transition-colors">
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {/* RHYTHM 2: TREND — Visual Cash Flow Analysis */}
+            <section aria-label="Visual Financial Performance" className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-admin-muted">
+                  Cash Flow Analysis
+                </h2>
+                <Link
+                  href="/dashboard/money"
+                  className="text-xs font-medium text-admin-primary hover:underline inline-flex items-center gap-1"
+                >
+                  View Full Ledger <ArrowUpRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
 
-              {/* Right Column (6 cols): Expenses & Income Card + Dark Banner */}
-              <div className="lg:col-span-6 space-y-5">
-                {/* Expenses & Income Card */}
-                <div className="rounded-3xl bg-white dark:bg-[#1E293B] border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Expenses & Income</h3>
-                    <button type="button" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                  </div>
+              <CashFlowChart
+                totalIncome={totalRevenue}
+                totalExpenses={totalExpenses}
+                outstandingIncome={outstandingBalance}
+                activeLeasesCount={activeLeasesCount}
+                totalPropertiesCount={availableProperties.length}
+              />
+            </section>
 
-                  {/* Percentage stats */}
-                  <div className="grid grid-cols-12 gap-4 items-baseline my-2">
-                    <div className="col-span-7">
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                          {expenseRatio}%
-                        </span>
+            {/* RHYTHM 3: BREAKDOWN — Properties & Asset Performance */}
+            <section aria-label="Portfolio Breakdown" className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-admin-muted">
+                  {selectedProperty ? 'Property Overview' : 'Portfolio Breakdown'}
+                </h2>
+                <Link
+                  href="/dashboard/properties"
+                  className="text-xs font-medium text-admin-primary hover:underline inline-flex items-center gap-1"
+                >
+                  Manage Portfolio <ArrowUpRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+
+              {!selectedProperty ? (
+                <PropertiesOverviewCard
+                  properties={availableProperties}
+                  leases={leases}
+                />
+              ) : (
+                /* Focused Single Property Card with contextual info */
+                <div className="rounded-2xl border border-border bg-surface p-6 shadow-2xs">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border-subtle">
+                    <div className="flex items-center gap-3.5">
+                      <div className="h-12 w-12 rounded-xl bg-admin-primary-soft text-admin-primary border border-admin-primary/20 flex items-center justify-center shrink-0">
+                        <Building2 className="w-6 h-6" />
                       </div>
-                      <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-0.5">Expenses</p>
-                    </div>
-
-                    <div className="col-span-5">
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                          {incomeRatio}%
-                        </span>
+                      <div>
+                        <h3 className="text-lg font-bold text-admin-foreground leading-tight">
+                          {selectedProperty.propertyName}
+                        </h3>
+                        <p className="text-body-sm text-admin-muted flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3.5 h-3.5 text-admin-muted" />
+                          <span>Property ID: {selectedProperty.propertyId.slice(0, 8)}</span>
+                          {selectedProperty.organizationName && (
+                            <>
+                              <span className="mx-1">·</span>
+                              <span>{selectedProperty.organizationName}</span>
+                            </>
+                          )}
+                        </p>
                       </div>
-                      <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-0.5">Income</p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        {selectedProperty.status || 'Active'}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        href={`/dashboard/properties/${selectedProperty.propertyId}`}
+                        className="text-xs font-medium"
+                        rightIcon={<ArrowUpRight className="w-3.5 h-3.5" />}
+                      >
+                        Property Details
+                      </Button>
                     </div>
                   </div>
 
-                  {/* Rounded Dual Progress Bars */}
-                  <div className="grid grid-cols-12 gap-3 pt-3">
-                    <div className="col-span-7">
-                      <div className="h-6 rounded-xl bg-[#7C97C7] dark:bg-[#5D7DAF] shadow-xs" />
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4">
+                    <div>
+                      <p className="text-xs font-medium text-admin-muted">Your Role</p>
+                      <p className="text-sm font-bold text-admin-foreground capitalize mt-0.5">
+                        {selectedProperty.role || 'Owner'}
+                      </p>
                     </div>
-                    <div className="col-span-5">
-                      <div className="h-6 rounded-xl bg-[#E5C378] dark:bg-[#D4AC57] shadow-xs" />
+                    <div>
+                      <p className="text-xs font-medium text-admin-muted">Active Leases</p>
+                      <p className="text-sm font-bold text-admin-foreground mt-0.5 font-mono">
+                        {leases.filter((l) => l.status === 'active').length}
+                      </p>
                     </div>
-                  </div>
-                </div>
-
-                {/* Dark Banner: More features? / Go to premium / Quick Actions */}
-                <div className="rounded-3xl bg-[#1C1E22] dark:bg-[#121417] text-white p-5 flex items-center justify-between gap-4 border border-slate-800 shadow-sm">
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-white shrink-0 border border-white/10">
-                      <Sparkles className="w-5 h-5 text-teal-300" />
+                    <div>
+                      <p className="text-xs font-medium text-admin-muted">Monthly Rent</p>
+                      <p className="text-sm font-bold text-admin-foreground mt-0.5 font-mono">
+                        {formatCurrency(reports?.monthlyRent || 0)}
+                      </p>
                     </div>
-                    <div className="truncate">
-                      <h4 className="text-sm font-bold text-white leading-tight">More features?</h4>
-                      <p className="text-xs text-slate-400 truncate mt-0.5">
-                        Update your account to premium to get more features
+                    <div>
+                      <p className="text-xs font-medium text-admin-muted">Outstanding</p>
+                      <p className="text-sm font-bold text-admin-foreground mt-0.5 font-mono">
+                        {formatCurrency(outstandingBalance)}
                       </p>
                     </div>
                   </div>
+                </div>
+              )}
+            </section>
 
+            {/* RHYTHM 4: ACTIONABLE ITEMS & AUDIT FEED */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left Column: Needs Attention & Upcomings (7 cols) */}
+              <div className="lg:col-span-7 space-y-6">
+                <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-2xs">
+                  <div className="flex items-center justify-between pb-3.5 border-b border-border-subtle">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-amber-500" />
+                      <h3 className="text-sm font-semibold text-admin-foreground">
+                        Needs Attention
+                      </h3>
+                    </div>
+                    {attentionItems.length > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        {attentionItems.length} Pending
+                      </span>
+                    )}
+                  </div>
+
+                  {attentionItems.length === 0 ? (
+                    <div className="py-8 text-center space-y-2">
+                      <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                      <p className="text-xs font-semibold text-admin-foreground">All caught up</p>
+                      <p className="text-[11px] text-admin-muted">No overdue invoices, open maintenance, or expiring items.</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-border-subtle mt-1">
+                      {attentionItems.map((item) => (
+                        <div key={item.id} className="py-3 flex items-center justify-between gap-3 group">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-admin-foreground group-hover:text-admin-primary transition-colors truncate">
+                              {item.label}
+                            </p>
+                            {item.sublabel && (
+                              <p className="text-[11px] text-admin-muted truncate mt-0.5">
+                                {item.sublabel}
+                              </p>
+                            )}
+                          </div>
+                          {item.href && (
+                            <Link
+                              href={item.href}
+                              className="text-xs font-semibold text-admin-primary hover:underline shrink-0 inline-flex items-center gap-1"
+                            >
+                              Resolve <ChevronRight className="w-3.5 h-3.5" />
+                            </Link>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Upcoming Milestones */}
+                {upcomingItems.length > 0 && (
+                  <div className="rounded-2xl border border-border bg-surface p-5 shadow-2xs">
+                    <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-admin-muted" />
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-admin-muted">
+                          Upcoming Milestones (Next 60 Days)
+                        </h3>
+                      </div>
+                    </div>
+                    <div className="divide-y divide-border-subtle mt-1">
+                      {upcomingItems.map((item) => (
+                        <div key={item.id} className="py-2.5 flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-admin-foreground truncate">
+                              {item.label}
+                            </p>
+                            {item.sublabel && (
+                              <p className="text-[11px] text-admin-muted truncate">{item.sublabel}</p>
+                            )}
+                          </div>
+                          {item.href && (
+                            <Link href={item.href} className="text-xs text-admin-muted hover:text-admin-foreground">
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </Link>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Live Activity Audit (5 cols) */}
+              <div className="lg:col-span-5 rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-2xs">
+                <div className="flex items-center justify-between pb-3.5 border-b border-border-subtle">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-admin-primary" />
+                    <h3 className="text-sm font-semibold text-admin-foreground">
+                      Recent Portfolio Activity
+                    </h3>
+                  </div>
                   <Link
-                    href="/dashboard/money?tab=payments"
-                    className="px-5 py-2.5 rounded-full bg-white hover:bg-slate-100 text-slate-950 font-bold text-xs transition-colors shrink-0 shadow-xs"
+                    href="/dashboard/activity"
+                    className="text-xs font-medium text-admin-primary hover:underline"
                   >
-                    Go to premium
+                    View All
                   </Link>
                 </div>
+
+                {recentActivityLogs.length === 0 ? (
+                  <div className="py-8 text-center space-y-1.5">
+                    <Clock className="w-8 h-8 text-admin-muted mx-auto opacity-50" />
+                    <p className="text-xs font-semibold text-admin-foreground">No recent activity</p>
+                    <p className="text-[11px] text-admin-muted">Audit logs appear as transactions and leases are updated.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border-subtle mt-1">
+                    {recentActivityLogs.slice(0, 6).map((log: any, idx: number) => {
+                      const dateStr = log.created_at
+                        ? new Date(log.created_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short' })
+                        : '';
+                      return (
+                        <div key={log.id || idx} className="py-3 flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-admin-foreground leading-tight line-clamp-1">
+                              {log.action || 'Portfolio modification'}
+                            </p>
+                            <p className="text-[11px] text-admin-muted mt-0.5">
+                              {log.entity_type ? `${log.entity_type.toUpperCase()} · ` : ''}{dateStr}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>

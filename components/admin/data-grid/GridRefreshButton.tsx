@@ -36,21 +36,28 @@ export function GridRefreshButton({
   label = 'Refresh',
   showLastUpdated = true,
 }: GridRefreshButtonProps) {
+  const [mounted, setMounted] = useState(false);
   const [internalLoading, setInternalLoading] = useState(false);
-  const [internalLastRefreshed, setInternalLastRefreshed] = useState<Date | null>(() => new Date());
+  const [internalLastRefreshed, setInternalLastRefreshed] = useState<Date | null>(null);
   const [, setTick] = useState(0);
   const isExecutingRef = useRef(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setInternalLastRefreshed(new Date());
+  }, []);
 
   const isRefreshing = controlledIsRefreshing !== undefined ? controlledIsRefreshing : internalLoading;
   const lastRefreshed = controlledLastRefreshedAt !== undefined ? controlledLastRefreshedAt : internalLastRefreshed;
 
   // Re-calculate relative time string every 5 seconds
   useEffect(() => {
+    if (!mounted) return;
     const timer = setInterval(() => {
       setTick((t) => t + 1);
     }, 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [mounted]);
 
   const handleClick = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -79,14 +86,15 @@ export function GridRefreshButton({
     }
   }, [onRefresh, isRefreshing, disabled, controlledIsRefreshing]);
 
-  const relativeTime = formatRelativeTime(lastRefreshed);
+  const relativeTime = mounted && lastRefreshed ? formatRelativeTime(lastRefreshed) : '';
 
   return (
     <div className="flex items-center gap-2 shrink-0">
       {showLastUpdated && relativeTime && (
         <span
+          suppressHydrationWarning
           className="hidden md:inline-block text-[11px] text-slate-600 dark:text-slate-300 select-none whitespace-nowrap"
-          title={lastRefreshed ? `Last updated at ${lastRefreshed.toLocaleTimeString()}` : undefined}
+          title={mounted && lastRefreshed ? `Last updated at ${lastRefreshed.toLocaleTimeString()}` : undefined}
         >
           Updated {relativeTime}
         </span>

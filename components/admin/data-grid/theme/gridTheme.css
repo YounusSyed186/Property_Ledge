@@ -5,11 +5,11 @@
 
 .ag-theme-propertyledge {
   --ag-font-family: var(--font-outfit), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --ag-font-size: 14.5px;
+  --ag-font-size: 13.5px;
   --ag-grid-size: 4px;
-  --ag-row-height: 52px;
-  --ag-header-height: 48px;
-  --ag-list-item-height: 42px;
+  --ag-row-height: 54px;
+  --ag-header-height: 46px;
+  --ag-list-item-height: 40px;
 
   /* Colors */
   --ag-background-color: var(--admin-surface);
@@ -24,7 +24,7 @@
   /* Borders & Dividers */
   --ag-border-color: transparent;
   --ag-border-radius: 12px;
-  --ag-row-border-color: var(--admin-divider);
+  --ag-row-border-color: var(--border-subtle);
   --ag-cell-horizontal-border: solid transparent;
   --ag-header-column-separator-color: transparent;
   --ag-header-column-resize-handle-color: var(--admin-primary);
@@ -57,13 +57,13 @@
 
 /* Custom Header Typography & Styling */
 .ag-theme-propertyledge .ag-header-cell {
-  font-weight: 700;
-  font-size: 12px;
+  font-weight: 600;
+  font-size: 11.5px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--admin-muted);
-  padding-left: 12px;
-  padding-right: 12px;
+  padding-left: 14px;
+  padding-right: 14px;
   overflow: hidden;
 }
 
@@ -89,10 +89,10 @@
 .ag-theme-propertyledge .ag-cell {
   display: flex;
   align-items: center;
-  padding-left: 8px;
-  padding-right: 8px;
-  line-height: 1.4;
-  font-size: 13px;
+  padding-left: 14px;
+  padding-right: 14px;
+  line-height: 1.45;
+  font-size: 13.5px;
   outline: none !important;
   font-feature-settings: "tnum";
   min-width: 0;

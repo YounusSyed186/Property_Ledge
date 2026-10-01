@@ -126,7 +126,7 @@ export function EntityDetailHeader({
     <header
       className={cn(
         'shrink-0 space-y-3 border-b border-admin-border pb-5',
-        identitySurface && 'rounded-xl border border-admin-primary-border bg-gradient-to-br from-[#F8FBFF] to-[#EEF5FF] p-5 mb-0',
+        identitySurface && 'rounded-xl border border-admin-border bg-admin-surface-subtle/60 p-5 mb-0',
         className
       )}
     >

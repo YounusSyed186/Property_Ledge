@@ -195,9 +195,9 @@ export function PropertiesClientView({ initialProperties }: PropertiesClientView
               setSelected(params.data);
               setIsDrawerOpen(true);
             }}
-            className="p-1 text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-500/10 rounded transition-colors inline-flex items-center gap-1 font-bold text-xs"
+            className="px-2 py-1 text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-subtle rounded-md transition-colors inline-flex items-center gap-1 font-semibold text-xs"
           >
-            <Pencil className="w-3.5 h-3.5" /> Edit
+            <Pencil className="w-3.5 h-3.5 text-admin-muted" /> Edit
           </button>
         ),
       },
@@ -246,78 +246,69 @@ export function PropertiesClientView({ initialProperties }: PropertiesClientView
         </div>
       }
       summary={
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          {/* Action Card */}
-          <div
-            onClick={() => setIsWizardOpen(true)}
-            className="bg-admin-primary text-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-          >
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                <Building className="w-5 h-5 text-white" />
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-admin-border bg-admin-surface px-5 py-3.5 mb-4 shadow-2xs">
+          <div className="flex flex-wrap items-center gap-6 sm:gap-10">
+            {/* Total Assets */}
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-admin-surface-subtle border border-admin-border text-admin-foreground">
+                <Building2 className="h-4.5 w-4.5" />
               </div>
-              <ArrowUpRight className="w-5 h-5 text-white/70 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-admin-muted block">
+                  Total Assets
+                </span>
+                <span className="text-lg font-bold font-mono text-admin-foreground">
+                  {isLoading ? '—' : stats.total}
+                </span>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-black mb-0.5">Add Property</h3>
-              <p className="text-xs text-white/80 font-medium">Register and manage real estate assets.</p>
-            </div>
-          </div>
 
-          {/* Active Properties */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
-                <CheckCircle2 className="w-5 h-5" />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Active Properties</p>
-              <h3 className="text-2xl font-black text-admin-foreground">
-                {isLoading ? (
-                  <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
-                ) : (
-                  stats.active
-                )}
-              </h3>
-            </div>
-          </div>
+            <div className="hidden h-7 w-px bg-admin-border sm:block" />
 
-          {/* Draft Properties */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500">
-                <Building className="w-5 h-5" />
+            {/* Active & Producing */}
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <CheckCircle2 className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-admin-muted block">
+                  Active &amp; Producing
+                </span>
+                <span className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                  {isLoading ? '—' : stats.active}
+                </span>
               </div>
             </div>
-            <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Draft / Pending</p>
-              <h3 className="text-2xl font-black text-admin-foreground">
-                {isLoading ? (
-                  <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
-                ) : (
-                  stats.draft
-                )}
-              </h3>
-            </div>
-          </div>
 
-          {/* Total Portfolio */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-admin-surface-elevated rounded-xl flex items-center justify-center text-admin-muted">
-                <Building2 className="w-5 h-5" />
+            <div className="hidden h-7 w-px bg-admin-border sm:block" />
+
+            {/* Draft / Pending */}
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                <Building className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-admin-muted block">
+                  Draft / Setup
+                </span>
+                <span className="text-lg font-bold font-mono text-amber-600 dark:text-amber-400">
+                  {isLoading ? '—' : stats.draft}
+                </span>
               </div>
             </div>
-            <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Total Portfolio</p>
-              <h3 className="text-2xl font-black text-admin-foreground">
-                {isLoading ? (
-                  <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
-                ) : (
-                  stats.total
-                )}
-              </h3>
+
+            <div className="hidden h-7 w-px bg-admin-border sm:block" />
+
+            {/* Active Ratio */}
+            <div className="flex items-center gap-3">
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-admin-muted block">
+                  Active Share
+                </span>
+                <span className="text-lg font-bold font-mono text-admin-foreground">
+                  {isLoading ? '—' : `${stats.total > 0 ? Math.round((stats.active / stats.total) * 100) : 0}%`}
+                </span>
+              </div>
             </div>
           </div>
         </div>
