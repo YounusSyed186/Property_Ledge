@@ -12,6 +12,11 @@ import {
   RoomStatus,
   DefectSeverity,
   getItemsForRoomType,
+  Schedule2StatutoryData,
+  InspectionItemDetails,
+  parseSchedule2Data,
+  serializeSchedule2Data,
+  DEFAULT_SCHEDULE_2_DATA,
 } from '@/types/condition-report';
 
 /**
@@ -62,7 +67,7 @@ export async function fetchConditionReportsAction(
 
 /**
  * Fetch a full condition report including rooms, items, defects, photos,
- * and recursively resolves any linked baseline report for historical comparison.
+ * Schedule 2 statutory data, and recursively resolves any linked baseline report for historical comparison.
  */
 export async function fetchConditionReportDetailAction(
   reportId: string
@@ -183,15 +188,20 @@ export async function fetchConditionReportDetailAction(
           basePhotos = bPhts.data || [];
         }
 
+        const baseParsed = parseSchedule2Data(baselineRes.data.notes);
+
         baselineReportData = {
           report: baselineRes.data as ConditionReport,
           rooms: baseRooms || [],
           items: baseItems,
           defects: baseDefects,
           photos: basePhotos,
+          schedule2Data: baseParsed.statutory,
         };
       }
     }
+
+    const currentParsed = parseSchedule2Data(report.notes);
 
     return {
       success: true,
@@ -202,6 +212,7 @@ export async function fetchConditionReportDetailAction(
         defects,
         photos,
         baselineReport: baselineReportData,
+        schedule2Data: currentParsed.statutory,
       },
     };
   } catch (err: any) {
@@ -319,7 +330,11 @@ export async function createConditionReportAction(
       return { success: false, error: 'Invalid property or access denied' };
     }
 
-    // 2. Insert main condition_report header
+    // 2. Format notes with Schedule 2 statutory defaults
+    const statutory = input.statutoryData || JSON.parse(JSON.stringify(DEFAULT_SCHEDULE_2_DATA));
+    const serializedNotes = serializeSchedule2Data(input.notes || '', statutory);
+
+    // 3. Insert main condition_report header
     const { data: newReport, error: reportErr } = await (supabase as any)
       .from('condition_reports')
       .insert({
@@ -332,7 +347,7 @@ export async function createConditionReportAction(
         inspection_date: input.inspectionDate,
         inspector_name: input.inspectorName.trim() || 'Inspector',
         status: 'Draft',
-        notes: input.notes?.trim() || null,
+        notes: serializedNotes,
       })
       .select()
       .single();
@@ -341,7 +356,7 @@ export async function createConditionReportAction(
       throw reportErr || new Error('Failed to create condition report header');
     }
 
-    // 3. Generate rooms array based on templates
+    // 4. Generate rooms array based on templates
     const roomsToCreate: Array<{
       report_id: string;
       name: string;
@@ -360,7 +375,7 @@ export async function createConditionReportAction(
     });
 
     if (roomsToCreate.length > 0) {
-      // 4. Batch insert rooms
+      // 5. Batch insert rooms
       const { data: createdRooms, error: roomsErr } = await (supabase as any)
         .from('inspection_rooms')
         .insert(roomsToCreate)
@@ -368,7 +383,7 @@ export async function createConditionReportAction(
 
       if (roomsErr) throw roomsErr;
 
-      // 5. Batch insert items for every room with "Default Good" rating ('Good')
+      // 6. Batch insert items for every room with "Default Good" rating ('Good')
       const itemsToCreate: Array<{
         room_id: string;
         name: string;
@@ -408,7 +423,43 @@ export async function createConditionReportAction(
 }
 
 /**
- * Autosave single item rating.
+ * Save Schedule 2 statutory section answers and item detail metadata.
+ */
+export async function saveSchedule2DataAction(
+  reportId: string,
+  statutoryData: Schedule2StatutoryData,
+  plainNotes: string = ''
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: 'Unauthorized' };
+
+    const context = await resolveWorkspaceContext();
+    if (!context?.workspaceId)
+      return { success: false, error: 'No active workspace' };
+
+    const supabase = await createClient();
+    const serialized = serializeSchedule2Data(plainNotes, statutoryData);
+
+    const { error } = await (supabase as any)
+      .from('condition_reports')
+      .update({
+        notes: serialized,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', reportId)
+      .eq('workspace_id', context.workspaceId);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    console.error('[SAVE_SCHEDULE_2_DATA_ERROR]', err);
+    return { success: false, error: err.message || 'Failed to save statutory data' };
+  }
+}
+
+/**
+ * Autosave single item rating and optional Schedule 2 detail mapping.
  */
 export async function updateItemRatingAction(
   itemId: string,
@@ -429,6 +480,60 @@ export async function updateItemRatingAction(
   } catch (err: any) {
     console.error('[UPDATE_ITEM_RATING_ERROR]', err);
     return { success: false, error: err.message || 'Failed to update rating' };
+  }
+}
+
+/**
+ * Updates item full condition state (Clean, Undamaged, Working, Landlord & Tenant comments)
+ * and autosaves in item table + Schedule 2 map.
+ */
+export async function updateItemFullConditionAction(
+  reportId: string,
+  itemId: string,
+  rating: ItemRating | null,
+  details: InspectionItemDetails,
+  currentStatutoryData?: Schedule2StatutoryData
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: 'Unauthorized' };
+
+    const supabase = await createClient();
+
+    // 1. Update rating on item
+    await (supabase as any)
+      .from('inspection_items')
+      .update({ rating })
+      .eq('id', itemId);
+
+    // 2. Update itemDetailsMap in report notes if statutory data exists
+    if (currentStatutoryData) {
+      const updatedStatutory: Schedule2StatutoryData = {
+        ...currentStatutoryData,
+        itemDetailsMap: {
+          ...(currentStatutoryData.itemDetailsMap || {}),
+          [itemId]: details,
+        },
+      };
+
+      const context = await resolveWorkspaceContext();
+      if (context?.workspaceId) {
+        const serialized = serializeSchedule2Data('', updatedStatutory);
+        await (supabase as any)
+          .from('condition_reports')
+          .update({
+            notes: serialized,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', reportId)
+          .eq('workspace_id', context.workspaceId);
+      }
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('[UPDATE_ITEM_FULL_CONDITION_ERROR]', err);
+    return { success: false, error: err.message || 'Failed to update item condition' };
   }
 }
 
@@ -600,6 +705,51 @@ export async function addPhotoAction(
   } catch (err: any) {
     console.error('[ADD_PHOTO_ERROR]', err);
     return { success: false, error: err.message || 'Failed to add photo' };
+  }
+}
+
+/**
+ * Add multiple inspection photos in a single batch.
+ */
+export async function addPhotosBatchAction(
+  roomId: string,
+  photoUrls: string[],
+  defectId?: string | null,
+  itemId?: string | null
+): Promise<{ success: boolean; data?: any[]; error?: string }> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, error: 'Unauthorized' };
+
+    if (!photoUrls || photoUrls.length === 0) {
+      return { success: false, error: 'No photos provided' };
+    }
+
+    const supabase = await createClient();
+    const records = photoUrls.map((url) => ({
+      room_id: roomId,
+      defect_id: defectId || null,
+      item_id: itemId || null,
+      photo_url: url,
+    }));
+
+    const { data, error } = await (supabase as any)
+      .from('inspection_photos')
+      .insert(records)
+      .select();
+
+    if (error) throw error;
+
+    // Automatically mark room as Completed
+    await (supabase as any)
+      .from('inspection_rooms')
+      .update({ status: 'Completed' })
+      .eq('id', roomId);
+
+    return { success: true, data: data || [] };
+  } catch (err: any) {
+    console.error('[ADD_PHOTOS_BATCH_ERROR]', err);
+    return { success: false, error: err.message || 'Failed to add photos' };
   }
 }
 

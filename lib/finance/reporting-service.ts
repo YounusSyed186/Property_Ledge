@@ -295,7 +295,13 @@ export async function getFinancialOverviewReport(
     const supabase = await createClient();
     let schedQ = supabase
       .from('expected_payment_schedule')
-      .select('id, expected_amount, paid_amount, due_date, property_id')
+      .select(`
+        id,
+        amount,
+        due_date,
+        property_id,
+        allocations:transaction_schedule_allocations(allocated_amount)
+      `)
       .gte('due_date', dateRange.start)
       .lte('due_date', dateRange.end);
 
@@ -310,8 +316,11 @@ export async function getFinancialOverviewReport(
     const { data: schedules } = (await schedQ) as { data: any[] | null };
     if (schedules) {
       for (const s of schedules) {
-        const exp = Number(s.expected_amount || 0);
-        const paid = Number(s.paid_amount || 0);
+        const exp = Number(s.amount || 0);
+        const paid = (s.allocations || []).reduce(
+          (acc: number, a: any) => acc + Number(a.allocated_amount || 0),
+          0
+        );
         totalExpected += exp;
         totalReceivedFromExpected += paid;
 
@@ -776,8 +785,7 @@ export async function getRentReconciliationReport(
       property_id,
       tenant_id,
       due_date,
-      expected_amount,
-      paid_amount,
+      amount,
       status,
       property:properties(id, name, address_line_1),
       tenant:tenants(id, first_name, last_name),
@@ -816,8 +824,11 @@ export async function getRentReconciliationReport(
   const todayStr = new Date().toISOString().split('T')[0];
 
   const items: RentScheduleReconciliationItem[] = (rawSchedules || []).map((s: any) => {
-    const exp = Number(s.expected_amount || 0);
-    const paid = Number(s.paid_amount || 0);
+    const exp = Number(s.amount || 0);
+    const paid = (s.allocations || []).reduce(
+      (acc: number, a: any) => acc + Number(a.allocated_amount || 0),
+      0
+    );
     const outstanding = Math.max(0, exp - paid);
 
     totalExpected += exp;
@@ -1136,7 +1147,12 @@ export async function getPropertyPerformanceReport(
     const supabase = await createClient();
     let schedQ = supabase
       .from('expected_payment_schedule')
-      .select('id, property_id, expected_amount, paid_amount')
+      .select(`
+        id,
+        property_id,
+        amount,
+        allocations:transaction_schedule_allocations(allocated_amount)
+      `)
       .gte('due_date', dateRange.start)
       .lte('due_date', dateRange.end);
 
@@ -1150,8 +1166,13 @@ export async function getPropertyPerformanceReport(
       for (const s of schedules) {
         if (s.property_id && propMap.has(s.property_id)) {
           const p = propMap.get(s.property_id)!;
-          p.expectedRent += Number(s.expected_amount || 0);
-          p.actualRentReceived += Number(s.paid_amount || 0);
+          const exp = Number(s.amount || 0);
+          const paid = (s.allocations || []).reduce(
+            (acc: number, a: any) => acc + Number(a.allocated_amount || 0),
+            0
+          );
+          p.expectedRent += exp;
+          p.actualRentReceived += paid;
           p.outstandingRent = Math.max(0, p.expectedRent - p.actualRentReceived);
           p.collectionRate =
             p.expectedRent > 0

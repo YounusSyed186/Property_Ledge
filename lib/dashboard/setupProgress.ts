@@ -19,9 +19,10 @@ export interface SetupProgress {
   dismissed: boolean;
 }
 
+import { cache } from 'react';
 import { getCurrentUser } from '@/lib/auth/queries';
 
-export async function getSetupProgress(userId: string): Promise<SetupProgress> {
+export const getSetupProgress = cache(async function getSetupProgress(userId: string): Promise<SetupProgress> {
   const authUser = await getCurrentUser();
   const onboardingMeta = authUser?.user_metadata?.onboarding as
     | { data?: { setupChecklistDismissed?: boolean } }
@@ -47,35 +48,31 @@ export async function getSetupProgress(userId: string): Promise<SetupProgress> {
     getSubscription(userId),
   ]);
 
-
   const workspaceId = (workspaces?.[0] as { id?: string } | undefined)?.id;
   const propertyIds = (properties || []).map((p) => (p as { id: string }).id);
   const propertyList = properties || [];
 
-  let unitCount = 0;
-  let tenantCount = 0;
-  let leaseCount = 0;
-  let teamCount = 0;
+  // Consolidate second tier into a single parallel batch using fast existence checks (.limit(1) / .limit(2))
+  // rather than expensive full-table/index count scans
+  const [unitsRes, tenantsRes, leasesRes, membersRes] = await Promise.all([
+    propertyIds.length > 0
+      ? (supabase as any).from('units').select('id').in('property_id', propertyIds).limit(1)
+      : Promise.resolve({ data: [] }),
+    propertyIds.length > 0
+      ? (supabase as any).from('tenants').select('id').in('property_id', propertyIds).limit(1)
+      : Promise.resolve({ data: [] }),
+    propertyIds.length > 0
+      ? (supabase as any).from('leases').select('id').in('property_id', propertyIds).limit(1)
+      : Promise.resolve({ data: [] }),
+    workspaceId
+      ? (supabase as any).from('workspace_members').select('id').eq('workspace_id', workspaceId).eq('status', 'active').limit(2)
+      : Promise.resolve({ data: [] }),
+  ]);
 
-  if (propertyIds.length > 0) {
-    const [units, tenants, leases] = await Promise.all([
-      supabase.from('units').select('id', { count: 'exact', head: true }).in('property_id', propertyIds),
-      supabase.from('tenants').select('id', { count: 'exact', head: true }).in('property_id', propertyIds),
-      supabase.from('leases').select('id', { count: 'exact', head: true }).in('property_id', propertyIds),
-    ]);
-    unitCount = units.count ?? 0;
-    tenantCount = tenants.count ?? 0;
-    leaseCount = leases.count ?? 0;
-  }
-
-  if (workspaceId) {
-    const { count } = await supabase
-      .from('workspace_members')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId)
-      .eq('status', 'active');
-    teamCount = count ?? 0;
-  }
+  const hasUnits = (unitsRes.data?.length ?? 0) > 0;
+  const hasTenants = (tenantsRes.data?.length ?? 0) > 0;
+  const hasLeases = (leasesRes.data?.length ?? 0) > 0;
+  const hasTeam = (membersRes.data?.length ?? 0) > 1;
 
   const hasWorkspace = !!workspaceId;
 
@@ -85,10 +82,6 @@ export async function getSetupProgress(userId: string): Promise<SetupProgress> {
       subscription.status === 'pending_payment' ||
       subscription.status === 'under_review');
   const hasProperty = propertyList.length > 0;
-  const hasUnits = unitCount > 0;
-  const hasTenants = tenantCount > 0;
-  const hasLeases = leaseCount > 0;
-  const hasTeam = teamCount > 1;
 
   const tasks: SetupTask[] = [
     {
@@ -154,4 +147,4 @@ export async function getSetupProgress(userId: string): Promise<SetupProgress> {
     allComplete: completedCount === totalCount,
     dismissed: !!onboardingMeta?.data?.setupChecklistDismissed,
   };
-}
+});

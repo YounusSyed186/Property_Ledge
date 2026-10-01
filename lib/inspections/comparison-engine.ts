@@ -25,6 +25,9 @@ export function compareConditionReports(
   currentReport: FullConditionReportData,
   baselineReport?: FullConditionReportData | null
 ): InspectionComparisonSummary {
+  const currentDetailsMap = currentReport.schedule2Data?.itemDetailsMap || {};
+  const baselineDetailsMap = baselineReport?.schedule2Data?.itemDetailsMap || {};
+
   if (!baselineReport) {
     // If no baseline, treat current inspection as standalone snapshot
     return {
@@ -45,16 +48,25 @@ export function compareConditionReports(
         return {
           roomId: room.id,
           roomName: room.name,
-          itemsCompared: roomItems.map((item) => ({
-            itemName: item.name,
-            previousRating: null,
-            currentRating: item.rating,
-            changed: false,
-            severity: 'not_compared' as ComparisonItemSeverity,
-            comments: item.rating === 'Good' || item.rating === 'Excellent' ? 'Clean & Working' : item.rating || undefined,
-            defects: roomDefects.filter((d) => d.item_name === item.name),
-            photosCount: roomPhotos.filter((p) => p.item_id === item.id).length,
-          })),
+          itemsCompared: roomItems.map((item) => {
+            const currDetail = currentDetailsMap[item.id];
+            return {
+              itemName: item.name,
+              previousRating: null,
+              currentRating: item.rating,
+              previousClean: null,
+              currentClean: currDetail?.clean ?? (item.rating === 'Damaged' || item.rating === 'Needs Repair' ? true : true),
+              previousUndamaged: null,
+              currentUndamaged: currDetail?.undamaged ?? (item.rating !== 'Damaged' && item.rating !== 'Needs Repair'),
+              previousWorking: null,
+              currentWorking: currDetail?.working ?? (item.rating !== 'Needs Repair'),
+              changed: false,
+              severity: 'not_compared' as ComparisonItemSeverity,
+              comments: currDetail?.landlordComments || (item.rating === 'Good' || item.rating === 'Excellent' ? 'Clean, Undamaged & Working' : item.rating || undefined),
+              defects: roomDefects.filter((d) => d.item_name === item.name),
+              photosCount: roomPhotos.filter((p) => p.item_id === item.id).length,
+            };
+          }),
           changedItemsCount: 0,
           degradedItemsCount: 0,
           currentDefects: roomDefects,
@@ -103,6 +115,18 @@ export function compareConditionReports(
       const prevRating = baselineItem?.rating || null;
       const currRating = currentItem.rating || null;
 
+      const currDetail = currentDetailsMap[currentItem.id];
+      const prevDetail = baselineItem ? baselineDetailsMap[baselineItem.id] : undefined;
+
+      const prevClean = prevDetail?.clean ?? (prevRating === 'Damaged' || prevRating === 'Needs Repair' ? true : prevRating ? true : null);
+      const currClean = currDetail?.clean ?? (currRating === 'Damaged' || currRating === 'Needs Repair' ? true : currRating ? true : null);
+
+      const prevUndamaged = prevDetail?.undamaged ?? (prevRating ? (prevRating !== 'Damaged' && prevRating !== 'Needs Repair') : null);
+      const currUndamaged = currDetail?.undamaged ?? (currRating ? (currRating !== 'Damaged' && currRating !== 'Needs Repair') : null);
+
+      const prevWorking = prevDetail?.working ?? (prevRating ? (prevRating !== 'Needs Repair') : null);
+      const currWorking = currDetail?.working ?? (currRating ? (currRating !== 'Needs Repair') : null);
+
       let changed = false;
       let severity: ComparisonItemSeverity = 'unchanged';
 
@@ -130,6 +154,24 @@ export function compareConditionReports(
           } else {
             severity = 'unchanged';
           }
+        } else if (
+          (prevClean !== null && currClean !== null && prevClean !== currClean) ||
+          (prevUndamaged !== null && currUndamaged !== null && prevUndamaged !== currUndamaged) ||
+          (prevWorking !== null && currWorking !== null && prevWorking !== currWorking)
+        ) {
+          changed = true;
+          if (
+            (prevUndamaged === true && currUndamaged === false) ||
+            (prevWorking === true && currWorking === false) ||
+            (prevClean === true && currClean === false)
+          ) {
+            severity = 'degraded';
+            roomDegradedCount++;
+            degradedItemsCount++;
+          } else {
+            severity = 'improved';
+            improvedItemsCount++;
+          }
         }
       }
 
@@ -144,18 +186,34 @@ export function compareConditionReports(
 
       const itemPhotos = currentRoomPhotos.filter((p) => p.item_id === currentItem.id);
 
+      let commentText = currDetail?.landlordComments || currDetail?.tenantComments;
+      if (!commentText) {
+        if (severity === 'degraded') {
+          if (prevUndamaged === true && currUndamaged === false) {
+            commentText = 'Undamaged changed: Yes → No (Damage detected)';
+          } else if (prevClean === true && currClean === false) {
+            commentText = 'Cleanliness changed: Yes → No (Cleaning required)';
+          } else {
+            commentText = `Condition degraded from ${prevRating} to ${currRating}`;
+          }
+        } else if (severity === 'improved') {
+          commentText = `Condition improved from ${prevRating} to ${currRating}`;
+        }
+      }
+
       return {
         itemName: currentItem.name,
         previousRating: prevRating,
         currentRating: currRating,
+        previousClean: prevClean,
+        currentClean: currClean,
+        previousUndamaged: prevUndamaged,
+        currentUndamaged: currUndamaged,
+        previousWorking: prevWorking,
+        currentWorking: currWorking,
         changed,
         severity,
-        comments:
-          severity === 'degraded'
-            ? `Condition degraded from ${prevRating} to ${currRating}`
-            : severity === 'improved'
-            ? `Condition improved from ${prevRating} to ${currRating}`
-            : undefined,
+        comments: commentText,
         defects: itemDefects,
         photosCount: itemPhotos.length,
       };

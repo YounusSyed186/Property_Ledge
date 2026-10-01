@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, type ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { PropertyProvider } from '@/components/property/PropertyContext';
 import { PermissionContext } from '@/lib/auth/client-permissions';
 import { useWorkspaceStore, type AccessibleWorkspace } from '@/lib/stores/useWorkspaceStore';
@@ -76,20 +76,30 @@ export function AppContextProvider({
   const effectiveEntitlements =
     Object.keys(storeEntitlements).length > 0 ? storeEntitlements : entitlements;
 
+  const appContextValue = useMemo(
+    () => ({
+      persona,
+      workspaceId,
+      setWorkspaceId,
+      permissions: effectivePermissions,
+      workspaceName: effectiveWorkspaceName,
+      roleName: effectiveRoleName,
+    }),
+    [persona, workspaceId, setWorkspaceId, effectivePermissions, effectiveWorkspaceName, effectiveRoleName]
+  );
+
+  const permissionContextValue = useMemo(
+    () => ({
+      permissions: effectivePermissions,
+      platformPermissions: [] as string[],
+      entitlements: effectiveEntitlements,
+    }),
+    [effectivePermissions, effectiveEntitlements]
+  );
+
   return (
-    <AppContext.Provider
-      value={{
-        persona,
-        workspaceId,
-        setWorkspaceId,
-        permissions: effectivePermissions,
-        workspaceName: effectiveWorkspaceName,
-        roleName: effectiveRoleName,
-      }}
-    >
-      <PermissionContext.Provider
-        value={{ permissions: effectivePermissions, platformPermissions: [], entitlements: effectiveEntitlements }}
-      >
+    <AppContext.Provider value={appContextValue}>
+      <PermissionContext.Provider value={permissionContextValue}>
         <PropertyProvider initialProperties={initialProperties}>{children}</PropertyProvider>
       </PermissionContext.Provider>
     </AppContext.Provider>

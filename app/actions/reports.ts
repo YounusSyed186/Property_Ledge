@@ -140,11 +140,31 @@ export async function exportReportPdfAction(
     'Net Sum': txDetailReport.netAmount,
   };
 
+  const agencyDetails = {
+    agencyName: context.workspaceName || 'PropertyLedge',
+    branchName: `${context.workspaceName || 'PropertyLedge'} Real Estate Management`,
+    phone: '(w) +61 (02) 9000 0000',
+    website: 'www.propertyledge.com.au',
+    email: 'reports@propertyledge.com.au',
+  };
+
+  const fyNum = Number(filters.financialYear || new Date().getFullYear());
+  const recipientDetails = {
+    name: 'Property Owner / Investor',
+    addressLine1: txDetailReport.transactions[0]?.property?.address_line_1 || 'Consolidated Portfolio Properties',
+    addressLine2: `${txDetailReport.transactions[0]?.property?.city || 'Sydney'} ${txDetailReport.transactions[0]?.property?.state || 'NSW'} 2000`,
+    folioNumber: `FOL-${fyNum}00472`,
+    periodFrom: filters.dateFrom ? String(filters.dateFrom) : `1/07/${fyNum - 1}`,
+    periodTo: filters.dateTo ? String(filters.dateTo) : `30/06/${fyNum}`,
+  };
+
   const pdfBytes = await generateFinancePdf(
     `Financial Report: ${reportType.toUpperCase()}`,
     txDetailReport.transactions,
     workspaceFilters,
-    kpis
+    kpis,
+    agencyDetails,
+    recipientDetails
   );
 
   const base64Pdf = Buffer.from(pdfBytes).toString('base64');

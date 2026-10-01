@@ -54,6 +54,7 @@ export async function generateBasAccountantReportAction(params: {
   propertyId?: string | null;
   financialYear: number;
   period: BasPeriod;
+  customDetails?: import('@/lib/pdf/pdf-bas-report-adapter').BasReportCustomDetails;
 }) {
   const { context } = await getAuthContext();
 
@@ -68,6 +69,7 @@ export async function generateBasAccountantReportAction(params: {
     worksheet: pageData.worksheet,
     transactions: pageData.details,
     workspaceName: context.workspaceName || 'PropertyLedge',
+    customDetails: params.customDetails,
   });
 
   const base64Pdf = Buffer.from(pdfBytes).toString('base64');

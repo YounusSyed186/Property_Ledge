@@ -30,6 +30,9 @@ import {
   Loader2,
 } from 'lucide-react';
 
+import { BasDownloadModal } from './BasDownloadModal';
+import type { BasReportCustomDetails } from '@/lib/pdf/pdf-bas-report-adapter';
+
 interface BasActivityStatementViewProps {
   initialData: BasPageData;
 }
@@ -38,6 +41,7 @@ export function BasActivityStatementView({ initialData }: BasActivityStatementVi
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
   // Filter State
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(
@@ -99,13 +103,14 @@ export function BasActivityStatementView({ initialData }: BasActivityStatementVi
     setActiveTab('details');
   };
 
-  const handleGeneratePdf = async () => {
+  const handleConfirmDownload = async (customDetails: BasReportCustomDetails) => {
     setIsGeneratingPdf(true);
     try {
       const res = await generateBasAccountantReportAction({
         propertyId: selectedPropertyId,
         financialYear: selectedYear,
         period: selectedPeriod,
+        customDetails,
       });
 
       if (res.success && res.base64Data) {
@@ -117,10 +122,11 @@ export function BasActivityStatementView({ initialData }: BasActivityStatementVi
         document.body.removeChild(link);
 
         toast({
-          title: 'Accountant Report Generated',
-          description: 'Official BAS PDF summary and audit ledger downloaded.',
+          title: 'Activity Statement Downloaded',
+          description: 'Official ATO-style BAS return generated successfully.',
           variant: 'success',
         });
+        setIsDownloadModalOpen(false);
       }
     } catch (err: any) {
       console.error('Failed to generate Accountant PDF report:', err);
@@ -277,16 +283,16 @@ export function BasActivityStatementView({ initialData }: BasActivityStatementVi
           <Button
             variant="primary"
             size="sm"
-            onClick={handleGeneratePdf}
+            onClick={() => setIsDownloadModalOpen(true)}
             disabled={isGeneratingPdf}
-            className="gap-1.5 text-xs"
+            className="gap-1.5 text-xs font-bold"
           >
             {isGeneratingPdf ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <Download className="h-3.5 w-3.5" />
             )}
-            <span>Generate Accountant Report</span>
+            <span>Download Activity Statement</span>
           </Button>
         </div>
       }
@@ -331,6 +337,17 @@ export function BasActivityStatementView({ initialData }: BasActivityStatementVi
           </>
         )}
       </div>
+
+      <BasDownloadModal
+        isOpen={isDownloadModalOpen}
+        onClose={() => setIsDownloadModalOpen(false)}
+        onConfirmDownload={handleConfirmDownload}
+        isGenerating={isGeneratingPdf}
+        initialTaxpayerName={pageData.worksheet.propertyName || ''}
+        initialAddress={pageData.worksheet.propertyId ? pageData.worksheet.propertyName : ''}
+        periodLabel={pageData.worksheet.periodLabel}
+        financialYear={selectedYear}
+      />
     </ListPage>
   );
 }

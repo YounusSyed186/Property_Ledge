@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  serverExternalPackages: ['@playwright/test', 'playwright', 'playwright-core', 'pdf-lib'],
+  serverExternalPackages: ['@playwright/test', 'playwright', 'playwright-core', 'pdf-lib', 'docx', 'jspdf'],
   eslint: {
     ignoreDuringBuilds: true,
   },

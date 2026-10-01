@@ -12,39 +12,43 @@ import { compareConditionReports } from '@/lib/inspections/comparison-engine';
 import { generateConditionReportPDF } from '@/lib/pdf/condition-report-pdf';
 
 test.describe('PropertyLedge Unified Condition Report & Inspection Engine QA Suite', () => {
-  test.describe('1. Room-Specific Checklist & "Default Good" Item Mappings', () => {
-    test('returns tailored items for Kitchen areas', () => {
+  test.describe('1. Room-Specific Checklist & NSW Schedule 2 Item Mappings', () => {
+    test('returns tailored items for Kitchen areas conforming to Schedule 2', () => {
       const items = getItemsForRoomType('Main Kitchen & Pantry');
       expect(items).toEqual(KITCHEN_ITEMS);
-      expect(items).toContain('Oven / Trays');
-      expect(items).toContain('Stovetop / Griller');
-      expect(items).toContain('Benchtops / Tiling');
+      expect(items).toContain('Oven / griller');
+      expect(items).toContain('Stove top / hot plates');
+      expect(items).toContain('Benchtops / tiling');
+      expect(items).toContain('Sink / taps / disposal unit');
+      expect(items).toContain('Dishwasher');
     });
 
-    test('returns tailored items for Bathroom and Ensuite areas', () => {
+    test('returns tailored items for Bathroom and Ensuite areas conforming to Schedule 2', () => {
       const bathItems = getItemsForRoomType('Master Bathroom');
-      const ensuiteItems = getItemsForRoomType('Ensuite Powder Room');
-      expect(bathItems).toEqual(BATHROOM_ITEMS);
-      expect(ensuiteItems).toEqual(BATHROOM_ITEMS);
-      expect(bathItems).toContain('Shower / Screen / Taps');
-      expect(bathItems).toContain('Toilet / Seat / Cistern');
+      const ensuiteItems = getItemsForRoomType('Ensuite');
+      expect(bathItems).toContain('Shower / screen / taps');
+      expect(bathItems).toContain('Toilet / cistern / seat');
+      expect(bathItems).toContain('Mirror / cabinet / vanity');
+      expect(ensuiteItems).toContain('Shower / screen / taps');
+      expect(ensuiteItems).toContain('Doors / doorway frame');
     });
 
-    test('returns tailored items for Bedroom and Living areas', () => {
+    test('returns tailored items for Bedroom and Lounge areas conforming to Schedule 2', () => {
       const bedItems = getItemsForRoomType('Bedroom 1');
-      const livingItems = getItemsForRoomType('Formal Living Room');
-      expect(bedItems).toEqual(BEDROOM_ITEMS);
-      expect(livingItems).toEqual(BEDROOM_ITEMS);
-      expect(bedItems).toContain('Built-in Wardrobes / Shelving');
-      expect(bedItems).toContain('Window Safety Devices');
+      const livingItems = getItemsForRoomType('Lounge Room');
+      expect(bedItems).toContain('Built-in wardrobe / shelves');
+      expect(bedItems).toContain('Windows / screens / window safety devices');
+      expect(livingItems).toContain('Walls / picture hooks');
+      expect(livingItems).toContain('Lights / power points');
     });
 
-    test('returns statutory items for Safety & Security sections', () => {
-      const safetyItems = getItemsForRoomType('Security & Safety');
+    test('returns statutory items for Security & Safety sections conforming to Schedule 2', () => {
+      const safetyItems = getItemsForRoomType('Security / Safety');
       expect(safetyItems).toEqual(SAFETY_GENERAL_ITEMS);
-      expect(safetyItems).toContain('Smoke Alarms (Tested & Working)');
-      expect(safetyItems).toContain('Water Efficiency Devices (Showerheads/Taps)');
-      expect(safetyItems).toContain('Electrical Safety Switches (RCD)');
+      expect(safetyItems).toContain('Smoke alarms');
+      expect(safetyItems).toContain('Electrical safety switch');
+      expect(safetyItems).toContain('External door locks');
+      expect(safetyItems).toContain('Window locks');
     });
 
     test('falls back to standard items for custom room names', () => {
@@ -298,4 +302,87 @@ test.describe('PropertyLedge Unified Condition Report & Inspection Engine QA Sui
       expect(pageCount).toBeGreaterThanOrEqual(4);
     });
   });
+
+  test.describe('4. NSW Schedule 2 Statutory Data & Metadata Engine', () => {
+    test('accurately parses and serializes Schedule 2 statutory metadata with delimiters', () => {
+      const { parseSchedule2Data, serializeSchedule2Data, DEFAULT_SCHEDULE_2_DATA } = require('@/types/condition-report');
+
+      const plainNotes = 'Tenant reported keys collected at 10am.';
+      const testStatutory = {
+        ...DEFAULT_SCHEDULE_2_DATA,
+        minimumStandards: {
+          ...DEFAULT_SCHEDULE_2_DATA.minimumStandards,
+          structurallySound: true,
+          adequateLighting: true,
+          electricitySupplied: true,
+          waterSupply: true,
+          bathroomPrivacy: true,
+        },
+        smokeAlarms: {
+          ...DEFAULT_SCHEDULE_2_DATA.smokeAlarms,
+          installedCorrectly: true,
+          checkedAndWorking: true,
+          dateLastChecked: '2026-09-01',
+          batteriesReplaced12Months: true,
+        },
+        waterEfficiency: {
+          ...DEFAULT_SCHEDULE_2_DATA.waterEfficiency,
+          separatelyMetered: true,
+          showerheadsMax9L: true,
+          toiletsDualFlushWels3Star: true,
+          waterMeterStart: '004523.8',
+          waterMeterStartDate: '2026-10-01',
+        },
+        workCommitments: [
+          {
+            id: 'wc-1',
+            description: 'Fix laundry tap washer leak',
+            completionDueDate: '2026-10-15',
+            status: 'Open',
+          },
+        ],
+        itemDetailsMap: {
+          'it-kitchen-bench': {
+            clean: true,
+            undamaged: false,
+            working: true,
+            landlordComments: 'Small hairline chip near sink edge',
+            tenantComments: 'Agreed, noted on move-in',
+            tenantAgrees: true,
+          },
+        },
+      };
+
+      const serialized = serializeSchedule2Data(plainNotes, testStatutory);
+      expect(serialized).toContain('---SCHEDULE_2_METADATA---');
+      expect(serialized).toContain('Tenant reported keys collected at 10am.');
+
+      const { plainNotes: parsedNotes, statutory: parsedStatutory } = parseSchedule2Data(serialized);
+      expect(parsedNotes).toBe('Tenant reported keys collected at 10am.');
+      expect(parsedStatutory.minimumStandards.structurallySound).toBe(true);
+      expect(parsedStatutory.smokeAlarms.checkedAndWorking).toBe(true);
+      expect(parsedStatutory.smokeAlarms.dateLastChecked).toBe('2026-09-01');
+      expect(parsedStatutory.waterEfficiency.waterMeterStart).toBe('004523.8');
+      expect(parsedStatutory.workCommitments).toHaveLength(1);
+      expect(parsedStatutory.workCommitments[0].description).toBe('Fix laundry tap washer leak');
+      expect(parsedStatutory.itemDetailsMap['it-kitchen-bench'].undamaged).toBe(false);
+      expect(parsedStatutory.itemDetailsMap['it-kitchen-bench'].landlordComments).toBe('Small hairline chip near sink edge');
+    });
+
+    test('handles empty and legacy unformatted notes safely with default fallbacks', () => {
+      const { parseSchedule2Data } = require('@/types/condition-report');
+
+      const legacyResult = parseSchedule2Data('Old legacy notes from 2024 without metadata.');
+      expect(legacyResult.plainNotes).toBe('Old legacy notes from 2024 without metadata.');
+      expect(legacyResult.statutory).toBeDefined();
+      expect(legacyResult.statutory.minimumStandards.structurallySound).toBe(true);
+      expect(legacyResult.statutory.workCommitments).toEqual([]);
+
+      const emptyResult = parseSchedule2Data(null);
+      expect(emptyResult.plainNotes).toBe('');
+      expect(emptyResult.statutory).toBeDefined();
+      expect(emptyResult.statutory.waterEfficiency.separatelyMetered).toBe(true);
+    });
+  });
 });
+

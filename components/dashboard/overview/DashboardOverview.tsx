@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import {
   Building2,
   Plus,
@@ -13,6 +14,7 @@ import {
   Users,
   FileText,
   ArrowUpRight,
+  RefreshCw,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/admin/ui';
 import { Button } from '@/components/admin/ui/Button';
@@ -23,7 +25,6 @@ import { fetchDashboardDataAction } from '@/app/actions/dashboard';
 import { ManagerDashboard } from '@/components/dashboard/overview/ManagerDashboard';
 import { StaffDashboard } from '@/components/dashboard/overview/StaffDashboard';
 import { buildAttentionItems } from '@/components/dashboard/overview/NeedsAttentionSection';
-import { CreateLeaseWizard } from '@/components/dashboard/workflows/CreateLeaseWizard';
 import { SetupChecklist } from '@/components/dashboard/setup/SetupChecklist';
 import type { SetupProgress } from '@/lib/dashboard/setupProgress';
 import {
@@ -31,9 +32,21 @@ import {
   PageContent,
   PageSkeleton,
 } from '@/components/workspace';
-import { useEntityCacheStore } from '@/lib/stores/useEntityCacheStore';
+import {
+  useEntityCacheStore,
+  buildCacheKey,
+  fetchWithDeduplication,
+  isDataFresh,
+  formatLastUpdated,
+  FRESHNESS_THRESHOLDS,
+} from '@/lib/stores/useEntityCacheStore';
 import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
 import { cn } from '@/lib/utils';
+
+const CreateLeaseWizard = dynamic(
+  () => import('@/components/dashboard/workflows/CreateLeaseWizard').then((m) => m.CreateLeaseWizard),
+  { ssr: false }
+);
 
 interface TransactionItem {
   id: string;
@@ -59,46 +72,141 @@ export function OwnerDashboard({
   const setCachedDashboard = useEntityCacheStore((s) => s.setDashboard);
 
   const propertyId = selectedProperty?.propertyId ?? null;
-  const hasMatchingCache = cachedDashboard &&
-    cachedDashboard.workspaceId === activeWorkspaceId &&
-    cachedDashboard.propertyId === propertyId;
+  const cacheKey = buildCacheKey('dashboard', activeWorkspaceId, propertyId);
 
-  const [overview, setOverview] = useState<any>(() => initialData?.overview ?? (hasMatchingCache ? cachedDashboard.data.overview : null));
-  const [reports, setReports] = useState<any>(() => initialData?.reports ?? (hasMatchingCache ? cachedDashboard.data.reports : null));
-  const [needsAttention, setNeedsAttention] = useState<any>(() => initialData?.needsAttention ?? (hasMatchingCache ? cachedDashboard.data.needsAttention : null));
+  const hasMatchingCache =
+    cachedDashboard &&
+    cachedDashboard.workspaceId === activeWorkspaceId &&
+    cachedDashboard.propertyId === propertyId &&
+    !!cachedDashboard.data;
+
+  const initialResolved = initialData ?? (hasMatchingCache ? cachedDashboard.data : null);
+
+  const [overview, setOverview] = useState<any>(() => initialResolved?.overview ?? null);
+  const [reports, setReports] = useState<any>(() => initialResolved?.reports ?? null);
+  const [needsAttention, setNeedsAttention] = useState<any>(() => initialResolved?.needsAttention ?? null);
   const [leases, setLeases] = useState<Array<{ id: string; property_id?: string; end_date: string | null; status: string; rent_amount?: number; unit?: { name?: string; unit_number?: string } }>>(
-    () => initialData?.leases ?? (hasMatchingCache ? (cachedDashboard.data.leases as any[]) : [])
+    () => initialResolved?.leases ?? []
   );
-  const [isLoading, setIsLoading] = useState(() => !initialData && !hasMatchingCache);
-  const isInitialMount = React.useRef(true);
+
+  const [isLoading, setIsLoading] = useState(() => !initialResolved);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastFetchedAt, setLastFetchedAt] = useState<number>(() => cachedDashboard?.fetchedAt ?? (initialData ? Date.now() : 0));
+  const [lastUpdatedText, setLastUpdatedText] = useState('just now');
+
+  const latestRequestIdRef = useRef(0);
+  const isInitialMount = useRef(true);
   const [leaseWizardOpen, setLeaseWizardOpen] = useState(false);
 
   const showSetup = setupProgress && !setupProgress.allComplete;
 
+  // Hydrate cache with server initialData on initial mount
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
-      if (initialData) {
+      if (initialData && activeWorkspaceId) {
         setCachedDashboard(initialData, activeWorkspaceId, propertyId);
-        return;
+        setLastFetchedAt(Date.now());
       }
     }
-    if (!hasMatchingCache) {
-      setIsLoading(true);
+  }, [initialData, activeWorkspaceId, propertyId, setCachedDashboard]);
+
+  // Periodic update of human-readable "Updated X ago"
+  useEffect(() => {
+    const updateLabel = () => {
+      setLastUpdatedText(formatLastUpdated(lastFetchedAt));
+    };
+    updateLabel();
+    const interval = setInterval(updateLabel, 5000);
+    return () => clearInterval(interval);
+  }, [lastFetchedAt]);
+
+  const loadData = useCallback(async (isManual = false) => {
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      return;
     }
-    fetchDashboardDataAction(propertyId)
-      .then((data) => {
-        setOverview(data.overview);
-        setNeedsAttention(data.needsAttention);
-        setReports(data.reports);
-        setLeases(data.leases as typeof leases);
-        setCachedDashboard(data, activeWorkspaceId, propertyId);
-      })
-      .catch((err) => {
-        console.error('Error fetching dashboard data:', err);
-      })
-      .finally(() => setIsLoading(false));
-  }, [propertyId, activeWorkspaceId]);
+
+    const requestId = ++latestRequestIdRef.current;
+    const currentCache = useEntityCacheStore.getState().dashboard;
+    const isCurrentMatching =
+      currentCache &&
+      currentCache.workspaceId === activeWorkspaceId &&
+      currentCache.propertyId === propertyId;
+
+    // 5-second freshness window: if data is fresh, skip background fetch
+    if (!isManual && isCurrentMatching && isDataFresh(currentCache, FRESHNESS_THRESHOLDS.live)) {
+      return;
+    }
+
+    if (!overview && !reports) {
+      setIsLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
+
+    try {
+      const data = await fetchWithDeduplication(cacheKey, () => fetchDashboardDataAction(propertyId));
+
+      // Sequence guard: ignore response if user navigated or switched property in the meantime
+      if (requestId !== latestRequestIdRef.current) {
+        return;
+      }
+
+      setOverview(data.overview);
+      setNeedsAttention(data.needsAttention);
+      setReports(data.reports);
+      setLeases(data.leases as typeof leases);
+      setCachedDashboard(data, activeWorkspaceId, propertyId);
+      const now = Date.now();
+      setLastFetchedAt(now);
+      setLastUpdatedText('just now');
+    } catch (err) {
+      console.error('[DashboardOverview] Data load error:', err);
+    } finally {
+      if (requestId === latestRequestIdRef.current) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    }
+  }, [activeWorkspaceId, propertyId, cacheKey, setCachedDashboard, overview, reports]);
+
+  // Main SWR coordination on property or workspace change
+  useEffect(() => {
+    const currentCache = useEntityCacheStore.getState().dashboard;
+    const isCurrentMatching =
+      currentCache &&
+      currentCache.workspaceId === activeWorkspaceId &&
+      currentCache.propertyId === propertyId;
+
+    if (isCurrentMatching && isDataFresh(currentCache, FRESHNESS_THRESHOLDS.live)) {
+      if (currentCache.data) {
+        setOverview(currentCache.data.overview);
+        setNeedsAttention(currentCache.data.needsAttention);
+        setReports(currentCache.data.reports);
+        setLeases(currentCache.data.leases);
+        setLastFetchedAt(currentCache.fetchedAt);
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    loadData(false);
+  }, [propertyId, activeWorkspaceId, loadData]);
+
+  // Visibility handler: pause while hidden, revalidate if stale when returning
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const currentCache = useEntityCacheStore.getState().dashboard;
+        if (!isDataFresh(currentCache, FRESHNESS_THRESHOLDS.live)) {
+          loadData(false);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [loadData]);
 
   const hasProperties = availableProperties.length > 0;
   const attentionItems = buildAttentionItems(needsAttention);
@@ -181,9 +289,22 @@ export function OwnerDashboard({
                 <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white mt-0.5">
                   Hello, <span className="text-[#008F83] dark:text-[#32D5C4]">{userName || 'Alif Reza'}</span>
                 </h1>
-                <p className="text-sm font-medium text-slate-400 dark:text-slate-400 mt-1">
-                  View and control your finances here!
-                </p>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <p className="text-sm font-medium text-slate-400 dark:text-slate-400">
+                    View and control your finances here!
+                  </p>
+                  <span className="text-slate-300 dark:text-slate-700 select-none hidden sm:inline">·</span>
+                  <button
+                    type="button"
+                    onClick={() => loadData(true)}
+                    disabled={isRefreshing}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors focus:outline-none"
+                    title="Click to refresh data"
+                  >
+                    <RefreshCw className={cn('w-3 h-3 text-[#008F83] dark:text-[#32D5C4]', isRefreshing && 'animate-spin')} />
+                    <span>{isRefreshing ? 'Refreshing…' : `Updated ${lastUpdatedText}`}</span>
+                  </button>
+                </div>
               </div>
 
               {/* Right Side: Properties / Team Avatar Strip */}

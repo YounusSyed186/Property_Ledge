@@ -99,116 +99,491 @@ export interface InspectionPhoto {
   created_at: string;
 }
 
+export interface InspectionItemDetails {
+  clean?: boolean | null;
+  undamaged?: boolean | null;
+  working?: boolean | null;
+  landlordComments?: string;
+  tenantComments?: string;
+  tenantAgrees?: boolean | null;
+}
+
 export interface RoomTemplateConfig {
   name: string;
   count: number;
 }
 
+// Full NSW Government Schedule 2 Standard Room Structure
 export const DEFAULT_ROOM_TEMPLATES: RoomTemplateConfig[] = [
   { name: 'Entrance / Hall', count: 1 },
-  { name: 'Living Room', count: 1 },
+  { name: 'Lounge Room', count: 1 },
+  { name: 'Dining Room', count: 1 },
   { name: 'Kitchen', count: 1 },
-  { name: 'Bedroom', count: 3 },
-  { name: 'Bathroom', count: 2 },
+  { name: 'Bedroom 1', count: 1 },
+  { name: 'Ensuite', count: 1 },
+  { name: 'Bedroom 2', count: 1 },
+  { name: 'Bedroom 3', count: 1 },
+  { name: 'Bathroom', count: 1 },
   { name: 'Laundry', count: 1 },
-  { name: 'Balcony', count: 0 },
-  { name: 'Garage', count: 1 },
-  { name: 'Security & Safety', count: 1 },
+  { name: 'Security / Safety', count: 1 },
+  { name: 'General', count: 1 },
 ];
 
-export const STANDARD_INSPECTION_ITEMS: string[] = [
-  'Walls',
-  'Ceiling',
-  'Floor',
-  'Doors',
-  'Windows',
-  'Curtains/Blinds',
-  'Power Points',
-  'Lights',
-  'Smoke Alarm',
-  'Air Conditioner',
-  'Cleanliness',
-  'General Condition',
+// NSW Schedule 2 Room Item Definitions
+export const NSW_ENTRANCE_HALL_ITEMS: string[] = [
+  'Front door / screen door / security door',
+  'Walls / picture hooks',
+  'Doorway frames',
+  'Windows / screens / window safety devices',
+  'Ceiling / light fittings',
+  'Blinds / curtains',
+  'Lights / power points / door bell',
+  'Skirting boards',
+  'Floor coverings',
+  'Other',
 ];
 
-export const KITCHEN_ITEMS: string[] = [
-  'Floor / Tiles',
-  'Walls / Splashback',
-  'Ceiling',
-  'Doors / Windows / Screens',
-  'Blinds / Curtains',
-  'Lights / Powerpoints',
-  'Benchtops / Tiling',
-  'Cupboards / Drawers',
-  'Sink / Taps / Disposal',
-  'Stovetop / Griller',
-  'Oven / Trays',
-  'Exhaust Fan / Rangehood',
+export const NSW_LOUNGE_ROOM_ITEMS: string[] = [
+  'Walls / picture hooks',
+  'Doors / doorway frames',
+  'Windows / screens / window safety devices',
+  'Ceiling / light fittings',
+  'Blinds / curtains',
+  'Lights / power points',
+  'Skirting boards',
+  'Floor coverings',
+  'Other',
+];
+
+export const NSW_DINING_ROOM_ITEMS: string[] = [
+  'Walls / picture hooks',
+  'Doors / doorway frames',
+  'Windows / screens / window safety devices',
+  'Ceiling / light fittings',
+  'Blinds / curtains',
+  'Lights / power points',
+  'Skirting boards',
+  'Floor coverings',
+  'Other',
+];
+
+export const NSW_KITCHEN_ITEMS: string[] = [
+  'Walls / picture hooks',
+  'Doors / doorway frames',
+  'Windows / screens / window safety devices',
+  'Ceiling / light fittings',
+  'Blinds / curtains',
+  'Lights / power points',
+  'Skirting boards',
+  'Floor coverings',
+  'Cupboards / drawers',
+  'Benchtops / tiling',
+  'Sink / taps / disposal unit',
+  'Stove top / hot plates',
+  'Oven / griller',
+  'Exhaust fan / range hood',
   'Dishwasher',
-  'Cleanliness',
+  'Other',
 ];
 
-export const BATHROOM_ITEMS: string[] = [
-  'Floor / Tiles',
-  'Walls / Tiles',
-  'Ceiling',
-  'Doors / Doorframe',
-  'Windows / Screens',
-  'Lights / Powerpoints',
-  'Mirror / Vanity / Cabinet',
-  'Basin / Taps / Drain',
-  'Shower / Screen / Taps',
-  'Bath / Taps / Plug',
-  'Toilet / Seat / Cistern',
-  'Towel Rails / Hooks',
-  'Exhaust Fan',
-  'Cleanliness',
+export const NSW_BEDROOM_ITEMS: string[] = [
+  'Walls / picture hooks',
+  'Built-in wardrobe / shelves',
+  'Doors / doorway frames',
+  'Windows / screens / window safety devices',
+  'Ceiling / light fittings',
+  'Blinds / curtains',
+  'Lights / power points',
+  'Skirting boards',
+  'Floor coverings',
+  'Other',
 ];
 
-export const BEDROOM_ITEMS: string[] = [
-  'Floor / Carpet',
-  'Walls',
-  'Ceiling',
-  'Doors / Doorframe',
-  'Windows / Screens / Latches',
-  'Window Safety Devices',
-  'Blinds / Curtains',
-  'Built-in Wardrobes / Shelving',
-  'Lights',
-  'Power Points / Switches',
-  'Air Conditioner / Heater',
-  'Cleanliness',
+export const NSW_ENSUITE_ITEMS: string[] = [
+  'Walls / tiles',
+  'Floor tiles / floor coverings',
+  'Doors / doorway frame',
+  'Windows / screens / window safety devices',
+  'Ceiling / light fittings',
+  'Blinds / curtains',
+  'Lights / power points',
+  'Bath / taps',
+  'Shower / screen / taps',
+  'Wash basin / taps',
+  'Mirror / cabinet / vanity',
+  'Towel rails',
+  'Toilet / cistern / seat',
+  'Toilet roll holder',
+  'Heating / exhaust fan / vent',
+  'Other',
 ];
 
-export const SAFETY_GENERAL_ITEMS: string[] = [
-  'Smoke Alarms (Tested & Working)',
-  'Electrical Safety Switches (RCD)',
-  'Water Efficiency Devices (Showerheads/Taps)',
-  'Communication / Internet Line',
-  'Mould / Dampness Check',
-  'Locks, Keys & Security Latches',
-  'Structural Integrity & Ventilation',
-  'Rubbish / Grounds Cleanliness',
+export const NSW_BATHROOM_ITEMS: string[] = [
+  'Walls / tiles',
+  'Floor tiles / floor coverings',
+  'Doors / doorway frames',
+  'Windows / screens / window safety devices',
+  'Ceiling / light fittings',
+  'Blinds / curtains',
+  'Lights / power points',
+  'Bath / taps',
+  'Shower / screen / taps',
+  'Wash basin / taps',
+  'Mirror / cabinet / vanity',
+  'Towel rails',
+  'Toilet / cistern / seat',
+  'Toilet roll holder',
+  'Heating / exhaust fan / vent',
+  'Other',
 ];
+
+export const NSW_LAUNDRY_ITEMS: string[] = [
+  'Walls / tiles',
+  'Floor tiles / floor coverings',
+  'Doors / doorway frames',
+  'Windows / screens / window safety devices',
+  'Ceiling / light fittings',
+  'Blinds / curtains',
+  'Lights / power points',
+  'Washing machine / taps',
+  'Exhaust fan / vent',
+  'Washing tub',
+  'Dryer',
+  'Other',
+];
+
+export const NSW_SECURITY_SAFETY_ITEMS: string[] = [
+  'External door locks',
+  'Window locks',
+  'Keys',
+  'Security / alarm system',
+  'Smoke alarms',
+  'Electrical safety switch',
+  'Other',
+];
+
+export const NSW_GENERAL_ITEMS: string[] = [
+  'Heating / air conditioning',
+  'Staircase / handrails',
+  'External television antenna / TV points',
+  'Balcony / porch / deck',
+  'Swimming pool',
+  'Swimming pool fence / gate',
+  'Gates / fences',
+  'Grounds / garden',
+  'Garden hose / fittings',
+  'Watering system',
+  'Lawns / edges',
+  'Letter box / street number',
+  'Water tanks / septic tanks',
+  'Garbage bins',
+  'Paving / driveways',
+  'Clothesline',
+  'Garage / carport / storeroom',
+  'Garden shed',
+  'Hot water system',
+  'Gutters / downpipe',
+  'Other',
+];
+
+// Backwards-compatible item mappings
+export const STANDARD_INSPECTION_ITEMS: string[] = NSW_LOUNGE_ROOM_ITEMS;
+export const KITCHEN_ITEMS: string[] = NSW_KITCHEN_ITEMS;
+export const BATHROOM_ITEMS: string[] = NSW_BATHROOM_ITEMS;
+export const BEDROOM_ITEMS: string[] = NSW_BEDROOM_ITEMS;
+export const SAFETY_GENERAL_ITEMS: string[] = NSW_SECURITY_SAFETY_ITEMS;
 
 /**
- * Returns tailored checklist items based on room name category.
+ * Returns tailored checklist items based on room name category matching NSW Schedule 2.
  */
 export function getItemsForRoomType(roomName: string): string[] {
   const lower = roomName.toLowerCase();
+  if (lower.includes('entrance') || lower.includes('hall')) {
+    return NSW_ENTRANCE_HALL_ITEMS;
+  }
   if (lower.includes('kitchen')) {
-    return KITCHEN_ITEMS;
+    return NSW_KITCHEN_ITEMS;
   }
-  if (lower.includes('bath') || lower.includes('ensuite') || lower.includes('powder') || lower.includes('toilet')) {
-    return BATHROOM_ITEMS;
+  if (lower.includes('ensuite')) {
+    return NSW_ENSUITE_ITEMS;
   }
-  if (lower.includes('bed') || lower.includes('living') || lower.includes('lounge') || lower.includes('dining')) {
-    return BEDROOM_ITEMS;
+  if (lower.includes('bath') || lower.includes('powder') || lower.includes('toilet')) {
+    return NSW_BATHROOM_ITEMS;
   }
-  if (lower.includes('safety') || lower.includes('security') || lower.includes('general') || lower.includes('statutory')) {
-    return SAFETY_GENERAL_ITEMS;
+  if (lower.includes('dining')) {
+    return NSW_DINING_ROOM_ITEMS;
   }
-  return STANDARD_INSPECTION_ITEMS;
+  if (lower.includes('lounge') || lower.includes('living')) {
+    return NSW_LOUNGE_ROOM_ITEMS;
+  }
+  if (lower.includes('bed')) {
+    return NSW_BEDROOM_ITEMS;
+  }
+  if (lower.includes('laundry')) {
+    return NSW_LAUNDRY_ITEMS;
+  }
+  if (lower.includes('security') || lower.includes('safety') || lower.includes('statutory')) {
+    return NSW_SECURITY_SAFETY_ITEMS;
+  }
+  if (lower.includes('general') || lower.includes('grounds') || lower.includes('exterior') || lower.includes('garage') || lower.includes('balcony')) {
+    return NSW_GENERAL_ITEMS;
+  }
+  return NSW_LOUNGE_ROOM_ITEMS;
+}
+
+// --- NSW Statutory Schedule 2 Sections Data Models ---
+
+export interface MinimumStandardsData {
+  structurallySound: boolean | null;
+  adequateLighting: boolean | null;
+  adequateVentilation: boolean | null;
+  adequateElectricityGasOutlets: boolean | null;
+  adequatePlumbingDrainage: boolean | null;
+  suppliedElectricity: boolean | null;
+  suppliedGas: boolean | null;
+  connectedWaterSupply: boolean | null;
+  bathroomFacilitiesPrivacy: boolean | null;
+  tenantAgrees: boolean | null;
+  tenantDisagreedItems?: string;
+}
+
+export interface HealthIssuesData {
+  mouldOrDampness: boolean | null;
+  pestsOrVermin: boolean | null;
+  rubbishOnPremises: boolean | null;
+  looseFillAsbestosRegister: boolean | null;
+  notes?: string;
+}
+
+export interface SmokeAlarmsData {
+  installedCompliantEPA1979: boolean | null;
+  checkedAndWorking: boolean | null;
+  dateLastChecked?: string;
+  removableBatteriesReplaced12Months: boolean | null | 'N/A';
+  dateRemovableBatteriesChanged?: string;
+  lithiumBatteriesReplacedPeriod: boolean | null | 'N/A';
+  dateLithiumBatteriesChanged?: string;
+}
+
+export interface OtherSafetyIssuesData {
+  damagedAppliances: boolean | null;
+  electricalHazards: boolean | null;
+  gasHazards: boolean | null;
+  tenantAgrees: boolean | null;
+  tenantDisagreedItems?: string;
+}
+
+export interface CommunicationFacilitiesData {
+  telephoneLineConnected: boolean | null;
+  internetLineConnected: boolean | null;
+}
+
+export interface WaterEfficiencyData {
+  separatelyMetered: boolean | null;
+  showerheadsMax9Lpm: boolean | null;
+  toiletsDualFlush3StarWELS: boolean | null | 'N/A';
+  internalTapsMax9Lpm: boolean | null;
+  leaksFixed: boolean | null;
+  dateLastChecked?: string;
+  waterMeterStartReading?: string;
+  waterMeterStartDate?: string;
+  waterMeterEndReading?: string;
+  waterMeterEndDate?: string;
+}
+
+export interface FurnitureData {
+  furnitureIncluded: boolean | null;
+  attachedListNotes?: string;
+}
+
+export interface WorkDoneDatesData {
+  smokeAlarmsWorkDate?: string;
+  externalPaintingDate?: string;
+  internalPaintingDate?: string;
+  flooringDate?: string;
+  additionalComments?: string;
+}
+
+export interface LandlordWorkCommitmentItem {
+  id: string;
+  description: string;
+  completionDueDate?: string;
+  signature?: string | null;
+  signatureDate?: string;
+  status?: 'Open' | 'In Progress' | 'Completed';
+  responsible?: string;
+}
+
+export interface SignaturesData {
+  startTenancyLandlordSig?: string | null;
+  startTenancyLandlordDate?: string;
+  startTenancyTenantSig?: string | null;
+  startTenancyTenantDate?: string;
+  endTenancyLandlordSig?: string | null;
+  endTenancyLandlordDate?: string;
+  endTenancyTenantSig?: string | null;
+  endTenancyTenantDate?: string;
+}
+
+export interface Schedule2StatutoryData {
+  minimumStandards: MinimumStandardsData;
+  healthIssues: HealthIssuesData;
+  smokeAlarms: SmokeAlarmsData;
+  safetyIssues: OtherSafetyIssuesData;
+  communicationFacilities: CommunicationFacilitiesData;
+  waterEfficiency: WaterEfficiencyData;
+  furniture: FurnitureData;
+  workDoneDates: WorkDoneDatesData;
+  workCommitments: LandlordWorkCommitmentItem[];
+  signatures: SignaturesData;
+  itemDetailsMap?: Record<string, InspectionItemDetails>;
+}
+
+export const DEFAULT_SCHEDULE_2_DATA: Schedule2StatutoryData = {
+  minimumStandards: {
+    structurallySound: true,
+    adequateLighting: true,
+    adequateVentilation: true,
+    adequateElectricityGasOutlets: true,
+    adequatePlumbingDrainage: true,
+    suppliedElectricity: true,
+    suppliedGas: true,
+    connectedWaterSupply: true,
+    bathroomFacilitiesPrivacy: true,
+    tenantAgrees: true,
+    tenantDisagreedItems: '',
+  },
+  healthIssues: {
+    mouldOrDampness: false,
+    pestsOrVermin: false,
+    rubbishOnPremises: false,
+    looseFillAsbestosRegister: false,
+    notes: '',
+  },
+  smokeAlarms: {
+    installedCompliantEPA1979: true,
+    checkedAndWorking: true,
+    dateLastChecked: new Date().toISOString().split('T')[0],
+    removableBatteriesReplaced12Months: true,
+    dateRemovableBatteriesChanged: new Date().toISOString().split('T')[0],
+    lithiumBatteriesReplacedPeriod: 'N/A',
+    dateLithiumBatteriesChanged: '',
+  },
+  safetyIssues: {
+    damagedAppliances: false,
+    electricalHazards: false,
+    gasHazards: false,
+    tenantAgrees: true,
+    tenantDisagreedItems: '',
+  },
+  communicationFacilities: {
+    telephoneLineConnected: true,
+    internetLineConnected: true,
+  },
+  waterEfficiency: {
+    separatelyMetered: true,
+    showerheadsMax9Lpm: true,
+    toiletsDualFlush3StarWELS: true,
+    internalTapsMax9Lpm: true,
+    leaksFixed: true,
+    dateLastChecked: new Date().toISOString().split('T')[0],
+    waterMeterStartReading: '',
+    waterMeterStartDate: new Date().toISOString().split('T')[0],
+    waterMeterEndReading: '',
+    waterMeterEndDate: '',
+  },
+  furniture: {
+    furnitureIncluded: false,
+    attachedListNotes: '',
+  },
+  workDoneDates: {
+    smokeAlarmsWorkDate: '',
+    externalPaintingDate: '',
+    internalPaintingDate: '',
+    flooringDate: '',
+    additionalComments: '',
+  },
+  workCommitments: [],
+  signatures: {
+    startTenancyLandlordSig: null,
+    startTenancyLandlordDate: new Date().toISOString().split('T')[0],
+    startTenancyTenantSig: null,
+    startTenancyTenantDate: new Date().toISOString().split('T')[0],
+    endTenancyLandlordSig: null,
+    endTenancyLandlordDate: '',
+    endTenancyTenantSig: null,
+    endTenancyTenantDate: '',
+  },
+  itemDetailsMap: {},
+};
+
+/**
+ * Parses structured Schedule 2 data safely from raw notes text or returns default.
+ */
+export function parseSchedule2Data(rawNotes?: string | null): {
+  plainNotes: string;
+  statutory: Schedule2StatutoryData;
+} {
+  if (!rawNotes) {
+    return { plainNotes: '', statutory: JSON.parse(JSON.stringify(DEFAULT_SCHEDULE_2_DATA)) };
+  }
+
+  const marker = '---SCHEDULE_2_METADATA---';
+  const markerIdx = rawNotes.indexOf(marker);
+
+  if (markerIdx === -1) {
+    // Try to parse as whole json
+    if (rawNotes.trim().startsWith('{') && rawNotes.includes('minimumStandards')) {
+      try {
+        const parsed = JSON.parse(rawNotes.trim());
+        return {
+          plainNotes: parsed.plainNotes || '',
+          statutory: { ...DEFAULT_SCHEDULE_2_DATA, ...parsed },
+        };
+      } catch {
+        return { plainNotes: rawNotes, statutory: JSON.parse(JSON.stringify(DEFAULT_SCHEDULE_2_DATA)) };
+      }
+    }
+    return { plainNotes: rawNotes, statutory: JSON.parse(JSON.stringify(DEFAULT_SCHEDULE_2_DATA)) };
+  }
+
+  const plainNotes = rawNotes.substring(0, markerIdx).trim();
+  const jsonStr = rawNotes.substring(markerIdx + marker.length).trim();
+
+  try {
+    const parsed = JSON.parse(jsonStr);
+    return {
+      plainNotes,
+      statutory: {
+        ...DEFAULT_SCHEDULE_2_DATA,
+        ...parsed,
+        minimumStandards: { ...DEFAULT_SCHEDULE_2_DATA.minimumStandards, ...(parsed.minimumStandards || {}) },
+        healthIssues: { ...DEFAULT_SCHEDULE_2_DATA.healthIssues, ...(parsed.healthIssues || {}) },
+        smokeAlarms: { ...DEFAULT_SCHEDULE_2_DATA.smokeAlarms, ...(parsed.smokeAlarms || {}) },
+        safetyIssues: { ...DEFAULT_SCHEDULE_2_DATA.safetyIssues, ...(parsed.safetyIssues || {}) },
+        communicationFacilities: { ...DEFAULT_SCHEDULE_2_DATA.communicationFacilities, ...(parsed.communicationFacilities || {}) },
+        waterEfficiency: { ...DEFAULT_SCHEDULE_2_DATA.waterEfficiency, ...(parsed.waterEfficiency || {}) },
+        furniture: { ...DEFAULT_SCHEDULE_2_DATA.furniture, ...(parsed.furniture || {}) },
+        workDoneDates: { ...DEFAULT_SCHEDULE_2_DATA.workDoneDates, ...(parsed.workDoneDates || {}) },
+        workCommitments: Array.isArray(parsed.workCommitments) ? parsed.workCommitments : [],
+        signatures: { ...DEFAULT_SCHEDULE_2_DATA.signatures, ...(parsed.signatures || {}) },
+        itemDetailsMap: parsed.itemDetailsMap || {},
+      },
+    };
+  } catch {
+    return { plainNotes, statutory: JSON.parse(JSON.stringify(DEFAULT_SCHEDULE_2_DATA)) };
+  }
+}
+
+/**
+ * Serializes plain notes and Schedule 2 statutory metadata for storage.
+ */
+export function serializeSchedule2Data(
+  plainNotes: string,
+  statutory: Schedule2StatutoryData
+): string {
+  const marker = '---SCHEDULE_2_METADATA---';
+  return `${plainNotes.trim()}\n\n${marker}\n${JSON.stringify(statutory)}`;
 }
 
 export interface CreateConditionReportInput {
@@ -220,6 +595,7 @@ export interface CreateConditionReportInput {
   inspectorName: string;
   notes?: string;
   roomTemplates: RoomTemplateConfig[];
+  statutoryData?: Schedule2StatutoryData;
 }
 
 export interface FullConditionReportData {
@@ -229,6 +605,7 @@ export interface FullConditionReportData {
   defects: InspectionDefect[];
   photos: InspectionPhoto[];
   baselineReport?: FullConditionReportData | null;
+  schedule2Data?: Schedule2StatutoryData;
 }
 
 // --- Historical Comparison Engine Types ---
@@ -239,6 +616,12 @@ export interface ItemComparisonResult {
   itemName: string;
   previousRating: ItemRating | null;
   currentRating: ItemRating | null;
+  previousClean?: boolean | null;
+  currentClean?: boolean | null;
+  previousUndamaged?: boolean | null;
+  currentUndamaged?: boolean | null;
+  previousWorking?: boolean | null;
+  currentWorking?: boolean | null;
   changed: boolean;
   severity: ComparisonItemSeverity;
   comments?: string;

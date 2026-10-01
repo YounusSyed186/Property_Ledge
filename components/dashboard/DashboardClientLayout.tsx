@@ -74,7 +74,6 @@ const NAV_GROUPS: { label: string; items: NavItemConfig[] }[] = [
     label: 'Operations',
     items: [
       { id: 'automations', label: 'Automations', href: '/dashboard/automations', icon: Lightning, comingSoon: false },
-      { id: 'maintenance', label: 'Maintenance', href: '/dashboard/maintenance', icon: Wrench, comingSoon: false },
       { id: 'inspections', label: 'Inspections', href: '/dashboard/inspections', icon: ClipboardText, comingSoon: false },
       { id: 'documents', label: 'Documents', href: '/dashboard/documents', icon: FolderSimple, comingSoon: false },
       { id: 'tasks', label: 'Tasks', href: '/dashboard/tasks', icon: CheckSquare, comingSoon: false },

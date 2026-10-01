@@ -105,16 +105,7 @@ export const CANONICAL_ROUTES: RouteConfig[] = [
     supportsPropertyFilter: false,
     permission: 'automation.view',
   },
-  {
-    id: 'maintenance',
-    label: 'Maintenance',
-    href: '/dashboard/maintenance',
-    group: 'Operations',
-    comingSoon: false,
-    requiresWorkspace: true,
-    supportsPropertyFilter: true,
-    permission: 'maintenance.view',
-  },
+
   {
     id: 'inspections',
     label: 'Inspections',

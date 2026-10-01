@@ -238,7 +238,7 @@ export async function handleDeleteProperty(propertyId: string) {
 // Unit CRUD
 export async function handleCreateUnit(propertyId: string, input: Omit<Tables['units']['Insert'], 'property_id'>) {
   const data = await service.createUnit(propertyId, input);
-  revalidateDashboard('/dashboard/units', '/dashboard', `/dashboard/properties/${propertyId}`);
+  revalidateDashboard('/dashboard/units', `/dashboard/properties/${propertyId}`);
   return { success: true, data };
 }
 
@@ -250,7 +250,7 @@ export async function handleUpdateUnit(propertyId: string, unitId: string, input
 
 export async function handleDeleteUnit(propertyId: string, unitId: string) {
   await service.deleteUnit(propertyId, unitId);
-  revalidateDashboard('/dashboard/units', '/dashboard', `/dashboard/properties/${propertyId}`);
+  revalidateDashboard('/dashboard/units', `/dashboard/properties/${propertyId}`);
   return { success: true };
 }
 
@@ -277,14 +277,14 @@ export async function fetchAllWorkspaceLeases(propertyId?: string | null) {
 // Tenancy Setup (Atomic Tenant + Lease + Bond creation)
 export async function handleSetupTenancy(propertyId: string, input: service.TenancySetupInput) {
   const data = await service.setupTenancyWithLease(propertyId, input);
-  revalidateDashboard('/dashboard/tenants', '/dashboard/people', '/dashboard/leases', '/dashboard', `/dashboard/properties/${propertyId}`);
+  revalidateDashboard('/dashboard/tenants', '/dashboard/people', '/dashboard/leases', `/dashboard/properties/${propertyId}`);
   return { success: true, data };
 }
 
 // Tenant CRUD
 export async function handleCreateTenant(propertyId: string, input: Omit<Tables['tenants']['Insert'], 'property_id'>) {
   const data = await service.createTenant(propertyId, input);
-  revalidateDashboard('/dashboard/tenants', '/dashboard/people', '/dashboard', `/dashboard/properties/${propertyId}`);
+  revalidateDashboard('/dashboard/tenants', '/dashboard/people', `/dashboard/properties/${propertyId}`);
   return { success: true, data };
 }
 
@@ -296,7 +296,7 @@ export async function handleUpdateTenant(propertyId: string, tenantId: string, i
 
 export async function handleDeleteTenant(propertyId: string, tenantId: string) {
   await service.deleteTenant(propertyId, tenantId);
-  revalidateDashboard('/dashboard/tenants', '/dashboard/people', '/dashboard', `/dashboard/properties/${propertyId}`);
+  revalidateDashboard('/dashboard/tenants', '/dashboard/people', `/dashboard/properties/${propertyId}`);
   return { success: true };
 }
 
@@ -307,7 +307,7 @@ export async function handleCreateLease(
   tenantIds?: string[]
 ) {
   const data = await service.createLease(propertyId, input, tenantIds);
-  revalidateDashboard('/dashboard/leases', '/dashboard', `/dashboard/properties/${propertyId}`);
+  revalidateDashboard('/dashboard/leases', `/dashboard/properties/${propertyId}`);
   return { success: true, data };
 }
 
@@ -336,7 +336,7 @@ export async function handleUpdateLeaseStatus(propertyId: string, leaseId: strin
 
 export async function handleDeleteLease(propertyId: string, leaseId: string) {
   await service.deleteLease(propertyId, leaseId);
-  revalidateDashboard('/dashboard/leases', '/dashboard', `/dashboard/properties/${propertyId}`);
+  revalidateDashboard('/dashboard/leases', `/dashboard/properties/${propertyId}`);
   return { success: true };
 }
 
@@ -365,7 +365,6 @@ export async function handleRenewLease(previousLeaseId: string, input: RenewLeas
 
   revalidateDashboard(
     '/dashboard/leases',
-    '/dashboard',
     `/dashboard/properties/${input.propertyId}`,
     `/dashboard/leases/${previousLeaseId}`,
     `/dashboard/leases/${result.data.id}`
@@ -414,7 +413,7 @@ export async function fetchLeaseRenewalHistory(leaseId: string) {
 // Invoice CRUD
 export async function handleCreateInvoice(propertyId: string, input: Omit<Tables['invoices']['Insert'], 'property_id'>) {
   const data = await service.createInvoice(propertyId, input);
-  revalidateDashboard('/dashboard/invoices', '/dashboard');
+  revalidateDashboard('/dashboard/invoices');
   return { success: true, data };
 }
 
@@ -426,14 +425,14 @@ export async function handleUpdateInvoice(propertyId: string, invoiceId: string,
 
 export async function handleDeleteInvoice(propertyId: string, invoiceId: string) {
   await service.deleteInvoice(propertyId, invoiceId);
-  revalidateDashboard('/dashboard/invoices', '/dashboard');
+  revalidateDashboard('/dashboard/invoices');
   return { success: true };
 }
 
 // Payment CRUD
 export async function handleCreatePayment(propertyId: string, input: Omit<Tables['payments']['Insert'], 'property_id'>) {
   const data = await service.createPayment(propertyId, input);
-  revalidateDashboard('/dashboard/payments', '/dashboard');
+  revalidateDashboard('/dashboard/payments');
   return { success: true, data };
 }
 
@@ -445,14 +444,14 @@ export async function handleUpdatePayment(propertyId: string, paymentId: string,
 
 export async function handleDeletePayment(propertyId: string, paymentId: string) {
   await service.deletePayment(propertyId, paymentId);
-  revalidateDashboard('/dashboard/payments', '/dashboard');
+  revalidateDashboard('/dashboard/payments');
   return { success: true };
 }
 
 // Expense CRUD
 export async function handleCreateExpense(propertyId: string, input: Omit<Tables['expenses']['Insert'], 'property_id'>) {
   const data = await service.createExpense(propertyId, input);
-  revalidateDashboard('/dashboard/expenses', '/dashboard');
+  revalidateDashboard('/dashboard/expenses');
   return { success: true, data };
 }
 
@@ -464,7 +463,7 @@ export async function handleUpdateExpense(propertyId: string, expenseId: string,
 
 export async function handleDeleteExpense(propertyId: string, expenseId: string) {
   await service.deleteExpense(propertyId, expenseId);
-  revalidateDashboard('/dashboard/expenses', '/dashboard');
+  revalidateDashboard('/dashboard/expenses');
   return { success: true };
 }
 
@@ -474,7 +473,7 @@ export async function handleCreateMaintenance(
   input: Omit<Tables['maintenance_requests']['Insert'], 'property_id'>
 ) {
   const data = await service.createMaintenanceRequest(propertyId, input);
-  revalidateDashboard('/dashboard/maintenance', '/dashboard');
+  revalidateDashboard('/dashboard/maintenance');
   return { success: true, data };
 }
 
@@ -490,7 +489,7 @@ export async function handleUpdateMaintenance(
 
 export async function handleDeleteMaintenance(propertyId: string, requestId: string) {
   await service.deleteMaintenanceRequest(propertyId, requestId);
-  revalidateDashboard('/dashboard/maintenance', '/dashboard');
+  revalidateDashboard('/dashboard/maintenance');
   return { success: true };
 }
 
@@ -500,7 +499,7 @@ export async function handleCreateInspection(
   input: Omit<Tables['inspections']['Insert'], 'property_id'>
 ) {
   const data = await service.createInspection(propertyId, input);
-  revalidateDashboard('/dashboard/inspections', '/dashboard');
+  revalidateDashboard('/dashboard/inspections');
   return { success: true, data };
 }
 
@@ -516,7 +515,7 @@ export async function handleUpdateInspection(
 
 export async function handleDeleteInspection(propertyId: string, inspectionId: string) {
   await service.deleteInspection(propertyId, inspectionId);
-  revalidateDashboard('/dashboard/inspections', '/dashboard');
+  revalidateDashboard('/dashboard/inspections');
   return { success: true };
 }
 
@@ -526,7 +525,7 @@ export async function handleCreateDocument(
   input: Omit<Tables['documents']['Insert'], 'property_id'>
 ) {
   const data = await service.createDocument(propertyId, input);
-  revalidateDashboard('/dashboard/documents', '/dashboard');
+  revalidateDashboard('/dashboard/documents');
   return { success: true, data };
 }
 
@@ -542,14 +541,14 @@ export async function handleUpdateDocument(
 
 export async function handleDeleteDocument(propertyId: string, documentId: string) {
   await service.deleteDocument(propertyId, documentId);
-  revalidateDashboard('/dashboard/documents', '/dashboard');
+  revalidateDashboard('/dashboard/documents');
   return { success: true };
 }
 
 // Task CRUD
 export async function handleCreateTask(propertyId: string, input: Omit<Tables['tasks']['Insert'], 'property_id'>) {
   const data = await service.createTask(propertyId, input);
-  revalidateDashboard('/dashboard/tasks', '/dashboard');
+  revalidateDashboard('/dashboard/tasks');
   return { success: true, data };
 }
 
@@ -561,6 +560,6 @@ export async function handleUpdateTask(propertyId: string, taskId: string, input
 
 export async function handleDeleteTask(propertyId: string, taskId: string) {
   await service.deleteTask(propertyId, taskId);
-  revalidateDashboard('/dashboard/tasks', '/dashboard');
+  revalidateDashboard('/dashboard/tasks');
   return { success: true };
 }

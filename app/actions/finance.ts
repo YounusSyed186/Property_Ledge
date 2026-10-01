@@ -34,7 +34,6 @@ async function getAuthContext() {
 function revalidateFinancialPaths() {
   revalidatePath('/dashboard/money');
   revalidatePath('/dashboard/finances');
-  revalidatePath('/dashboard');
 }
 
 /**

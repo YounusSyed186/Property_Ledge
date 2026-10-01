@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Plus,
   Building,
+  Building2,
   Search,
   Calendar,
   User,
@@ -17,6 +18,7 @@ import {
   FileCheck,
   ChevronRight,
   ShieldAlert,
+  ArrowUpRight,
 } from 'lucide-react';
 import {
   ConditionReport,
@@ -37,6 +39,7 @@ import {
   CompactKpiCard,
   SectionPanel,
 } from '@/components/workspace';
+import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
 
 interface ConditionReportsDashboardProps {
   initialReports?: ConditionReport[];
@@ -234,17 +237,17 @@ export function ConditionReportsDashboard({
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              <h1 className="text-2xl font-bold tracking-tight text-admin-foreground">
                 Condition Reports
               </h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-admin-muted">
                 Perform mobile-first digital condition inspections, log defects, capture signatures, and export official PDFs.
               </p>
             </div>
             <button
               type="button"
               onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white dark:bg-teal-600 dark:hover:bg-teal-500 font-semibold px-4 py-2.5 rounded-xl text-sm transition-all shadow-sm cursor-pointer shrink-0"
+              className="inline-flex items-center justify-center gap-2 bg-admin-primary hover:bg-admin-primary/90 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all shadow-xs cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4" /> Start New Report
             </button>
@@ -274,13 +277,13 @@ export function ConditionReportsDashboard({
 
           {/* Search & Filters */}
           <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-admin-muted" />
             <input
               type="text"
               placeholder="Search by property name, address, inspector, or type..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-teal-500/20 focus:border-slate-400 dark:focus:border-slate-700 outline-none transition-all placeholder:text-slate-400 text-slate-900 dark:text-white shadow-xs"
+              className="w-full pl-10 pr-4 py-2.5 bg-admin-surface border border-admin-border rounded-xl text-sm focus:ring-2 focus:ring-admin-primary/20 focus:border-admin-primary outline-none transition-all placeholder:text-admin-muted text-admin-foreground shadow-xs"
             />
           </div>
 
@@ -307,26 +310,26 @@ export function ConditionReportsDashboard({
               <div className="w-8 h-8 border-3 border-teal-600 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : filteredReports.length === 0 ? (
-            <div className="text-center py-16 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 shadow-xs">
-              <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+            <div className="text-center py-16 bg-admin-surface border border-admin-border rounded-2xl p-8 shadow-xs">
+              <div className="w-14 h-14 bg-admin-surface-subtle rounded-full flex items-center justify-center mx-auto mb-4 text-admin-muted">
                 <ClipboardList className="w-7 h-7" />
               </div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
+              <h3 className="text-base font-bold text-admin-foreground mb-1">
                 No Condition Reports Found
               </h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
+              <p className="text-sm text-admin-muted max-w-md mx-auto mb-6">
                 Start your first digital condition inspection. Configure property layout and inspect room-by-room on your mobile device or tablet.
               </p>
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(true)}
-                className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 bg-admin-primary hover:bg-admin-primary/90 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-all cursor-pointer shadow-xs"
               >
                 <Plus className="w-4 h-4" /> Start New Report
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <HoverCardGrid className="overflow-y-auto flex-1 p-1">
               {filteredReports.map((r) => {
                 const totalRooms = r.inspection_rooms?.length || 0;
                 const completedRooms =
@@ -349,21 +352,34 @@ export function ConditionReportsDashboard({
                   .join(', ');
 
                 return (
-                  <div
+                  <HoverEffectCardItem
                     key={r.id}
                     onClick={() =>
                       router.push(`/dashboard/inspections/${r.id}`)
                     }
-                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600 rounded-2xl p-5 shadow-xs transition-all cursor-pointer flex flex-col justify-between group"
+                    className="cursor-pointer group/card"
                   >
-                    <div>
-                      <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-admin-primary/10 text-admin-primary flex items-center justify-center font-bold text-sm shrink-0 border border-admin-primary/20">
+                          <Building2 className="w-5 h-5 text-admin-primary" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-bold text-sm text-admin-foreground leading-tight truncate group-hover/card:text-admin-primary transition-colors">
+                            {propertyTitle}
+                          </h4>
+                          <p className="text-xs text-admin-muted mt-0.5 truncate">
+                            {propertySubtitle || '—'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <span
                           className={cn(
-                            'px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider',
+                            'px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider shrink-0',
                             r.status === 'Completed'
-                              ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                              : 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
                           )}
                         >
                           {r.status}
@@ -374,74 +390,93 @@ export function ConditionReportsDashboard({
                             e.stopPropagation();
                             setDeleteConfirmId(r.id);
                           }}
-                          className="text-slate-400 hover:text-red-600 dark:hover:text-red-400 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
+                          className="p-1 text-admin-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors inline-flex items-center justify-center"
+                          title="Delete Report"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
+                    </div>
 
-                      <h3 className="font-bold text-base text-slate-900 dark:text-white truncate mb-0.5">
-                        {propertyTitle}
-                      </h3>
-                      {propertySubtitle && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate mb-3">
-                          {propertySubtitle}
-                        </p>
-                      )}
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          'px-2 py-0.5 rounded text-[10px] font-bold',
+                          r.type === 'Move In'
+                            ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20'
+                            : r.type === 'Routine'
+                            ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+                            : r.type === 'Move Out'
+                            ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20'
+                            : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20'
+                        )}
+                      >
+                        {r.type} Condition Report
+                      </span>
+                    </div>
 
-                      <div className="flex items-center gap-2 mb-4">
-                        <span
-                          className={cn(
-                            'px-2 py-0.5 rounded text-[10px] font-bold',
-                            r.type === 'Move In'
-                              ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900'
-                              : r.type === 'Routine'
-                              ? 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-900'
-                              : r.type === 'Move Out'
-                              ? 'bg-orange-50 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300 border border-orange-100 dark:border-orange-900'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                          )}
-                        >
-                          {r.type} Condition Report
+                    <div className="grid grid-cols-2 gap-2 text-xs p-3 rounded-xl bg-admin-surface-subtle/50 border border-admin-border/50 my-1">
+                      <div>
+                        <span className="text-admin-muted text-[10px] uppercase font-bold tracking-wider block">
+                          Inspection Date
+                        </span>
+                        <span className="font-semibold text-admin-foreground truncate block">
+                          {r.inspection_date || '—'}
                         </span>
                       </div>
-
-                      {/* Progress Bar */}
-                      {totalRooms > 0 && (
-                        <div className="mt-3 mb-4 space-y-1.5">
-                          <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                            <span>Progress</span>
-                            <span>
-                              {completedRooms}/{totalRooms} Rooms ({pct}%)
-                            </span>
-                          </div>
-                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                            <div
-                              className={cn(
-                                'h-full rounded-full transition-all duration-300',
-                                pct === 100
-                                  ? 'bg-emerald-500'
-                                  : 'bg-teal-600 dark:bg-teal-400'
-                              )}
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
+                      <div>
+                        <span className="text-admin-muted text-[10px] uppercase font-bold tracking-wider block">
+                          Inspector
+                        </span>
+                        <span className="font-semibold text-admin-foreground truncate block capitalize">
+                          {r.inspector_name || 'Unassigned'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-admin-muted text-[10px] uppercase font-bold tracking-wider block">
+                          Areas Inspected
+                        </span>
+                        <span className="font-semibold text-admin-foreground truncate block">
+                          {completedRooms} of {totalRooms} Rooms
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-admin-muted text-[10px] uppercase font-bold tracking-wider block">
+                          Progress
+                        </span>
+                        <span className="font-bold text-admin-foreground truncate block">
+                          {pct}% Complete
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="pt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                      <span className="flex items-center gap-1.5 font-medium">
-                        <Calendar className="w-3.5 h-3.5" /> {r.inspection_date}
+                    {totalRooms > 0 && (
+                      <div className="w-full bg-admin-border/50 h-1.5 rounded-full overflow-hidden">
+                        <div
+                          className={cn(
+                            'h-full rounded-full transition-all duration-300',
+                            pct === 100
+                              ? 'bg-emerald-500'
+                              : 'bg-admin-primary'
+                          )}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-2 border-t border-admin-border/50">
+                      <span className="text-xs font-bold text-admin-primary group-hover/card:underline inline-flex items-center gap-1">
+                        {r.status === 'Completed' ? 'View Report' : 'Continue Inspection'}{' '}
+                        <ArrowUpRight className="w-3.5 h-3.5" />
                       </span>
-                      <span className="flex items-center gap-1.5 font-medium capitalize">
-                        <User className="w-3.5 h-3.5" /> {r.inspector_name}
+                      <span className="text-[11px] text-admin-muted font-medium">
+                        {pct === 100 ? 'Ready to Export' : `${completedRooms}/${totalRooms} Completed`}
                       </span>
                     </div>
-                  </div>
+                  </HoverEffectCardItem>
                 );
               })}
-            </div>
+            </HoverCardGrid>
           )}
         </div>
 

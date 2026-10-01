@@ -159,37 +159,32 @@ export function BasWorksheetTab({
                 )}
               </tbody>
 
-              {/* Totals & BAS Codes */}
+              {/* Totals */}
               <tfoot>
                 {/* Totals Row */}
                 <tr className="bg-[#E1EDFA] dark:bg-slate-800 text-[#0A2540] dark:text-white font-bold text-xs sm:text-[13px]">
                   <td className="py-2.5 px-4 rounded-l-md"></td>
                   <td className="py-2.5 px-4">Totals</td>
-                  <td className="py-2.5 px-4 text-right">
-                    {formatCellCurrency(totals.totalSales)}
+                  <td className="py-2.5 px-4 text-right whitespace-nowrap">
+                    <span className="font-bold">{formatCellCurrency(totals.totalSales)}</span>
+                    {showBasCodes && (
+                      <sup className="text-[10px] font-bold text-[#4D92DF] dark:text-blue-400 ml-0.5 align-super">
+                        (G1)
+                      </sup>
+                    )}
                   </td>
-                  <td className="py-2.5 px-4 text-right">
-                    {formatCellCurrency(totals.gstOnSales)}
+                  <td className="py-2.5 px-4 text-right whitespace-nowrap">
+                    <span className="font-bold">{formatCellCurrency(totals.gstOnSales)}</span>
+                    {showBasCodes && (
+                      <sup className="text-[10px] font-bold text-[#4D92DF] dark:text-blue-400 ml-0.5 align-super">
+                        (1A)
+                      </sup>
+                    )}
                   </td>
                   <td className="py-2.5 px-4 text-right rounded-r-md">
                     {formatCellCurrency(totals.totalSales - totals.gstOnSales > 0 ? totals.totalSales - totals.gstOnSales : totals.totalSales)}
                   </td>
                 </tr>
-
-                {/* BAS Codes Row */}
-                {showBasCodes && (
-                  <tr className="bg-[#EEF5FC] dark:bg-slate-850 text-[#0A2540] dark:text-slate-200 font-bold text-xs">
-                    <td className="py-2.5 px-4 rounded-l-md"></td>
-                    <td className="py-2.5 px-4">BAS Codes</td>
-                    <td className="py-2.5 px-4 text-right font-bold text-[#0A2540] dark:text-white">
-                      (G1)
-                    </td>
-                    <td className="py-2.5 px-4 text-right font-bold text-[#0A2540] dark:text-white">
-                      (1A)
-                    </td>
-                    <td className="py-2.5 px-4 text-right rounded-r-md"></td>
-                  </tr>
-                )}
               </tfoot>
             </table>
           </div>
@@ -245,37 +240,32 @@ export function BasWorksheetTab({
                 )}
               </tbody>
 
-              {/* Totals & BAS Codes */}
+              {/* Totals */}
               <tfoot>
                 {/* Totals Row */}
                 <tr className="bg-[#E1EDFA] dark:bg-slate-800 text-[#0A2540] dark:text-white font-bold text-xs sm:text-[13px]">
                   <td className="py-2.5 px-4 rounded-l-md"></td>
                   <td className="py-2.5 px-4">Totals</td>
-                  <td className="py-2.5 px-4 text-right">
-                    {formatCellCurrency(totals.totalExpenses)}
+                  <td className="py-2.5 px-4 text-right whitespace-nowrap">
+                    <span className="font-bold">{formatCellCurrency(totals.totalExpenses)}</span>
+                    {showBasCodes && (
+                      <sup className="text-[10px] font-bold text-[#4D92DF] dark:text-blue-400 ml-0.5 align-super">
+                        (G11)
+                      </sup>
+                    )}
                   </td>
-                  <td className="py-2.5 px-4 text-right">
-                    {formatCellCurrency(totals.gstOnExpenses)}
+                  <td className="py-2.5 px-4 text-right whitespace-nowrap">
+                    <span className="font-bold">{formatCellCurrency(totals.gstOnExpenses)}</span>
+                    {showBasCodes && (
+                      <sup className="text-[10px] font-bold text-[#4D92DF] dark:text-blue-400 ml-0.5 align-super">
+                        (1B)
+                      </sup>
+                    )}
                   </td>
                   <td className="py-2.5 px-4 text-right rounded-r-md">
                     {formatCellCurrency(totals.totalExpenses - totals.gstOnExpenses)}
                   </td>
                 </tr>
-
-                {/* BAS Codes Row */}
-                {showBasCodes && (
-                  <tr className="bg-[#EEF5FC] dark:bg-slate-850 text-[#0A2540] dark:text-slate-200 font-bold text-xs">
-                    <td className="py-2.5 px-4 rounded-l-md"></td>
-                    <td className="py-2.5 px-4">BAS Codes</td>
-                    <td className="py-2.5 px-4 text-right font-bold text-[#0A2540] dark:text-white">
-                      (G11)
-                    </td>
-                    <td className="py-2.5 px-4 text-right font-bold text-[#0A2540] dark:text-white">
-                      (1B)
-                    </td>
-                    <td className="py-2.5 px-4 text-right rounded-r-md"></td>
-                  </tr>
-                )}
               </tfoot>
             </table>
           </div>
@@ -285,11 +275,18 @@ export function BasWorksheetTab({
         <div className="pt-2">
           <div className="bg-[#E1EDFA] dark:bg-slate-800 rounded-lg px-5 py-3 flex items-center justify-between font-bold text-sm sm:text-base text-[#0A2540] dark:text-white shadow-2xs">
             <span>Net GST Payable/(refundable)</span>
-            <span className="font-extrabold text-sm sm:text-base">
-              {totals.netGstPosition < -0.005
-                ? `-$${Math.abs(totals.netGstPosition).toFixed(2)} (Refund)`
-                : formatCellCurrency(totals.netGstPosition)}
-            </span>
+            <div className="whitespace-nowrap">
+              <span className="font-extrabold text-sm sm:text-base">
+                {totals.netGstPosition < -0.005
+                  ? `-$${Math.abs(totals.netGstPosition).toFixed(2)} (Refund)`
+                  : formatCellCurrency(totals.netGstPosition)}
+              </span>
+              {showBasCodes && (
+                <sup className="text-[10px] font-bold text-[#4D92DF] dark:text-blue-400 ml-1 align-super">
+                  (1A - 1B)
+                </sup>
+              )}
+            </div>
           </div>
         </div>
 

@@ -5235,6 +5235,7 @@ CREATE TABLE IF NOT EXISTS public.condition_reports (
   workspace_id        UUID                     NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
   property_id         UUID                     NOT NULL REFERENCES public.properties(id) ON DELETE CASCADE,
   lease_id            UUID                     REFERENCES public.leases(id) ON DELETE SET NULL,
+  baseline_report_id  UUID                     REFERENCES public.condition_reports(id) ON DELETE SET NULL,
   inspector_id        UUID                     REFERENCES auth.users(id) ON DELETE SET NULL,
   type                VARCHAR(50)              NOT NULL CHECK (type IN ('Move In', 'Routine', 'Move Out', 'Custom')),
   inspection_date     DATE                     NOT NULL DEFAULT CURRENT_DATE,
@@ -5248,6 +5249,8 @@ CREATE TABLE IF NOT EXISTS public.condition_reports (
   created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+ALTER TABLE public.condition_reports ADD COLUMN IF NOT EXISTS baseline_report_id UUID REFERENCES public.condition_reports(id) ON DELETE SET NULL;
 
 -- 2. Inspection Rooms Table
 CREATE TABLE IF NOT EXISTS public.inspection_rooms (
@@ -5282,20 +5285,28 @@ CREATE TABLE IF NOT EXISTS public.inspection_defects (
 CREATE TABLE IF NOT EXISTS public.inspection_photos (
   id                  UUID                     PRIMARY KEY DEFAULT gen_random_uuid(),
   room_id             UUID                     NOT NULL REFERENCES public.inspection_rooms(id) ON DELETE CASCADE,
+  defect_id           UUID                     REFERENCES public.inspection_defects(id) ON DELETE CASCADE,
+  item_id             UUID                     REFERENCES public.inspection_items(id) ON DELETE CASCADE,
   photo_url           TEXT                     NOT NULL,
   created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+ALTER TABLE public.inspection_photos ADD COLUMN IF NOT EXISTS defect_id UUID REFERENCES public.inspection_defects(id) ON DELETE CASCADE;
+ALTER TABLE public.inspection_photos ADD COLUMN IF NOT EXISTS item_id UUID REFERENCES public.inspection_items(id) ON DELETE CASCADE;
 
 -- Indexes for optimal lookup performance
 CREATE INDEX IF NOT EXISTS idx_condition_reports_workspace_id ON public.condition_reports (workspace_id);
 CREATE INDEX IF NOT EXISTS idx_condition_reports_property_id ON public.condition_reports (property_id);
 CREATE INDEX IF NOT EXISTS idx_condition_reports_lease_id ON public.condition_reports (lease_id);
+CREATE INDEX IF NOT EXISTS idx_condition_reports_baseline_report_id ON public.condition_reports (baseline_report_id);
 CREATE INDEX IF NOT EXISTS idx_condition_reports_status ON public.condition_reports (status);
 CREATE INDEX IF NOT EXISTS idx_condition_reports_inspection_date ON public.condition_reports (inspection_date DESC);
 CREATE INDEX IF NOT EXISTS idx_inspection_rooms_report_id ON public.inspection_rooms (report_id, room_order);
 CREATE INDEX IF NOT EXISTS idx_inspection_items_room_id ON public.inspection_items (room_id);
 CREATE INDEX IF NOT EXISTS idx_inspection_defects_room_id ON public.inspection_defects (room_id);
 CREATE INDEX IF NOT EXISTS idx_inspection_photos_room_id ON public.inspection_photos (room_id);
+CREATE INDEX IF NOT EXISTS idx_inspection_photos_defect_id ON public.inspection_photos (defect_id);
+CREATE INDEX IF NOT EXISTS idx_inspection_photos_item_id ON public.inspection_photos (item_id);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.condition_reports ENABLE ROW LEVEL SECURITY;

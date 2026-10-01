@@ -754,18 +754,7 @@ export function AppShell({
 
           <div className="app-workspace relative flex flex-1 flex-col min-h-0 overflow-hidden bg-admin-surface text-admin-foreground rounded-lg text-body mb-14 md:mb-0 md:mt-0 md:mr-0 md:ml-0 md:rounded-tl-xl border-t md:border-l border-admin-sidebar-border/60 shadow-xs">
             <main className="flex h-full w-full flex-1 flex-col min-w-0 min-h-0 overflow-hidden">
-              <div className="flex h-full min-h-0 w-full flex-1 flex-col">
-                {!mounted ? (
-                  <div className="flex flex-1 items-center justify-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-6 h-6 rounded-full border-2 border-admin-primary border-t-transparent animate-spin" />
-                      <span className="text-xs text-admin-muted font-medium">{loadingMessage}</span>
-                    </div>
-                  </div>
-                ) : (
-                  children
-                )}
-              </div>
+                {children}
             </main>
             <div id="workspace-drawer-root" className="absolute inset-0 z-40 pointer-events-none [&>*]:pointer-events-auto" />
           </div>

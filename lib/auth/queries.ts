@@ -19,7 +19,7 @@ export const getUserProfile = cache(async function getUserProfile(userId: string
     const supabase = await createClient();
     const { data, error } = await (supabase as any)
       .from('profiles')
-      .select('*')
+      .select('id, full_name, phone, avatar_url, created_at, updated_at')
       .eq('id', userId)
       .maybeSingle();
 
@@ -42,7 +42,7 @@ export const getAccountContext = cache(async function getAccountContext(userId: 
     const supabase = await createClient();
     const { data, error } = await (supabase as any)
       .from('account_context')
-      .select('*')
+      .select('user_id, status, onboarding_status, first_login_at, last_login_at, created_at, updated_at')
       .eq('user_id', userId)
       .maybeSingle();
 

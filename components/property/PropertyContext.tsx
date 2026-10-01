@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, ReactNode } from 'react';
 import type { UserPropertyAccess } from '@/lib/properties/queries';
 import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
 
@@ -54,6 +54,14 @@ interface PropertyProviderProps {
   initialProperties?: UserPropertyAccess[];
 }
 
+import {
+  useEntityCacheStore,
+  buildCacheKey,
+  fetchWithDeduplication,
+  isDataFresh,
+  FRESHNESS_THRESHOLDS,
+} from '@/lib/stores/useEntityCacheStore';
+
 export function PropertyProvider({ children, initialProperties }: PropertyProviderProps) {
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const isHydratedRef = useRef<boolean>(initialProperties !== undefined);
@@ -85,7 +93,7 @@ export function PropertyProvider({ children, initialProperties }: PropertyProvid
     [activeWorkspaceId]
   );
 
-  const fetchProperties = useCallback(async () => {
+  const fetchProperties = useCallback(async (force = false) => {
     if (!activeWorkspaceId) {
       setAvailableProperties([]);
       setSelectedPropertyState(null);
@@ -93,6 +101,20 @@ export function PropertyProvider({ children, initialProperties }: PropertyProvid
       setIsRefreshing(false);
       setError(null);
       return;
+    }
+
+    const cacheKey = buildCacheKey('properties', activeWorkspaceId);
+    const cachedEntry = useEntityCacheStore.getState().properties;
+    const isCurrentMatching = cachedEntry && cachedEntry.workspaceId === activeWorkspaceId;
+
+    if (!force && isCurrentMatching && isDataFresh(cachedEntry, FRESHNESS_THRESHOLDS.normal)) {
+      if (cachedEntry.data && cachedEntry.data.length > 0) {
+        setAvailableProperties(cachedEntry.data);
+        setSelectedPropertyState(resolveSelection(cachedEntry.data, activeWorkspaceId));
+        setIsLoading(false);
+        setIsRefreshing(false);
+        return;
+      }
     }
 
     try {
@@ -103,28 +125,31 @@ export function PropertyProvider({ children, initialProperties }: PropertyProvid
       }
       setError(null);
 
-      const response = await fetch(
-        `/api/properties/accessible?workspaceId=${encodeURIComponent(activeWorkspaceId)}`
-      );
-      if (!response.ok) {
-        throw new Error('Unable to load properties. Please try again.');
-      }
+      const properties = await fetchWithDeduplication(cacheKey, async () => {
+        const response = await fetch(
+          `/api/properties/accessible?workspaceId=${encodeURIComponent(activeWorkspaceId)}`
+        );
+        if (!response.ok) {
+          throw new Error('Unable to load properties. Please try again.');
+        }
+        const data = await response.json();
+        return (data.properties || []) as UserPropertyAccess[];
+      });
 
-      const data = await response.json();
-      const properties: UserPropertyAccess[] = data.properties || [];
       setAvailableProperties(properties);
+      useEntityCacheStore.getState().setProperties(properties, activeWorkspaceId);
 
       const selection = resolveSelection(properties, activeWorkspaceId);
       setSelectedPropertyState(selection);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load properties');
-      console.error('Error fetching properties:', err);
+      console.error('[PropertyContext] Error loading properties:', err);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
       isHydratedRef.current = true;
     }
-  }, [activeWorkspaceId]);
+  }, [activeWorkspaceId, availableProperties.length]);
 
   const hasPropertyAccess = useCallback(
     (propertyId: string) => availableProperties.some((p) => p.propertyId === propertyId),
@@ -139,13 +164,13 @@ export function PropertyProvider({ children, initialProperties }: PropertyProvid
       // Only re-fetch if this is an explicit workspace switch AFTER initial hydration
       if (wasInitialized && activeWorkspaceId && isHydratedRef.current) {
         setSelectedPropertyState(null);
-        fetchProperties();
+        fetchProperties(true);
         return;
       }
     }
 
     if (!isHydratedRef.current && activeWorkspaceId && initialProperties === undefined) {
-      fetchProperties();
+      fetchProperties(false);
     }
   }, [activeWorkspaceId, fetchProperties, initialProperties]);
 
@@ -154,6 +179,7 @@ export function PropertyProvider({ children, initialProperties }: PropertyProvid
       setAvailableProperties(initialProperties);
       if (activeWorkspaceId) {
         setSelectedPropertyState(resolveSelection(initialProperties, activeWorkspaceId));
+        useEntityCacheStore.getState().setProperties(initialProperties, activeWorkspaceId);
       }
       setIsLoading(false);
       isHydratedRef.current = true;
@@ -178,19 +204,31 @@ export function PropertyProvider({ children, initialProperties }: PropertyProvid
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [activeWorkspaceId, availableProperties]);
 
+  const propertyContextValue = useMemo(
+    () => ({
+      availableProperties,
+      selectedProperty,
+      isLoading,
+      isRefreshing,
+      error,
+      setSelectedProperty,
+      refreshProperties: fetchProperties,
+      hasPropertyAccess,
+    }),
+    [
+      availableProperties,
+      selectedProperty,
+      isLoading,
+      isRefreshing,
+      error,
+      setSelectedProperty,
+      fetchProperties,
+      hasPropertyAccess,
+    ]
+  );
+
   return (
-    <PropertyContext.Provider
-      value={{
-        availableProperties,
-        selectedProperty,
-        isLoading,
-        isRefreshing,
-        error,
-        setSelectedProperty,
-        refreshProperties: fetchProperties,
-        hasPropertyAccess,
-      }}
-    >
+    <PropertyContext.Provider value={propertyContextValue}>
       {children}
     </PropertyContext.Provider>
   );

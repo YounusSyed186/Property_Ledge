@@ -8,6 +8,8 @@ import { getUserProperties } from '@/lib/properties/queries';
 
 import { getActiveWorkspaceId } from '@/lib/auth/authorization';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
 
   const [activeWsId, user] = await Promise.all([

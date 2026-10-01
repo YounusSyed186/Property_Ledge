@@ -29,7 +29,6 @@ function revalidateExpensePaths() {
   revalidatePath('/dashboard/money');
   revalidatePath('/dashboard/finance/ledger');
   revalidatePath('/dashboard/finance/bas');
-  revalidatePath('/dashboard');
 }
 
 export type { ExpensesPageData } from '@/lib/finance/expenseService';

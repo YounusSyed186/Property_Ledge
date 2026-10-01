@@ -6,13 +6,35 @@ import {
   A4_PAGE_HEIGHT,
   STANDARD_MARGIN,
   CONTENT_WIDTH,
-  REPORT_PALETTE,
   createStandardPdfDocument,
   stampReportFooters,
   formatCurrencyReport,
-  formatCurrencyBracketed,
   triggerPdfDownload,
 } from './report-engine';
+
+export interface BasReportCustomDetails {
+  taxpayerName?: string;
+  address?: string;
+  suburb?: string;
+  state?: string;
+  postcode?: string;
+  abn?: string;
+  abnBranch?: string;
+  paymentReferenceNumber?: string;
+  bpayBillerCode?: string;
+  chequeRecipient?: string;
+  chequeAddress?: string;
+  chequeSuburb?: string;
+  chequeState?: string;
+  chequePostcode?: string;
+  directCreditBank?: string;
+  directCreditBsb?: string;
+  directCreditAccount?: string;
+  directCreditName?: string;
+  documentIdNumber?: string;
+  gstAccountingMethod?: string;
+  simplifiedBas?: boolean;
+}
 
 export interface BasReportPdfData {
   worksheet: BasWorksheetDTO;
@@ -20,13 +42,206 @@ export interface BasReportPdfData {
   workspaceName?: string;
   taxpayerName?: string;
   abn?: string;
+  customDetails?: BasReportCustomDetails;
   generatedAt?: string;
 }
 
+// Crisp ATO Matte Grayish Slate Palette
+const BW_DARK = [51, 65, 85] as const; // #334155 (Matte Slate Gray Header & Pills)
+const BW_WHITE = [255, 255, 255] as const;
+const BW_BORDER = [203, 213, 225] as const; // #CBD5E1 (Crisp box border)
+const BW_FIELD_BG = [255, 255, 255] as const; // White form input box
+const BW_TEXT_DARK = [15, 23, 42] as const; // #0F172A (Crisp dark text)
+const BW_TEXT_MUTED = [100, 116, 139] as const; // #64748B (Muted labels)
+
 export class PdfBasReportAdapter {
   /**
-   * Generates a multi-page, high-fidelity formal ATO-style Business Activity Statement (BAS)
-   * and Accountant Financial Reconciliation Document.
+   * Helper to draw standard top Activity Statement header and sub-box
+   */
+  private static drawPageHeader(
+    doc: jsPDF,
+    worksheet: BasWorksheetDTO,
+    taxpayerName: string,
+    pageNum: number,
+    totalPages: number,
+    customTitle?: string
+  ): number {
+    let y = 14;
+
+    // Header Title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(...BW_TEXT_DARK);
+    const titleText =
+      customTitle ||
+      (worksheet.period === 'FY'
+        ? `${worksheet.financialYear} Annual GST – Activity Statement`
+        : `${worksheet.financialYear} ${worksheet.period} BAS – Activity Statement`);
+    doc.text(titleText, STANDARD_MARGIN, y);
+
+    // Page Number Top Right
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...BW_TEXT_MUTED);
+    doc.text(`Page ${pageNum} of ${totalPages}`, A4_PAGE_WIDTH - STANDARD_MARGIN, y, { align: 'right' });
+
+    y += 5;
+
+    // Subheader Box
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...BW_TEXT_MUTED);
+    doc.text('Activity statement', STANDARD_MARGIN, y + 3.5);
+
+    // Name label & Box
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...BW_TEXT_DARK);
+    doc.text('Name', STANDARD_MARGIN, y + 8);
+
+    doc.setDrawColor(...BW_BORDER);
+    doc.setFillColor(...BW_FIELD_BG);
+    doc.roundedRect(STANDARD_MARGIN + 12, y + 4.5, 95, 5.5, 0.5, 0.5, 'FD');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...BW_TEXT_DARK);
+    doc.text((taxpayerName || '').substring(0, 50), STANDARD_MARGIN + 14, y + 8.5);
+
+    // Date range
+    const periodStart = worksheet.dateRange?.startDate || `${worksheet.financialYear - 1}-07-01`;
+    const periodEnd = worksheet.dateRange?.endDate || `${worksheet.financialYear}-06-30`;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...BW_TEXT_MUTED);
+    doc.text(`${periodStart} to ${periodEnd}`, STANDARD_MARGIN, y + 13);
+
+    return y + 16;
+  }
+
+  /**
+   * Helper to draw a dark section header bar with white title
+   */
+  private static drawSectionBanner(doc: jsPDF, title: string, y: number): number {
+    doc.setFillColor(...BW_DARK);
+    doc.rect(STANDARD_MARGIN, y, CONTENT_WIDTH, 6.5, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...BW_WHITE);
+    doc.text(title, STANDARD_MARGIN + 3.5, y + 4.6);
+
+    // Always reset text and fill colors after drawing banner
+    doc.setTextColor(...BW_TEXT_DARK);
+    doc.setFillColor(...BW_FIELD_BG);
+    doc.setDrawColor(...BW_BORDER);
+
+    return y + 7.5;
+  }
+
+  /**
+   * Helper to draw a form label text in crisp dark ink
+   */
+  private static drawFieldLabel(
+    doc: jsPDF,
+    x: number,
+    y: number,
+    text: string,
+    isBold = false,
+    fontSize = 7.5
+  ) {
+    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+    doc.setFontSize(fontSize);
+    doc.setTextColor(...BW_TEXT_DARK);
+    doc.text(text, x, y);
+  }
+
+  /**
+   * Helper to draw a bordered white form input box with text inside (leaves blank if text is empty)
+   */
+  private static drawFieldBox(
+    doc: jsPDF,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    text = '',
+    isBold = false,
+    align: 'left' | 'right' | 'center' = 'left',
+    fontSize = 7.5
+  ) {
+    doc.setDrawColor(...BW_BORDER);
+    doc.setFillColor(...BW_FIELD_BG);
+    doc.rect(x, y, width, height, 'FD');
+
+    if (text && text.trim().length > 0) {
+      doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+      doc.setFontSize(fontSize);
+      doc.setTextColor(...BW_TEXT_DARK);
+
+      if (align === 'right') {
+        doc.text(text, x + width - 2, y + height - 1.5, { align: 'right' });
+      } else if (align === 'center') {
+        doc.text(text, x + width / 2, y + height - 1.5, { align: 'center' });
+      } else {
+        doc.text(text, x + 2, y + height - 1.5);
+      }
+    }
+  }
+
+  /**
+   * Helper to draw an ATO-style calculation row with dark code tag and single clean dollar sign box
+   */
+  private static drawCalculationRow(
+    doc: jsPDF,
+    y: number,
+    label: string,
+    code: string,
+    amountStr: string,
+    rowHeight = 6.5
+  ): number {
+    // Label
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, y + 4.2, label, false, 7.5);
+
+    const rightEdge = A4_PAGE_WIDTH - STANDARD_MARGIN;
+    const boxWidth = 34;
+    const boxX = rightEdge - boxWidth;
+    const codeWidth = 10;
+    const codeX = boxX - codeWidth - 2;
+
+    // Dark Code Pill Box
+    doc.setFillColor(...BW_DARK);
+    doc.rect(codeX, y + 0.8, codeWidth, 5, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...BW_WHITE);
+    doc.text(code, codeX + codeWidth / 2, y + 4.3, { align: 'center' });
+
+    // Amount Box
+    this.drawFieldBox(doc, boxX, y + 0.8, boxWidth, 5, '', false);
+
+    // Dollar sign inside box on the left
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...BW_TEXT_MUTED);
+    doc.text('$', boxX + 2, y + 4.3);
+
+    // Strip leading $ from amountStr so there is NEVER duplicate dollar sign!
+    const cleanAmount = amountStr.trim().startsWith('$')
+      ? amountStr.trim().substring(1).trim()
+      : amountStr.trim();
+
+    // Amount value on the right
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...BW_TEXT_DARK);
+    doc.text(cleanAmount, boxX + boxWidth - 2, y + 4.3, { align: 'right' });
+
+    return y + rowHeight;
+  }
+
+  /**
+   * Generates a multi-page, high-fidelity formal ATO Activity Statement & GST Calculation Worksheet.
    */
   public static generateDocument(data: BasReportPdfData): jsPDF {
     const doc = createStandardPdfDocument({
@@ -34,439 +249,538 @@ export class PdfBasReportAdapter {
       subject: `Australian Taxation Office (ATO) Compliant Activity Statement Report`,
     });
 
-    const { worksheet, transactions } = data;
+    const { worksheet, transactions, customDetails } = data;
     const isPayable = worksheet.totals.netGstPosition >= 0;
-    const taxpayer = data.taxpayerName || data.workspaceName || 'PropertyLedge Enterprise Investor';
-    const abnDisplay = data.abn || 'XX XXX XXX XXX';
-    const propertyLabel = worksheet.propertyId ? worksheet.propertyName : 'All Rental Properties (Consolidated)';
+
+    // User-entered or known fields
+    const taxpayer = customDetails?.taxpayerName || data.taxpayerName || data.workspaceName || worksheet.propertyName || '';
+    const taxpayerAddress = customDetails?.address || (worksheet.propertyId ? worksheet.propertyName : '');
+    const suburb = customDetails?.suburb || '';
+    const state = customDetails?.state || '';
+    const postcode = customDetails?.postcode || '';
+    const abnDisplay = customDetails?.abn || data.abn || '';
+    const prnDisplay = customDetails?.paymentReferenceNumber || '';
+    const bpayBiller = customDetails?.bpayBillerCode || '';
+    const chequeRecipient = customDetails?.chequeRecipient || '';
+    const chequeAddress = customDetails?.chequeAddress || '';
+    const chequeSuburb = customDetails?.chequeSuburb || '';
+    const chequeState = customDetails?.chequeState || '';
+    const chequePostcode = customDetails?.chequePostcode || '';
+    const bankName = customDetails?.directCreditBank || '';
+    const bsb = customDetails?.directCreditBsb || '';
+    const accountNum = customDetails?.directCreditAccount || '';
+    const accountName = customDetails?.directCreditName || '';
+    const din = customDetails?.documentIdNumber || '';
+    const accountingMethod = customDetails?.gstAccountingMethod || 'Cash';
+    const simplifiedBas = customDetails?.simplifiedBas ?? true;
+
+    const totalPages = 3;
+
+    // Calculate Purchases without GST in the price (G14)
+    let purchasesWithoutGst = 0;
+    if (worksheet.expenseByCategory && worksheet.expenseByCategory.length > 0) {
+      worksheet.expenseByCategory.forEach((exp) => {
+        if (!exp.gst || exp.gst < 0.005) {
+          purchasesWithoutGst += Number(exp.gross || 0);
+        }
+      });
+    } else if (transactions && transactions.length > 0) {
+      transactions.forEach((tx) => {
+        if (tx.type === 'expense' && (!tx.gstAmount || tx.gstAmount < 0.005)) {
+          purchasesWithoutGst += Number(tx.amount || 0);
+        }
+      });
+    }
+
+    const g1TotalSales = worksheet.totals.totalSales;
+    const g3OtherGstFree = 0;
+    const g5TotalSalesWithoutGst = g3OtherGstFree;
+    const g6SalesSubjectToGst = Math.max(0, g1TotalSales - g5TotalSalesWithoutGst);
+    const g8SalesAfterAdjustments = g6SalesSubjectToGst;
+    const g9GstOnSales = worksheet.totals.gstOnSales;
+
+    const g11NonCapitalPurchases = worksheet.totals.totalExpenses;
+    const g12TotalPurchases = g11NonCapitalPurchases;
+    const g14PurchasesWithoutGst = purchasesWithoutGst;
+    const g16PurchasesCannotClaim = g14PurchasesWithoutGst;
+    const g17PurchasesSubjectToGst = Math.max(0, g12TotalPurchases - g16PurchasesCannotClaim);
+    const g19PurchasesAfterAdjustments = g17PurchasesSubjectToGst;
+    const g20GstOnPurchases = worksheet.totals.gstOnExpenses;
 
     // =========================================================================
-    // PAGE 1: OFFICIAL ATO ACTIVITY STATEMENT FORM (PAPER STYLE)
+    // PAGE 1: TAXPAYER DETAILS, PAYMENT OPTIONS, DETAILS & GST DECLARATION
     // =========================================================================
-    
-    // Top Formal Header
-    doc.setFillColor(245, 247, 250);
-    doc.rect(0, 0, A4_PAGE_WIDTH, 34, 'F');
-    doc.setDrawColor(200, 210, 220);
-    doc.line(0, 34, A4_PAGE_WIDTH, 34);
+    let currentY = this.drawPageHeader(doc, worksheet, taxpayer, 1, totalPages);
 
-    // ATO Coat of Arms / Title Area
-    doc.setTextColor(15, 25, 35);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text('BUSINESS ACTIVITY STATEMENT (BAS)', STANDARD_MARGIN, 18);
+    // 1. Taxpayer Details Section
+    currentY = this.drawSectionBanner(doc, 'Taxpayer details', currentY);
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    doc.setTextColor(80, 90, 100);
-    doc.text('Australian Taxation Office — Goods and Services Tax (GST) Return', STANDARD_MARGIN, 26);
+    // Name
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, 'Name');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 25, currentY + 0.5, CONTENT_WIDTH - 27, 5, taxpayer, true);
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(15, 25, 35);
-    doc.text(`FINANCIAL YEAR: FY${worksheet.financialYear}`, A4_PAGE_WIDTH - STANDARD_MARGIN, 18, { align: 'right' });
-    doc.setFont('helvetica', 'normal');
-    doc.text(`PERIOD: ${worksheet.period} (${worksheet.periodLabel})`, A4_PAGE_WIDTH - STANDARD_MARGIN, 26, { align: 'right' });
+    currentY += 6.5;
 
-    let currentY = 42;
+    // Address
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, 'Address');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 25, currentY + 0.5, CONTENT_WIDTH - 27, 5, taxpayerAddress, false);
 
-    // Taxpayer & Activity Statement Metadata Boxes
-    doc.setDrawColor(210, 215, 225);
-    doc.setFillColor(255, 255, 255);
-    doc.roundedRect(STANDARD_MARGIN, currentY, CONTENT_WIDTH, 26, 2, 2, 'FD');
+    currentY += 6.5;
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(100, 110, 120);
-    doc.text('TAXPAYER / ENTITY NAME', STANDARD_MARGIN + 5, currentY + 7);
-    doc.text('ABN / CLIENT ID', STANDARD_MARGIN + 90, currentY + 7);
-    doc.text('REPORTING SCOPE', STANDARD_MARGIN + 130, currentY + 7);
+    // Suburb / State / Postcode
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 25, currentY + 4, 'Suburb');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 36, currentY + 0.5, 48, 5, suburb, false);
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
-    doc.setTextColor(15, 25, 35);
-    doc.text(taxpayer, STANDARD_MARGIN + 5, currentY + 16);
-    doc.text(abnDisplay, STANDARD_MARGIN + 90, currentY + 16);
-    doc.text(propertyLabel.length > 24 ? propertyLabel.substring(0, 24) + '...' : propertyLabel, STANDARD_MARGIN + 130, currentY + 16);
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 87, currentY + 4, 'State');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 96, currentY + 0.5, 16, 5, state, false);
 
-    currentY += 33;
-
-    // Section 1: GST on Sales (Supplies) Form Box
-    doc.setFillColor(235, 242, 250);
-    doc.rect(STANDARD_MARGIN, currentY, CONTENT_WIDTH, 7.5, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(...REPORT_PALETTE.primary);
-    doc.text('GST ON SALES OR REVENUE (SUPPLIES)', STANDARD_MARGIN + 4, currentY + 5.5);
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 115, currentY + 4, 'Postcode');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 128, currentY + 0.5, 20, 5, postcode, false);
 
     currentY += 9;
 
-    // G1 Box
-    doc.setDrawColor(215, 220, 230);
-    doc.setFillColor(255, 255, 255);
-    doc.rect(STANDARD_MARGIN, currentY, CONTENT_WIDTH, 12, 'FD');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(20, 30, 40);
-    doc.text('Total sales or gross revenue (including any GST)', STANDARD_MARGIN + 4, currentY + 7.5);
-    
-    // G1 Label Code Tag
-    doc.setFillColor(230, 238, 248);
-    doc.rect(A4_PAGE_WIDTH - STANDARD_MARGIN - 65, currentY + 2, 14, 8, 'F');
-    doc.setTextColor(...REPORT_PALETTE.primary);
-    doc.text('G1', A4_PAGE_WIDTH - STANDARD_MARGIN - 61, currentY + 7.5);
+    // 2. Payment Options Section
+    currentY = this.drawSectionBanner(doc, 'Payment options', currentY);
 
-    // G1 Amount Box
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
-    doc.setTextColor(15, 25, 35);
-    doc.text(formatCurrencyReport(worksheet.totals.totalSales), A4_PAGE_WIDTH - STANDARD_MARGIN - 4, currentY + 7.5, { align: 'right' });
+    // PRN
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, 'Payment reference number');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 45, currentY + 0.5, 55, 5, prnDisplay, true);
 
-    currentY += 13;
+    currentY += 6.5;
 
-    // 1A Box (GST on Sales)
-    doc.rect(STANDARD_MARGIN, currentY, CONTENT_WIDTH, 12, 'FD');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(20, 30, 40);
-    doc.text('GST on sales or taxable supplies', STANDARD_MARGIN + 4, currentY + 7.5);
+    // BPAY
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, 'BPAY Biller code');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 45, currentY + 0.5, 55, 5, bpayBiller, true);
 
-    doc.setFillColor(230, 238, 248);
-    doc.rect(A4_PAGE_WIDTH - STANDARD_MARGIN - 65, currentY + 2, 14, 8, 'F');
-    doc.setTextColor(...REPORT_PALETTE.primary);
-    doc.text('1A', A4_PAGE_WIDTH - STANDARD_MARGIN - 61, currentY + 7.5);
+    currentY += 6.5;
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
-    doc.setTextColor(15, 25, 35);
-    doc.text(formatCurrencyReport(worksheet.totals.gstOnSales), A4_PAGE_WIDTH - STANDARD_MARGIN - 4, currentY + 7.5, { align: 'right' });
+    // Cheque
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, 'Cheque');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 45, currentY + 0.5, 110, 5, chequeRecipient, false);
 
-    currentY += 18;
+    currentY += 5.5;
+    this.drawFieldBox(doc, STANDARD_MARGIN + 45, currentY + 0.5, 110, 5, chequeAddress, false);
 
-    // Section 2: GST on Purchases (Acquisitions) Form Box
-    doc.setFillColor(235, 242, 250);
-    doc.rect(STANDARD_MARGIN, currentY, CONTENT_WIDTH, 7.5, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(...REPORT_PALETTE.primary);
-    doc.text('GST ON PURCHASES & EXPENSES (ACQUISITIONS)', STANDARD_MARGIN + 4, currentY + 5.5);
+    currentY += 5.5;
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 45, currentY + 4, 'Suburb');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 55, currentY + 0.5, 40, 5, chequeSuburb, false);
 
-    currentY += 9;
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 98, currentY + 4, 'State');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 107, currentY + 0.5, 14, 5, chequeState, false);
 
-    // G10 Capital Purchases
-    doc.rect(STANDARD_MARGIN, currentY, CONTENT_WIDTH, 11, 'FD');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(20, 30, 40);
-    doc.text('Capital purchases / capital works (gross)', STANDARD_MARGIN + 4, currentY + 7);
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 124, currentY + 4, 'Postcode');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 137, currentY + 0.5, 18, 5, chequePostcode, false);
 
-    doc.setFillColor(240, 243, 248);
-    doc.rect(A4_PAGE_WIDTH - STANDARD_MARGIN - 65, currentY + 1.5, 14, 8, 'F');
-    doc.setTextColor(60, 70, 80);
-    doc.text('G10', A4_PAGE_WIDTH - STANDARD_MARGIN - 62, currentY + 7);
+    currentY += 7.5;
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(15, 25, 35);
-    doc.text(formatCurrencyReport(worksheet.totals.capitalExpensesGross), A4_PAGE_WIDTH - STANDARD_MARGIN - 4, currentY + 7, { align: 'right' });
+    // Direct Credit
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, 'Direct credit');
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 45, currentY + 4, 'Bank name');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 68, currentY + 0.5, 87, 5, bankName, false);
 
-    currentY += 12;
+    currentY += 5.5;
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 45, currentY + 4, 'BSB number');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 68, currentY + 0.5, 87, 5, bsb, false);
 
-    // G11 Non-Capital Purchases
-    doc.rect(STANDARD_MARGIN, currentY, CONTENT_WIDTH, 11, 'FD');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(20, 30, 40);
-    doc.text('Other purchases & operational expenses (gross)', STANDARD_MARGIN + 4, currentY + 7);
+    currentY += 5.5;
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 45, currentY + 4, 'Account number');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 68, currentY + 0.5, 87, 5, accountNum, false);
 
-    doc.setFillColor(240, 243, 248);
-    doc.rect(A4_PAGE_WIDTH - STANDARD_MARGIN - 65, currentY + 1.5, 14, 8, 'F');
-    doc.setTextColor(60, 70, 80);
-    doc.text('G11', A4_PAGE_WIDTH - STANDARD_MARGIN - 62, currentY + 7);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(15, 25, 35);
-    doc.text(formatCurrencyReport(worksheet.totals.nonCapitalExpensesGross), A4_PAGE_WIDTH - STANDARD_MARGIN - 4, currentY + 7, { align: 'right' });
-
-    currentY += 12;
-
-    // 1B GST on Purchases Box
-    doc.rect(STANDARD_MARGIN, currentY, CONTENT_WIDTH, 12, 'FD');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(20, 30, 40);
-    doc.text('GST on purchases / input tax credits', STANDARD_MARGIN + 4, currentY + 7.5);
-
-    doc.setFillColor(230, 238, 248);
-    doc.rect(A4_PAGE_WIDTH - STANDARD_MARGIN - 65, currentY + 2, 14, 8, 'F');
-    doc.setTextColor(...REPORT_PALETTE.primary);
-    doc.text('1B', A4_PAGE_WIDTH - STANDARD_MARGIN - 61, currentY + 7.5);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
-    doc.setTextColor(15, 25, 35);
-    doc.text(formatCurrencyReport(worksheet.totals.gstOnExpenses), A4_PAGE_WIDTH - STANDARD_MARGIN - 4, currentY + 7.5, { align: 'right' });
-
-    currentY += 18;
-
-    // Section 3: Summary / Net Settlement Position Box
-    doc.setFillColor(235, 242, 250);
-    doc.rect(STANDARD_MARGIN, currentY, CONTENT_WIDTH, 7.5, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(...REPORT_PALETTE.primary);
-    doc.text('SUMMARY & NET ACTIVITY STATEMENT OBLIGATION', STANDARD_MARGIN + 4, currentY + 5.5);
+    currentY += 5.5;
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 45, currentY + 4, 'Account name');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 68, currentY + 0.5, 87, 5, accountName, false);
 
     currentY += 9;
 
-    // Net GST Result Box (Highlighted)
-    doc.setDrawColor(...REPORT_PALETTE.primary);
-    doc.setLineWidth(0.6);
-    doc.setFillColor(250, 252, 255);
-    doc.rect(STANDARD_MARGIN, currentY, CONTENT_WIDTH, 16, 'FD');
+    // 3. Activity Statement Details Section
+    currentY = this.drawSectionBanner(doc, 'Activity statement details', currentY);
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
-    doc.setTextColor(15, 25, 35);
-    doc.text(isPayable ? 'Net GST amount you owe the ATO (1A minus 1B)' : 'Net GST amount ATO owes you (refund) (1B minus 1A)', STANDARD_MARGIN + 4, currentY + 10);
+    const drawDetailRow = (lbl: string, val: string) => {
+      this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, lbl);
+      this.drawFieldBox(doc, STANDARD_MARGIN + 55, currentY + 0.5, CONTENT_WIDTH - 57, 5, val, true);
+      currentY += 5.5;
+    };
 
-    doc.setFillColor(220, 232, 248);
-    doc.rect(A4_PAGE_WIDTH - STANDARD_MARGIN - 65, currentY + 3.5, 14, 9, 'F');
-    doc.setTextColor(...REPORT_PALETTE.primary);
-    doc.text('9', A4_PAGE_WIDTH - STANDARD_MARGIN - 59, currentY + 9.5);
+    drawDetailRow('Form type', worksheet.period === 'FY' ? 'Annual GST return (G1, 1A, 1B)' : `Quarterly BAS Return (${worksheet.period})`);
+    drawDetailRow('Activity statement period', `${worksheet.periodLabel} (FY${worksheet.financialYear})`);
+    drawDetailRow('Processing status code', 'Active (Original Return)');
+    drawDetailRow('Document identification number', din);
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(isPayable ? 180 : 22, isPayable ? 35 : 130, isPayable ? 35 : 60);
-    doc.text(formatCurrencyReport(Math.abs(worksheet.totals.netGstPosition)), A4_PAGE_WIDTH - STANDARD_MARGIN - 4, currentY + 10.5, { align: 'right' });
+    // ABN Structured boxes
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, 'Australian business number (ABN)');
+    const cleanAbn = abnDisplay.replace(/\s+/g, '');
+    let abnX = STANDARD_MARGIN + 55;
+    if (cleanAbn.length >= 11) {
+      const p1 = cleanAbn.substring(0, 2);
+      const p2 = cleanAbn.substring(2, 5);
+      const p3 = cleanAbn.substring(5, 8);
+      const p4 = cleanAbn.substring(8, 11);
+      [p1, p2, p3, p4].forEach((part) => {
+        const w = part.length * 5 + 4;
+        this.drawFieldBox(doc, abnX, currentY + 0.5, w, 5, part, true, 'center');
+        abnX += w + 2;
+      });
+    } else if (cleanAbn.length > 0) {
+      this.drawFieldBox(doc, abnX, currentY + 0.5, 55, 5, abnDisplay, true, 'left');
+      abnX += 57;
+    } else {
+      this.drawFieldBox(doc, abnX, currentY + 0.5, 55, 5, '', false, 'left');
+      abnX += 57;
+    }
+    // Branch code
+    const branchCode = customDetails?.abnBranch || (cleanAbn.length > 0 ? '001' : '');
+    this.drawFieldBox(doc, abnX + 2, currentY + 0.5, 12, 5, branchCode, true, 'center');
+    currentY += 6.5;
 
-    currentY += 24;
+    drawDetailRow('Original date from due', worksheet.dateRange?.startDate || `${worksheet.financialYear - 1}-07-01`);
+    drawDetailRow('Original date payment due', worksheet.dateRange?.endDate || `${worksheet.financialYear}-10-28`);
+    drawDetailRow('GST accounting method', `${accountingMethod} Basis`);
 
-    // Formal Declaration Box
-    doc.setLineWidth(0.3);
-    doc.setDrawColor(210, 215, 225);
-    doc.setFillColor(248, 250, 249);
-    doc.roundedRect(STANDARD_MARGIN, currentY, CONTENT_WIDTH, 34, 2, 2, 'FD');
+    currentY += 3.5;
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(90, 100, 110);
-    doc.text('DECLARATION & SIGN-OFF', STANDARD_MARGIN + 4, currentY + 6);
+    // 4. Goods and Services Tax (GST) Section
+    currentY = this.drawSectionBanner(doc, 'Goods and services tax (GST)', currentY);
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(100, 110, 120);
-    const declarationText =
-      'I declare that the information given on this activity statement is true and correct, and that I am authorized to make this statement. The records supporting this return are held in compliance with Australian Taxation Office requirements.';
-    const splitDec = doc.splitTextToSize(declarationText, CONTENT_WIDTH - 8);
-    doc.text(splitDec, STANDARD_MARGIN + 4, currentY + 12);
+    drawDetailRow('GST period', `${worksheet.dateRange?.startDate || '01/07/2025'} to ${worksheet.dateRange?.endDate || '30/09/2025'}`);
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(20, 30, 40);
-    doc.text('Signature / Authorization: ____________________________', STANDARD_MARGIN + 4, currentY + 28);
-    doc.text(`Date: ${new Date().toLocaleDateString('en-AU')}`, A4_PAGE_WIDTH - STANDARD_MARGIN - 45, currentY + 28);
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, 'Using Simplified BAS option?');
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 75, currentY + 4, simplifiedBas ? '[X] Yes    [ ] No' : '[ ] Yes    [X] No', true);
+    currentY += 5.5;
+
+    // Total sales with single clean dollar sign
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, 'Total sales (including GST)');
+    const cleanSalesStr = formatCurrencyReport(worksheet.totals.totalSales).replace(/^\$/, '');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 75, currentY + 0.5, 55, 5, `$ ${cleanSalesStr}`, true, 'left');
+    currentY += 5.5;
+
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, 'Does the amount shown at G1 include GST?');
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 75, currentY + 4, '[X] Yes    [ ] No', true);
 
     // =========================================================================
-    // PAGE 2: CATEGORY BREAKDOWN RECONCILIATION WORKSHEET
+    // PAGE 2: SUMMARY & BUSINESS INCOME & EXPENSES TABLES
     // =========================================================================
     doc.addPage();
-    let p2Y = 20;
+    let p2Y = this.drawPageHeader(doc, worksheet, taxpayer, 2, totalPages);
 
-    // Header Banner
-    doc.setFillColor(...REPORT_PALETTE.primary);
-    doc.rect(STANDARD_MARGIN, p2Y, CONTENT_WIDTH, 9, 'F');
-    doc.setFillColor(...REPORT_PALETTE.secondary);
-    doc.rect(STANDARD_MARGIN, p2Y, 3, 9, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('BUSINESS REVENUE & EXPENSE RECONCILIATION WORKSHEET', STANDARD_MARGIN + 7, p2Y + 6);
+    // 1. Summary Box
+    p2Y = this.drawSectionBanner(doc, 'Summary', p2Y);
 
-    p2Y += 14;
+    // Amounts owing to the ATO
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, p2Y + 4, 'Amounts owing to the ATO', true, 8);
+    p2Y += 5.5;
 
-    // Income Category Table
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(...REPORT_PALETTE.primary);
-    doc.text('1. Business Income by Category', STANDARD_MARGIN, p2Y);
-    p2Y += 4;
+    p2Y = this.drawCalculationRow(doc, p2Y, 'GST on sales or GST instalments', '1A', formatCurrencyReport(worksheet.totals.gstOnSales));
+    p2Y = this.drawCalculationRow(doc, p2Y, 'Total amount owing to the ATO', '1B', formatCurrencyReport(worksheet.totals.gstOnSales));
 
-    const incomeRows = (worksheet.incomeByCategory.length > 0
+    p2Y += 2;
+
+    // Amounts owing from the ATO
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, p2Y + 4, 'Amounts owing from the ATO', true, 8);
+    p2Y += 5.5;
+
+    p2Y = this.drawCalculationRow(doc, p2Y, 'GST on purchases', '1B', formatCurrencyReport(worksheet.totals.gstOnExpenses));
+    p2Y = this.drawCalculationRow(doc, p2Y, 'Total amount owing from the ATO', '1C', formatCurrencyReport(worksheet.totals.gstOnExpenses));
+
+    p2Y += 2;
+
+    // Payment or refund amount
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, p2Y + 4, 'Payment or refund amount', true, 8);
+    p2Y += 5.5;
+
+    const netAmountDisplay = isPayable
+      ? formatCurrencyReport(worksheet.totals.netGstPosition)
+      : `-$${Math.abs(worksheet.totals.netGstPosition).toFixed(2)} (Refund)`;
+    p2Y = this.drawCalculationRow(doc, p2Y, isPayable ? 'Total amount due to ATO' : 'Total refund amount from ATO', '5', netAmountDisplay);
+
+    p2Y += 6;
+
+    // 2. Business Income Table
+    p2Y = this.drawSectionBanner(doc, 'Business Income', p2Y);
+
+    const incomeTableRows = (worksheet.incomeByCategory.length > 0
       ? worksheet.incomeByCategory
       : [{ categoryName: 'Rental Income', gross: worksheet.totals.totalSales, gst: worksheet.totals.gstOnSales, net: worksheet.totals.totalSales - worksheet.totals.gstOnSales, basCode: 'G1' }]
     ).map((row) => [
+      worksheet.periodLabel.split(' ')[0] || worksheet.period,
       row.categoryName,
-      row.basCode || 'G1',
       formatCurrencyReport(row.gross),
       formatCurrencyReport(row.gst, true),
       formatCurrencyReport(row.net),
     ]);
 
-    // Add Income Totals row
-    incomeRows.push([
-      'TOTAL INCOME (G1 / 1A)',
+    // Totals Row
+    incomeTableRows.push([
+      'Totals',
       '—',
-      formatCurrencyReport(worksheet.totals.totalSales),
-      formatCurrencyReport(worksheet.totals.gstOnSales),
+      `${formatCurrencyReport(worksheet.totals.totalSales)} (G1)`,
+      `${formatCurrencyReport(worksheet.totals.gstOnSales)} (1A)`,
       formatCurrencyReport(worksheet.totals.totalSales - worksheet.totals.gstOnSales),
     ]);
 
     autoTable(doc, {
       startY: p2Y,
-      head: [['Income Category', 'BAS Code', 'Gross Amount', 'GST Amount', 'Net Amount']],
-      body: incomeRows,
-      theme: 'striped',
+      head: [['Date', 'Source', 'Gross', 'GST', 'Net']],
+      body: incomeTableRows,
+      theme: 'grid',
       headStyles: {
-        fillColor: REPORT_PALETTE.primary,
+        fillColor: [51, 65, 85],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 8,
+        fontSize: 7.5,
+        cellPadding: 2,
       },
-      bodyStyles: { fontSize: 8, textColor: [40, 40, 40] },
+      bodyStyles: { fontSize: 7.5, textColor: [15, 23, 42], cellPadding: 2 },
       columnStyles: {
-        0: { cellWidth: 70, fontStyle: 'bold' },
-        1: { cellWidth: 25, halign: 'center' },
-        2: { cellWidth: 30, halign: 'right' },
-        3: { cellWidth: 25, halign: 'right' },
+        0: { cellWidth: 25 },
+        1: { cellWidth: 65, fontStyle: 'bold' },
+        2: { cellWidth: 32, halign: 'right' },
+        3: { cellWidth: 28, halign: 'right' },
         4: { cellWidth: 'auto', halign: 'right' },
       },
       margin: { left: STANDARD_MARGIN, right: STANDARD_MARGIN },
       didParseCell: (dataCell) => {
-        if (dataCell.section === 'body' && dataCell.row.index === incomeRows.length - 1) {
+        if (dataCell.section === 'body' && dataCell.row.index === incomeTableRows.length - 1) {
           dataCell.cell.styles.fontStyle = 'bold';
-          dataCell.cell.styles.fillColor = REPORT_PALETTE.tableHeaderBg;
+          dataCell.cell.styles.fillColor = [240, 243, 248];
         }
       },
       didDrawPage: (dataPage) => {
-        p2Y = dataPage.cursor?.y ? dataPage.cursor.y + 10 : p2Y + 25;
+        p2Y = dataPage.cursor?.y ? dataPage.cursor.y + 6 : p2Y + 30;
       },
     });
 
-    // Expenses Category Table
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(...REPORT_PALETTE.primary);
-    doc.text('2. Business & Property Expenses by Category', STANDARD_MARGIN, p2Y);
-    p2Y += 4;
+    // 3. Business Expenses Table
+    p2Y = this.drawSectionBanner(doc, 'Business Expenses', p2Y);
 
-    const expenseRows = (worksheet.expenseByCategory.length > 0
+    const expenseTableRows = (worksheet.expenseByCategory.length > 0
       ? worksheet.expenseByCategory
       : [
-          { categoryName: 'Body Corporate / Strata', gross: 0, gst: 0, net: 0, basCode: '1B' },
-          { categoryName: 'Council Rates', gross: 0, gst: 0, net: 0, basCode: 'G11' },
-          { categoryName: 'Property Management Charges', gross: 0, gst: 0, net: 0, basCode: '1B' },
-          { categoryName: 'Repairs & Maintenance', gross: 0, gst: 0, net: 0, basCode: '1B' },
-          { categoryName: 'Water Rates', gross: 0, gst: 0, net: 0, basCode: 'G11' },
+          { categoryName: 'Property Maintenance', gross: 0, gst: 0, net: 0 },
+          { categoryName: 'Council Rates', gross: 0, gst: 0, net: 0 },
         ]
     ).map((row) => [
+      worksheet.periodLabel.split(' ')[0] || worksheet.period,
       row.categoryName,
-      row.basCode || '1B',
       formatCurrencyReport(row.gross),
       formatCurrencyReport(row.gst, true),
       formatCurrencyReport(row.net),
     ]);
 
-    // Add Expense Totals row
-    expenseRows.push([
-      'TOTAL EXPENSES (G11 / 1B)',
+    // Totals Row
+    expenseTableRows.push([
+      'Totals',
       '—',
-      formatCurrencyReport(worksheet.totals.totalExpenses),
-      formatCurrencyReport(worksheet.totals.gstOnExpenses),
+      `${formatCurrencyReport(worksheet.totals.totalExpenses)} (G11)`,
+      `${formatCurrencyReport(worksheet.totals.gstOnExpenses)} (1B)`,
       formatCurrencyReport(worksheet.totals.totalExpenses - worksheet.totals.gstOnExpenses),
     ]);
 
     autoTable(doc, {
       startY: p2Y,
-      head: [['Expense Category', 'BAS Code', 'Gross Amount', 'GST Paid', 'Net Amount']],
-      body: expenseRows,
-      theme: 'striped',
+      head: [['Date', 'Expenses', 'Gross', 'GST', 'Net']],
+      body: expenseTableRows,
+      theme: 'grid',
       headStyles: {
-        fillColor: REPORT_PALETTE.primary,
+        fillColor: [51, 65, 85],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 8,
+        fontSize: 7.5,
+        cellPadding: 2,
       },
-      bodyStyles: { fontSize: 8, textColor: [40, 40, 40] },
+      bodyStyles: { fontSize: 7.5, textColor: [15, 23, 42], cellPadding: 2 },
       columnStyles: {
-        0: { cellWidth: 70, fontStyle: 'bold' },
-        1: { cellWidth: 25, halign: 'center' },
-        2: { cellWidth: 30, halign: 'right' },
-        3: { cellWidth: 25, halign: 'right' },
+        0: { cellWidth: 25 },
+        1: { cellWidth: 65, fontStyle: 'bold' },
+        2: { cellWidth: 32, halign: 'right' },
+        3: { cellWidth: 28, halign: 'right' },
         4: { cellWidth: 'auto', halign: 'right' },
       },
       margin: { left: STANDARD_MARGIN, right: STANDARD_MARGIN },
       didParseCell: (dataCell) => {
-        if (dataCell.section === 'body' && dataCell.row.index === expenseRows.length - 1) {
+        if (dataCell.section === 'body' && dataCell.row.index === expenseTableRows.length - 1) {
           dataCell.cell.styles.fontStyle = 'bold';
-          dataCell.cell.styles.fillColor = REPORT_PALETTE.tableHeaderBg;
+          dataCell.cell.styles.fillColor = [240, 243, 248];
         }
       },
       didDrawPage: (dataPage) => {
-        p2Y = dataPage.cursor?.y ? dataPage.cursor.y + 10 : p2Y + 25;
+        p2Y = dataPage.cursor?.y ? dataPage.cursor.y + 6 : p2Y + 30;
       },
     });
 
+    // Net GST Position Summary Box on Page 2
+    doc.setFillColor(240, 243, 248);
+    doc.setDrawColor(...BW_BORDER);
+    doc.rect(STANDARD_MARGIN, p2Y, CONTENT_WIDTH, 8, 'FD');
+
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 3.5, p2Y + 5.2, 'Net GST Payable / (Refundable)', true, 8.5);
+
+    const netBannerText = isPayable
+      ? `${formatCurrencyReport(worksheet.totals.netGstPosition)} (1A - 1B)`
+      : `-$${Math.abs(worksheet.totals.netGstPosition).toFixed(2)} (Refund) (1A - 1B)`;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...BW_TEXT_DARK);
+    doc.text(netBannerText, A4_PAGE_WIDTH - STANDARD_MARGIN - 3.5, p2Y + 5.2, { align: 'right' });
+
     // =========================================================================
-    // PAGE 3+: UNDERLYING TRANSACTION AUDIT TRAIL TABLE
+    // PAGE 3: OFFICIAL GST CALCULATION WORKSHEET (Matching Annotated Reference)
     // =========================================================================
-    if (transactions.length > 0) {
-      doc.addPage();
-      let p3Y = 20;
+    doc.addPage();
+    let p3Y = this.drawPageHeader(
+      doc,
+      worksheet,
+      taxpayer,
+      3,
+      totalPages,
+      'GST Calculation Worksheet'
+    );
 
-      // Header Banner
-      doc.setFillColor(...REPORT_PALETTE.primary);
-      doc.rect(STANDARD_MARGIN, p3Y, CONTENT_WIDTH, 9, 'F');
-      doc.setFillColor(...REPORT_PALETTE.secondary);
-      doc.rect(STANDARD_MARGIN, p3Y, 3, 9, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('UNDERLYING TRANSACTION AUDIT TRAIL & TAX CLASSIFICATION', STANDARD_MARGIN + 7, p3Y + 6);
+    // Section 1: GST amounts you owe the Tax Office from sales
+    p3Y = this.drawSectionBanner(doc, 'GST amounts you owe the Tax Office from sales', p3Y);
 
-      p3Y += 14;
+    p3Y = this.drawCalculationRow(
+      doc,
+      p3Y,
+      'Total sales (including any GST)',
+      'G1',
+      formatCurrencyReport(g1TotalSales)
+    );
 
-      const txRows = transactions.map((tx) => [
-        tx.date,
-        tx.description.length > 30 ? tx.description.substring(0, 30) + '...' : tx.description,
-        tx.category,
-        tx.taxClassification || 'Standard',
-        tx.basCode || '—',
-        formatCurrencyReport(tx.amount),
-        formatCurrencyReport(tx.gstAmount, true),
-        formatCurrencyReport(tx.netAmount),
-      ]);
+    p3Y = this.drawCalculationRow(
+      doc,
+      p3Y,
+      'Other GST-free sales',
+      'G3',
+      formatCurrencyReport(g3OtherGstFree)
+    );
 
-      autoTable(doc, {
-        startY: p3Y,
-        head: [['Date', 'Description', 'Category', 'Tax Class', 'BAS', 'Gross', 'GST', 'Net']],
-        body: txRows,
-        theme: 'striped',
-        headStyles: {
-          fillColor: REPORT_PALETTE.primary,
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 7.5,
-        },
-        bodyStyles: { fontSize: 7, textColor: [50, 50, 50] },
-        columnStyles: {
-          0: { cellWidth: 20 },
-          1: { cellWidth: 42 },
-          2: { cellWidth: 32 },
-          3: { cellWidth: 24 },
-          4: { cellWidth: 12, halign: 'center' },
-          5: { cellWidth: 18, halign: 'right' },
-          6: { cellWidth: 15, halign: 'right' },
-          7: { cellWidth: 'auto', halign: 'right' },
-        },
-        margin: { left: STANDARD_MARGIN, right: STANDARD_MARGIN },
-      });
-    }
+    p3Y = this.drawCalculationRow(
+      doc,
+      p3Y,
+      'Total sales without GST (G2 + G3 + G4)',
+      'G5',
+      formatCurrencyReport(g5TotalSalesWithoutGst)
+    );
 
-    // Stamp shared footers across all pages
+    p3Y = this.drawCalculationRow(
+      doc,
+      p3Y,
+      'Total sales subject to GST (G1 minus G5)',
+      'G6',
+      formatCurrencyReport(g6SalesSubjectToGst)
+    );
+
+    p3Y = this.drawCalculationRow(
+      doc,
+      p3Y,
+      'Total sales subject to GST after adjustments (G6 + G7)',
+      'G8',
+      formatCurrencyReport(g8SalesAfterAdjustments)
+    );
+
+    p3Y = this.drawCalculationRow(
+      doc,
+      p3Y,
+      'GST on sales (G8 divided by 11)',
+      'G9',
+      formatCurrencyReport(g9GstOnSales)
+    );
+
+    p3Y += 6;
+
+    // Section 2: GST amounts the Tax Office owes you from purchases
+    p3Y = this.drawSectionBanner(doc, 'GST amounts the Tax Office owes you from purchases', p3Y);
+
+    p3Y = this.drawCalculationRow(
+      doc,
+      p3Y,
+      'Non-capital purchases (including any GST)',
+      'G11',
+      formatCurrencyReport(g11NonCapitalPurchases)
+    );
+
+    p3Y = this.drawCalculationRow(
+      doc,
+      p3Y,
+      'Total purchases (G10 + G11)',
+      'G12',
+      formatCurrencyReport(g12TotalPurchases)
+    );
+
+    p3Y = this.drawCalculationRow(
+      doc,
+      p3Y,
+      'Purchases without GST in the price',
+      'G14',
+      formatCurrencyReport(g14PurchasesWithoutGst)
+    );
+
+    p3Y = this.drawCalculationRow(
+      doc,
+      p3Y,
+      'Total purchases where GST cannot be claimed (G13 + G14 + G15)',
+      'G16',
+      formatCurrencyReport(g16PurchasesCannotClaim)
+    );
+
+    p3Y = this.drawCalculationRow(
+      doc,
+      p3Y,
+      'Total purchases subject to GST (G12 minus G16)',
+      'G17',
+      formatCurrencyReport(g17PurchasesSubjectToGst)
+    );
+
+    p3Y = this.drawCalculationRow(
+      doc,
+      p3Y,
+      'Total purchases subject to GST after adjustments (G17 + G18)',
+      'G19',
+      formatCurrencyReport(g19PurchasesAfterAdjustments)
+    );
+
+    p3Y = this.drawCalculationRow(
+      doc,
+      p3Y,
+      'GST on purchases (G19 divided by 11)',
+      'G20',
+      formatCurrencyReport(g20GstOnPurchases)
+    );
+
+    p3Y += 8;
+
+    // Section 3: Bottom Calculation Reconciliation Box
+    doc.setFillColor(240, 243, 248);
+    doc.setDrawColor(...BW_BORDER);
+    doc.rect(STANDARD_MARGIN, p3Y, CONTENT_WIDTH, 16, 'FD');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...BW_TEXT_DARK);
+    doc.text('ATO Calculation Reconciliation Summary', STANDARD_MARGIN + 3.5, p3Y + 5);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.2);
+    doc.setTextColor(...BW_TEXT_MUTED);
+    doc.text(
+      `GST on sales (G9 / 1A): ${formatCurrencyReport(g9GstOnSales)}   —   GST on purchases (G20 / 1B): ${formatCurrencyReport(g20GstOnPurchases)}`,
+      STANDARD_MARGIN + 3.5,
+      p3Y + 9.5
+    );
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...BW_TEXT_DARK);
+    doc.text(
+      `Net GST Position (1A - 1B): ${isPayable ? formatCurrencyReport(worksheet.totals.netGstPosition) + ' (Payment Due to ATO)' : '-$' + Math.abs(worksheet.totals.netGstPosition).toFixed(2) + ' (Refund from ATO)'}`,
+      STANDARD_MARGIN + 3.5,
+      p3Y + 13.5
+    );
+
+    // Stamp footers across all pages
     stampReportFooters(doc, {
-      systemLabel: 'PropertyLedge.com.au — ATO BAS Activity Statement & Reconciliation Report',
+      systemLabel: 'PropertyLedge.com.au — ATO BAS Activity Statement Return & GST Worksheet',
     });
 
     return doc;
@@ -486,7 +800,7 @@ export class PdfBasReportAdapter {
   public static downloadPdf(data: BasReportPdfData): void {
     const doc = this.generateDocument(data);
     const propPart = (data.worksheet.propertyName || 'Portfolio').replace(/[^a-zA-Z0-9]/g, '_');
-    const filename = `BAS_Report_${propPart}_${data.worksheet.period}_FY${data.worksheet.financialYear}.pdf`;
+    const filename = `Activity_Statement_${propPart}_${data.worksheet.period}_FY${data.worksheet.financialYear}.pdf`;
     triggerPdfDownload(doc, filename);
   }
 }
