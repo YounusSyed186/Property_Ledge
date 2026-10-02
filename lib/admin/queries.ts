@@ -310,7 +310,7 @@ export async function getAdminPayments({
 
   let query = (supabase as any)
     .from('subscription_payments')
-    .select('*, subscriptions!fk_subscription_payments_sub_account(*, subscription_plans(*))', { count: 'exact' });
+    .select('*, subscriptions(*, subscription_plans(*))', { count: 'exact' });
 
   if (status !== 'all') {
     query = query.eq('status', status);

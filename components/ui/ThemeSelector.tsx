@@ -79,38 +79,26 @@ export function ThemeSelector({
       icon: Sun,
       preview: (
         <div className="w-10 h-7 rounded border border-border/40 overflow-hidden flex shadow-xs relative">
-          <div className="w-2.5 bg-[#0D1117] h-full" />
-          <div className="flex-1 bg-[#FFFFFF] h-full" />
+          <div className="w-3 bg-[#061222] h-full border-r border-[#17283A]" />
+          <div className="flex-1 bg-[#F4F5F7] h-full" />
         </div>
       ),
     },
     {
-      id: "full-light",
-      label: "Full Light",
-      description: "Light sidebar · Light workspace",
-      icon: Sparkles,
-      preview: (
-        <div className="w-10 h-7 rounded border border-border/40 overflow-hidden flex shadow-xs relative">
-          <div className="w-2.5 bg-[#F1F3F5] h-full" />
-          <div className="flex-1 bg-[#F9FAFB] h-full" />
-        </div>
-      ),
-    },
-    {
-      id: "full-dark",
-      label: "Full Dark",
+      id: "dark",
+      label: "Dark",
       description: "Dark sidebar · Dark workspace",
       icon: Monitor,
       preview: (
         <div className="w-10 h-7 rounded border border-border/40 overflow-hidden flex shadow-xs relative">
-          <div className="w-2.5 bg-[#0D1117] h-full" />
-          <div className="flex-1 bg-[#070A0D] h-full" />
+          <div className="w-3 bg-[#061222] h-full border-r border-[#17283A]" />
+          <div className="flex-1 bg-[#07111F] h-full" />
         </div>
       ),
     },
   ];
 
-  const activeOption = themeOptions.find((opt) => opt.id === themeMode || (opt.id === "full-dark" && themeMode === "dark")) || themeOptions[0];
+  const activeOption = themeOptions.find((opt) => opt.id === themeMode || (opt.id === "dark" && (themeMode === "dark" || themeMode === "full-dark"))) || themeOptions[0];
   const ActiveIcon = activeOption.icon;
 
   const isNavbar = variant === 'navbar';

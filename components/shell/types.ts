@@ -1,17 +1,33 @@
 import type React from 'react';
 
-export interface NavItem {
+export type NavBadgeVariant = 'default' | 'orange' | 'green' | 'teal';
+
+export interface NavSubItem {
+  id?: string;
   label: string;
   href: string;
+  exact?: boolean;
+  comingSoon?: boolean;
+  badge?: string | number;
+  badgeVariant?: NavBadgeVariant;
+}
+
+export interface NavItem {
+  id?: string;
+  label: string;
+  href?: string;
   icon: React.ComponentType<{ className?: string }>;
   /** When true, only highlight on exact path match (not child routes). */
   exact?: boolean;
   /** When true, renders a Coming Soon badge and dims the item. */
   comingSoon?: boolean;
+  badge?: string | number;
+  badgeVariant?: NavBadgeVariant;
+  children?: NavSubItem[];
 }
 
 export interface NavSection {
-  label: string;
+  label?: string;
   items: NavItem[];
   /** Optional badge shown next to the section label (e.g. "Coming soon"). */
   badge?: string;

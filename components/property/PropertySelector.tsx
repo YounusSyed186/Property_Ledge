@@ -13,9 +13,10 @@ interface PropertySelectorProps {
   showCreateLink?: boolean;
   onCreateClick?: () => void;
   variant?: 'sidebar' | 'navbar';
+  isCollapsed?: boolean;
 }
 
-export function PropertySelector({ className, showCreateLink = true, onCreateClick, variant = 'sidebar' }: PropertySelectorProps) {
+export function PropertySelector({ className, showCreateLink = true, onCreateClick, variant = 'sidebar', isCollapsed = false }: PropertySelectorProps) {
   const router = useRouter();
   const { availableProperties, selectedProperty, setSelectedProperty, isLoading, isRefreshing, error, refreshProperties, hasPropertyAccess } = usePropertyContext();
 
@@ -27,6 +28,7 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
     }
   };
   const [isOpen, setIsOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -59,8 +61,10 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
 
   const isNavbar = variant === 'navbar';
   const triggerClass = isNavbar
-    ? 'flex h-10 items-center gap-2.5 rounded-xl border border-admin-sidebar-border bg-admin-sidebar-surface px-3 text-[13.5px] font-medium text-admin-sidebar-foreground transition-all hover:bg-admin-sidebar-hover hover:border-admin-primary/40 focus:outline-none focus:ring-2 focus:ring-admin-primary/30 cursor-pointer shadow-xs'
-    : 'flex items-center gap-2.5 px-3.5 py-2 rounded-xl border border-border bg-surface text-foreground hover:bg-surface-subtle transition-colors min-w-[200px] max-w-[320px] cursor-pointer shadow-2xs';
+    ? 'flex h-9 items-center gap-2 rounded-xl border border-slate-200/90 dark:border-[#17283A] bg-white dark:bg-[#07111F] px-2.5 text-[13px] font-medium text-slate-800 dark:text-white transition-all hover:bg-slate-50 dark:hover:bg-[#0E1E33] hover:border-[#008F83]/50 focus:outline-none focus:ring-2 focus:ring-[#008F83]/30 cursor-pointer shadow-xs'
+    : isCollapsed
+    ? 'w-9 h-9 mx-auto rounded-xl border border-slate-200 dark:border-[#17283A] bg-white dark:bg-[#07111F] flex items-center justify-center text-[#008F83] hover:bg-slate-50 dark:hover:bg-[#0E1E33] transition-all cursor-pointer shadow-xs'
+    : 'flex w-full items-center justify-between gap-2.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-[#17283A] bg-white dark:bg-[#07111F] text-slate-800 dark:text-white hover:bg-slate-50 dark:hover:bg-[#0E1E33] transition-all cursor-pointer shadow-xs';
 
   const handleSelectAll = () => {
     setSelectedProperty(null);
@@ -76,8 +80,15 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
     }
   };
 
+  const currentDisplayName = selectedProperty ? selectedProperty.propertyName : 'All Properties';
+
   return (
-    <div className={cn('relative', className)} ref={dropdownRef}>
+    <div
+      className={cn('relative', isCollapsed ? 'w-full flex justify-center' : 'w-full', className)}
+      ref={dropdownRef}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <button
         ref={buttonRef}
         type="button"
@@ -92,27 +103,41 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
         className={cn(triggerClass)}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
+        title={isCollapsed ? `Property: ${currentDisplayName}` : undefined}
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-admin-teal bg-admin-teal-soft px-1.5 py-0.5 rounded border border-admin-primary/25 shrink-0">
-            Property
-          </span>
-          <span className="max-w-[150px] sm:max-w-[210px] truncate text-left font-semibold text-admin-sidebar-foreground" data-testid="current-property">
-            {selectedProperty ? selectedProperty.propertyName : 'All Properties'}
-          </span>
-        </div>
-        <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-admin-sidebar-muted ml-0.5 opacity-70" />
+        {isCollapsed ? (
+          <Building2 className="w-4 h-4 text-[#008F83] dark:text-[#32D5C4]" />
+        ) : (
+          <>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#008F83] dark:text-[#32D5C4] bg-[#008F83]/10 dark:bg-[#008F83]/20 px-1.5 py-0.5 rounded border border-[#008F83]/25 shrink-0">
+                Property
+              </span>
+              <span className="max-w-[140px] sm:max-w-[170px] truncate text-left font-semibold text-slate-900 dark:text-white text-[13px]" data-testid="current-property">
+                {currentDisplayName}
+              </span>
+            </div>
+            <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-[#94A3B8] ml-0.5" />
+          </>
+        )}
       </button>
+
+      {/* Tooltip in collapsed mode */}
+      {isCollapsed && isHovered && !isOpen && (
+        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 px-3 py-1.5 rounded-lg bg-[#0E1E33] text-white border border-[#1E293B] font-medium text-[12px] shadow-elevation-2 whitespace-nowrap pointer-events-none flex items-center gap-1.5">
+          <span className="text-[#32D5C4] font-bold">Property:</span> {currentDisplayName}
+        </div>
+      )}
 
       {isOpen && (
         <div className={cn(
-          'absolute z-50 mt-2 w-84 overflow-hidden rounded-2xl border border-admin-border bg-admin-surface shadow-elevation-overlay animate-in fade-in zoom-in-95 duration-120',
-          isNavbar ? 'left-0' : 'right-0'
+          'absolute z-50 mt-2 w-84 overflow-hidden rounded-2xl border border-slate-200 dark:border-[#17283A] bg-white dark:bg-[#07111F] shadow-xl animate-in fade-in zoom-in-95 duration-120',
+          isCollapsed ? 'left-full top-0 ml-3 mt-0' : isNavbar ? 'left-0' : 'left-0 right-0'
         )}>
-          <div className="border-b border-admin-border px-4 py-3 flex items-center justify-between bg-admin-surface-subtle/50">
+          <div className="border-b border-slate-100 dark:border-[#17283A] px-4 py-3 flex items-center justify-between bg-slate-50/60 dark:bg-[#0B1726]/40">
             <div>
-              <p className="text-[13px] font-bold text-admin-foreground">Property Context</p>
-              <p className="text-[11px] text-admin-muted">Filter workspace by property</p>
+              <p className="text-[13px] font-bold text-slate-900 dark:text-white">Property Context</p>
+              <p className="text-[11px] text-slate-400 dark:text-[#7F8B99]">Filter workspace by property</p>
             </div>
             <div className="flex items-center gap-1.5">
               {isRefreshing && (

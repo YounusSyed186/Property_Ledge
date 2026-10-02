@@ -48,7 +48,18 @@ const navSections: NavSection[] = [
 ];
 
 const commandMenuLinks: CommandMenuLink[] = navSections.flatMap((s) =>
-  s.items.map((item) => ({ label: item.label, href: item.href, icon: item.icon }))
+  s.items.flatMap((item) => {
+    const links: CommandMenuLink[] = [];
+    if (item.href) {
+      links.push({ label: item.label, href: item.href, icon: item.icon });
+    }
+    if (item.children) {
+      item.children.forEach((child) => {
+        links.push({ label: `${item.label} › ${child.label}`, href: child.href, icon: item.icon });
+      });
+    }
+    return links;
+  })
 );
 
 interface AdminClientLayoutProps {

@@ -27,10 +27,9 @@ export async function getTenantActiveLease(tenantId: string, propertyId: string)
     .select(`
       role,
       is_primary,
-      lease:leases!fk_lease_tenants_lease_prop(
+      lease:leases!lease_tenants_lease_id_fkey(
         id, status, start_date, end_date, rent_amount, rent_frequency,
-        payment_due_day, security_deposit,
-        unit:units!fk_leases_unit_prop(name, unit_number)
+        payment_due_day, security_deposit
       )
     `)
     .eq('tenant_id', tenantId)

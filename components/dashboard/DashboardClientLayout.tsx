@@ -35,84 +35,125 @@ import type { CommandMenuLink, NavSection } from '@/components/shell/types';
 import type { Persona } from '@/lib/auth/resolvePersona';
 import { canAccessNavItem, type NavItemId } from '@/lib/auth/permissions';
 
-interface NavItemConfig {
+interface NavSubItemConfig {
   id: NavItemId;
   label: string;
   href: string;
+  exact?: boolean;
+  comingSoon?: boolean;
+  badge?: string | number;
+  badgeVariant?: 'default' | 'orange' | 'green' | 'teal';
+}
+
+interface NavItemConfig {
+  id?: NavItemId;
+  label: string;
+  href?: string;
   icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
   comingSoon?: boolean;
+  badge?: string | number;
+  badgeVariant?: 'default' | 'orange' | 'green' | 'teal';
+  children?: NavSubItemConfig[];
 }
 
-const NAV_GROUPS: { label: string; items: NavItemConfig[] }[] = [
+const HIERARCHICAL_NAV: NavItemConfig[] = [
   {
-    label: 'Home',
-    items: [
-      { id: 'home', label: 'Dashboard', href: '/dashboard', icon: SquaresFour },
-      { id: 'portfolio', label: 'Properties', href: '/dashboard/properties', icon: Buildings },
+    id: 'home',
+    label: 'Dashboard',
+    href: '/dashboard',
+    icon: SquaresFour,
+    exact: true,
+  },
+  {
+    id: 'portfolio',
+    label: 'Properties',
+    icon: Buildings,
+    children: [
+      { id: 'portfolio', label: 'Overview', href: '/dashboard/properties', exact: true },
+      { id: 'people', label: 'Tenants', href: '/dashboard/people' },
+      { id: 'leases', label: 'Leases', href: '/dashboard/leases' },
+      { id: 'condition-reports', label: 'Condition Reports', href: '/dashboard/condition-reports' },
     ],
   },
   {
-    label: 'People',
-    items: [
-      { id: 'people', label: 'Tenants', href: '/dashboard/people', icon: Users },
-      { id: 'leases', label: 'Leases', href: '/dashboard/leases', icon: FileText },
-    ],
-  },
-  {
+    id: 'finances',
     label: 'Finance',
-    items: [
-      { id: 'invoices', label: 'Invoices', href: '/dashboard/invoices', icon: Receipt, comingSoon: false },
-      { id: 'finances', label: 'Expenses', href: '/dashboard/expenses', icon: CreditCard, comingSoon: false },
-      { id: 'finances', label: 'Transactions', href: '/dashboard/money', icon: CurrencyDollar, comingSoon: false },
-      { id: 'finances', label: 'Payment Schedules', href: '/dashboard/schedules', icon: CalendarBlank, comingSoon: false },
-      { id: 'bas', label: 'BAS Activity Statement', href: '/dashboard/bas', icon: Calculator, comingSoon: false },
-      { id: 'reports', label: 'Reports', href: '/dashboard/reports', icon: ChartBar, comingSoon: false },
+    icon: CurrencyDollar,
+    children: [
+      { id: 'money', label: 'Overview', href: '/dashboard/money', exact: true },
+      { id: 'expenses', label: 'Expenses', href: '/dashboard/expenses' },
+      { id: 'invoices', label: 'Invoices', href: '/dashboard/invoices' },
+      { id: 'finances', label: 'Payment Schedules', href: '/dashboard/schedules' },
+      { id: 'bas', label: 'BAS Statement', href: '/dashboard/bas' },
     ],
   },
   {
+    id: 'tasks',
     label: 'Operations',
-    items: [
-      { id: 'automations', label: 'Automations', href: '/dashboard/automations', icon: Lightning, comingSoon: false },
-      { id: 'inspections', label: 'Inspections', href: '/dashboard/inspections', icon: ClipboardText, comingSoon: false },
-      { id: 'documents', label: 'Documents', href: '/dashboard/documents', icon: FolderSimple, comingSoon: false },
-      { id: 'tasks', label: 'Tasks', href: '/dashboard/tasks', icon: CheckSquare, comingSoon: false },
+    icon: ClipboardText,
+    children: [
+      { id: 'inspections', label: 'Inspections', href: '/dashboard/inspections' },
+      { id: 'documents', label: 'Documents', href: '/dashboard/documents' },
+      { id: 'automations', label: 'Automations', href: '/dashboard/automations' },
+      { id: 'tasks', label: 'Tasks', href: '/dashboard/tasks' },
     ],
   },
   {
+    id: 'reports',
     label: 'Reports',
-    items: [
-      { id: 'reports', label: 'Reports Hub', href: '/dashboard/reports', icon: ChartBar, comingSoon: false },
-    ],
+    href: '/dashboard/reports',
+    icon: ChartBar,
   },
 ];
 
 function buildNavSections(persona: Persona, permissions: string[] = []): NavSection[] {
-  const COMING_SOON_SECTIONS = new Set<string>([]);
+  const items = HIERARCHICAL_NAV.map((item) => {
+    // If the item has children, filter children by permission
+    if (item.children) {
+      const allowedChildren = item.children.filter((child) =>
+        canAccessNavItem(persona, child.id, permissions)
+      );
+      if (allowedChildren.length === 0) return null;
+      return {
+        ...item,
+        children: allowedChildren,
+      };
+    }
 
-  const sections: NavSection[] = NAV_GROUPS.map((group) => ({
-    label: group.label,
-    badge: COMING_SOON_SECTIONS.has(group.label) ? 'Coming Soon' : undefined,
-    items: group.items
-      .filter((item) => canAccessNavItem(persona, item.id, permissions))
-      .map(({ label, href, icon, exact, comingSoon }) => ({ label, href, icon, exact, comingSoon })),
-  })).filter((s) => s.items.length > 0);
+    // Direct item check
+    if (item.id && !canAccessNavItem(persona, item.id, permissions)) {
+      return null;
+    }
+
+    return item;
+  }).filter((item): item is NavItemConfig => item !== null);
+
+  const sections: NavSection[] = [
+    {
+      items,
+    },
+  ];
 
   if (canAccessNavItem(persona, 'team', permissions)) {
-    const teamItems = [{ label: 'Team', href: '/dashboard/team', icon: UserPlus, exact: true }];
+    const teamChildren = [
+      { label: 'Team', href: '/dashboard/team', exact: true },
+    ];
     if (permissions.includes('team.role.view')) {
-      teamItems.push({ label: 'Team roles', href: '/dashboard/team/roles', icon: ShieldCheck, exact: true });
+      teamChildren.push({ label: 'Roles & Permissions', href: '/dashboard/team/roles', exact: true });
     }
-    sections.push({
+    sections[0].items.push({
       label: 'Team',
-      items: teamItems,
+      icon: UserPlus,
+      children: teamChildren,
     });
   }
 
   if (canAccessNavItem(persona, 'settings', permissions)) {
-    sections.push({
-      label: 'System',
-      items: [{ label: 'Settings', href: '/dashboard/settings', icon: Gear }],
+    sections[0].items.push({
+      label: 'Settings',
+      href: '/dashboard/settings',
+      icon: Gear,
     });
   }
 
@@ -163,7 +204,18 @@ function DashboardShellInner({
 
   const navSections = buildNavSections(persona, permissions);
   const commandMenuLinks: CommandMenuLink[] = navSections.flatMap((s) =>
-    s.items.map((item) => ({ label: item.label, href: item.href, icon: item.icon }))
+    s.items.flatMap((item) => {
+      const links: CommandMenuLink[] = [];
+      if (item.href) {
+        links.push({ label: item.label, href: item.href, icon: item.icon });
+      }
+      if (item.children) {
+        item.children.forEach((child) => {
+          links.push({ label: `${item.label} › ${child.label}`, href: child.href, icon: item.icon });
+        });
+      }
+      return links;
+    })
   );
 
   return (

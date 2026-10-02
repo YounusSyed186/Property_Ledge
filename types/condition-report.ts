@@ -106,6 +106,7 @@ export interface InspectionItemDetails {
   landlordComments?: string;
   tenantComments?: string;
   tenantAgrees?: boolean | null;
+  priority?: 'Low' | 'Medium' | 'High' | 'Urgent' | string;
 }
 
 export interface RoomTemplateConfig {

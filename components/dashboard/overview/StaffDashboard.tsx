@@ -106,7 +106,7 @@ export function StaffDashboard({ userName }: { userName: string }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <QuickAction label="My Tasks" href="/dashboard/tasks" icon={CheckSquare} description="View assigned tasks" />
             <QuickAction label="Maintenance Queue" href="/dashboard/maintenance" icon={Wrench} description="Work on open requests" />
-            <QuickAction label="Inspections" href="/dashboard/inspections" icon={ClipboardCheck} description="Scheduled inspections" />
+            <QuickAction label="Condition Reports" href="/dashboard/condition-reports" icon={ClipboardCheck} description="Scheduled inspections" />
             <QuickAction label="Documents" href="/dashboard/documents" icon={FolderOpen} description="Access property documents" />
           </div>
         </section>

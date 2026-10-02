@@ -188,34 +188,34 @@ export function AdminDataGridToolbar({
       ) : (
         /* Normal Toolbar */
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
-          {/* Left: Search Bar & Primary Left Content */}
-          <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
+          {/* Left: Primary Left Content & Search Bar */}
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
+            {leftContent}
+
             {/* Global Search Bar (Modelled after reference mockup) */}
             {!hideSearch && (
-              <div className="relative flex-1 min-w-[200px] max-w-md">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <div className="relative flex-1 min-w-[180px] max-w-xs">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   value={searchValue}
                   onChange={(e) => onSearchChange(e.target.value)}
                   placeholder={searchPlaceholder}
-                  className="w-full h-10 sm:h-10.5 pl-10 pr-8 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs sm:text-[13px] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#008F83]/20 focus:border-[#008F83] transition-all shadow-xs"
+                  className="w-full h-9.5 pl-9 pr-7 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#008F83]/20 focus:border-[#008F83] transition-all shadow-xs"
                   aria-label={searchPlaceholder}
                 />
                 {searchValue && (
                   <button
                     type="button"
                     onClick={() => onSearchChange('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                     aria-label="Clear search"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-3 h-3" />
                   </button>
                 )}
               </div>
             )}
-
-            {leftContent}
 
             {loading && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#008F83]/10 border border-[#008F83]/20 text-[#008F83] text-xs font-semibold shrink-0 animate-fade-in">
@@ -236,7 +236,7 @@ export function AdminDataGridToolbar({
                 isRefreshing={isRefreshing}
                 lastRefreshedAt={lastRefreshedAt}
                 label={refreshLabel}
-                showLastUpdated={!compact}
+                showLastUpdated={false}
               />
             )}
 
@@ -249,11 +249,11 @@ export function AdminDataGridToolbar({
                     refreshColumns();
                     setIsColumnMenuOpen(!isColumnMenuOpen);
                   }}
-                  className="h-10 px-3.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 transition-all flex items-center gap-1.5"
+                  className="h-10 px-3.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 transition-all flex items-center gap-1.5"
                   title="Toggle Columns"
                 >
                   <Columns className="w-4 h-4 text-slate-500" />
-                  <span className="hidden sm:inline">Columns</span>
+                  <span>Columns</span>
                 </button>
 
                 {isColumnMenuOpen && (
@@ -296,11 +296,10 @@ export function AdminDataGridToolbar({
               <button
                 type="button"
                 onClick={handleExportCsv}
-                className="h-10 px-3.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 transition-all flex items-center gap-1.5"
+                className="h-10 px-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 transition-all flex items-center justify-center"
                 title="Export CSV"
               >
                 <Download className="w-4 h-4 text-slate-500" />
-                {!compact && <span>Export</span>}
               </button>
             )}
 
@@ -309,19 +308,26 @@ export function AdminDataGridToolbar({
               <button
                 type="button"
                 onClick={onToggleExpand}
-                title={isExpanded ? 'Collapse Grid ↓' : 'Expand Grid ↑'}
-                className="h-10 px-3.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 transition-all flex items-center gap-1.5"
+                title={isExpanded ? 'Collapse table to normal view (Esc)' : 'Expand table to full width'}
+                className={cn(
+                  'h-10 px-3.5 rounded-xl border text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer',
+                  isExpanded
+                    ? 'border-[#008F83]/30 bg-[#008F83]/10 text-[#008F83] dark:text-[#32D5C4]'
+                    : 'bg-white dark:bg-slate-800 border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300'
+                )}
               >
-                <span>{isExpanded ? 'Collapse ↓' : 'Expand ↑'}</span>
+                {isExpanded ? (
+                  <>
+                    <Minimize2 className="w-4 h-4 text-[#008F83] dark:text-[#32D5C4]" />
+                    <span>Collapse</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="w-4 h-4 text-slate-500 dark:text-[#7F8B99]" />
+                    <span className="hidden sm:inline">Expand</span>
+                  </>
+                )}
               </button>
-            )}
-
-            {/* Total Count Badge */}
-            {totalCount !== undefined && !compact && (
-              <div className="hidden sm:flex items-center gap-1 px-3 h-10 rounded-xl bg-slate-50/80 dark:bg-slate-800/80 text-xs text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/60 font-medium">
-                <span className="font-bold text-slate-900 dark:text-white">{totalCount}</span>
-                <span>{totalCount === 1 ? labelSingular : labelPlural}</span>
-              </div>
             )}
           </div>
         </div>

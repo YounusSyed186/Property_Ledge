@@ -117,7 +117,7 @@ export function ManagerDashboard({ userName }: { userName: string }) {
           <h2 className="workspace-page-title">Quick Actions</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <QuickAction label="Report Maintenance" href="/dashboard/maintenance" icon={Wrench} description="Log a new maintenance request" />
-            <QuickAction label="Schedule Inspection" href="/dashboard/inspections" icon={ClipboardCheck} description="Book an inspection" />
+            <QuickAction label="Schedule Inspection" href="/dashboard/condition-reports" icon={ClipboardCheck} description="Book an inspection" />
             <QuickAction label="Add Tenant" href="/dashboard/people" icon={Users} description="Register a new tenant" />
             <QuickAction label="Create Lease" href="/dashboard/leases" icon={FileText} description="Start a new lease" />
             <QuickAction label="Manage Tasks" href="/dashboard/tasks" icon={CheckSquare} description="View and assign tasks" />

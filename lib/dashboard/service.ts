@@ -233,7 +233,7 @@ export async function updateTenant(propertyId: string, tenantId: string, input: 
 }
 
 export async function deleteTenant(propertyId: string, tenantId: string) {
-  await requirePropertyPermission(propertyId, 'tenant.manage');
+  await requirePropertyPermission(propertyId, 'tenant.update');
   const adminClient = await createAdminClient();
 
   // Delete junction rows
@@ -700,7 +700,7 @@ export async function createInspection(propertyId: string, input: Omit<Tables['i
 }
 
 export async function updateInspection(propertyId: string, inspectionId: string, input: Tables['inspections']['Update']) {
-  await requirePropertyPermission(propertyId, 'inspection.manage');
+  await requirePropertyPermission(propertyId, 'inspection.create');
   const adminClient = await createAdminClient();
   const { data, error } = await adminClient
     .from('inspections')
@@ -715,7 +715,7 @@ export async function updateInspection(propertyId: string, inspectionId: string,
 }
 
 export async function deleteInspection(propertyId: string, inspectionId: string) {
-  await requirePropertyPermission(propertyId, 'inspection.manage');
+  await requirePropertyPermission(propertyId, 'inspection.create');
   const adminClient = await createAdminClient();
   const { error } = await adminClient.from('inspections').update({ status: 'cancelled' } as never).eq('id', inspectionId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
@@ -738,7 +738,7 @@ export async function createDocument(propertyId: string, input: Omit<Tables['doc
 }
 
 export async function updateDocument(propertyId: string, documentId: string, input: Tables['documents']['Update']) {
-  await requirePropertyPermission(propertyId, 'document.manage');
+  await requirePropertyPermission(propertyId, 'document.create');
   const adminClient = await createAdminClient();
   const { data, error } = await adminClient.from('documents').update(input as never).eq('id', documentId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
@@ -747,7 +747,7 @@ export async function updateDocument(propertyId: string, documentId: string, inp
 }
 
 export async function deleteDocument(propertyId: string, documentId: string) {
-  await requirePropertyPermission(propertyId, 'document.manage');
+  await requirePropertyPermission(propertyId, 'document.create');
   const adminClient = await createAdminClient();
   const { error } = await adminClient.from('documents').delete().eq('id', documentId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);
@@ -770,7 +770,7 @@ export async function createTask(propertyId: string, input: Omit<Tables['tasks']
 }
 
 export async function updateTask(propertyId: string, taskId: string, input: Tables['tasks']['Update']) {
-  await requirePropertyPermission(propertyId, 'task.manage');
+  await requirePropertyPermission(propertyId, 'task.create');
   const adminClient = await createAdminClient();
   const { data, error } = await adminClient.from('tasks').update(input as never).eq('id', taskId).eq('property_id', propertyId).select().single();
   if (error) throw new Error(error.message);
@@ -779,7 +779,7 @@ export async function updateTask(propertyId: string, taskId: string, input: Tabl
 }
 
 export async function deleteTask(propertyId: string, taskId: string) {
-  await requirePropertyPermission(propertyId, 'task.manage');
+  await requirePropertyPermission(propertyId, 'task.create');
   const adminClient = await createAdminClient();
   const { error } = await adminClient.from('tasks').delete().eq('id', taskId).eq('property_id', propertyId);
   if (error) throw new Error(error.message);

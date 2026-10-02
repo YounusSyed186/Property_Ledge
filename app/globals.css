@@ -496,7 +496,6 @@ body {
 
 /* Workspace typography — readable scale aligned with design tokens */
 .app-workspace {
-  font-size: 14px;
   line-height: 1.45;
 }
 

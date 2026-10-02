@@ -120,15 +120,15 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
 
   const isNavbar = variant === 'navbar';
   const triggerClass = isNavbar
-    ? 'flex h-10 items-center gap-2.5 rounded-xl border border-admin-sidebar-border bg-[#071526] px-3 text-[13.5px] font-medium text-admin-sidebar-foreground transition-all hover:bg-[#0E1E33] hover:border-[#008F83]/50 focus:outline-none focus:ring-2 focus:ring-[#008F83]/30 cursor-pointer shadow-xs'
+    ? 'flex h-9 items-center gap-2 rounded-xl border border-slate-200/90 dark:border-[#17283A] bg-white dark:bg-[#07111F] px-2.5 text-[13px] font-medium text-slate-800 dark:text-white transition-all hover:bg-slate-50 dark:hover:bg-[#0E1E33] hover:border-[#008F83]/50 focus:outline-none focus:ring-2 focus:ring-[#008F83]/30 cursor-pointer shadow-xs'
     : 'flex w-full min-w-[200px] items-center gap-2.5 rounded-xl border border-border bg-background px-3.5 py-2.5 transition-colors hover:bg-muted cursor-pointer';
 
   if (isLoading && !hasKnownWorkspace) {
     return (
       <div className={cn('relative', className)}>
-        <button type="button" disabled className={cn(triggerClass, 'text-admin-sidebar-muted opacity-60')}>
-          <div className="h-4 w-4 animate-pulse rounded-full bg-admin-sidebar-border" />
-          <div className="h-3.5 w-20 animate-pulse rounded bg-admin-sidebar-border" />
+        <button type="button" disabled className={cn(triggerClass, 'text-slate-400 dark:text-admin-sidebar-muted opacity-60')}>
+          <div className="h-4 w-4 animate-pulse rounded-full bg-slate-200 dark:bg-admin-sidebar-border" />
+          <div className="h-3.5 w-20 animate-pulse rounded bg-slate-200 dark:bg-admin-sidebar-border" />
         </button>
       </div>
     );
@@ -176,26 +176,26 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        <Avatar seed={activeWorkspaceId || displayName} avatarUrl={selectedWorkspace?.avatarUrl} name={displayName} size="xs" className="shrink-0 ring-1 ring-white/10" />
-        <span className="max-w-[150px] truncate text-left font-semibold text-white text-[13.5px]" data-testid="current-workspace">
+        <Avatar seed={activeWorkspaceId || displayName} avatarUrl={selectedWorkspace?.avatarUrl} name={displayName} size="xs" className="shrink-0 ring-1 ring-slate-200 dark:ring-white/10" />
+        <span className="max-w-[150px] truncate text-left font-semibold text-slate-900 dark:text-white text-[13px]" data-testid="current-workspace">
           {displayName}
         </span>
         {isNavbar && (
-          <span className="rounded-full bg-[#0E1E33] px-2 py-0.5 text-[10px] font-bold text-[#94A3B8] border border-admin-sidebar-border uppercase tracking-wider">
+          <span className="rounded-full bg-slate-100 dark:bg-[#0E1E33] px-2 py-0.5 text-[9.5px] font-bold text-slate-600 dark:text-[#94A3B8] border border-slate-200/80 dark:border-[#17283A] uppercase tracking-wider">
             {selectedWorkspace?.role ? (selectedWorkspace.role.charAt(0).toUpperCase() + selectedWorkspace.role.slice(1)) : (roleName || 'Owner')}
           </span>
         )}
-        <ChevronsUpDown className="h-4 w-4 shrink-0 text-[#94A3B8]" />
+        <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-[#94A3B8]" />
       </button>
 
       {isOpen && (
         <div
           className={cn(
-            'absolute z-50 mt-1.5 overflow-hidden rounded-xl border border-admin-border bg-admin-surface shadow-elevation-3 animate-in fade-in zoom-in-95 duration-120',
+            'absolute z-50 mt-1.5 overflow-hidden rounded-2xl border border-slate-200 dark:border-[#17283A] bg-white dark:bg-[#07111F] shadow-xl animate-in fade-in zoom-in-95 duration-120',
             isNavbar ? 'left-0 w-76' : 'left-0 right-0'
           )}
         >
-          <div className="border-b border-admin-border/70 px-3.5 py-2.5 flex items-center justify-between bg-admin-surface-subtle/40">
+          <div className="border-b border-slate-100 dark:border-[#17283A] px-3.5 py-2.5 flex items-center justify-between bg-slate-50/60 dark:bg-[#0B1726]/40">
             <div>
               <p className="text-[11px] font-semibold text-admin-foreground">Workspace</p>
               <p className="text-[10px] text-admin-muted">Switch active organization</p>

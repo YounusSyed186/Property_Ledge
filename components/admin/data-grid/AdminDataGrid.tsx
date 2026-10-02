@@ -4,6 +4,7 @@ import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/admin/ui';
 import {
   ColDef,
+  GridOptions,
   GridReadyEvent,
   SelectionChangedEvent,
   GridApi,
@@ -80,6 +81,8 @@ export interface AdminDataGridProps<TData = any> {
   isRefreshing?: boolean;
   lastRefreshedAt?: Date | null;
   refreshLabel?: string;
+  rowHeight?: number;
+  gridOptions?: GridOptions;
 }
 
 export function AdminDataGrid<TData = any>({
@@ -121,6 +124,8 @@ export function AdminDataGrid<TData = any>({
   isRefreshing,
   lastRefreshedAt,
   refreshLabel,
+  rowHeight,
+  gridOptions: customGridOptions,
 }: AdminDataGridProps<TData>) {
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
   const [searchValue, setSearchValue] = useState('');
@@ -435,8 +440,8 @@ export function AdminDataGrid<TData = any>({
   return (
     <div
       className={cn(
-        'flex flex-col w-full rounded-2xl bg-admin-surface border border-admin-border shadow-xs overflow-hidden transition-[height,max-height,min-height] duration-250 ease-out',
-        isExpanded ? 'flex-1 h-full min-h-[480px]' : 'flex-none h-auto min-h-[420px]'
+        'flex flex-col w-full rounded-2xl bg-admin-surface border border-admin-border shadow-xs overflow-hidden flex-1 transition-[height,max-height,min-height] duration-250 ease-out',
+        isExpanded ? 'h-full min-h-[520px]' : 'h-full min-h-[420px]'
       )}
     >
       {/* Toolbar — isolated subscriber so grid body does not rerender on collapse */}
@@ -446,8 +451,8 @@ export function AdminDataGrid<TData = any>({
       <div
         ref={gridContainerRef}
         className={cn(
-          'relative w-full overflow-hidden transition-[height,max-height,min-height] duration-250 ease-out',
-          isExpanded ? 'h-full min-h-[280px] flex-1' : 'h-[360px] min-h-[320px] flex-none'
+          'relative w-full flex-1 min-h-0 overflow-hidden transition-[height,max-height,min-height] duration-250 ease-out',
+          isExpanded ? 'min-h-[380px]' : 'min-h-[300px]'
         )}
       >
         {isEmpty ? (
@@ -471,7 +476,12 @@ export function AdminDataGrid<TData = any>({
               rowData={rowData || []}
               columnDefs={effectiveColDefs}
               defaultColDef={defaultGridColDef}
-              gridOptions={defaultGridOptions}
+              gridOptions={{
+                ...defaultGridOptions,
+                ...(rowHeight ? { rowHeight } : {}),
+                ...customGridOptions,
+              }}
+              rowHeight={rowHeight}
               components={components}
               pagination={!isServerSide && !disablePagination}
               paginationAutoPageSize={!isServerSide && !disablePagination}

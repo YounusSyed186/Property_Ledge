@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FileText,
   Plus,
   Building,
   Building2,
-  User,
   Calendar,
   DollarSign,
   Search,
@@ -23,15 +22,14 @@ import {
   Pencil,
   Zap,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { ColDef } from 'ag-grid-community';
+import dynamic from 'next/dynamic';
 import { Button, useToast, ConfirmDialog } from '@/components/admin/ui';
-import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
-import { ListPage, ListPageGrid } from '@/components/workspace';
+import { AdminDataGrid } from '@/components/admin/data-grid/AdminDataGrid';
+import { PageLayout, PageContent } from '@/components/workspace/layout';
 import { usePropertyContext } from '@/components/property/PropertyContext';
 import { useEntityCacheStore } from '@/lib/stores/useEntityCacheStore';
 import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
-import dynamic from 'next/dynamic';
 import {
   fetchAllWorkspaceLeases,
   fetchDashboardProperties,
@@ -42,6 +40,15 @@ import {
 } from '@/app/actions/dashboard';
 import { createLeaseAutomationAction, CreateLeaseAutomationDTO } from '@/app/actions/automations';
 import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
+import { Avatar, AvatarGroup } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
+
+// Redesigned Modular Components
+import { LeaseCommandCenter } from './LeaseCommandCenter';
+import { LeaseTimeline } from './LeaseTimeline';
+import { LeaseHealthDonut } from './LeaseHealthDonut';
+import { LeaseRequiresAttention } from './LeaseRequiresAttention';
+import { getLeaseTableColumns } from './leaseTableColumns';
 
 const CreateLeaseWizard = dynamic(
   () => import('@/components/dashboard/workflows/CreateLeaseWizard').then((m) => m.CreateLeaseWizard),
@@ -59,11 +66,8 @@ const CreateAutomationModal = dynamic(
   () => import('@/components/automation/CreateAutomationModal').then((m) => m.CreateAutomationModal),
   { ssr: false }
 );
-import { Avatar, AvatarGroup, PersonIdentity, JsonIcon, DiceBearIcon } from '@/components/ui/avatar';
-import { routes } from '@/lib/routes';
-import { cn } from '@/lib/utils';
 
-type LeaseRecord = {
+export type LeaseRecord = {
   id: string;
   property_id: string;
   unit_id?: string | null;
@@ -93,6 +97,7 @@ type LeaseRecord = {
   lease_tenants?: Array<{
     role: string;
     is_primary: boolean;
+    tenant_id?: string;
     tenant?: {
       id: string;
       first_name: string;
@@ -121,7 +126,8 @@ export function LeaseManagementPage({ initialLeases, initialProperties }: LeaseM
   const setCachedProperties = useEntityCacheStore((s) => s.setProperties);
 
   const activePropertyId = selectedProperty?.propertyId ?? null;
-  const hasMatchingCache = cachedLeases &&
+  const hasMatchingCache =
+    cachedLeases &&
     cachedLeases.workspaceId === activeWorkspaceId &&
     cachedLeases.propertyId === activePropertyId;
 
@@ -129,6 +135,7 @@ export function LeaseManagementPage({ initialLeases, initialProperties }: LeaseM
     if (initialLeases && initialLeases.length > 0) return initialLeases;
     return hasMatchingCache ? (cachedLeases.data as LeaseRecord[]) : [];
   });
+
   const [properties, setProperties] = useState<any[]>(() => {
     if (initialProperties && initialProperties.length > 0) return initialProperties;
     if (cachedProperties && cachedProperties.workspaceId === activeWorkspaceId) {
@@ -144,13 +151,19 @@ export function LeaseManagementPage({ initialLeases, initialProperties }: LeaseM
     }
     return [];
   });
+
   const [isLoading, setIsLoading] = useState(() => !initialLeases && !hasMatchingCache);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
-  const isInitialMount = React.useRef(true);
+  const isInitialMount = useRef(true);
+
+  // Status Filter Tabs: All, Active, Pending, Expired, Renewed
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Pending' | 'Expired' | 'Renewed'>('All');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [isTableExpanded, setIsTableExpanded] = useState(false);
+
+  // Selected Property for Health Donut
+  const [healthPropertyId, setHealthPropertyId] = useState<string | null>(activePropertyId);
 
   // Create Wizard state
   const [isCreateWizardOpen, setIsCreateWizardOpen] = useState(false);
@@ -168,216 +181,47 @@ export function LeaseManagementPage({ initialLeases, initialProperties }: LeaseM
   const [selectedLeaseForAutomation, setSelectedLeaseForAutomation] = useState<string | null>(null);
   const [isAutomationModalOpen, setIsAutomationModalOpen] = useState(false);
 
-  const handleCreateAutomationSubmit = async (dto: CreateLeaseAutomationDTO) => {
-    const res = await createLeaseAutomationAction(dto);
-    if (!res.success) throw new Error(res.error || 'Failed to create automation');
-    showSuccess('Automation Scheduled', 'Lease automation created successfully.');
-    setIsAutomationModalOpen(false);
-    setSelectedLeaseForAutomation(null);
-  };
-
-  const filterOptions = useMemo<QuickFilterOption[]>(
-    () => [
-      { label: 'All', value: 'All' },
-      { label: 'Active', value: 'Active' },
-      { label: 'Pending', value: 'Pending' },
-      { label: 'Expired', value: 'Expired' },
-      { label: 'Renewed', value: 'Renewed' },
-    ],
-    []
-  );
-
-  // Delete state
+  // Delete Confirmation state
   const [deletingLeaseId, setDeletingLeaseId] = useState<string | null>(null);
   const [deletingPropertyId, setDeletingPropertyId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const agGridColumns: ColDef[] = useMemo(
-    () => [
-      {
-        headerName: 'Property',
-        flex: 1.5,
-        minWidth: 180,
-        valueGetter: (p) => {
-          const prop = p.data?.property;
-          if (!prop) return 'Unassigned';
-          return `${prop.name || prop.address_line_1}${prop.city ? `, ${prop.city}` : ''}`;
-        },
-        cellRenderer: (params: any) => {
-          const prop = params.data?.property;
-          if (!prop) return <span className="text-muted text-xs">Unassigned</span>;
-          const name = String(prop.name || prop.address_line_1 || 'Property');
-          const location = prop.city || prop.suburb || prop.state || '';
-          return (
-            <div className="flex items-center gap-2 py-1 min-w-0 max-w-full overflow-hidden" title={name}>
-              <DiceBearIcon name="building" badge variant="purple" className="w-3.5 h-3.5" />
-              <div className="flex flex-col min-w-0 leading-tight">
-                <span className="font-semibold text-foreground text-[13px] truncate">{name}</span>
-                {location && <span className="text-[10.5px] text-muted truncate">{location}</span>}
-              </div>
-            </div>
-          );
-        },
-      },
-      {
-        headerName: 'Tenants',
-        flex: 1.5,
-        minWidth: 220,
-        valueGetter: (p) => {
-          const tenants = p.data?.lease_tenants || [];
-          if (tenants.length === 0) return 'No tenants';
-          return tenants
-            .map((lt: any) => `${lt.tenant?.first_name || ''} ${lt.tenant?.last_name || ''}`.trim())
-            .filter(Boolean)
-            .join(', ');
-        },
-        cellRenderer: (params: any) => {
-          const leaseTenants = params.data?.lease_tenants || [];
-          if (leaseTenants.length === 0) return <span className="text-muted text-xs">No tenants</span>;
-          const primaryLt = leaseTenants.find((lt: any) => lt.is_primary) || leaseTenants[0];
-          const tenantObj = primaryLt?.tenant;
-          if (!tenantObj) return <span className="text-muted text-xs">Unassigned</span>;
-          const name = `${tenantObj.first_name || ''} ${tenantObj.last_name || ''}`.trim() || 'Tenant';
-          const tenantId = tenantObj.id || primaryLt.tenant_id;
-
-          if (leaseTenants.length > 1) {
-            const avatarItems = leaseTenants.map((lt: any) => ({
-              id: lt.tenant?.id || lt.tenant_id,
-              name: `${lt.tenant?.first_name || ''} ${lt.tenant?.last_name || ''}`.trim(),
-            }));
-            return (
-              <div className="flex items-center gap-2">
-                <AvatarGroup items={avatarItems} size="sm" />
-                <span className="text-xs font-semibold text-foreground truncate">{name} +{leaseTenants.length - 1}</span>
-              </div>
-            );
-          }
-
-          return (
-            <PersonIdentity
-              seed={tenantId}
-              name={name}
-              subtitle={tenantObj.email}
-              size="sm"
-            />
-          );
-        },
-      },
-      {
-        field: 'rent_amount',
-        headerName: 'Rent Amount',
-        width: 130,
-        cellRenderer: 'currencyCell',
-      },
-      {
-        field: 'rent_frequency',
-        headerName: 'Frequency',
-        width: 120,
-        valueGetter: (p) => {
-          const freq = p.data?.rent_frequency || 'monthly';
-          return freq.charAt(0).toUpperCase() + freq.slice(1);
-        },
-      },
-      {
-        field: 'security_deposit',
-        headerName: 'Security Deposit',
-        width: 140,
-        cellRenderer: 'currencyCell',
-      },
-      {
-        field: 'payment_due_day',
-        headerName: 'Due Day',
-        width: 100,
-        valueGetter: (p) => (p.data?.payment_due_day ? `Day ${p.data.payment_due_day}` : '—'),
-      },
-      {
-        field: 'start_date',
-        headerName: 'Start Date',
-        width: 120,
-        cellRenderer: 'dateCell',
-      },
-      {
-        field: 'end_date',
-        headerName: 'End Date',
-        width: 120,
-        valueGetter: (p) => p.data?.end_date || 'Periodic',
-      },
-      {
-        field: 'status',
-        headerName: 'Status',
-        width: 120,
-        cellRenderer: 'statusCell',
-      },
-      {
-        field: 'notes',
-        headerName: 'Notes',
-        flex: 1,
-        minWidth: 150,
-        valueGetter: (p) => p.data?.notes || '—',
-      },
-      {
-        field: 'created_at',
-        headerName: 'Created Date',
-        width: 130,
-        cellRenderer: 'dateCell',
-      },
-      {
-        headerName: 'Actions',
-        colId: 'actions',
-        width: 100,
-        pinned: 'right',
-        sortable: false,
-        filter: false,
-        cellRenderer: (params: any) => {
-          const lease = params.data;
-          return (
-            <div className="flex items-center gap-1 py-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedLeaseForEdit(lease);
-                  setIsEditDrawerOpen(true);
-                }}
-                className="px-2 py-0.5 text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-500/10 rounded transition-colors inline-flex items-center gap-1 font-bold text-xs"
-              >
-                <Pencil className="w-3 h-3" /> Edit
-              </button>
-            </div>
-          );
-        },
-      },
-    ],
-    []
-  );
-
-  const loadData = async (isManualRefresh = false) => {
-    if (isManualRefresh) {
-      setIsRefreshing(true);
-    } else if (!hasMatchingCache) {
-      setIsLoading(true);
-    }
-    try {
-      const activePropertyId = selectedProperty?.propertyId ?? null;
-      const [leasesData, propertiesData] = await Promise.all([
-        fetchAllWorkspaceLeases(activePropertyId),
-        fetchDashboardProperties(),
-      ]);
-      setLeases(leasesData as unknown as LeaseRecord[]);
-      setProperties(propertiesData);
-      setCachedLeases(leasesData, activeWorkspaceId, activePropertyId);
-      setCachedProperties(propertiesData, activeWorkspaceId);
-      setLastRefreshedAt(new Date());
-    } catch (err: any) {
-      console.error('Error loading leases:', err);
-      showError(isManualRefresh ? 'Refresh failed' : 'Failed to load leases', isManualRefresh ? 'Unable to refresh leases. Please try again.' : (err.message || 'Could not fetch lease agreements.'));
-    } finally {
+  const loadData = useCallback(
+    async (isManualRefresh = false) => {
       if (isManualRefresh) {
-        setIsRefreshing(false);
-      } else {
-        setIsLoading(false);
+        setIsRefreshing(true);
+      } else if (!hasMatchingCache) {
+        setIsLoading(true);
       }
-    }
-  };
+      try {
+        const activePropId = selectedProperty?.propertyId ?? null;
+        const [leasesData, propertiesData] = await Promise.all([
+          fetchAllWorkspaceLeases(activePropId),
+          fetchDashboardProperties(),
+        ]);
+        setLeases(leasesData as unknown as LeaseRecord[]);
+        setProperties(propertiesData);
+        setCachedLeases(leasesData, activeWorkspaceId, activePropId);
+        setCachedProperties(propertiesData, activeWorkspaceId);
+        setLastRefreshedAt(new Date());
+      } catch (err: any) {
+        console.error('Error loading leases directory:', err);
+        showError(
+          isManualRefresh ? 'Refresh failed' : 'Failed to load leases',
+          isManualRefresh
+            ? 'Unable to refresh leases. Please try again.'
+            : err.message || 'Could not fetch lease agreements.'
+        );
+      } finally {
+        if (isManualRefresh) {
+          setIsRefreshing(false);
+        } else {
+          setIsLoading(false);
+        }
+      }
+    },
+    [activeWorkspaceId, hasMatchingCache, selectedProperty?.propertyId, setCachedLeases, setCachedProperties, showError]
+  );
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -391,49 +235,119 @@ export function LeaseManagementPage({ initialLeases, initialProperties }: LeaseM
       }
     }
     loadData();
-  }, [selectedProperty?.propertyId, activeWorkspaceId]);
+  }, [activePropertyId, activeWorkspaceId, initialProperties, initialLeases, loadData, setCachedLeases, setCachedProperties]);
 
-  const filteredLeases = useMemo(() => {
-    return leases.filter((l) => {
-      if (selectedProperty && l.property_id !== selectedProperty.propertyId) {
-        return false;
+  // Escape key exits table expanded mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isTableExpanded && !isCreateWizardOpen && !isEditDrawerOpen && !isRenewModalOpen) {
+        setIsTableExpanded(false);
       }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isTableExpanded, isCreateWizardOpen, isEditDrawerOpen, isRenewModalOpen]);
+
+  // Filter leases by workspace/property context
+  const scopedLeases = useMemo(() => {
+    if (!selectedProperty) return leases;
+    return leases.filter((l) => l.property_id === selectedProperty.propertyId);
+  }, [leases, selectedProperty]);
+
+  // Key metrics for Hero Command Center
+  const commandCenterStats = useMemo(() => {
+    let active = 0;
+    let periodic = 0;
+    let expiringSoon = 0;
+    let rentInflow = 0;
+
+    const now = new Date();
+    const ninetyDaysFromNow = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+    scopedLeases.forEach((l) => {
+      const st = (l.status || '').toLowerCase();
+      if (st === 'active') {
+        active += 1;
+        const amt = Number(l.rent_amount) || 0;
+        const freq = (l.rent_frequency || 'monthly').toLowerCase();
+        if (freq === 'weekly') {
+          rentInflow += (amt * 52) / 12;
+        } else if (freq === 'fortnightly') {
+          rentInflow += (amt * 26) / 12;
+        } else if (freq === 'yearly' || freq === 'annually') {
+          rentInflow += amt / 12;
+        } else {
+          rentInflow += amt;
+        }
+
+        if (!l.end_date) {
+          periodic += 1;
+        } else {
+          const endDate = new Date(l.end_date);
+          if (endDate >= now && endDate <= ninetyDaysFromNow) {
+            expiringSoon += 1;
+          }
+        }
+      }
+    });
+
+    return {
+      active,
+      periodic,
+      expiringSoon,
+      monthlyRentInflow: Math.round(rentInflow),
+    };
+  }, [scopedLeases]);
+
+  // Tab counts for Lease Directory Header
+  const tabCounts = useMemo(() => {
+    const now = new Date();
+    let all = scopedLeases.length;
+    let active = 0;
+    let pending = 0;
+    let expired = 0;
+    let renewed = 0;
+
+    scopedLeases.forEach((l) => {
+      const st = (l.status || '').toLowerCase();
+      if (st === 'active') {
+        active += 1;
+      } else if (st === 'pending' || st === 'draft') {
+        pending += 1;
+      } else if (st === 'renewed') {
+        renewed += 1;
+      } else if (st === 'expired' || (l.end_date && new Date(l.end_date) < now)) {
+        expired += 1;
+      }
+    });
+
+    return { all, active, pending, expired, renewed };
+  }, [scopedLeases]);
+
+  // Filtered rows for AG Grid / Card Grid based on active status tab
+  const filteredRows = useMemo(() => {
+    const now = new Date();
+    return scopedLeases.filter((l) => {
+      const st = (l.status || '').toLowerCase();
       if (statusFilter === 'All') return true;
-      if (statusFilter === 'Active') return l.status === 'active';
-      if (statusFilter === 'Pending') return l.status === 'pending';
-      if (statusFilter === 'Renewed') return l.status === 'renewed';
+      if (statusFilter === 'Active') return st === 'active';
+      if (statusFilter === 'Pending') return st === 'pending' || st === 'draft';
+      if (statusFilter === 'Renewed') return st === 'renewed';
       if (statusFilter === 'Expired') {
-        const isExpired = l.status === 'expired' || (l.end_date && new Date(l.end_date) < new Date());
-        return isExpired;
+        return st === 'expired' || (l.end_date && new Date(l.end_date) < now);
       }
       return true;
     });
-  }, [leases, statusFilter, selectedProperty]);
+  }, [scopedLeases, statusFilter]);
 
-  const confirmDeleteLease = async () => {
-    if (!deletingLeaseId || !deletingPropertyId) return;
-    setIsDeleting(true);
-    try {
-      await handleDeleteLease(deletingPropertyId, deletingLeaseId);
-      showSuccess('Lease Deleted', 'The lease record has been permanently removed.');
-      setDeletingLeaseId(null);
-      setDeletingPropertyId(null);
-      loadData();
-    } catch (err: any) {
-      showError('Failed to delete lease', err.message || 'An error occurred.');
-    } finally {
-      setIsDeleting(false);
-    }
+  const handleEditLease = (lease: LeaseRecord) => {
+    setSelectedLeaseForEdit(lease);
+    setIsEditDrawerOpen(true);
   };
 
-  const handleUpdateStatus = async (lease: LeaseRecord, newStatus: string) => {
-    try {
-      await handleUpdateLeaseStatus(lease.property_id, lease.id, newStatus);
-      showSuccess('Status Updated', `Lease status set to ${newStatus}.`);
-      loadData();
-    } catch (err: any) {
-      showError('Failed to update status', err.message || 'An error occurred.');
-    }
+  const handleRenewLease = (lease: LeaseRecord) => {
+    setSelectedLeaseForRenewal(lease);
+    setIsRenewModalOpen(true);
   };
 
   const handleConvertToPeriodicLease = async (lease: LeaseRecord) => {
@@ -446,514 +360,439 @@ export function LeaseManagementPage({ initialLeases, initialProperties }: LeaseM
     }
   };
 
-  const handleDoNotRenewLease = async (lease: LeaseRecord) => {
+  const handleBulkDeleteLeases = async (selectedRows: LeaseRecord[]) => {
     try {
-      await handleDoNotRenew(lease.property_id, lease.id, 'Non-renewal confirmed by manager.');
-      showSuccess('Non-Renewal Marked', 'Lease marked for completion at end of term without renewal.');
-      loadData();
-    } catch (err: any) {
-      showError('Non-Renewal Failed', err.message || 'An error occurred.');
-    }
-  };
-
-  const handleRenewLease = (lease: LeaseRecord) => {
-    setSelectedLeaseForRenewal(lease);
-    setIsRenewModalOpen(true);
-  };
-
-  const getLeaseTimeRemaining = (endDateStr: string | null, status: string) => {
-    if (status !== 'active') return status.toUpperCase();
-    if (!endDateStr) return 'Periodic (No Exp Date)';
-    const end = new Date(endDateStr);
-    const now = new Date();
-    const diffTime = end.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 0) return 'Expired';
-    if (diffDays === 0) return 'Expires Today';
-    if (diffDays === 1) return 'Expires Tomorrow';
-    if (diffDays <= 30) return `${diffDays} Days Left`;
-    const diffMonths = Math.floor(diffDays / 30);
-    return `${diffMonths} Months Left`;
-  };
-
-  const stats = useMemo(() => {
-    const active = filteredLeases.filter((l) => l.status === 'active').length;
-    const periodic = filteredLeases.filter((l) => l.status === 'active' && !l.end_date).length;
-    const expired = filteredLeases.filter((l) => l.status === 'expired' || (l.end_date && new Date(l.end_date) < new Date())).length;
-    const totalRent = filteredLeases
-      .filter((l) => l.status === 'active')
-      .reduce((sum, l) => sum + (Number(l.rent_amount) || 0), 0);
-
-    return { total: filteredLeases.length, active, periodic, expired, totalRent };
-  }, [filteredLeases]);
-
-  const handleBulkDeleteLeases = async (selected: LeaseRecord[]) => {
-    try {
-      for (const l of selected) {
+      for (const l of selectedRows) {
         await handleDeleteLease(l.property_id, l.id);
       }
-      showSuccess('Leases Deleted', `Successfully deleted ${selected.length} ${selected.length === 1 ? 'lease' : 'leases'}.`);
-      await loadData();
+      showSuccess('Leases Deleted', `Successfully deleted ${selectedRows.length} ${selectedRows.length === 1 ? 'lease' : 'leases'}.`);
+      await loadData(true);
     } catch (err: any) {
       console.error('Error deleting leases:', err);
       showError('Delete Failed', err.message || 'Could not delete selected leases.');
     }
   };
 
-  const contextName = selectedProperty ? selectedProperty.propertyName : 'All Properties';
-  const pageDescription = `${contextName} · ${filteredLeases.length} ${filteredLeases.length === 1 ? 'lease' : 'leases'}`;
+  const columns = useMemo<ColDef[]>(
+    () =>
+      getLeaseTableColumns({
+        onEditLease: handleEditLease,
+        onViewLease: handleEditLease,
+        onRenewLease: handleRenewLease,
+        onConvertToPeriodic: handleConvertToPeriodicLease,
+      }),
+    []
+  );
+
+  const statusTabs: Array<{ key: 'All' | 'Active' | 'Pending' | 'Expired' | 'Renewed'; label: string; count: number }> = [
+    { key: 'All', label: 'All', count: tabCounts.all },
+    { key: 'Active', label: 'Active', count: tabCounts.active },
+    { key: 'Pending', label: 'Pending', count: tabCounts.pending },
+    { key: 'Expired', label: 'Expired', count: tabCounts.expired },
+    { key: 'Renewed', label: 'Renewed', count: tabCounts.renewed },
+  ];
 
   return (
-    <ListPage
-      title="Leases"
-      description={pageDescription}
-      actions={
-        <div className="flex items-center gap-3">
-          <div className="flex items-center bg-admin-surface border border-admin-border rounded-xl p-1 shadow-xs">
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              className={cn(
-                'p-1.5 rounded-lg transition-colors',
-                viewMode === 'table'
-                  ? 'bg-admin-surface-elevated text-admin-primary shadow-xs'
-                  : 'text-admin-muted hover:text-admin-foreground'
-              )}
-              title="AG Grid Table View"
-            >
-              <List className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('grid')}
-              className={cn(
-                'p-1.5 rounded-lg transition-colors',
-                viewMode === 'grid'
-                  ? 'bg-admin-surface-elevated text-admin-primary shadow-xs'
-                  : 'text-admin-muted hover:text-admin-foreground'
-              )}
-              title="Grid View"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-          </div>
-
-          <Button
-            onClick={() => {
-              setWizardInitialData(selectedProperty ? { property_id: selectedProperty.propertyId } : null);
-              setIsCreateWizardOpen(true);
-            }}
-            className="font-bold gap-2"
-          >
-            <Plus className="w-4 h-4" /> Create Lease
-          </Button>
-        </div>
-      }
-      summary={
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          {/* Active Leases */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
-                <CheckCircle2 className="w-5 h-5" />
-              </div>
-            </div>
+    <PageLayout>
+      <PageContent>
+        <div className="space-y-5 lg:space-y-6 pb-16">
+          {/* 1. Page Header */}
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Active Contracts</p>
-              <h3 className="text-2xl font-black text-admin-foreground">
-                {isLoading ? (
-                  <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
-                ) : (
-                  stats.active
-                )}
-              </h3>
+              <h1 className="text-2xl sm:text-[28px] font-heading font-bold tracking-tight text-slate-900 dark:text-white">
+                Leases
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-[#94A3B8] mt-1">
+                Manage contracts, rent and important lease dates.
+              </p>
             </div>
-          </div>
 
-          {/* Periodic Leases */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
-                <Clock className="w-5 h-5" />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Periodic (Month-to-Month)</p>
-              <h3 className="text-2xl font-black text-admin-foreground">
-                {isLoading ? (
-                  <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
-                ) : (
-                  stats.periodic
-                )}
-              </h3>
-            </div>
-          </div>
-
-          {/* Expiring / Expired */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center text-red-500">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Expired / Action Needed</p>
-              <h3 className="text-2xl font-black text-admin-foreground">
-                {isLoading ? (
-                  <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
-                ) : (
-                  stats.expired
-                )}
-              </h3>
-            </div>
-          </div>
-
-          {/* Active Rent Volume */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
-                <DollarSign className="w-5 h-5" />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Active Rent Inflow</p>
-              <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-                {isLoading ? (
-                  <span className="inline-block h-7 w-20 rounded skeleton-shimmer align-middle" />
-                ) : (
-                  `$${stats.totalRent.toLocaleString()}`
-                )}
-              </h3>
-            </div>
-          </div>
-        </div>
-      }
-    >
-      <div className="flex-1 flex flex-col min-h-0 h-full space-y-4">
-        {/* Leases Data Content */}
-        {!isLoading && filteredLeases.length === 0 && statusFilter === 'All' ? (
-          <div className="py-20 px-6 text-center bg-admin-surface rounded-2xl border border-admin-border shadow-xs flex-1 flex flex-col items-center justify-center min-h-[300px]">
-            <div className="w-14 h-14 bg-admin-surface-subtle rounded-full flex items-center justify-center mx-auto mb-4 text-admin-muted border border-admin-border">
-              <FileText className="w-7 h-7" />
-            </div>
-            <h3 className="text-lg font-black text-admin-foreground mb-1">No leases found</h3>
-            <p className="text-xs text-admin-muted max-w-sm mx-auto mb-5 font-medium">
-              Get started by creating a new lease agreement or setting up a tenancy.
-            </p>
-            <Button
-              onClick={() => {
-                setWizardInitialData(null);
-                setIsCreateWizardOpen(true);
-              }}
-              className="font-bold"
-            >
-              <Plus className="w-4 h-4 mr-1.5" /> Create First Lease
-            </Button>
-          </div>
-        ) : viewMode === 'table' ? (
-          <ListPageGrid>
-            <AdminDataGrid
-              rowData={filteredLeases}
-              columnDefs={agGridColumns}
-              loading={isLoading}
-              onRefresh={() => loadData(true)}
-              isRefreshing={isRefreshing}
-              lastRefreshedAt={lastRefreshedAt}
-              labelSingular="lease"
-              labelPlural="leases"
-              onRowClick={(row) => {
-                setSelectedLeaseForEdit(row);
-                setIsEditDrawerOpen(true);
-              }}
-              getRowId={(p) => p.data.id}
-              enableColumnChooser
-              enableExport
-              exportFilename="leases-export"
-              searchPlaceholder="Search leases..."
-              onDeleteSelected={handleBulkDeleteLeases}
-              leftToolbarContent={
-                <QuickFilterBar
-                  options={filterOptions}
-                  activeValue={statusFilter}
-                  onChange={(val) => setStatusFilter(val as any)}
-                />
-              }
-              disablePagination={true}
-            />
-          </ListPageGrid>
-        ) : isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 overflow-y-auto flex-1 p-1">
-            {[...Array(6)].map((_, i) => (
-              <div
-                key={i}
-                className="bg-admin-surface border border-admin-border rounded-2xl p-5 shadow-xs flex flex-col justify-between gap-4 skeleton-shimmer"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl skeleton-shimmer shrink-0" />
-                    <div className="space-y-1.5">
-                      <div className="h-3.5 rounded skeleton-shimmer w-28" />
-                      <div className="h-2.5 rounded skeleton-shimmer w-20" />
-                    </div>
-                  </div>
-                  <div className="h-5 w-14 rounded skeleton-shimmer" />
-                </div>
-                <div className="h-px w-full bg-admin-border/60" />
-                <div className="space-y-3 flex-1">
-                  <div className="space-y-1.5">
-                    <div className="h-2 rounded skeleton-shimmer w-12" />
-                    <div className="h-3 rounded skeleton-shimmer w-24" />
-                  </div>
-                  <div className="h-px w-full bg-admin-border/60" />
-                  <div className="space-y-1.5">
-                    <div className="h-2 rounded skeleton-shimmer w-16" />
-                    <div className="h-3 rounded skeleton-shimmer w-32" />
-                  </div>
-                  <div className="h-px w-full bg-admin-border/60" />
-                  <div className="space-y-1.5">
-                    <div className="h-2 rounded skeleton-shimmer w-20" />
-                    <div className="h-3 rounded skeleton-shimmer w-24" />
-                  </div>
-                </div>
-                <div className="h-px w-full bg-admin-border/60" />
-                <div className="flex items-center gap-2 pt-1">
-                  <div className="h-6 w-16 rounded skeleton-shimmer-lg" />
-                  <div className="h-6 w-14 rounded skeleton-shimmer-lg" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <HoverCardGrid className="overflow-y-auto flex-1 p-1">
-            {filteredLeases.map((lease) => {
-              const timeRemaining = getLeaseTimeRemaining(lease.end_date, lease.status);
-              const isExpiringSoonOrExpired =
-                lease.status === 'expired' || (lease.end_date && new Date(lease.end_date) < new Date());
-
-              return (
-                <HoverEffectCardItem
-                  key={lease.id}
-                  className="group/card"
+            <div className="flex items-center gap-3 shrink-0">
+              {/* List / Grid View Switch */}
+              <div className="flex items-center p-1 rounded-xl bg-white dark:bg-[#07111F] border border-slate-200/80 dark:border-[#17283A] shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('table')}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs sm:text-[13px] font-semibold inline-flex items-center gap-1.5 transition-colors',
+                    viewMode === 'table'
+                      ? 'bg-slate-100 dark:bg-[#0E1E33] text-[#008F83] dark:text-[#32D5C4] font-bold shadow-xs'
+                      : 'text-slate-500 dark:text-[#7F8B99] hover:text-slate-900 dark:hover:text-white'
+                  )}
+                  title="List Table View"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-admin-primary/10 text-admin-primary flex items-center justify-center shrink-0 border border-admin-primary/20">
-                        <Building className="w-5 h-5 text-admin-primary" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-bold text-sm text-admin-foreground line-clamp-1 group-hover/card:text-admin-primary transition-colors">
-                          {lease.property?.name || lease.property?.address_line_1 || 'Unassigned Property'}
-                        </h4>
-                        <p className="text-xs text-admin-muted truncate">{lease.property?.city || lease.property?.suburb || 'Property'}</p>
-                      </div>
-                    </div>
+                  <List className="w-3.5 h-3.5" />
+                  <span>List</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs sm:text-[13px] font-semibold inline-flex items-center gap-1.5 transition-colors',
+                    viewMode === 'grid'
+                      ? 'bg-slate-100 dark:bg-[#0E1E33] text-[#008F83] dark:text-[#32D5C4] font-bold shadow-xs'
+                      : 'text-slate-500 dark:text-[#7F8B99] hover:text-slate-900 dark:hover:text-white'
+                  )}
+                  title="Card Grid View"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span>Grid</span>
+                </button>
+              </div>
 
-                    <span
-                      className={cn(
-                        'px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider shrink-0',
-                        lease.status === 'active'
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                          : lease.status === 'expired'
-                          ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'
-                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                      )}
-                    >
-                      {lease.status}
-                    </span>
+              {/* Primary CTA */}
+              <Button
+                onClick={() => {
+                  setWizardInitialData(selectedProperty ? { property_id: selectedProperty.propertyId } : null);
+                  setIsCreateWizardOpen(true);
+                }}
+                className="font-semibold text-xs sm:text-[13px] rounded-xl bg-[#008F83] hover:bg-[#007a70] text-white shadow-none px-4 py-2"
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Create Lease
+              </Button>
+            </div>
+          </div>
+
+          {/* 2. Lease Command Center Hero (Hidden when Table is Expanded) */}
+          {!isTableExpanded && (
+            <LeaseCommandCenter
+              activeLeasesCount={commandCenterStats.active}
+              monthlyRentInflow={commandCenterStats.monthlyRentInflow}
+              expiringSoonCount={commandCenterStats.expiringSoon}
+              periodicLeasesCount={commandCenterStats.periodic}
+              isLoading={isLoading}
+            />
+          )}
+
+          {/* 3. Main Workspace Section: Lease Directory (70%) + Lease Health & Attention (30%) */}
+          {!isLoading && scopedLeases.length === 0 && statusFilter === 'All' ? (
+            /* Empty State */
+            <div className="py-20 px-6 text-center bg-white dark:bg-[#07111F] rounded-[24px] border border-slate-200/80 dark:border-[#17283A] shadow-xs flex flex-col items-center justify-center min-h-[360px]">
+              <div className="w-14 h-14 bg-slate-50 dark:bg-[#0E1E33] rounded-2xl flex items-center justify-center mx-auto mb-4 text-[#008F83] dark:text-[#32D5C4] border border-[#008F83]/20">
+                <FileText className="w-7 h-7" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+                No leases found
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-[#7F8B99] max-w-sm mx-auto mb-5 leading-relaxed">
+                Get started by creating a new lease agreement or setting up a tenancy.
+              </p>
+              <Button
+                onClick={() => {
+                  setWizardInitialData(null);
+                  setIsCreateWizardOpen(true);
+                }}
+                className="font-semibold text-xs sm:text-[13px] rounded-xl bg-[#008F83] hover:bg-[#007a70] text-white shadow-none px-4 py-2"
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Create First Lease
+              </Button>
+            </div>
+          ) : viewMode === 'table' ? (
+            /* TABLE MODE: Left 70% AG Grid Directory + Right 30% Contextual Intelligence */
+            <div
+              className={cn(
+                'grid grid-cols-1 gap-5 items-stretch transition-all duration-300',
+                isTableExpanded ? 'grid-cols-1' : 'lg:grid-cols-12'
+              )}
+            >
+              {/* PRIMARY LEASE DIRECTORY (Col-span-8 or Col-span-12) */}
+              <div
+                className={cn(
+                  'rounded-[24px] border border-slate-200/80 dark:border-[#17283A] bg-white dark:bg-[#07111F] p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)] dark:shadow-none flex flex-col transition-all duration-300',
+                  isTableExpanded
+                    ? 'col-span-12 min-h-[calc(100vh-160px)]'
+                    : 'lg:col-span-8 h-full'
+                )}
+              >
+                <div className="flex-1 flex flex-col min-h-0 h-full">
+                  <AdminDataGrid
+                    rowData={filteredRows}
+                    columnDefs={columns}
+                    loading={isLoading}
+                    rowHeight={68}
+                    onRefresh={() => loadData(true)}
+                    isRefreshing={isRefreshing}
+                    lastRefreshedAt={lastRefreshedAt}
+                    labelSingular="lease"
+                    labelPlural="leases"
+                    onRowClick={(row: any) => handleEditLease(row)}
+                    getRowId={(params: any) => String(params.data.id)}
+                    enableColumnChooser
+                    enableExport
+                    exportFilename="leases-export"
+                    searchPlaceholder="Search leases, tenants or properties..."
+                    onDeleteSelected={handleBulkDeleteLeases}
+                    disablePagination={true}
+                    isExpanded={isTableExpanded}
+                    onExpandedChange={setIsTableExpanded}
+                    leftToolbarContent={
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
+                        <h3 className="text-sm sm:text-base font-heading font-bold text-slate-900 dark:text-white shrink-0 pr-2">
+                          Lease Directory
+                        </h3>
+                        {/* Filter Tabs */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                          {statusTabs.map((tab) => {
+                            const isSelected = statusFilter === tab.key;
+                            return (
+                              <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => setStatusFilter(tab.key)}
+                                className={cn(
+                                  'px-3.5 py-1.5 rounded-full text-xs sm:text-[12.5px] transition-all flex items-center gap-1 font-semibold cursor-pointer',
+                                  isSelected
+                                    ? 'bg-[#E6F8F3] text-[#008F83] border border-emerald-200/80 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30 font-bold shadow-xs'
+                                    : 'text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#0E1E33]'
+                                )}
+                              >
+                                <span>{tab.label}</span>
+                                <span className="tabular-nums font-normal">({tab.count})</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* RIGHT CONTEXTUAL INTELLIGENCE (Col-span-4, Hidden when Expanded) */}
+              {!isTableExpanded && (
+                <div className="lg:col-span-4 flex flex-col gap-5">
+                  <LeaseHealthDonut
+                    leases={scopedLeases}
+                    properties={properties}
+                    selectedPropertyId={healthPropertyId}
+                    onPropertySelect={setHealthPropertyId}
+                    isLoading={isLoading}
+                  />
+                  <LeaseRequiresAttention
+                    leases={scopedLeases}
+                    onFilterClick={(tab) => setStatusFilter(tab as any)}
+                    isLoading={isLoading}
+                  />
+                </div>
+              )}
+            </div>
+          ) : isLoading ? (
+            /* Card Grid Loading */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div
+                  key={i}
+                  className="bg-white dark:bg-[#07111F] border border-slate-200/80 dark:border-[#17283A] rounded-[20px] p-5 shadow-xs flex flex-col gap-4 animate-pulse"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 shrink-0" />
+                    <div className="space-y-1.5 flex-1">
+                      <div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded w-28" />
+                      <div className="h-2.5 bg-slate-100 dark:bg-slate-800 rounded w-20" />
+                    </div>
                   </div>
+                  <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded w-full" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* Card Grid View */
+            <HoverCardGrid className="flex-1">
+              {filteredRows.map((lease) => {
+                const isPeriodic = !lease.end_date || lease.status === 'periodic';
+                const propName = lease.property?.name || lease.property?.address_line_1 || 'Unassigned Property';
+                const primaryLt = lease.lease_tenants?.find((lt) => lt.is_primary) || lease.lease_tenants?.[0];
+                const tenantName = primaryLt?.tenant
+                  ? `${primaryLt.tenant.first_name || ''} ${primaryLt.tenant.last_name || ''}`.trim()
+                  : 'No tenant assigned';
 
-                  <div className="space-y-2.5 p-3 rounded-xl bg-admin-surface-subtle/50 border border-admin-border/50 text-xs text-admin-muted my-1">
-                    <div>
-                      <div className="text-[10px] font-bold text-admin-muted uppercase tracking-wider mb-1">Tenants</div>
-                      <div className="space-y-1">
-                        {lease.lease_tenants && lease.lease_tenants.length > 0 ? (
-                          lease.lease_tenants.map((lt, tIdx) => (
-                            <div key={tIdx} className="flex items-center gap-1.5 text-xs text-admin-foreground font-semibold">
-                              <User className="w-3.5 h-3.5 text-admin-muted shrink-0" />
-                              <span className="truncate">{lt.tenant?.first_name} {lt.tenant?.last_name}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <span className="text-xs text-admin-muted italic">No attached tenants</span>
+                return (
+                  <HoverEffectCardItem key={lease.id} className="group/card">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-500/15 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-200/60 dark:border-purple-500/20">
+                          <Building2 className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white line-clamp-1 group-hover/card:text-[#008F83] transition-colors">
+                            {propName}
+                          </h4>
+                          <p className="text-xs text-slate-500 dark:text-[#7F8B99] truncate">
+                            {lease.property?.city || lease.property?.suburb || 'Property'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border tracking-wide',
+                          lease.status === 'active'
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                            : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20'
                         )}
-                      </div>
-                    </div>
-
-                    <div className="h-px w-full bg-admin-border/60" />
-
-                    <div>
-                      <div className="text-[10px] font-bold text-admin-muted uppercase tracking-wider mb-1">Lease Term</div>
-                      <div className="flex items-center gap-2 text-admin-foreground font-semibold">
-                        <Calendar className="w-3.5 h-3.5 text-admin-muted shrink-0" />
-                        <span className="truncate">
-                          {new Date(lease.start_date).toLocaleDateString()} - {lease.end_date ? new Date(lease.end_date).toLocaleDateString() : 'Periodic'}
-                        </span>
-                      </div>
-                      <div className={cn('text-[11px] font-bold mt-1 pl-5.5', isExpiringSoonOrExpired ? 'text-red-500' : 'text-admin-primary')}>
-                        {timeRemaining}
-                      </div>
-                    </div>
-
-                    <div className="h-px w-full bg-admin-border/60" />
-
-                    <div>
-                      <div className="text-[10px] font-bold text-admin-muted uppercase tracking-wider mb-1">Rent Structure</div>
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="w-3.5 h-3.5 text-admin-muted shrink-0" />
-                        <span className="text-admin-foreground font-bold text-sm">
-                          ${Number(lease.rent_amount).toLocaleString()}
-                        </span>
-                        <span className="text-[10px] text-admin-muted uppercase">/{lease.rent_frequency}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 pt-1 border-t border-admin-border/50">
-                    {lease.status === 'active' && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => handleRenewLease(lease)}
-                          className="text-xs px-2.5 py-1 font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition-colors flex items-center gap-1"
-                        >
-                          <RefreshCw className="w-3 h-3" /> Renew
-                        </button>
-                        {lease.end_date && (
-                          <button
-                            type="button"
-                            onClick={() => handleDoNotRenewLease(lease)}
-                            className="text-xs px-2 py-1 font-medium text-admin-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                            title="Mark this lease as ending without renewal"
-                          >
-                            Do Not Renew
-                          </button>
-                        )}
-                        {lease.end_date && (
-                          <button
-                            type="button"
-                            onClick={() => handleConvertToPeriodicLease(lease)}
-                            className="text-xs px-2 py-1 font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors"
-                          >
-                            Periodic
-                          </button>
-                        )}
-                      </>
-                    )}
-
-                    {lease.status === 'renewed' && (
-                      <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded bg-blue-500/10">
-                        Historical Contract
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                        <span className="capitalize">{lease.status}</span>
                       </span>
-                    )}
+                    </div>
 
-                    <div className="flex-1" />
+                    <div className="h-px w-full bg-slate-100 dark:bg-slate-800 my-3" />
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedLeaseForEdit(lease);
-                        setIsEditDrawerOpen(true);
-                      }}
-                      className="p-1.5 text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-subtle rounded-lg transition-colors"
-                      title="Edit Lease"
-                    >
-                      <Settings className="w-4 h-4" />
-                    </button>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex items-center justify-between text-slate-500 dark:text-[#7F8B99]">
+                        <span>Tenant:</span>
+                        <span className="font-semibold text-slate-900 dark:text-white truncate max-w-[160px]">
+                          {tenantName}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-500 dark:text-[#7F8B99]">
+                        <span>Rent:</span>
+                        <span className="font-bold text-slate-900 dark:text-white tabular-nums">
+                          ${Number(lease.rent_amount).toFixed(2)} / {lease.rent_frequency}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-500 dark:text-[#7F8B99]">
+                        <span>Term:</span>
+                        <span className="font-medium text-slate-700 dark:text-slate-300">
+                          {new Date(lease.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}{' '}
+                          →{' '}
+                          {lease.end_date
+                            ? new Date(lease.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                            : 'Periodic'}
+                        </span>
+                      </div>
+                    </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDeletingLeaseId(lease.id);
-                        setDeletingPropertyId(lease.property_id);
-                      }}
-                      className="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg transition-colors"
-                      title="Delete Lease"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </HoverEffectCardItem>
-              );
-            })}
-          </HoverCardGrid>
-        )}
-      </div>
+                    <div className="pt-3 mt-3 border-t border-slate-100 dark:bg-slate-800 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditLease(lease);
+                        }}
+                        className="text-xs font-semibold text-[#008F83] hover:underline inline-flex items-center gap-1"
+                      >
+                        <Pencil className="w-3.5 h-3.5" /> Edit Lease
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRenewLease(lease);
+                        }}
+                        className="text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                      >
+                        Renew →
+                      </button>
+                    </div>
+                  </HoverEffectCardItem>
+                );
+              })}
+            </HoverCardGrid>
+          )}
 
-      {/* Dedicated Renew Lease Modal */}
-      {isRenewModalOpen && selectedLeaseForRenewal && (
-        <RenewLeaseModal
-          isOpen={true}
-          previousLease={selectedLeaseForRenewal}
-          onClose={() => {
-            setIsRenewModalOpen(false);
-            setSelectedLeaseForRenewal(null);
-          }}
-          onSuccess={() => {
-            loadData();
-          }}
-        />
-      )}
+          {/* 4. Bottom Section: Lease Timeline (Full Width, Hidden when Table is Expanded) */}
+          {!isTableExpanded && (
+            <LeaseTimeline
+              leases={scopedLeases}
+              onSelectLease={(lease) => handleEditLease(lease)}
+              isLoading={isLoading}
+            />
+          )}
+        </div>
+      </PageContent>
 
-      {/* Create Lease Wizard */}
+      {/* Modals & Drawers */}
       {isCreateWizardOpen && (
         <CreateLeaseWizard
-          isOpen={true}
-          propertyId={selectedProperty?.propertyId}
-          propertyName={selectedProperty?.propertyName}
-          initialData={wizardInitialData}
-          onClose={() => {
-            setIsCreateWizardOpen(false);
-            setWizardInitialData(null);
-          }}
+          isOpen={isCreateWizardOpen}
+          onClose={() => setIsCreateWizardOpen(false)}
           onSuccess={() => {
-            loadData();
+            setIsCreateWizardOpen(false);
+            loadData(true);
           }}
+          initialData={wizardInitialData}
         />
       )}
 
-      {/* Edit Lease Drawer */}
       {isEditDrawerOpen && selectedLeaseForEdit && (
         <LeaseEditDrawer
-          isOpen={true}
-          lease={selectedLeaseForEdit}
-          propertyId={selectedLeaseForEdit.property_id}
+          isOpen={isEditDrawerOpen}
           onClose={() => {
             setIsEditDrawerOpen(false);
             setSelectedLeaseForEdit(null);
           }}
           onSuccess={() => {
-            loadData();
+            setIsEditDrawerOpen(false);
+            setSelectedLeaseForEdit(null);
+            loadData(true);
           }}
+          propertyId={selectedLeaseForEdit.property_id}
+          lease={selectedLeaseForEdit as any}
         />
       )}
 
-      {/* Create Lease Automation Modal */}
+      {isRenewModalOpen && selectedLeaseForRenewal && (
+        <RenewLeaseModal
+          isOpen={isRenewModalOpen}
+          onClose={() => {
+            setIsRenewModalOpen(false);
+            setSelectedLeaseForRenewal(null);
+          }}
+          onSuccess={() => {
+            setIsRenewModalOpen(false);
+            setSelectedLeaseForRenewal(null);
+            loadData(true);
+          }}
+          previousLease={selectedLeaseForRenewal as any}
+        />
+      )}
+
       {isAutomationModalOpen && (
         <CreateAutomationModal
-          isOpen={true}
-          preselectedLeaseId={selectedLeaseForAutomation || undefined}
+          isOpen={isAutomationModalOpen}
           onClose={() => {
             setIsAutomationModalOpen(false);
             setSelectedLeaseForAutomation(null);
           }}
-          onSuccess={loadData}
+          preselectedLeaseId={selectedLeaseForAutomation || undefined}
+          onSuccess={() => {
+            setIsAutomationModalOpen(false);
+            setSelectedLeaseForAutomation(null);
+            showSuccess('Automation Created', 'Lease automation successfully configured.');
+          }}
         />
       )}
 
-      {/* Delete Lease Confirmation Dialog */}
       <ConfirmDialog
-        isOpen={!!deletingLeaseId}
+        isOpen={Boolean(deletingLeaseId)}
+        title="Delete Lease Record"
+        description="Are you sure you want to delete this lease? This action cannot be undone."
+        confirmLabel="Delete Lease"
+        variant="danger"
+        loading={isDeleting}
+        onConfirm={async () => {
+          if (!deletingLeaseId || !deletingPropertyId) return;
+          setIsDeleting(true);
+          try {
+            await handleDeleteLease(deletingPropertyId, deletingLeaseId);
+            showSuccess('Lease Deleted', 'The lease record has been permanently removed.');
+            setDeletingLeaseId(null);
+            setDeletingPropertyId(null);
+            loadData(true);
+          } catch (err: any) {
+            showError('Failed to delete lease', err.message || 'An error occurred.');
+          } finally {
+            setIsDeleting(false);
+          }
+        }}
         onClose={() => {
           setDeletingLeaseId(null);
           setDeletingPropertyId(null);
         }}
-        onConfirm={confirmDeleteLease}
-        title="Delete Lease Record"
-        description="Are you sure you want to permanently delete this lease agreement? This action cannot be undone."
-        confirmLabel="Delete Lease"
-        variant="danger"
       />
-    </ListPage>
+    </PageLayout>
   );
 }

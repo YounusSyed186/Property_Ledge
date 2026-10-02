@@ -5,7 +5,7 @@
 
 .ag-theme-propertyledge {
   --ag-font-family: var(--font-outfit), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --ag-font-size: 13.5px;
+  --ag-font-size: 14px;
   --ag-grid-size: 4px;
   --ag-row-height: 54px;
   --ag-header-height: 46px;
@@ -58,7 +58,7 @@
 /* Custom Header Typography & Styling */
 .ag-theme-propertyledge .ag-header-cell {
   font-weight: 600;
-  font-size: 11.5px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--admin-muted);
@@ -92,7 +92,7 @@
   padding-left: 14px;
   padding-right: 14px;
   line-height: 1.45;
-  font-size: 13.5px;
+  font-size: 14px;
   outline: none !important;
   font-feature-settings: "tnum";
   min-width: 0;

@@ -52,6 +52,15 @@ export const CANONICAL_ROUTES: RouteConfig[] = [
     permission: 'lease.view',
   },
   {
+    id: 'condition-reports',
+    label: 'Condition Reports',
+    href: '/dashboard/condition-reports',
+    group: 'Home',
+    requiresWorkspace: true,
+    supportsPropertyFilter: true,
+    permission: 'inspection.view',
+  },
+  {
     id: 'invoices',
     label: 'Invoices',
     href: '/dashboard/invoices',

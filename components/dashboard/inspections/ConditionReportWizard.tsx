@@ -80,6 +80,40 @@ import { SignaturePad } from './SignaturePad';
 import { cn } from '@/lib/utils';
 import { PageLayout, PageContent } from '@/components/workspace';
 
+function getRoomImageUrl(roomName: string): string {
+  const lower = (roomName || '').toLowerCase();
+  if (lower.includes('lounge') || lower.includes('living')) {
+    return 'https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=400&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('bed')) {
+    return 'https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=400&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('kitchen')) {
+    return 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=400&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('bath') || lower.includes('ensuite')) {
+    return 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&auto=format&fit=crop&q=80';
+  }
+  if (lower.includes('dining')) {
+    return 'https://images.unsplash.com/photo-1617806118233-18e1de247200?w=400&auto=format&fit=crop&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&auto=format&fit=crop&q=80';
+}
+
+function getItemHint(itemName: string): string {
+  const lower = (itemName || '').toLowerCase();
+  if (lower.includes('wall') || lower.includes('picture')) return 'Check for marks, holes, or damage.';
+  if (lower.includes('door')) return 'Check condition and operation.';
+  if (lower.includes('window') || lower.includes('screen') || lower.includes('safety')) return 'Check windows, screens and locks.';
+  if (lower.includes('ceiling') || lower.includes('light')) return 'Check lights, fittings and ceiling condition.';
+  if (lower.includes('blind') || lower.includes('curtain')) return 'Check operation and condition.';
+  if (lower.includes('floor') || lower.includes('skirting') || lower.includes('carpet')) return 'Check stains, wear, and skirting boards.';
+  if (lower.includes('tap') || lower.includes('sink') || lower.includes('basin')) return 'Check taps, leaks, and drainage.';
+  if (lower.includes('toilet') || lower.includes('cistern')) return 'Check flush, cistern, and seat.';
+  if (lower.includes('oven') || lower.includes('stove') || lower.includes('cooktop')) return 'Check clean state and all burners.';
+  return 'Inspect condition, cleanliness and working order.';
+}
+
 type ActiveTab =
   | 'overview'
   | 'room'
@@ -393,6 +427,37 @@ export function ConditionReportWizard({
     setLastSavedTime('just now');
   };
 
+  const handleItemPriorityChange = async (
+    item: InspectionItem,
+    priority: string
+  ) => {
+    const currentDetail = getItemDetail(item.id);
+    const newDetail: InspectionItemDetails = {
+      ...currentDetail,
+      priority,
+    };
+
+    const updatedStatutory: Schedule2StatutoryData = {
+      ...statutoryData,
+      itemDetailsMap: {
+        ...(statutoryData.itemDetailsMap || {}),
+        [item.id]: newDetail,
+      },
+    };
+    setStatutoryData(updatedStatutory);
+
+    setSaveStatus('saving');
+    await updateItemFullConditionAction(
+      report.id,
+      item.id,
+      item.rating,
+      newDetail,
+      updatedStatutory
+    );
+    setSaveStatus('saved');
+    setLastSavedTime('just now');
+  };
+
   const handleItemCommentsChange = async (
     item: InspectionItem,
     comments: { landlordComments?: string; tenantComments?: string; tenantAgrees?: boolean | null }
@@ -675,9 +740,9 @@ export function ConditionReportWizard({
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => router.push('/dashboard/inspections')}
+              onClick={() => router.push('/dashboard/condition-reports')}
               className="p-1.5 rounded-lg bg-[#071526] hover:bg-[#17283A] text-slate-300 hover:text-white transition-colors border border-[#17283A]"
-              title="Back to Inspections"
+              title="Back to Condition Reports"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
@@ -794,28 +859,29 @@ export function ConditionReportWizard({
           <div className="space-y-4">
             {/* Top Back Link */}
             <button
-              onClick={() => router.push('/dashboard/inspections')}
+              onClick={() => router.push('/dashboard/condition-reports')}
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors py-1"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Reports</span>
             </button>
 
-            {/* Property Title & Inspection Type */}
-            <div>
-              <h2 className="text-base font-bold text-slate-900 truncate tracking-tight">
-                {report.properties?.name || report.properties?.address_line_1 || 'Condition Report'}
-              </h2>
-              <p className="text-[11px] font-semibold text-slate-400 tracking-wider uppercase mt-0.5">
-                {(report.type ? report.type : 'MOVE IN').toUpperCase()} INSPECTION • {report.inspection_date || '2026-09-27'}
+            {/* Header: Inspection Areas */}
+            <div className="pb-1 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                Inspection Areas
+              </h3>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+                {rooms.length} areas • {completedRooms}/{rooms.length} complete
               </p>
             </div>
 
-            {/* Vertical Room Navigation List */}
+            {/* Numbered Areas List */}
             <div className="space-y-1 pt-1">
               {rooms.map((rm, idx) => {
                 const isCurrent = activeTab === 'room' && activeRoomIndex === idx;
                 const isDone = rm.status === 'Completed';
+                const formattedNum = String(idx + 1).padStart(2, '0');
 
                 return (
                   <button
@@ -826,19 +892,34 @@ export function ConditionReportWizard({
                       setIsSidebarOpen(false);
                     }}
                     className={cn(
-                      'w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all text-left',
+                      'w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all text-left cursor-pointer',
                       isCurrent
-                        ? 'bg-[#0F172A] text-white font-semibold shadow-xs'
-                        : 'text-slate-700 hover:text-slate-900 hover:bg-slate-50 font-medium'
+                        ? 'bg-[#E8F7F5] dark:bg-[#008F83]/20 border border-[#8EDDD5] dark:border-[#008F83]/40 text-[#008F83] dark:text-[#32D5C4] font-bold shadow-2xs'
+                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60 font-medium border border-transparent'
                     )}
                   >
-                    <span className="truncate">{rm.name}</span>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className={cn(
+                          'text-[11px] font-semibold tabular-nums shrink-0',
+                          isCurrent
+                            ? 'text-[#008F83] dark:text-[#32D5C4]'
+                            : 'text-slate-400 dark:text-slate-500'
+                        )}
+                      >
+                        {formattedNum}
+                      </span>
+                      <span className="truncate">{rm.name}</span>
+                    </div>
+
                     {isCurrent ? (
-                      <Check className="w-4 h-4 text-white shrink-0 ml-2" />
+                      <div className="w-4 h-4 rounded-full border-2 border-[#008F83] dark:border-[#32D5C4] flex items-center justify-center shrink-0 ml-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#008F83] dark:bg-[#32D5C4]" />
+                      </div>
                     ) : isDone ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 ml-2" />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 ml-2" />
                     ) : (
-                      <div className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0 ml-2" />
+                      <div className="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 shrink-0 ml-2" />
                     )}
                   </button>
                 );
@@ -851,14 +932,14 @@ export function ConditionReportWizard({
                   setIsSidebarOpen(false);
                 }}
                 className={cn(
-                  'w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all text-left mt-2',
+                  'w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs transition-all text-left mt-3 cursor-pointer',
                   activeTab === 'overview'
-                    ? 'bg-slate-100 text-slate-900 font-semibold'
-                    : 'text-slate-700 hover:text-slate-900 hover:bg-slate-50 font-medium'
+                    ? 'bg-[#E8F7F5] dark:bg-[#008F83]/20 border border-[#8EDDD5] dark:border-[#008F83]/40 text-[#008F83] dark:text-[#32D5C4] font-bold'
+                    : 'bg-slate-50/80 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold border border-slate-200/80 dark:border-slate-700'
                 )}
               >
+                <Info className="w-4 h-4 text-[#008F83] dark:text-[#32D5C4] shrink-0" />
                 <span>Summary & Review</span>
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 ml-2" />
               </button>
             </div>
 
@@ -1006,18 +1087,31 @@ export function ConditionReportWizard({
           {/* TAB 1: OVERVIEW DASHBOARD */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              {/* Hero Banner */}
-              <div className="p-6 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* Hero Banner - Premium Teal Inspection Overview */}
+              <div
+                className="relative overflow-hidden p-6 sm:p-7 rounded-2xl shadow-md text-white border border-teal-600/30"
+                style={{
+                  background: 'linear-gradient(120deg, #007F78 0%, #009B91 50%, #008F83 100%)',
+                }}
+              >
+                {/* Background subtle radial glow */}
+                <div
+                  className="absolute -right-20 -top-20 w-80 h-80 rounded-full pointer-events-none opacity-20"
+                  style={{
+                    background: 'radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%)',
+                  }}
+                />
+
+                <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <span className="text-xs font-semibold text-teal-600 uppercase tracking-wider">
+                    <span className="text-[11px] font-bold text-teal-100 tracking-wider uppercase opacity-90">
                       Condition Report Overview
                     </span>
-                    <h2 className="text-xl font-bold text-slate-900 mt-0.5">
+                    <h2 className="text-xl sm:text-2xl font-bold text-white mt-1 tracking-tight">
                       {report.properties?.name || 'Inspection Dashboard'}
                     </h2>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {report.properties?.address_line_1}, {report.properties?.city} {report.properties?.state}
+                    <p className="text-xs text-white/80 mt-1">
+                      {report.properties?.address_line_1 ? `${report.properties.address_line_1}, ` : ''}{report.properties?.city} {report.properties?.state}
                     </p>
                   </div>
 
@@ -1026,7 +1120,7 @@ export function ConditionReportWizard({
                       setActiveTab('room');
                       setActiveRoomIndex(0);
                     }}
-                    className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition-all"
+                    className="px-5 py-2.5 rounded-xl bg-white text-[#008F83] hover:bg-teal-50 text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all shrink-0 hover:scale-[1.02]"
                   >
                     <span>Continue Inspection</span>
                     <ChevronRight className="w-4 h-4" />
@@ -1034,31 +1128,31 @@ export function ConditionReportWizard({
                 </div>
 
                 {/* Progress Metric Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-slate-100">
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[11px] text-slate-400 font-medium">Completion</span>
-                    <p className="text-lg font-bold text-teal-600">{progressPercent}%</p>
-                    <span className="text-[10px] text-slate-400">{completedRooms}/{totalRooms} areas</span>
+                <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-white/20">
+                  <div className="p-3.5 rounded-xl bg-white/12 border border-white/18 backdrop-blur-xs">
+                    <span className="text-[11px] text-white/75 font-medium">Completion</span>
+                    <p className="text-2xl font-bold text-white mt-0.5">{progressPercent}%</p>
+                    <span className="text-[10px] text-white/70">{completedRooms}/{totalRooms} areas completed</span>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[11px] text-slate-400 font-medium">Items Checked</span>
-                    <p className="text-lg font-bold text-slate-800">{items.length}</p>
-                    <span className="text-[10px] text-slate-400">Tailored NSW fields</span>
+                  <div className="p-3.5 rounded-xl bg-white/12 border border-white/18 backdrop-blur-xs">
+                    <span className="text-[11px] text-white/75 font-medium">Items Checked</span>
+                    <p className="text-2xl font-bold text-white mt-0.5">{items.length}</p>
+                    <span className="text-[10px] text-white/70">Checklist items</span>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[11px] text-slate-400 font-medium">Issues Found</span>
-                    <p className={cn('text-lg font-bold', totalIssuesCount > 0 ? 'text-amber-600' : 'text-slate-800')}>
+                  <div className="p-3.5 rounded-xl bg-white/12 border border-white/18 backdrop-blur-xs">
+                    <span className="text-[11px] text-white/75 font-medium">Issues Found</span>
+                    <p className="text-2xl font-bold text-white mt-0.5">
                       {totalIssuesCount}
                     </p>
-                    <span className="text-[10px] text-slate-400">Requires attention</span>
+                    <span className="text-[10px] text-white/70">{totalIssuesCount > 0 ? 'Requires attention' : 'No defects flagged'}</span>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[11px] text-slate-400 font-medium">Photos Attached</span>
-                    <p className="text-lg font-bold text-slate-800">{photos.length}</p>
-                    <span className="text-[10px] text-slate-400">Supporting evidence</span>
+                  <div className="p-3.5 rounded-xl bg-white/12 border border-white/18 backdrop-blur-xs">
+                    <span className="text-[11px] text-white/75 font-medium">Photos Attached</span>
+                    <p className="text-2xl font-bold text-white mt-0.5">{photos.length}</p>
+                    <span className="text-[10px] text-white/70">Supporting evidence</span>
                   </div>
                 </div>
               </div>
@@ -1187,21 +1281,28 @@ export function ConditionReportWizard({
             <div className="space-y-6">
               {/* Room Header Banner matching reference design */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl font-bold text-slate-900 font-heading tracking-tight">
-                    {activeRoom.name}
-                  </h1>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Room {activeRoomIndex + 1} of {totalRooms} • Inspect {activeRoomItems.length} standard items, record defects, and add photos.
-                  </p>
+                <div className="flex items-center gap-3.5">
+                  <img
+                    src={getRoomImageUrl(activeRoom.name)}
+                    alt={activeRoom.name}
+                    className="w-16 h-12 sm:w-20 sm:h-14 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0"
+                  />
+                  <div>
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-heading tracking-tight">
+                      {activeRoom.name}
+                    </h1>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Room {activeRoomIndex + 1} of {totalRooms} • {activeRoomItems.length} inspection items
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2.5 flex-wrap">
                   <button
                     onClick={handleMarkEntireRoomGood}
-                    className="px-4 py-2 rounded-xl border border-emerald-400 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs"
+                    className="px-3.5 py-2 rounded-xl border border-teal-400 bg-[#E8F7F5]/90 hover:bg-[#E8F7F5] text-[#008F83] text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs"
                   >
-                    <Check className="w-4 h-4 text-emerald-600" />
+                    <Check className="w-4 h-4 text-[#008F83]" />
                     <span>Mark Room Good</span>
                   </button>
 
@@ -1210,7 +1311,7 @@ export function ConditionReportWizard({
                       setActivePhotoItemTarget(null);
                       cameraInputRef.current?.click();
                     }}
-                    className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
+                    className="px-3.5 py-2 rounded-xl bg-[#0F172A] hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
                   >
                     <Camera className="w-3.5 h-3.5 text-[#32D5C4]" />
                     <span className="hidden sm:inline">Add Room Photo</span>
@@ -1235,30 +1336,54 @@ export function ConditionReportWizard({
                 </div>
               )}
 
-              {/* Search Filter input if room has many items */}
-              {activeRoomItems.length > 8 && (
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search items in this room..."
-                    value={itemSearchQuery}
-                    onChange={(e) => setItemSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-white border border-slate-200/80 focus:outline-none focus:border-teal-500 shadow-2xs"
-                  />
-                  {itemSearchQuery && (
-                    <button
-                      onClick={() => setItemSearchQuery('')}
-                      className="text-xs text-slate-400 hover:text-slate-600 absolute right-3 top-1/2 -translate-y-1/2"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-              )}
+              {/* Progress bar matching reference */}
+              {(() => {
+                const inspectedCount = activeRoomItems.filter((i) => !!i.rating).length;
+                const inspectedPct =
+                  activeRoomItems.length > 0
+                    ? Math.round((inspectedCount / activeRoomItems.length) * 100)
+                    : 0;
 
-              {/* ITEM CARDS LIST (Clean Single Container with Rows) */}
-              <div className="rounded-2xl bg-white border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
+                return (
+                  <div className="space-y-1.5">
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[#008F83] rounded-full transition-all duration-300"
+                        style={{ width: `${inspectedPct}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
+                      <span>
+                        {inspectedCount} of {activeRoomItems.length} items inspected
+                      </span>
+                      <span className="font-semibold text-slate-700">{inspectedPct}%</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Search Filter input */}
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search items in this room..."
+                  value={itemSearchQuery}
+                  onChange={(e) => setItemSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-9 py-2.5 text-xs rounded-xl bg-white border border-slate-200/90 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-teal-500 shadow-2xs"
+                />
+                {itemSearchQuery && (
+                  <button
+                    onClick={() => setItemSearchQuery('')}
+                    className="text-xs text-slate-400 hover:text-slate-600 absolute right-3.5 top-1/2 -translate-y-1/2"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* ITEM CARDS LIST (Individual White Cards matching reference UI) */}
+              <div className="space-y-3">
                 {filteredRoomItems.map((item) => {
                   const detail = getItemDetail(item.id);
                   const itemPhotos = photos.filter((p) => p.item_id === item.id);
@@ -1268,157 +1393,188 @@ export function ConditionReportWizard({
                     item.rating === 'Damaged';
 
                   return (
-                    <div key={item.id} className="p-4 hover:bg-slate-50/40 transition-colors">
-                      {/* Main Item Row */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div
+                      key={item.id}
+                      className={cn(
+                        'rounded-2xl bg-white border transition-all duration-200 shadow-2xs overflow-hidden',
+                        isExpanded
+                          ? 'border-slate-300 ring-1 ring-slate-100'
+                          : 'border-slate-200/80 hover:border-slate-300'
+                      )}
+                    >
+                      {/* Main Item Card Header Row */}
+                      <div className="p-3.5 sm:p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
+                        {/* Left: Icon + Title + Hint */}
                         <div
-                          className="flex items-center gap-2.5 cursor-pointer select-none"
+                          className="flex items-center gap-3 cursor-pointer select-none min-w-0"
                           onClick={() => toggleExpandItem(item.id)}
                         >
-                          <span className="text-xs font-bold text-slate-800">{item.name}</span>
-                          {itemPhotos.length > 0 && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md">
-                              <Camera className="w-3 h-3 text-slate-400" />
-                              {itemPhotos.length}
-                            </span>
-                          )}
-                          <ChevronDown
-                            className={cn(
-                              'w-3.5 h-3.5 text-slate-400 transition-transform duration-200',
-                              isExpanded ? 'rotate-180 text-teal-600' : ''
-                            )}
-                          />
+                          <div className="w-9 h-9 rounded-xl bg-sky-50 border border-sky-100/80 flex items-center justify-center text-sky-600 shrink-0">
+                            <FileText className="w-4 h-4 text-sky-600" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                                {item.name}
+                              </p>
+                              {itemPhotos.length > 0 && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md">
+                                  <Camera className="w-3 h-3 text-slate-400" />
+                                  {itemPhotos.length}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-400 font-normal truncate mt-0.5">
+                              {getItemHint(item.name)}
+                            </p>
+                          </div>
                         </div>
 
-                        {/* 6-Segment Rating Bar matching reference UI */}
-                        <div className="inline-flex items-center p-1 rounded-xl bg-slate-50 border border-slate-200/70 gap-0.5 self-start sm:self-auto overflow-x-auto max-w-full">
-                          {(
-                            [
-                              { label: 'Excellent', rating: 'Excellent' },
-                              { label: 'Good', rating: 'Good' },
-                              { label: 'Fair', rating: 'Fair' },
-                              { label: 'Repair', rating: 'Needs Repair' },
-                              { label: 'Damaged', rating: 'Damaged' },
-                              { label: 'N/A', rating: 'Not Applicable' },
-                            ] as const
-                          ).map((opt) => {
-                            const isSelected = item.rating === opt.rating;
-                            return (
-                              <button
-                                key={opt.label}
-                                onClick={() => handleSelectRating(item, opt.rating as ItemRating)}
-                                className={cn(
-                                  'px-2.5 py-1 text-[11px] rounded-lg transition-all',
-                                  isSelected
-                                    ? opt.label === 'Good'
-                                      ? 'bg-emerald-50 border border-emerald-400 text-emerald-700 font-semibold shadow-xs'
-                                      : opt.label === 'Fair'
-                                      ? 'bg-sky-100 text-sky-800 font-semibold shadow-xs'
-                                      : opt.label === 'Repair'
-                                      ? 'bg-amber-100 text-amber-900 font-semibold shadow-xs'
-                                      : opt.label === 'Damaged'
-                                      ? 'bg-rose-100 text-rose-800 font-semibold shadow-xs'
-                                      : opt.label === 'Excellent'
-                                      ? 'bg-teal-500 text-white font-semibold shadow-xs'
-                                      : 'bg-slate-200 text-slate-700 font-semibold shadow-xs'
-                                    : 'text-slate-500 hover:text-slate-800 hover:bg-white/60 font-medium'
-                                )}
-                              >
-                                {opt.label}
-                              </button>
-                            );
-                          })}
+                        {/* Right: 6-Segment Rating Bar + Expand chevron */}
+                        <div className="flex items-center gap-2 self-start lg:self-auto shrink-0 flex-wrap">
+                          <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-50/80 border border-slate-200/70 gap-1 overflow-x-auto max-w-full">
+                            {(
+                              [
+                                { label: 'Excellent', rating: 'Excellent' },
+                                { label: 'Good', rating: 'Good' },
+                                { label: 'Fair', rating: 'Fair' },
+                                { label: 'Repair', rating: 'Needs Repair' },
+                                { label: 'Damaged', rating: 'Damaged' },
+                                { label: 'N/A', rating: 'Not Applicable' },
+                              ] as const
+                            ).map((opt) => {
+                              const isSelected = item.rating === opt.rating;
+                              return (
+                                <button
+                                  key={opt.label}
+                                  onClick={() => handleSelectRating(item, opt.rating as ItemRating)}
+                                  className={cn(
+                                    'px-3 py-1.5 text-xs rounded-lg transition-all',
+                                    isSelected
+                                      ? opt.label === 'Good' || opt.label === 'Excellent'
+                                        ? 'bg-[#008F83] text-white font-semibold shadow-xs'
+                                        : opt.label === 'Fair'
+                                        ? 'bg-[#FEF3C7] border border-[#FCD34D] text-[#B45309] font-semibold shadow-xs'
+                                        : opt.label === 'Repair'
+                                        ? 'bg-amber-100 border border-amber-300 text-amber-900 font-semibold shadow-xs'
+                                        : opt.label === 'Damaged'
+                                        ? 'bg-rose-100 border border-rose-300 text-rose-800 font-semibold shadow-xs'
+                                        : 'bg-slate-200 border border-slate-300 text-slate-800 font-semibold shadow-xs'
+                                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 font-medium'
+                                  )}
+                                >
+                                  {opt.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <button
+                            onClick={() => toggleExpandItem(item.id)}
+                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors"
+                          >
+                            <ChevronDown
+                              className={cn(
+                                'w-4 h-4 text-slate-400 transition-transform duration-200',
+                                isExpanded ? 'rotate-180 text-teal-600' : ''
+                              )}
+                            />
+                          </button>
                         </div>
                       </div>
 
-                      {/* Expandable Details Drawer */}
+                      {/* Expandable 3-Column Drawer matching reference image */}
                       {isExpanded && (
-                        <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
-                          {/* Comments Inputs */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                            <div>
-                              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                                Landlord / Agent Comments
+                        <div className="px-3.5 sm:px-4 pb-4 pt-3 border-t border-slate-100 bg-slate-50/40">
+                          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                            {/* Col 1: Notes (span 6) */}
+                            <div className="md:col-span-6">
+                              <label className="text-xs font-bold text-slate-800 block mb-1.5">
+                                Notes
                               </label>
                               <input
                                 type="text"
-                                placeholder="e.g. clean, no marks, fully working"
+                                placeholder="e.g. Small scratch on the door frame near handle."
                                 value={detail.landlordComments || ''}
                                 onChange={(e) =>
-                                  handleItemCommentsChange(item, { landlordComments: e.target.value })
+                                  handleItemCommentsChange(item, {
+                                    landlordComments: e.target.value,
+                                  })
                                 }
-                                className="w-full px-3 py-1.5 text-xs rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:border-teal-500 transition-colors"
+                                className="w-full px-3 py-2 text-xs rounded-xl bg-white border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-teal-500 shadow-2xs transition-colors"
                               />
                             </div>
 
-                            <div>
-                              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                                Tenant Comments
+                            {/* Col 2: Photos (span 3) */}
+                            <div className="md:col-span-3">
+                              <label className="text-xs font-bold text-slate-800 block mb-1.5">
+                                Photos
                               </label>
-                              <input
-                                type="text"
-                                placeholder="e.g. slight wear on corner"
-                                value={detail.tenantComments || ''}
-                                onChange={(e) =>
-                                  handleItemCommentsChange(item, { tenantComments: e.target.value })
-                                }
-                                className="w-full px-3 py-1.5 text-xs rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:border-teal-500 transition-colors"
-                              />
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {itemPhotos.map((p) => (
+                                  <div
+                                    key={p.id}
+                                    className="relative group w-10 h-10 rounded-lg border border-slate-200 overflow-hidden bg-slate-100 shrink-0"
+                                  >
+                                    <img
+                                      src={p.photo_url}
+                                      alt="Item proof"
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <button
+                                      onClick={() => handleDeletePhoto(p.id)}
+                                      className="absolute top-0.5 right-0.5 p-0.5 rounded bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                      <Trash2 className="w-2.5 h-2.5" />
+                                    </button>
+                                  </div>
+                                ))}
+
+                                <button
+                                  onClick={() => {
+                                    setActivePhotoItemTarget(item.id);
+                                    cameraInputRef.current?.click();
+                                  }}
+                                  className="w-10 h-10 rounded-lg border border-dashed border-sky-300 bg-sky-50/60 hover:bg-sky-100 text-sky-600 flex flex-col items-center justify-center text-[10px] font-semibold transition-colors shrink-0"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span className="text-[9px] leading-none mt-0.5">Add</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Col 3: Priority (span 3) */}
+                            <div className="md:col-span-3">
+                              <label className="text-xs font-bold text-slate-800 block mb-1.5">
+                                Priority
+                              </label>
+                              <div className="relative">
+                                <select
+                                  value={detail.priority || 'Medium'}
+                                  onChange={(e) =>
+                                    handleItemPriorityChange(item, e.target.value)
+                                  }
+                                  className="w-full px-3 py-2 text-xs rounded-xl bg-white border border-slate-200 text-slate-800 appearance-none focus:outline-none focus:border-teal-500 shadow-2xs transition-colors pr-8 font-medium"
+                                >
+                                  <option value="Low">Low</option>
+                                  <option value="Medium">Medium</option>
+                                  <option value="High">High</option>
+                                  <option value="Urgent">Urgent</option>
+                                </select>
+                                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                              </div>
                             </div>
                           </div>
 
-                          {/* Photos & Actions Row */}
-                          <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {itemPhotos.map((p) => (
-                                <div
-                                  key={p.id}
-                                  className="relative group w-12 h-12 rounded-lg border border-slate-200 overflow-hidden bg-slate-100"
-                                >
-                                  <img
-                                    src={p.photo_url}
-                                    alt="Item proof"
-                                    className="w-full h-full object-cover"
-                                  />
-                                  <button
-                                    onClick={() => handleDeletePhoto(p.id)}
-                                    className="absolute top-0.5 right-0.5 p-0.5 rounded bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              ))}
-
-                              <button
-                                onClick={() => {
-                                  setActivePhotoItemTarget(item.id);
-                                  cameraInputRef.current?.click();
-                                }}
-                                className="h-8 px-2.5 rounded-lg border border-dashed border-slate-300 hover:border-teal-500 hover:bg-teal-50 text-slate-500 hover:text-teal-700 text-[11px] font-semibold flex items-center gap-1 transition-colors"
-                              >
-                                <Camera className="w-3.5 h-3.5" />
-                                <span>Add Photo</span>
-                              </button>
-
-                              <button
-                                onClick={() => {
-                                  setActiveDefectItem({ id: item.id, name: item.name });
-                                }}
-                                className="h-8 px-2.5 rounded-lg border border-amber-200 hover:bg-amber-50 text-amber-700 text-[11px] font-semibold flex items-center gap-1 transition-colors"
-                              >
-                                <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                                <span>Log Defect</span>
-                              </button>
-                            </div>
-
-                            {/* Granular Condition Attributes */}
-                            <div className="flex items-center gap-3 text-[11px] text-slate-500">
-                              <div className="flex items-center gap-1">
-                                <span>Clean:</span>
+                          {/* Extra attributes & Defect Action Row */}
+                          <div className="mt-3 pt-3 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+                            <div className="flex items-center gap-3 text-slate-500">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-medium">Clean:</span>
                                 <button
                                   onClick={() => handleItemAttributeChange(item, 'clean', !detail.clean)}
                                   className={cn(
-                                    'px-1.5 py-0.5 rounded text-[10px] font-bold border',
+                                    'px-2 py-0.5 rounded text-[10px] font-bold border transition-colors',
                                     detail.clean !== false
                                       ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                       : 'bg-rose-50 text-rose-700 border-rose-200'
@@ -1427,12 +1583,12 @@ export function ConditionReportWizard({
                                   {detail.clean !== false ? 'YES' : 'NO'}
                                 </button>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <span>Undamaged:</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-medium">Undamaged:</span>
                                 <button
                                   onClick={() => handleItemAttributeChange(item, 'undamaged', !detail.undamaged)}
                                   className={cn(
-                                    'px-1.5 py-0.5 rounded text-[10px] font-bold border',
+                                    'px-2 py-0.5 rounded text-[10px] font-bold border transition-colors',
                                     detail.undamaged !== false
                                       ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                       : 'bg-rose-50 text-rose-700 border-rose-200'
@@ -1441,12 +1597,12 @@ export function ConditionReportWizard({
                                   {detail.undamaged !== false ? 'YES' : 'NO'}
                                 </button>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <span>Working:</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-medium">Working:</span>
                                 <button
                                   onClick={() => handleItemAttributeChange(item, 'working', !detail.working)}
                                   className={cn(
-                                    'px-1.5 py-0.5 rounded text-[10px] font-bold border',
+                                    'px-2 py-0.5 rounded text-[10px] font-bold border transition-colors',
                                     detail.working !== false
                                       ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                       : 'bg-rose-50 text-rose-700 border-rose-200'
@@ -1456,6 +1612,16 @@ export function ConditionReportWizard({
                                 </button>
                               </div>
                             </div>
+
+                            <button
+                              onClick={() => {
+                                setActiveDefectItem({ id: item.id, name: item.name });
+                              }}
+                              className="px-2.5 py-1 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700 text-[11px] font-semibold flex items-center gap-1 transition-colors self-start sm:self-auto"
+                            >
+                              <AlertTriangle className="w-3 h-3 text-amber-500" />
+                              <span>Log Specific Defect</span>
+                            </button>
                           </div>
                         </div>
                       )}

@@ -57,11 +57,11 @@ export function GlobalNavbar({
   showTheme = true,
   headerExtras,
 }: GlobalNavbarProps) {
-  const isShellDark = themeMode === 'light' || themeMode === 'full-dark' || themeMode === 'dark';
+  const isShellDark = themeMode === 'dark' || themeMode === 'full-dark';
 
   return (
     <header
-      className="flex h-[var(--shell-navbar-height,58px)] shrink-0 items-center justify-between gap-3 bg-admin-sidebar px-3 sm:px-5 text-admin-sidebar-foreground z-40 border-b border-admin-sidebar-border"
+      className="flex h-[var(--shell-navbar-height,58px)] shrink-0 items-center justify-between gap-3 bg-transparent px-4 sm:px-6 text-slate-800 dark:text-admin-foreground z-40 border-b border-slate-200/70 dark:border-admin-border/80"
       style={{ height: SHELL_NAVBAR_HEIGHT }}
     >
       {/* Left: brand + context */}
@@ -71,7 +71,7 @@ export function GlobalNavbar({
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={onMobileMenuToggle}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-admin-sidebar-border text-admin-sidebar-muted transition-colors hover:bg-admin-sidebar-hover hover:text-white md:hidden"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-admin-border text-admin-muted transition-colors hover:bg-admin-surface-subtle hover:text-admin-foreground md:hidden"
           aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
         >
           {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -83,7 +83,7 @@ export function GlobalNavbar({
             alt="PropertyLedge"
             className="h-7 w-auto object-contain shrink-0"
           />
-          <span className="font-heading text-[15px] font-bold tracking-tight text-white">
+          <span className="font-heading text-[15px] font-bold tracking-tight text-admin-foreground">
             {brandLabel}
           </span>
           {brandBadge && (
@@ -112,14 +112,14 @@ export function GlobalNavbar({
           whileTap={{ scale: 0.98 }}
           onClick={onSearchOpen}
           className={cn(
-            'hidden items-center gap-2.5 rounded-xl border border-admin-sidebar-border bg-[#071526] px-3.5 py-2 text-[13px] text-[#94A3B8] transition-all hover:border-[#008F83]/50 hover:text-white sm:flex h-10',
+            'hidden items-center gap-2.5 rounded-xl border border-admin-border bg-admin-surface-subtle px-3.5 py-2 text-[13px] text-admin-muted transition-all hover:border-admin-primary/50 hover:text-admin-foreground sm:flex h-10',
             'min-w-[160px] lg:min-w-[210px]'
           )}
           aria-label="Open search"
         >
-          <Search className="h-4 w-4 shrink-0 text-[#94A3B8]" />
+          <Search className="h-4 w-4 shrink-0 text-admin-muted" />
           <span className="flex-1 text-left">Search portfolio…</span>
-          <kbd className="hidden rounded-md border border-[#1E293B] bg-[#0E1E33] px-1.5 py-0.5 font-mono text-[10px] text-[#94A3B8] lg:inline font-semibold">
+          <kbd className="hidden rounded-md border border-admin-border bg-admin-surface px-1.5 py-0.5 font-mono text-[10px] text-admin-muted lg:inline font-semibold">
             ⌘K
           </kbd>
         </motion.button>
@@ -129,7 +129,7 @@ export function GlobalNavbar({
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={onSearchOpen}
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-admin-sidebar-border text-admin-sidebar-muted transition-colors hover:bg-admin-sidebar-hover hover:text-white sm:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-admin-border text-admin-muted transition-colors hover:bg-admin-surface-subtle hover:text-admin-foreground sm:hidden"
           aria-label="Open search"
         >
           <Search className="h-4 w-4" />

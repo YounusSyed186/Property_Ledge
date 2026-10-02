@@ -274,9 +274,9 @@ export async function getLeaseDetail(propertyId: string, leaseId: string) {
     .from('leases')
     .select(`
       *,
-      lease_tenants!fk_lease_tenants_lease_prop(
+      lease_tenants!lease_tenants_lease_id_fkey(
         tenant_id, role, is_primary,
-        tenant:tenants!fk_lease_tenants_tenant_prop(id, first_name, last_name, email, phone)
+        tenant:tenants!lease_tenants_tenant_id_fkey(id, first_name, last_name, email, phone)
       )
     `)
     .eq('property_id', propertyId)
@@ -296,7 +296,7 @@ export async function getMaintenanceDetail(propertyId: string, requestId: string
     .from('maintenance_requests')
     .select(`
       *,
-      tenant:tenants!fk_maintenance_tenant_prop(first_name, last_name)
+      tenant:tenants(first_name, last_name)
     `)
     .eq('property_id', propertyId)
     .eq('id', requestId)
@@ -328,7 +328,7 @@ export async function getInvoices(propertyId: string) {
     .from('invoices')
     .select(`
       *,
-      tenant:tenants!fk_invoices_tenant_prop(first_name, last_name)
+      tenant:tenants(first_name, last_name)
     `)
     .eq('property_id', propertyId)
     .order('issue_date', { ascending: false });
@@ -399,7 +399,7 @@ export async function getMaintenanceRequests(propertyId: string) {
     .from('maintenance_requests')
     .select(`
       *,
-      tenant:tenants!fk_maintenance_tenant_prop(first_name, last_name)
+      tenant:tenants(first_name, last_name)
     `)
     .eq('property_id', propertyId)
     .order('created_at', { ascending: false });
@@ -539,20 +539,120 @@ export async function getWorkspaceActivityLogs(workspaceId: string, propertyId?:
   });
 }
 
+interface TransactionRecord {
+  amount: number;
+  status: string;
+  transaction_type: string;
+  transaction_date?: string | null;
+  property_id?: string | null;
+}
+
+export interface MonthlyBreakdownItem {
+  month: string;
+  year: number;
+  isoMonth: string;
+  income: number;
+  expenses: number;
+  netCashFlow: number;
+}
+
+function calculateMonthlyBreakdown(transactions: TransactionRecord[]): MonthlyBreakdownItem[] {
+  const monthsMap = new Map<string, { income: number; expenses: number }>();
+  const now = new Date();
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  const result: MonthlyBreakdownItem[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const isoMonth = `${y}-${String(m + 1).padStart(2, '0')}`;
+    monthsMap.set(isoMonth, { income: 0, expenses: 0 });
+    result.push({
+      month: monthNames[m],
+      year: y,
+      isoMonth,
+      income: 0,
+      expenses: 0,
+      netCashFlow: 0,
+    });
+  }
+
+  for (const tx of transactions) {
+    if (tx.status !== 'completed' || !tx.transaction_date) continue;
+    const txDate = new Date(tx.transaction_date);
+    if (isNaN(txDate.getTime())) continue;
+    const isoMonth = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+    const entry = monthsMap.get(isoMonth);
+    if (entry) {
+      const amt = Number(tx.amount) || 0;
+      if (tx.transaction_type === 'income') {
+        entry.income += amt;
+      } else if (tx.transaction_type === 'expense') {
+        entry.expenses += amt;
+      }
+    }
+  }
+
+  for (const r of result) {
+    const entry = monthsMap.get(r.isoMonth);
+    if (entry) {
+      r.income = entry.income;
+      r.expenses = entry.expenses;
+      r.netCashFlow = entry.income - entry.expenses;
+    }
+  }
+
+  return result;
+}
+
+function calculateGrowthTrend(
+  transactions: TransactionRecord[],
+  type: 'income' | 'expense'
+): number | null {
+  const now = Date.now();
+  const msInDay = 86400000;
+  const currentStart = now - (30 * msInDay);
+  const priorStart = now - (60 * msInDay);
+
+  let currentTotal = 0;
+  let priorTotal = 0;
+
+  for (const tx of transactions) {
+    if (tx.status !== 'completed' || !tx.transaction_date || tx.transaction_type !== type) continue;
+    const time = new Date(tx.transaction_date).getTime();
+    if (isNaN(time)) continue;
+
+    if (time >= currentStart && time <= now) {
+      currentTotal += Number(tx.amount) || 0;
+    } else if (time >= priorStart && time < currentStart) {
+      priorTotal += Number(tx.amount) || 0;
+    }
+  }
+
+  if (priorTotal > 0) {
+    const change = ((currentTotal - priorTotal) / priorTotal) * 100;
+    return Number(change.toFixed(1));
+  }
+  return null;
+}
+
 export async function getReportsSummary(propertyId: string) {
   const supabase = await createClient();
-  const [invoices, transactions, tenants, leases] = await Promise.all([
-    supabase.from('invoices').select('status, total_amount, balance_due').eq('property_id', propertyId),
-    supabase.from('transactions').select('amount, status, transaction_type').eq('property_id', propertyId),
+  const [invoices, transactions, tenants, leases, propertyResult] = await Promise.all([
+    supabase.from('invoices').select('status, total_amount, balance_due, due_date').eq('property_id', propertyId),
+    supabase.from('transactions').select('amount, status, transaction_type, transaction_date, property_id').eq('property_id', propertyId),
     supabase.from('tenants').select('status').eq('property_id', propertyId),
     supabase.from('leases').select('status, rent_amount').eq('property_id', propertyId),
+    supabase.from('properties').select('id, name, purchase_price, property_category, property_type, status').eq('id', propertyId).single(),
   ]);
 
   const invoiceData = (invoices.data || []) as { status: string; total_amount: number; balance_due: number }[];
-  const txData = (transactions.data || []) as { amount: number; status: string; transaction_type: string }[];
+  const txData = (transactions.data || []) as TransactionRecord[];
   const tenantData = (tenants.data || []) as { status: string }[];
   const leaseData = (leases.data || []) as { status: string; rent_amount: number }[];
   const activeLeaseCount = leaseData.filter((l) => l.status === 'active').length;
+  const property = propertyResult.data as { purchase_price?: number | null; property_category?: string | null } | null;
 
   const totalRevenue = txData
     .filter((p) => p.status === 'completed' && p.transaction_type === 'income')
@@ -561,48 +661,83 @@ export async function getReportsSummary(propertyId: string) {
     .filter((e) => e.status === 'completed' && e.transaction_type === 'expense')
     .reduce((sum, e) => sum + Number(e.amount), 0);
 
+  const monthlyBreakdown = calculateMonthlyBreakdown(txData);
+  const incomeTrend = calculateGrowthTrend(txData, 'income');
+  const expenseTrend = calculateGrowthTrend(txData, 'expense');
+
+  const portfolioValue = Number(property?.purchase_price || 0);
+
   return {
     totalRevenue,
     outstandingBalance: invoiceData.reduce((sum, i) => sum + Number(i.balance_due || 0), 0),
     totalExpenses,
+    netCashFlow: totalRevenue - totalExpenses,
+    portfolioValue,
+    incomeTrend,
+    expenseTrend,
+    monthlyBreakdown,
     occupiedUnits: activeLeaseCount > 0 ? 1 : 0,
     vacantUnits: activeLeaseCount > 0 ? 0 : 1,
+    occupancyRate: activeLeaseCount > 0 ? 100 : 0,
     activeTenants: tenantData.filter((t) => t.status === 'active').length,
     activeLeases: activeLeaseCount,
     monthlyRent: leaseData.filter((l) => l.status === 'active').reduce((sum, l) => sum + Number(l.rent_amount), 0),
     overdueInvoices: invoiceData.filter((i) => i.status === 'overdue').length,
+    categoryBreakdown: {
+      residential: property?.property_category === 'Commercial' ? 0 : 1,
+      commercial: property?.property_category === 'Commercial' ? 1 : 0,
+      total: 1,
+    },
+    propertyBreakdown: [],
   };
 }
 
 export async function getWorkspaceReportsSummary(workspaceId: string) {
   const supabase = await createClient();
-  const [invoices, transactions, tenants, leases] = await Promise.all([
+  const [invoices, transactions, tenants, leases, properties] = await Promise.all([
     supabase
       .from('invoices')
-      .select('status, total_amount, balance_due')
+      .select('status, total_amount, balance_due, due_date, property_id')
       .eq('workspace_id', workspaceId)
       .in('status', ['issued', 'partially_paid', 'overdue']),
     supabase
       .from('transactions')
-      .select('amount, status, transaction_type')
+      .select('amount, status, transaction_type, transaction_date, property_id')
       .eq('workspace_id', workspaceId)
       .eq('status', 'completed'),
     supabase
       .from('tenants')
-      .select('status, properties!inner(workspace_id)')
+      .select('id, status, property_id, properties!inner(workspace_id)')
       .eq('properties.workspace_id', workspaceId)
       .eq('status', 'active'),
     supabase
       .from('leases')
-      .select('status, rent_amount, properties!inner(workspace_id)')
+      .select('id, status, rent_amount, property_id, properties!inner(workspace_id)')
       .eq('properties.workspace_id', workspaceId)
+      .eq('status', 'active'),
+    supabase
+      .from('properties')
+      .select('id, name, address_line_1, suburb, city, purchase_price, property_category, property_type, status')
+      .eq('workspace_id', workspaceId)
       .eq('status', 'active'),
   ]);
 
-  const invoiceData = (invoices.data || []) as { status: string; total_amount: number; balance_due: number }[];
-  const txData = (transactions.data || []) as { amount: number; status: string; transaction_type: string }[];
-  const tenantData = (tenants.data || []) as { status: string }[];
-  const leaseData = (leases.data || []) as { status: string; rent_amount: number }[];
+  const invoiceData = (invoices.data || []) as { status: string; total_amount: number; balance_due: number; property_id?: string }[];
+  const txData = (transactions.data || []) as TransactionRecord[];
+  const tenantData = (tenants.data || []) as { status: string; property_id?: string }[];
+  const leaseData = (leases.data || []) as { status: string; rent_amount: number; property_id?: string }[];
+  const propertyData = (properties.data || []) as Array<{
+    id: string;
+    name: string;
+    address_line_1?: string;
+    city?: string;
+    suburb?: string;
+    purchase_price?: number | null;
+    property_category?: string | null;
+    property_type?: string | null;
+    status?: string;
+  }>;
+
   const activeLeaseCount = leaseData.filter((l) => l.status === 'active').length;
 
   const totalRevenue = txData
@@ -612,16 +747,88 @@ export async function getWorkspaceReportsSummary(workspaceId: string) {
     .filter((e) => e.status === 'completed' && e.transaction_type === 'expense')
     .reduce((sum, e) => sum + Number(e.amount), 0);
 
+  const monthlyBreakdown = calculateMonthlyBreakdown(txData);
+  const incomeTrend = calculateGrowthTrend(txData, 'income');
+  const expenseTrend = calculateGrowthTrend(txData, 'expense');
+
+  const portfolioValue = propertyData.reduce((sum, p) => sum + Number(p.purchase_price || 0), 0);
+
+  // Group active leases by property
+  const activeLeaseMap = new Map<string, number>();
+  const monthlyRentMap = new Map<string, number>();
+  for (const l of leaseData) {
+    if (l.status === 'active' && l.property_id) {
+      activeLeaseMap.set(l.property_id, (activeLeaseMap.get(l.property_id) || 0) + 1);
+      monthlyRentMap.set(l.property_id, (monthlyRentMap.get(l.property_id) || 0) + Number(l.rent_amount || 0));
+    }
+  }
+
+  // Group transactions by property
+  const propertyIncomeMap = new Map<string, number>();
+  const propertyExpenseMap = new Map<string, number>();
+  for (const tx of txData) {
+    if (tx.property_id && tx.status === 'completed') {
+      const amt = Number(tx.amount) || 0;
+      if (tx.transaction_type === 'income') {
+        propertyIncomeMap.set(tx.property_id, (propertyIncomeMap.get(tx.property_id) || 0) + amt);
+      } else if (tx.transaction_type === 'expense') {
+        propertyExpenseMap.set(tx.property_id, (propertyExpenseMap.get(tx.property_id) || 0) + amt);
+      }
+    }
+  }
+
+  let occupiedCount = 0;
+  const propertyBreakdown = propertyData.map((prop) => {
+    const activeLeases = activeLeaseMap.get(prop.id) || 0;
+    const isOccupied = activeLeases > 0;
+    if (isOccupied) occupiedCount++;
+
+    const income = propertyIncomeMap.get(prop.id) || 0;
+    const expenses = propertyExpenseMap.get(prop.id) || 0;
+    const monthlyRent = monthlyRentMap.get(prop.id) || 0;
+
+    return {
+      propertyId: prop.id,
+      propertyName: prop.name,
+      address: prop.address_line_1 || prop.city || prop.suburb || '',
+      category: prop.property_category || 'Residential',
+      isOccupied,
+      activeLeases,
+      monthlyRent,
+      income,
+      expenses,
+      netCashFlow: income - expenses,
+    };
+  });
+
+  const totalProps = propertyData.length;
+  const occupancyRate = totalProps > 0 ? Math.round((occupiedCount / totalProps) * 100) : 0;
+
+  const residentialCount = propertyData.filter((p) => p.property_category !== 'Commercial').length;
+  const commercialCount = propertyData.filter((p) => p.property_category === 'Commercial').length;
+
   return {
     totalRevenue,
     outstandingBalance: invoiceData.reduce((sum, i) => sum + Number(i.balance_due || 0), 0),
     totalExpenses,
-    occupiedUnits: activeLeaseCount > 0 ? 1 : 0,
-    vacantUnits: activeLeaseCount > 0 ? 0 : 1,
+    netCashFlow: totalRevenue - totalExpenses,
+    portfolioValue,
+    incomeTrend,
+    expenseTrend,
+    monthlyBreakdown,
+    occupiedUnits: occupiedCount,
+    vacantUnits: Math.max(0, totalProps - occupiedCount),
+    occupancyRate,
     activeTenants: tenantData.filter((t) => t.status === 'active').length,
     activeLeases: activeLeaseCount,
     monthlyRent: leaseData.filter((l) => l.status === 'active').reduce((sum, l) => sum + Number(l.rent_amount), 0),
     overdueInvoices: invoiceData.filter((i) => i.status === 'overdue').length,
+    categoryBreakdown: {
+      residential: residentialCount,
+      commercial: commercialCount,
+      total: totalProps,
+    },
+    propertyBreakdown,
   };
 }
 

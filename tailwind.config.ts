@@ -85,7 +85,7 @@ const config: Config = {
         "entity-title": ["24px", { lineHeight: "1.25", letterSpacing: "-0.01em", fontWeight: "600" }],
         "section-title": ["19px", { lineHeight: "1.35", letterSpacing: "-0.01em", fontWeight: "600" }],
         "card-title": ["16px", { lineHeight: "1.4", letterSpacing: "-0.005em", fontWeight: "600" }],
-        "body": ["15px", { lineHeight: "1.5", letterSpacing: "0", fontWeight: "400" }],
+        "body": ["16px", { lineHeight: "1.5", letterSpacing: "0", fontWeight: "400" }],
         "body-sm": ["14px", { lineHeight: "1.45", letterSpacing: "0", fontWeight: "400" }],
         "caption": ["13px", { lineHeight: "1.4", letterSpacing: "0", fontWeight: "400" }],
         "metadata": ["12px", { lineHeight: "1.4", letterSpacing: "0.01em", fontWeight: "500" }],

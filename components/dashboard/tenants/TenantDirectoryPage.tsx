@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Users,
@@ -16,19 +16,31 @@ import {
   Plus,
   Pencil,
   UserCheck,
+  UserPlus,
   X,
+  List,
+  LayoutGrid,
 } from 'lucide-react';
 import { ColDef } from 'ag-grid-community';
-import { LayoutGrid, List } from 'lucide-react';
-import { Button, useToast } from '@/components/admin/ui';
-import { AdminDataGrid, QuickFilterBar, QuickFilterOption } from '@/components/admin/data-grid';
-import { ListPage, ListPageGrid } from '@/components/workspace';
 import dynamic from 'next/dynamic';
+import { Button, useToast } from '@/components/admin/ui';
+import { AdminDataGrid } from '@/components/admin/data-grid/AdminDataGrid';
+import { PageLayout, PageContent } from '@/components/workspace/layout';
 import { usePropertyContext } from '@/components/property/PropertyContext';
-import { fetchAllWorkspaceTenants, fetchDashboardProperties, handleDeleteTenant } from '@/app/actions/dashboard';
+import {
+  fetchAllWorkspaceTenants,
+  fetchDashboardProperties,
+  handleDeleteTenant,
+} from '@/app/actions/dashboard';
 import { HoverCardGrid, HoverEffectCardItem } from '@/components/ui/card-hover-effect';
-import { Avatar, PersonIdentity, JsonIcon, DiceBearIcon } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { useEntityCacheStore } from '@/lib/stores/useEntityCacheStore';
+import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
+
+import { TenantOverviewBanner } from './TenantOverviewBanner';
+import { LeaseOverviewDonut } from './LeaseOverviewDonut';
+import { TenantNeedsAttention } from './TenantNeedsAttention';
+import { getTenantTableColumns } from './tenantTableColumns';
 
 const TenancySetupWizard = dynamic(
   () => import('@/components/dashboard/workflows/TenancySetupWizard').then((m) => m.TenancySetupWizard),
@@ -39,7 +51,7 @@ const TenantDrawer = dynamic(
   { ssr: false }
 );
 
-type TenantRecord = {
+export type TenantRecord = {
   id: string;
   first_name: string;
   last_name: string;
@@ -78,7 +90,7 @@ type TenantRecord = {
   }>;
 };
 
-type PropertyOption = {
+export type PropertyOption = {
   id: string;
   name: string;
   address_line_1: string;
@@ -86,17 +98,17 @@ type PropertyOption = {
   rent_amount?: number;
 };
 
-import { useEntityCacheStore } from '@/lib/stores/useEntityCacheStore';
-import { useWorkspaceStore } from '@/lib/stores/useWorkspaceStore';
-
 export interface TenantDirectoryPageProps {
   initialTenants?: TenantRecord[];
   initialProperties?: PropertyOption[];
 }
 
-export function TenantDirectoryPage({ initialTenants, initialProperties }: TenantDirectoryPageProps = {}) {
+export function TenantDirectoryPage({
+  initialTenants,
+  initialProperties,
+}: TenantDirectoryPageProps = {}) {
   const router = useRouter();
-  const { error: showError } = useToast();
+  const { error: showError, success: showSuccess } = useToast();
   const { selectedProperty, availableProperties } = usePropertyContext();
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const cachedTenants = useEntityCacheStore((s) => s.tenants);
@@ -105,7 +117,8 @@ export function TenantDirectoryPage({ initialTenants, initialProperties }: Tenan
   const setCachedProperties = useEntityCacheStore((s) => s.setProperties);
 
   const activePropertyId = selectedProperty?.propertyId ?? null;
-  const hasMatchingCache = cachedTenants &&
+  const hasMatchingCache =
+    cachedTenants &&
     cachedTenants.workspaceId === activeWorkspaceId &&
     cachedTenants.propertyId === activePropertyId;
 
@@ -113,6 +126,7 @@ export function TenantDirectoryPage({ initialTenants, initialProperties }: Tenan
     if (initialTenants && initialTenants.length > 0) return initialTenants;
     return hasMatchingCache ? (cachedTenants.data as TenantRecord[]) : [];
   });
+
   const [properties, setProperties] = useState<PropertyOption[]>(() => {
     if (initialProperties && initialProperties.length > 0) return initialProperties;
     if (cachedProperties && cachedProperties.workspaceId === activeWorkspaceId) {
@@ -128,15 +142,20 @@ export function TenantDirectoryPage({ initialTenants, initialProperties }: Tenan
     }
     return [];
   });
+
   const [isLoading, setIsLoading] = useState(() => !initialTenants && !hasMatchingCache);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(() => new Date());
-  const isInitialMount = React.useRef(true);
+  const isInitialMount = useRef(true);
+
   const [statusFilter, setStatusFilter] = useState<
     'All' | 'Active Resident' | 'Inactive / Past Resident' | 'Prospect / Applicant' | 'Archived'
   >('All');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [isTableExpanded, setIsTableExpanded] = useState(false);
+
+  // Selected property for Lease Overview filtering
+  const [overviewPropertyId, setOverviewPropertyId] = useState<string | null>(activePropertyId);
 
   // Tenancy Setup Wizard state
   const [isSetupWizardOpen, setIsSetupWizardOpen] = useState(false);
@@ -147,175 +166,42 @@ export function TenantDirectoryPage({ initialTenants, initialProperties }: Tenan
   const [selectedTenantForEdit, setSelectedTenantForEdit] = useState<TenantRecord | null>(null);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
 
-  const filterOptions = useMemo<QuickFilterOption[]>(
-    () => [
-      { label: 'All', value: 'All' },
-      { label: 'Active Resident', value: 'Active Resident' },
-      { label: 'Inactive / Past Resident', value: 'Inactive / Past Resident' },
-      { label: 'Prospect / Applicant', value: 'Prospect / Applicant' },
-      { label: 'Archived', value: 'Archived' },
-    ],
-    []
-  );
-
-  const agGridColumns: ColDef[] = useMemo(
-    () => [
-      {
-        field: 'first_name',
-        headerName: 'Tenant Name',
-        flex: 1.5,
-        minWidth: 220,
-        valueGetter: (p) => `${p.data?.first_name || ''} ${p.data?.last_name || ''}`.trim(),
-        cellRenderer: (params: any) => {
-          const tenant = params.data;
-          if (!tenant) return null;
-          const fullName = `${tenant.first_name || ''} ${tenant.last_name || ''}`.trim();
-          return (
-            <PersonIdentity
-              seed={tenant.id}
-              name={fullName || 'Tenant'}
-              subtitle={tenant.email}
-              size="sm"
-            />
-          );
-        },
-      },
-      {
-        field: 'email',
-        headerName: 'Email Address',
-        flex: 1.5,
-        minWidth: 200,
-      },
-      {
-        field: 'phone',
-        headerName: 'Phone Number',
-        width: 140,
-        valueGetter: (p) => p.data?.phone || '—',
-      },
-      {
-        headerName: 'Assigned Property',
-        flex: 1.5,
-        minWidth: 200,
-        valueGetter: (p) => {
-          const prop = p.data?.property;
-          if (!prop) return 'Unassigned';
-          return `${prop.name || prop.address_line_1}${prop.city ? `, ${prop.city}` : ''}`;
-        },
-        cellRenderer: (params: any) => {
-          const prop = params.data?.property;
-          if (!prop) return <span className="text-muted text-xs">Unassigned</span>;
-          const name = String(prop.name || prop.address_line_1 || 'Property');
-          const location = prop.city || prop.suburb || prop.state || '';
-          return (
-            <div className="flex items-center gap-2 py-1 min-w-0 max-w-full overflow-hidden" title={name}>
-              <DiceBearIcon name="building" badge variant="red" className="w-3.5 h-3.5" />
-              <div className="flex flex-col min-w-0 leading-tight">
-                <span className="font-semibold text-foreground text-[13px] truncate">{name}</span>
-                {location && <span className="text-[10.5px] text-muted truncate">{location}</span>}
-              </div>
-            </div>
-          );
-        },
-      },
-      {
-        headerName: 'Active Lease Rent',
-        width: 150,
-        valueGetter: (p) => {
-          const activeLease = p.data?.lease_tenants?.find((lt: any) => lt.lease?.status === 'active')?.lease || p.data?.lease_tenants?.[0]?.lease;
-          if (!activeLease) return '—';
-          return `$${Number(activeLease.rent_amount || 0).toLocaleString()}/${activeLease.rent_frequency || 'mo'}`;
-        },
-      },
-      {
-        field: 'date_of_birth',
-        headerName: 'Date of Birth',
-        width: 130,
-        valueGetter: (p) => p.data?.date_of_birth || '—',
-      },
-      {
-        field: 'emergency_contact_name',
-        headerName: 'Emergency Contact',
-        width: 170,
-        valueGetter: (p) => {
-          const name = p.data?.emergency_contact_name;
-          const phone = p.data?.emergency_contact_phone;
-          if (name && phone) return `${name} (${phone})`;
-          return name || phone || '—';
-        },
-      },
-      {
-        field: 'status',
-        headerName: 'Status',
-        width: 130,
-        cellRenderer: 'statusCell',
-      },
-      {
-        field: 'notes',
-        headerName: 'Notes',
-        flex: 1,
-        minWidth: 150,
-        valueGetter: (p) => p.data?.notes || '—',
-      },
-      {
-        field: 'created_at',
-        headerName: 'Created Date',
-        width: 130,
-        cellRenderer: 'dateCell',
-      },
-      {
-        headerName: 'Actions',
-        colId: 'actions',
-        width: 100,
-        pinned: 'right',
-        sortable: false,
-        filter: false,
-        cellRenderer: (params: any) => {
-          return (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedTenantForEdit(params.data);
-                setIsEditDrawerOpen(true);
-              }}
-              className="p-1 text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-500/10 rounded transition-colors inline-flex items-center gap-1 font-bold text-xs"
-            >
-              <Pencil className="w-3.5 h-3.5" /> Edit
-            </button>
-          );
-        },
-      },
-    ],
-    []
-  );
-
-  const loadData = async (isManualRefresh = false) => {
-    if (isManualRefresh) {
-      setIsRefreshing(true);
-    } else if (!hasMatchingCache) {
-      setIsLoading(true);
-    }
-    try {
-      const activePropertyId = selectedProperty?.propertyId ?? null;
-      const [tenantsData, propertiesData] = await Promise.all([
-        fetchAllWorkspaceTenants(activePropertyId),
-        fetchDashboardProperties(),
-      ]);
-      setTenants(tenantsData as unknown as TenantRecord[]);
-      setProperties(propertiesData as unknown as PropertyOption[]);
-      setCachedTenants(tenantsData, activeWorkspaceId, activePropertyId);
-      setCachedProperties(propertiesData, activeWorkspaceId);
-      setLastRefreshedAt(new Date());
-    } catch (err: any) {
-      console.error('Error loading tenants directory:', err);
-      showError(isManualRefresh ? 'Refresh failed' : 'Failed to load tenants', isManualRefresh ? 'Unable to refresh tenants. Please try again.' : (err.message || 'Could not fetch tenant directory.'));
-    } finally {
+  const loadData = useCallback(
+    async (isManualRefresh = false) => {
       if (isManualRefresh) {
-        setIsRefreshing(false);
-      } else {
-        setIsLoading(false);
+        setIsRefreshing(true);
+      } else if (!hasMatchingCache) {
+        setIsLoading(true);
       }
-    }
-  };
+      try {
+        const activePropId = selectedProperty?.propertyId ?? null;
+        const [tenantsData, propertiesData] = await Promise.all([
+          fetchAllWorkspaceTenants(activePropId),
+          fetchDashboardProperties(),
+        ]);
+        setTenants(tenantsData as unknown as TenantRecord[]);
+        setProperties(propertiesData as unknown as PropertyOption[]);
+        setCachedTenants(tenantsData, activeWorkspaceId, activePropId);
+        setCachedProperties(propertiesData, activeWorkspaceId);
+        setLastRefreshedAt(new Date());
+      } catch (err: any) {
+        console.error('Error loading tenants directory:', err);
+        showError(
+          isManualRefresh ? 'Refresh failed' : 'Failed to load tenants',
+          isManualRefresh
+            ? 'Unable to refresh tenants. Please try again.'
+            : err.message || 'Could not fetch tenant directory.'
+        );
+      } finally {
+        if (isManualRefresh) {
+          setIsRefreshing(false);
+        } else {
+          setIsLoading(false);
+        }
+      }
+    },
+    [activeWorkspaceId, hasMatchingCache, selectedProperty?.propertyId, setCachedProperties, setCachedTenants, showError]
+  );
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -329,7 +215,18 @@ export function TenantDirectoryPage({ initialTenants, initialProperties }: Tenan
       }
     }
     loadData();
-  }, [selectedProperty?.propertyId, activeWorkspaceId]);
+  }, [activePropertyId, activeWorkspaceId, initialProperties, initialTenants, loadData, setCachedProperties, setCachedTenants]);
+
+  // Escape key exits table expanded mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isTableExpanded && !isSetupWizardOpen && !isEditDrawerOpen) {
+        setIsTableExpanded(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isTableExpanded, isSetupWizardOpen, isEditDrawerOpen]);
 
   const handleStartTenancySetup = () => {
     if (properties.length === 0) {
@@ -352,11 +249,14 @@ export function TenantDirectoryPage({ initialTenants, initialProperties }: Tenan
     }
   };
 
-  const getTenantCategory = (t: TenantRecord): 'Active Resident' | 'Inactive / Past Resident' | 'Prospect / Applicant' | 'Archived' => {
+  const getTenantCategory = (
+    t: TenantRecord
+  ): 'Active Resident' | 'Inactive / Past Resident' | 'Prospect / Applicant' | 'Archived' => {
     const status = (t.status || '').toLowerCase();
     if (status === 'archived') return 'Archived';
     if (status === 'prospect' || status === 'applicant' || status === 'pending') return 'Prospect / Applicant';
-    if (status === 'inactive' || status === 'past' || status === 'ended' || status === 'terminated') return 'Inactive / Past Resident';
+    if (status === 'inactive' || status === 'past' || status === 'ended' || status === 'terminated')
+      return 'Inactive / Past Resident';
 
     const hasActiveLease = t.lease_tenants?.some((lt) => lt.lease?.status === 'active');
     if (hasActiveLease || status === 'active') return 'Active Resident';
@@ -366,349 +266,422 @@ export function TenantDirectoryPage({ initialTenants, initialProperties }: Tenan
     return 'Active Resident';
   };
 
-  const filteredTenants = useMemo(() => {
-    return tenants.filter((t) => {
-      if (selectedProperty && t.property_id !== selectedProperty.propertyId) {
-        return false;
-      }
+  // Scope by global or local property selection
+  const scopedTenants = useMemo(() => {
+    if (!selectedProperty) return tenants;
+    return tenants.filter((t) => t.property_id === selectedProperty.propertyId);
+  }, [tenants, selectedProperty]);
+
+  // Overview stats calculated from scoped tenants
+  const overviewStats = useMemo(() => {
+    const total = scopedTenants.length;
+    const active = scopedTenants.filter((t) => getTenantCategory(t) === 'Active Resident').length;
+    const past = scopedTenants.filter((t) => getTenantCategory(t) === 'Inactive / Past Resident').length;
+    const pending = scopedTenants.filter((t) => getTenantCategory(t) === 'Prospect / Applicant').length;
+    const archived = scopedTenants.filter((t) => getTenantCategory(t) === 'Archived').length;
+
+    return { total, active, past, pending, archived };
+  }, [scopedTenants]);
+
+  // Filtered rows for AG Grid / Card Grid based on active status tab
+  const filteredRows = useMemo(() => {
+    return scopedTenants.filter((t) => {
       if (statusFilter === 'All') return true;
       return getTenantCategory(t) === statusFilter;
     });
-  }, [tenants, statusFilter, selectedProperty]);
+  }, [scopedTenants, statusFilter]);
 
-  const stats = useMemo(() => {
-    const active = filteredTenants.filter((t) => getTenantCategory(t) === 'Active Resident').length;
-    const pending = filteredTenants.filter((t) => getTenantCategory(t) === 'Prospect / Applicant').length;
-    const past = filteredTenants.filter((t) => getTenantCategory(t) === 'Inactive / Past Resident').length;
-    const archived = filteredTenants.filter((t) => getTenantCategory(t) === 'Archived').length;
+  // Scoped tenants for the right Lease Overview card
+  const leaseOverviewTenants = useMemo(() => {
+    if (!overviewPropertyId) return scopedTenants;
+    return scopedTenants.filter((t) => t.property_id === overviewPropertyId);
+  }, [scopedTenants, overviewPropertyId]);
 
-    return { total: filteredTenants.length, active, pending, past, archived };
-  }, [filteredTenants]);
+  const handleEditTenant = (tenant: Record<string, unknown>) => {
+    setSelectedTenantForEdit(tenant as unknown as TenantRecord);
+    setIsEditDrawerOpen(true);
+  };
 
-  const handleBulkDeleteTenants = async (selected: TenantRecord[]) => {
+  const handleBulkDeleteTenants = async (selectedRows: TenantRecord[]) => {
     try {
-      for (const t of selected) {
+      for (const t of selectedRows) {
         await handleDeleteTenant(t.property_id || '', t.id);
       }
-      await loadData();
+      await loadData(true);
+      showSuccess('Deleted', 'Selected tenants have been removed.');
     } catch (err: any) {
       console.error('Error deleting tenants:', err);
       showError('Delete Failed', err.message || 'Could not delete selected tenants.');
     }
   };
 
-  const contextName = selectedProperty ? selectedProperty.propertyName : 'All Properties';
-  const pageDescription = `${contextName} · ${filteredTenants.length} ${filteredTenants.length === 1 ? 'resident' : 'residents'}`;
+  const columns = useMemo<ColDef[]>(() => getTenantTableColumns(handleEditTenant), []);
 
   return (
-    <ListPage
-      title="Tenants"
-      description={pageDescription}
-      actions={
-        <div className="flex items-center gap-3">
-          <div className="flex items-center bg-admin-surface border border-admin-border rounded-xl p-1 shadow-xs">
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              className={cn(
-                'p-1.5 rounded-lg transition-colors',
-                viewMode === 'table'
-                  ? 'bg-admin-surface-elevated text-admin-primary shadow-xs'
-                  : 'text-admin-muted hover:text-admin-foreground'
-              )}
-              title="AG Grid Table View"
-            >
-              <List className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('grid')}
-              className={cn(
-                'p-1.5 rounded-lg transition-colors',
-                viewMode === 'grid'
-                  ? 'bg-admin-surface-elevated text-admin-primary shadow-xs'
-                  : 'text-admin-muted hover:text-admin-foreground'
-              )}
-              title="Card View"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-          </div>
-
-          <Button onClick={handleStartTenancySetup} className="font-bold gap-2">
-            <Plus className="w-4 h-4" /> Setup Tenancy
-          </Button>
-        </div>
-      }
-      summary={
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          {/* Action Card */}
-          <div
-            onClick={handleStartTenancySetup}
-            className="bg-admin-primary text-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-          >
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                <Users className="w-5 h-5 text-white" />
-              </div>
-              <ArrowUpRight className="w-5 h-5 text-white/70 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-            </div>
+    <PageLayout>
+      <PageContent>
+        <div className="space-y-5 lg:space-y-6 pb-16">
+          {/* 1. Page Header */}
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
-              <h3 className="text-base font-black mb-0.5">Setup Tenancy</h3>
-              <p className="text-xs text-white/80 font-medium">Add a tenant and configure lease details.</p>
+              <h1 className="text-3xl sm:text-4xl font-heading font-bold tracking-tight text-slate-900 dark:text-white">
+                Tenants
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-[#94A3B8] mt-1">
+                Manage your residents, leases and tenant information.
+              </p>
             </div>
-          </div>
 
-          {/* Active Tenants */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
-                <CheckCircle2 className="w-5 h-5" />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Active Residents</p>
-              <h3 className="text-2xl font-black text-admin-foreground">
-                {isLoading ? (
-                  <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
-                ) : (
-                  stats.active
-                )}
-              </h3>
-            </div>
-          </div>
-
-          {/* Pending Invites */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500">
-                <Clock className="w-5 h-5" />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Pending / Prospects</p>
-              <h3 className="text-2xl font-black text-admin-foreground">
-                {isLoading ? (
-                  <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
-                ) : (
-                  stats.pending
-                )}
-              </h3>
-            </div>
-          </div>
-
-          {/* Total Records */}
-          <div className="bg-admin-surface border border-admin-border rounded-2xl p-5 flex flex-col justify-between shadow-xs">
-            <div className="flex justify-between items-start mb-3">
-              <div className="w-10 h-10 bg-admin-surface-elevated rounded-xl flex items-center justify-center text-admin-muted">
-                <UserCheck className="w-5 h-5" />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-admin-muted uppercase tracking-wider mb-0.5">Total Directory</p>
-              <h3 className="text-2xl font-black text-admin-foreground">
-                {isLoading ? (
-                  <span className="inline-block h-7 w-12 rounded skeleton-shimmer align-middle" />
-                ) : (
-                  stats.total
-                )}
-              </h3>
-            </div>
-          </div>
-        </div>
-      }
-    >
-      <div className="flex-1 flex flex-col min-h-0 h-full space-y-4">
-        {/* Tenants Data Table */}
-        {!isLoading && filteredTenants.length === 0 && statusFilter === 'All' ? (
-          <div className="py-20 px-6 text-center bg-admin-surface rounded-2xl border border-admin-border shadow-xs flex-1 flex flex-col items-center justify-center min-h-[300px]">
-            <div className="w-14 h-14 bg-admin-surface-subtle rounded-full flex items-center justify-center mx-auto mb-4 text-admin-muted border border-admin-border">
-              <Users className="w-7 h-7" />
-            </div>
-            <h3 className="text-lg font-black text-admin-foreground mb-1">No tenants found</h3>
-            <p className="text-xs text-admin-muted max-w-sm mx-auto mb-5 font-medium">
-              Get started by creating your first tenancy and registering residents to a property.
-            </p>
-            <Button onClick={handleStartTenancySetup} className="font-bold">
-              <Plus className="w-4 h-4 mr-1.5" /> Setup First Tenancy
-            </Button>
-          </div>
-        ) : viewMode === 'table' ? (
-          <ListPageGrid>
-            <AdminDataGrid
-              rowData={filteredTenants}
-              columnDefs={agGridColumns}
-              loading={isLoading}
-              onRefresh={() => loadData(true)}
-              isRefreshing={isRefreshing}
-              lastRefreshedAt={lastRefreshedAt}
-              labelSingular="tenant"
-              labelPlural="tenants"
-              onRowClick={(row) => router.push(`/dashboard/people/${row.id}`)}
-              getRowId={(p) => p.data.id}
-              enableColumnChooser
-              enableExport
-              exportFilename="tenants-export"
-              searchPlaceholder="Search tenants..."
-              onDeleteSelected={handleBulkDeleteTenants}
-              leftToolbarContent={
-                <QuickFilterBar
-                  options={filterOptions}
-                  activeValue={statusFilter}
-                  onChange={(val) => setStatusFilter(val as any)}
-                  loading={isLoading}
-                />
-              }
-              disablePagination={true}
-            />
-          </ListPageGrid>
-        ) : isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto flex-1 p-1">
-            {[...Array(6)].map((_, i) => (
-              <div
-                key={i}
-                className="bg-admin-surface border border-admin-border rounded-2xl p-5 shadow-xs flex flex-col justify-between gap-3 skeleton-shimmer"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl skeleton-shimmer shrink-0" />
-                    <div className="space-y-1.5">
-                      <div className="h-3.5 rounded skeleton-shimmer w-28" />
-                      <div className="h-2.5 rounded skeleton-shimmer w-36" />
-                    </div>
-                  </div>
-                  <div className="h-5 w-14 rounded skeleton-shimmer" />
-                </div>
-                <div className="h-px w-full bg-admin-border/60" />
-                <div className="space-y-2 py-1">
-                  <div className="h-3 rounded skeleton-shimmer w-32" />
-                  <div className="h-3 rounded skeleton-shimmer w-24" />
-                </div>
-                <div className="h-px w-full bg-admin-border/60" />
-                <div className="flex items-center justify-between pt-1">
-                  <div className="h-3 rounded skeleton-shimmer w-12" />
-                  <div className="h-3 rounded skeleton-shimmer w-20" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <HoverCardGrid className="overflow-y-auto flex-1 p-1">
-            {filteredTenants.map((t) => {
-              const activeLease = t.lease_tenants?.find((lt) => lt.lease?.status === 'active')?.lease;
-              const leaseStatus = activeLease ? 'Active' : t.lease_tenants?.length ? 'Past' : t.status === 'pending' ? 'Pending' : 'No Lease';
-
-              return (
-                <HoverEffectCardItem
-                  key={t.id}
-                  onClick={() => router.push(`/dashboard/people/${t.id}`)}
-                  className="cursor-pointer group/card"
+            <div className="flex items-center gap-3 shrink-0">
+              {/* List / Grid View Switch */}
+              <div className="flex items-center p-1 rounded-xl bg-white dark:bg-[#07111F] border border-slate-200/80 dark:border-[#17283A] shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('table')}
+                  className={cn(
+                    'px-2.5 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-colors',
+                    viewMode === 'table'
+                      ? 'bg-slate-100 dark:bg-[#0E1E33] text-[#008F83] dark:text-[#32D5C4] font-bold shadow-xs'
+                      : 'text-slate-500 dark:text-[#7F8B99] hover:text-slate-900 dark:hover:text-white'
+                  )}
+                  title="List Table View"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar
-                        seed={t.id}
-                        name={`${t.first_name || ''} ${t.last_name || ''}`.trim()}
-                        size="md"
-                        decorative
-                      />
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-bold text-sm text-admin-foreground leading-tight truncate group-hover/card:text-admin-primary transition-colors">
-                          {t.first_name} {t.last_name}
-                        </h4>
-                        <p className="text-xs text-admin-muted mt-0.5 truncate">{t.email || 'No email'}</p>
-                      </div>
-                    </div>
-                    <span
-                      className={cn(
-                        'px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider shrink-0',
-                        leaseStatus === 'Active'
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                          : 'bg-admin-surface-subtle text-admin-muted border border-admin-border'
-                      )}
-                    >
-                      {leaseStatus}
-                    </span>
-                  </div>
+                  <List className="w-3.5 h-3.5" />
+                  <span>List</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  className={cn(
+                    'px-2.5 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-colors',
+                    viewMode === 'grid'
+                      ? 'bg-slate-100 dark:bg-[#0E1E33] text-[#008F83] dark:text-[#32D5C4] font-bold shadow-xs'
+                      : 'text-slate-500 dark:text-[#7F8B99] hover:text-slate-900 dark:hover:text-white'
+                  )}
+                  title="Card Grid View"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span>Grid</span>
+                </button>
+              </div>
 
-                  <div className="space-y-2 p-3 rounded-xl bg-admin-surface-subtle/50 border border-admin-border/50 text-xs text-admin-muted my-1">
-                    <div className="flex items-center gap-2">
-                      <Building className="w-3.5 h-3.5 text-admin-primary shrink-0" />
-                      <span className="font-semibold text-admin-foreground truncate">
-                        {t.property?.name || t.property?.address_line_1 || 'Unassigned Property'}
+              {/* Primary CTA */}
+              <Button
+                onClick={handleStartTenancySetup}
+                className="font-semibold text-xs rounded-xl bg-[#008F83] hover:bg-[#007a70] text-white shadow-none px-4 py-2"
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Setup Tenancy
+              </Button>
+            </div>
+          </div>
+
+          {/* 2. Tenant Overview Banner (Hidden when Table is Expanded) */}
+          {!isTableExpanded && (
+            <TenantOverviewBanner
+              totalTenants={overviewStats.total}
+              activeResidents={overviewStats.active}
+              pastResidents={overviewStats.past}
+              prospects={overviewStats.pending}
+              isLoading={isLoading}
+              onSetupTenancy={handleStartTenancySetup}
+            />
+          )}
+
+          {/* 3. Main Workspace Grid */}
+          {!isLoading && scopedTenants.length === 0 && statusFilter === 'All' ? (
+            /* Empty State */
+            <div className="py-20 px-6 text-center bg-white dark:bg-[#07111F] rounded-[24px] border border-slate-200/80 dark:border-[#17283A] shadow-xs flex flex-col items-center justify-center min-h-[360px]">
+              <div className="w-14 h-14 bg-slate-50 dark:bg-[#0E1E33] rounded-2xl flex items-center justify-center mx-auto mb-4 text-[#008F83] dark:text-[#32D5C4] border border-[#008F83]/20">
+                <Users className="w-7 h-7" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+                No tenants yet
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-[#7F8B99] max-w-sm mx-auto mb-5 leading-relaxed">
+                Set up your first tenancy to start managing residents and leases.
+              </p>
+              <Button
+                onClick={handleStartTenancySetup}
+                className="font-semibold text-xs rounded-xl bg-[#008F83] hover:bg-[#007a70] text-white shadow-none px-4 py-2"
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Setup Tenancy
+              </Button>
+            </div>
+          ) : viewMode === 'table' ? (
+            /* TABLE MODE: Left Table + Right Contextual Intelligence (or Full-Width when Expanded) */
+            <div
+              className={cn(
+                'grid grid-cols-1 gap-5 items-stretch transition-all duration-300',
+                isTableExpanded ? 'grid-cols-1' : 'lg:grid-cols-12'
+              )}
+            >
+              {/* PRIMARY TENANT DIRECTORY (Col-span-8 or Col-span-12) */}
+              <div
+                className={cn(
+                  'rounded-[24px] border border-slate-200/80 dark:border-[#17283A] bg-white dark:bg-[#07111F] p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)] dark:shadow-none flex flex-col transition-all duration-300',
+                  isTableExpanded
+                    ? 'col-span-12 min-h-[calc(100vh-160px)]'
+                    : 'lg:col-span-8 h-full'
+                )}
+              >
+                <div className="flex-1 flex flex-col min-h-0 h-full">
+                  <AdminDataGrid
+                    rowData={filteredRows}
+                    columnDefs={columns}
+                    loading={isLoading}
+                    rowHeight={68}
+                    onRefresh={() => loadData(true)}
+                    isRefreshing={isRefreshing}
+                    lastRefreshedAt={lastRefreshedAt}
+                    labelSingular="tenant"
+                    labelPlural="tenants"
+                    onRowClick={(row: any) => handleEditTenant(row)}
+                    getRowId={(params: any) => String(params.data.id)}
+                    enableColumnChooser
+                    enableExport
+                    exportFilename="tenants-export"
+                    searchPlaceholder="Search tenants..."
+                    onDeleteSelected={handleBulkDeleteTenants}
+                    disablePagination={true}
+                    isExpanded={isTableExpanded}
+                    onExpandedChange={setIsTableExpanded}
+                    leftToolbarContent={
+                      <div className="flex items-center gap-3">
+                        <span className="font-heading text-base font-bold text-slate-900 dark:text-white shrink-0">
+                          Tenant Directory
+                        </span>
+
+                        {/* Status Filter Tabs Pill */}
+                        <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-[#0E1E33] text-xs font-semibold overflow-x-auto">
+                          <button
+                            type="button"
+                            onClick={() => setStatusFilter('All')}
+                            className={cn(
+                              'px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap text-xs',
+                              statusFilter === 'All'
+                                ? 'bg-[#E8F7F5] dark:bg-[#008F83]/25 text-[#008F83] dark:text-[#32D5C4] border border-[#008F83]/25 shadow-xs font-bold'
+                                : 'text-slate-600 dark:text-[#7F8B99] hover:text-slate-900 dark:hover:text-white font-medium'
+                            )}
+                          >
+                            All ({overviewStats.total})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setStatusFilter('Active Resident')}
+                            className={cn(
+                              'px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap text-xs',
+                              statusFilter === 'Active Resident'
+                                ? 'bg-[#E8F7F5] dark:bg-[#008F83]/25 text-[#008F83] dark:text-[#32D5C4] border border-[#008F83]/25 shadow-xs font-bold'
+                                : 'text-slate-600 dark:text-[#7F8B99] hover:text-slate-900 dark:hover:text-white font-medium'
+                            )}
+                          >
+                            Active Resident ({overviewStats.active})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setStatusFilter('Inactive / Past Resident')}
+                            className={cn(
+                              'px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap text-xs',
+                              statusFilter === 'Inactive / Past Resident'
+                                ? 'bg-[#E8F7F5] dark:bg-[#008F83]/25 text-[#008F83] dark:text-[#32D5C4] border border-[#008F83]/25 shadow-xs font-bold'
+                                : 'text-slate-600 dark:text-[#7F8B99] hover:text-slate-900 dark:hover:text-white font-medium'
+                            )}
+                          >
+                            Inactive / Past ({overviewStats.past})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setStatusFilter('Prospect / Applicant')}
+                            className={cn(
+                              'px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap text-xs',
+                              statusFilter === 'Prospect / Applicant'
+                                ? 'bg-[#E8F7F5] dark:bg-[#008F83]/25 text-[#008F83] dark:text-[#32D5C4] border border-[#008F83]/25 shadow-xs font-bold'
+                                : 'text-slate-600 dark:text-[#7F8B99] hover:text-slate-900 dark:hover:text-white font-medium'
+                            )}
+                          >
+                            Prospect / Applicant ({overviewStats.pending})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setStatusFilter('Archived')}
+                            className={cn(
+                              'px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap text-xs',
+                              statusFilter === 'Archived'
+                                ? 'bg-[#E8F7F5] dark:bg-[#008F83]/25 text-[#008F83] dark:text-[#32D5C4] border border-[#008F83]/25 shadow-xs font-bold'
+                                : 'text-slate-600 dark:text-[#7F8B99] hover:text-slate-900 dark:hover:text-white font-medium'
+                            )}
+                          >
+                            Archived ({overviewStats.archived})
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* RIGHT CONTEXTUAL INTELLIGENCE (Col-span-4, Hidden when Expanded) */}
+              {!isTableExpanded && (
+                <div className="lg:col-span-4 flex flex-col gap-5">
+                  {/* 1. Lease Overview Donut */}
+                  <LeaseOverviewDonut
+                    tenants={scopedTenants}
+                    properties={properties}
+                    selectedPropertyId={overviewPropertyId}
+                    onPropertySelect={setOverviewPropertyId}
+                    isLoading={isLoading}
+                  />
+
+                  {/* 2. Needs Attention */}
+                  <TenantNeedsAttention
+                    tenants={scopedTenants}
+                    onFilterClick={(filterName) => {
+                      if (filterName === 'Active Resident' || filterName === 'Prospect / Applicant' || filterName === 'All') {
+                        setStatusFilter(filterName as any);
+                      }
+                    }}
+                    isLoading={isLoading}
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            /* CARD GRID VIEW MODE */
+            <HoverCardGrid className="overflow-y-auto flex-1 p-1">
+              {filteredRows.map((t) => {
+                const fullName = `${t.first_name || ''} ${t.last_name || ''}`.trim() || 'Tenant';
+                const propertyName = t.property?.name || t.property?.address_line_1 || 'Unassigned';
+                const activeLease = t.lease_tenants?.find((lt) => lt.lease?.status === 'active')?.lease || t.lease_tenants?.[0]?.lease;
+                const leaseStr = activeLease?.rent_amount
+                  ? `$${Number(activeLease.rent_amount).toLocaleString()}/${activeLease.rent_frequency || 'yearly'}`
+                  : 'No active lease';
+                const statusCategory = getTenantCategory(t);
+
+                return (
+                  <HoverEffectCardItem
+                    key={String(t.id)}
+                    onClick={() => handleEditTenant(t)}
+                    className="cursor-pointer group/card"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-[#008F83]/10 text-[#008F83] dark:text-[#32D5C4] flex items-center justify-center font-bold text-xs shrink-0 border border-[#008F83]/20">
+                          {fullName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white leading-tight truncate group-hover/card:text-[#008F83] dark:group-hover/card:text-[#32D5C4] transition-colors">
+                            {fullName}
+                          </h4>
+                          <p className="text-xs text-slate-400 dark:text-[#7F8B99] mt-0.5 truncate">{t.email}</p>
+                        </div>
+                      </div>
+
+                      <span
+                        className={cn(
+                          'px-2.5 py-0.5 rounded-full text-[10.5px] font-bold shrink-0',
+                          statusCategory === 'Active Resident'
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                            : statusCategory === 'Prospect / Applicant'
+                            ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+                            : statusCategory === 'Inactive / Past Resident'
+                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                            : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20'
+                        )}
+                      >
+                        {statusCategory}
                       </span>
                     </div>
-                    {t.phone ? (
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-3.5 h-3.5 text-admin-muted shrink-0" />
-                        <span className="truncate">{t.phone}</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-admin-muted/60 italic">
-                        <Phone className="w-3.5 h-3.5 shrink-0" />
-                        <span>No phone recorded</span>
-                      </div>
-                    )}
-                  </div>
 
-                  <div className="flex items-center justify-between pt-1 border-t border-admin-border/50">
-                    <span className="text-xs font-bold text-admin-primary group-hover/card:underline inline-flex items-center gap-1">
-                      View Profile <ArrowUpRight className="w-3.5 h-3.5" />
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedTenantForEdit(t);
-                        setIsEditDrawerOpen(true);
-                      }}
-                      className="px-2 py-1 text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-subtle rounded-lg transition-colors inline-flex items-center gap-1 font-semibold text-xs"
-                    >
-                      <Pencil className="w-3.5 h-3.5" /> Edit
-                    </button>
-                  </div>
-                </HoverEffectCardItem>
-              );
-            })}
-          </HoverCardGrid>
-        )}
-      </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs p-3.5 rounded-2xl bg-slate-50 dark:bg-[#0B1726] border border-slate-200/60 dark:border-[#17283A] my-1.5">
+                      <div>
+                        <span className="text-slate-400 dark:text-[#7F8B99] text-[10px] uppercase font-bold tracking-wider block">
+                          Phone
+                        </span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block mt-0.5">
+                          {t.phone || '—'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 dark:text-[#7F8B99] text-[10px] uppercase font-bold tracking-wider block">
+                          Property
+                        </span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block mt-0.5">
+                          {propertyName}
+                        </span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-slate-400 dark:text-[#7F8B99] text-[10px] uppercase font-bold tracking-wider block">
+                          Lease
+                        </span>
+                        <span className="font-bold text-slate-900 dark:text-white truncate block mt-0.5">
+                          {leaseStr}
+                        </span>
+                      </div>
+                    </div>
 
-      {/* Property Select Modal for Tenancy Setup */}
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-[#17283A]/80">
+                      <span className="text-xs font-semibold text-[#008F83] dark:text-[#32D5C4] group-hover/card:underline inline-flex items-center gap-1">
+                        <span>View profile</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditTenant(t);
+                        }}
+                        className="px-2.5 py-1 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#0E1E33] rounded-lg transition-colors inline-flex items-center gap-1 font-semibold text-xs"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+                    </div>
+                  </HoverEffectCardItem>
+                );
+              })}
+            </HoverCardGrid>
+          )}
+        </div>
+      </PageContent>
+
+      {/* Property Selection Modal for Tenancy Setup */}
       {isPropertySelectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto font-sans" role="dialog" aria-modal="true">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsPropertySelectModalOpen(false)} />
-          <div className="relative w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-6 sm:p-7 shadow-2xl z-10 space-y-4">
-            <button
-              type="button"
-              onClick={() => setIsPropertySelectModalOpen(false)}
-              aria-label="Close dialog"
-              className="absolute top-5 right-5 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="text-center pb-1">
-              <h3 className="text-xl font-bold font-heading tracking-tight text-slate-900 dark:text-white">Select Property</h3>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">Choose a property to set up tenancy for.</p>
-            </div>
-
-            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="relative w-full max-w-md bg-white dark:bg-[#07111F] border border-slate-200 dark:border-[#17283A] rounded-3xl p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
+              Select Property for Tenancy
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-[#7F8B99] mb-4">
+              Choose the property where you want to set up this tenancy.
+            </p>
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
               {properties.map((p) => (
-                <div
+                <button
                   key={p.id}
                   onClick={() => {
                     setSelectedPropertyForSetup(p);
                     setIsPropertySelectModalOpen(false);
                     setIsSetupWizardOpen(true);
                   }}
-                  className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-[#008F83] hover:bg-[#008F83]/5 dark:hover:bg-[#008F83]/10 cursor-pointer transition-all group"
+                  className="w-full text-left p-3.5 rounded-2xl border border-slate-200/80 dark:border-[#17283A] hover:border-[#008F83] hover:bg-[#E6F8F3]/50 dark:hover:bg-[#0E1E33] transition-all flex items-center justify-between"
                 >
-                  <div className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-[#008F83] transition-colors">{p.name || p.address_line_1}</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{p.city || p.address_line_1}</div>
-                </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-900 dark:text-white">{p.name}</h4>
+                    <p className="text-[11px] text-slate-400 dark:text-[#7F8B99] mt-0.5">{p.address_line_1}</p>
+                  </div>
+                  <Plus className="w-4 h-4 text-[#008F83]" />
+                </button>
               ))}
             </div>
+            <Button
+              variant="outline"
+              onClick={() => setIsPropertySelectModalOpen(false)}
+              className="w-full mt-4 rounded-xl text-xs"
+            >
+              Cancel
+            </Button>
           </div>
         </div>
       )}
@@ -716,38 +689,37 @@ export function TenantDirectoryPage({ initialTenants, initialProperties }: Tenan
       {/* Tenancy Setup Wizard Modal */}
       {isSetupWizardOpen && selectedPropertyForSetup && (
         <TenancySetupWizard
-          isOpen={true}
+          isOpen={isSetupWizardOpen}
           propertyId={selectedPropertyForSetup.id}
           propertyName={selectedPropertyForSetup.name}
-          propertyAddress={selectedPropertyForSetup.address_line_1}
-          defaultRentAmount={selectedPropertyForSetup.rent_amount || 0}
+          defaultRentAmount={selectedPropertyForSetup.rent_amount}
           onClose={() => {
             setIsSetupWizardOpen(false);
             setSelectedPropertyForSetup(null);
           }}
-          onSuccess={() => {
+          onSuccess={async () => {
             setIsSetupWizardOpen(false);
             setSelectedPropertyForSetup(null);
-            loadData();
+            await loadData(true);
           }}
         />
       )}
 
       {/* Edit Tenant Drawer */}
-      {isEditDrawerOpen && selectedTenantForEdit && (
-        <TenantDrawer
-          isOpen={true}
-          tenant={selectedTenantForEdit}
-          propertyId={selectedTenantForEdit.property_id}
-          onClose={() => {
-            setIsEditDrawerOpen(false);
-            setSelectedTenantForEdit(null);
-          }}
-          onSuccess={() => {
-            loadData();
-          }}
-        />
-      )}
-    </ListPage>
+      <TenantDrawer
+        isOpen={isEditDrawerOpen}
+        propertyId={selectedTenantForEdit?.property_id || ''}
+        onClose={() => {
+          setIsEditDrawerOpen(false);
+          setSelectedTenantForEdit(null);
+        }}
+        onSuccess={async () => {
+          setIsEditDrawerOpen(false);
+          setSelectedTenantForEdit(null);
+          await loadData(true);
+        }}
+        tenant={selectedTenantForEdit as any}
+      />
+    </PageLayout>
   );
 }
