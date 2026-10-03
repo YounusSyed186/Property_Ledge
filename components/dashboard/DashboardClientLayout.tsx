@@ -93,7 +93,6 @@ const HIERARCHICAL_NAV: NavItemConfig[] = [
     label: 'Operations',
     icon: ClipboardText,
     children: [
-      { id: 'inspections', label: 'Inspections', href: '/dashboard/inspections' },
       { id: 'documents', label: 'Documents', href: '/dashboard/documents' },
       { id: 'automations', label: 'Automations', href: '/dashboard/automations' },
       { id: 'tasks', label: 'Tasks', href: '/dashboard/tasks' },

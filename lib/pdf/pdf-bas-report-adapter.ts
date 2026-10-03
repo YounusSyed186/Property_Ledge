@@ -1,5 +1,4 @@
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { BasWorksheetDTO, BasTransactionDTO } from '@/modules/finance/domain/types';
 import {
   A4_PAGE_WIDTH,
@@ -441,190 +440,98 @@ export class PdfBasReportAdapter {
     // 4. Goods and Services Tax (GST) Section
     currentY = this.drawSectionBanner(doc, 'Goods and services tax (GST)', currentY);
 
-    drawDetailRow('GST period', `${worksheet.dateRange?.startDate || '01/07/2025'} to ${worksheet.dateRange?.endDate || '30/09/2025'}`);
-
-    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, 'Using Simplified BAS option?');
-    this.drawFieldLabel(doc, STANDARD_MARGIN + 75, currentY + 4, simplifiedBas ? '[X] Yes    [ ] No' : '[ ] Yes    [X] No', true);
+    const gstPeriodStr = `${worksheet.dateRange?.startDate || '1 July 2024'} to ${worksheet.dateRange?.endDate || '30 June 2025'}`;
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, 'GST period');
+    this.drawFieldBox(doc, STANDARD_MARGIN + 55, currentY + 0.5, CONTENT_WIDTH - 57, 5, gstPeriodStr, true);
     currentY += 5.5;
 
-    // Total sales with single clean dollar sign
-    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, 'Total sales (including GST)');
-    const cleanSalesStr = formatCurrencyReport(worksheet.totals.totalSales).replace(/^\$/, '');
-    this.drawFieldBox(doc, STANDARD_MARGIN + 75, currentY + 0.5, 55, 5, `$ ${cleanSalesStr}`, true, 'left');
+    this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, 'Using Simpler BAS option?');
+    this.drawFieldBox(doc, A4_PAGE_WIDTH - STANDARD_MARGIN - 34, currentY + 0.5, 34, 5, simplifiedBas ? 'Yes' : 'No', true, 'center');
     currentY += 5.5;
+
+    // Total sales with code G1 pill
+    currentY = this.drawCalculationRow(
+      doc,
+      currentY,
+      'Total sales',
+      'G1',
+      formatCurrencyReport(worksheet.totals.totalSales),
+      5.5
+    );
 
     this.drawFieldLabel(doc, STANDARD_MARGIN + 2, currentY + 4, 'Does the amount shown at G1 include GST?');
-    this.drawFieldLabel(doc, STANDARD_MARGIN + 75, currentY + 4, '[X] Yes    [ ] No', true);
+    this.drawFieldBox(doc, A4_PAGE_WIDTH - STANDARD_MARGIN - 34, currentY + 0.5, 34, 5, 'Yes', true, 'center');
+    currentY += 5.5;
 
     // =========================================================================
-    // PAGE 2: SUMMARY & BUSINESS INCOME & EXPENSES TABLES
+    // PAGE 2: SUMMARY (Matching Official ATO Return - Image 1)
     // =========================================================================
     doc.addPage();
     let p2Y = this.drawPageHeader(doc, worksheet, taxpayer, 2, totalPages);
 
-    // 1. Summary Box
+    // Summary Section Banner
     p2Y = this.drawSectionBanner(doc, 'Summary', p2Y);
 
     // Amounts owing to the ATO
     this.drawFieldLabel(doc, STANDARD_MARGIN + 2, p2Y + 4, 'Amounts owing to the ATO', true, 8);
     p2Y += 5.5;
 
-    p2Y = this.drawCalculationRow(doc, p2Y, 'GST on sales or GST instalments', '1A', formatCurrencyReport(worksheet.totals.gstOnSales));
-    p2Y = this.drawCalculationRow(doc, p2Y, 'Total amount owing to the ATO', '1B', formatCurrencyReport(worksheet.totals.gstOnSales));
+    p2Y = this.drawCalculationRow(
+      doc,
+      p2Y,
+      'GST on sales or GST instalment',
+      '1A',
+      formatCurrencyReport(worksheet.totals.gstOnSales)
+    );
+    p2Y = this.drawCalculationRow(
+      doc,
+      p2Y,
+      'Total amount owing to the ATO',
+      '8A',
+      formatCurrencyReport(worksheet.totals.gstOnSales)
+    );
 
-    p2Y += 2;
+    p2Y += 3;
 
     // Amounts owing from the ATO
     this.drawFieldLabel(doc, STANDARD_MARGIN + 2, p2Y + 4, 'Amounts owing from the ATO', true, 8);
     p2Y += 5.5;
 
-    p2Y = this.drawCalculationRow(doc, p2Y, 'GST on purchases', '1B', formatCurrencyReport(worksheet.totals.gstOnExpenses));
-    p2Y = this.drawCalculationRow(doc, p2Y, 'Total amount owing from the ATO', '1C', formatCurrencyReport(worksheet.totals.gstOnExpenses));
+    p2Y = this.drawCalculationRow(
+      doc,
+      p2Y,
+      'GST on purchases',
+      '1B',
+      formatCurrencyReport(worksheet.totals.gstOnExpenses)
+    );
+    p2Y = this.drawCalculationRow(
+      doc,
+      p2Y,
+      'Total amount owing from the ATO',
+      '8B',
+      formatCurrencyReport(worksheet.totals.gstOnExpenses)
+    );
 
-    p2Y += 2;
+    p2Y += 3;
 
     // Payment or refund amount
     this.drawFieldLabel(doc, STANDARD_MARGIN + 2, p2Y + 4, 'Payment or refund amount', true, 8);
     p2Y += 5.5;
 
-    const netAmountDisplay = isPayable
+    const netAmountDue = isPayable
       ? formatCurrencyReport(worksheet.totals.netGstPosition)
-      : `-$${Math.abs(worksheet.totals.netGstPosition).toFixed(2)} (Refund)`;
-    p2Y = this.drawCalculationRow(doc, p2Y, isPayable ? 'Total amount due to ATO' : 'Total refund amount from ATO', '5', netAmountDisplay);
+      : `-$${Math.abs(worksheet.totals.netGstPosition).toFixed(2)}`;
 
-    p2Y += 6;
-
-    // 2. Business Income Table
-    p2Y = this.drawSectionBanner(doc, 'Business Income', p2Y);
-
-    const incomeTableRows = (worksheet.incomeByCategory.length > 0
-      ? worksheet.incomeByCategory
-      : [{ categoryName: 'Rental Income', gross: worksheet.totals.totalSales, gst: worksheet.totals.gstOnSales, net: worksheet.totals.totalSales - worksheet.totals.gstOnSales, basCode: 'G1' }]
-    ).map((row) => [
-      worksheet.periodLabel.split(' ')[0] || worksheet.period,
-      row.categoryName,
-      formatCurrencyReport(row.gross),
-      formatCurrencyReport(row.gst, true),
-      formatCurrencyReport(row.net),
-    ]);
-
-    // Totals Row
-    incomeTableRows.push([
-      'Totals',
-      '—',
-      `${formatCurrencyReport(worksheet.totals.totalSales)} (G1)`,
-      `${formatCurrencyReport(worksheet.totals.gstOnSales)} (1A)`,
-      formatCurrencyReport(worksheet.totals.totalSales - worksheet.totals.gstOnSales),
-    ]);
-
-    autoTable(doc, {
-      startY: p2Y,
-      head: [['Date', 'Source', 'Gross', 'GST', 'Net']],
-      body: incomeTableRows,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [51, 65, 85],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        fontSize: 7.5,
-        cellPadding: 2,
-      },
-      bodyStyles: { fontSize: 7.5, textColor: [15, 23, 42], cellPadding: 2 },
-      columnStyles: {
-        0: { cellWidth: 25 },
-        1: { cellWidth: 65, fontStyle: 'bold' },
-        2: { cellWidth: 32, halign: 'right' },
-        3: { cellWidth: 28, halign: 'right' },
-        4: { cellWidth: 'auto', halign: 'right' },
-      },
-      margin: { left: STANDARD_MARGIN, right: STANDARD_MARGIN },
-      didParseCell: (dataCell) => {
-        if (dataCell.section === 'body' && dataCell.row.index === incomeTableRows.length - 1) {
-          dataCell.cell.styles.fontStyle = 'bold';
-          dataCell.cell.styles.fillColor = [240, 243, 248];
-        }
-      },
-      didDrawPage: (dataPage) => {
-        p2Y = dataPage.cursor?.y ? dataPage.cursor.y + 6 : p2Y + 30;
-      },
-    });
-
-    // 3. Business Expenses Table
-    p2Y = this.drawSectionBanner(doc, 'Business Expenses', p2Y);
-
-    const expenseTableRows = (worksheet.expenseByCategory.length > 0
-      ? worksheet.expenseByCategory
-      : [
-          { categoryName: 'Property Maintenance', gross: 0, gst: 0, net: 0 },
-          { categoryName: 'Council Rates', gross: 0, gst: 0, net: 0 },
-        ]
-    ).map((row) => [
-      worksheet.periodLabel.split(' ')[0] || worksheet.period,
-      row.categoryName,
-      formatCurrencyReport(row.gross),
-      formatCurrencyReport(row.gst, true),
-      formatCurrencyReport(row.net),
-    ]);
-
-    // Totals Row
-    expenseTableRows.push([
-      'Totals',
-      '—',
-      `${formatCurrencyReport(worksheet.totals.totalExpenses)} (G11)`,
-      `${formatCurrencyReport(worksheet.totals.gstOnExpenses)} (1B)`,
-      formatCurrencyReport(worksheet.totals.totalExpenses - worksheet.totals.gstOnExpenses),
-    ]);
-
-    autoTable(doc, {
-      startY: p2Y,
-      head: [['Date', 'Expenses', 'Gross', 'GST', 'Net']],
-      body: expenseTableRows,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [51, 65, 85],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        fontSize: 7.5,
-        cellPadding: 2,
-      },
-      bodyStyles: { fontSize: 7.5, textColor: [15, 23, 42], cellPadding: 2 },
-      columnStyles: {
-        0: { cellWidth: 25 },
-        1: { cellWidth: 65, fontStyle: 'bold' },
-        2: { cellWidth: 32, halign: 'right' },
-        3: { cellWidth: 28, halign: 'right' },
-        4: { cellWidth: 'auto', halign: 'right' },
-      },
-      margin: { left: STANDARD_MARGIN, right: STANDARD_MARGIN },
-      didParseCell: (dataCell) => {
-        if (dataCell.section === 'body' && dataCell.row.index === expenseTableRows.length - 1) {
-          dataCell.cell.styles.fontStyle = 'bold';
-          dataCell.cell.styles.fillColor = [240, 243, 248];
-        }
-      },
-      didDrawPage: (dataPage) => {
-        p2Y = dataPage.cursor?.y ? dataPage.cursor.y + 6 : p2Y + 30;
-      },
-    });
-
-    // Net GST Position Summary Box on Page 2
-    doc.setFillColor(240, 243, 248);
-    doc.setDrawColor(...BW_BORDER);
-    doc.rect(STANDARD_MARGIN, p2Y, CONTENT_WIDTH, 8, 'FD');
-
-    this.drawFieldLabel(doc, STANDARD_MARGIN + 3.5, p2Y + 5.2, 'Net GST Payable / (Refundable)', true, 8.5);
-
-    const netBannerText = isPayable
-      ? `${formatCurrencyReport(worksheet.totals.netGstPosition)} (1A - 1B)`
-      : `-$${Math.abs(worksheet.totals.netGstPosition).toFixed(2)} (Refund) (1A - 1B)`;
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(...BW_TEXT_DARK);
-    doc.text(netBannerText, A4_PAGE_WIDTH - STANDARD_MARGIN - 3.5, p2Y + 5.2, { align: 'right' });
+    p2Y = this.drawCalculationRow(
+      doc,
+      p2Y,
+      'Total amount due',
+      '9',
+      netAmountDue
+    );
 
     // =========================================================================
-    // PAGE 3: OFFICIAL GST CALCULATION WORKSHEET (Matching Annotated Reference)
+    // PAGE 3: OFFICIAL GST CALCULATION WORKSHEET (Matching Annotated Reference - Image 3)
     // =========================================================================
     doc.addPage();
     let p3Y = this.drawPageHeader(
@@ -746,36 +653,6 @@ export class PdfBasReportAdapter {
       'GST on purchases (G19 divided by 11)',
       'G20',
       formatCurrencyReport(g20GstOnPurchases)
-    );
-
-    p3Y += 8;
-
-    // Section 3: Bottom Calculation Reconciliation Box
-    doc.setFillColor(240, 243, 248);
-    doc.setDrawColor(...BW_BORDER);
-    doc.rect(STANDARD_MARGIN, p3Y, CONTENT_WIDTH, 16, 'FD');
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(...BW_TEXT_DARK);
-    doc.text('ATO Calculation Reconciliation Summary', STANDARD_MARGIN + 3.5, p3Y + 5);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.2);
-    doc.setTextColor(...BW_TEXT_MUTED);
-    doc.text(
-      `GST on sales (G9 / 1A): ${formatCurrencyReport(g9GstOnSales)}   —   GST on purchases (G20 / 1B): ${formatCurrencyReport(g20GstOnPurchases)}`,
-      STANDARD_MARGIN + 3.5,
-      p3Y + 9.5
-    );
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(...BW_TEXT_DARK);
-    doc.text(
-      `Net GST Position (1A - 1B): ${isPayable ? formatCurrencyReport(worksheet.totals.netGstPosition) + ' (Payment Due to ATO)' : '-$' + Math.abs(worksheet.totals.netGstPosition).toFixed(2) + ' (Refund from ATO)'}`,
-      STANDARD_MARGIN + 3.5,
-      p3Y + 13.5
     );
 
     // Stamp footers across all pages

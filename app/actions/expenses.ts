@@ -107,7 +107,11 @@ export async function createExpenseAction(
     return { success: true, data };
   } catch (err: any) {
     console.error('Failed to create expense:', err);
-    return { success: false, error: err.message || 'Failed to create expense' };
+    let errorMessage = err?.message || 'Failed to create expense';
+    if (err?.name === 'ZodError' && Array.isArray(err?.errors)) {
+      errorMessage = err.errors.map((e: any) => e.message || `${e.path?.join('.')}: ${e.code}`).join('; ');
+    }
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -126,7 +130,11 @@ export async function updateExpenseAction(
     return { success: true, data };
   } catch (err: any) {
     console.error('Failed to update expense:', err);
-    return { success: false, error: err.message || 'Failed to update expense' };
+    let errorMessage = err?.message || 'Failed to update expense';
+    if (err?.name === 'ZodError' && Array.isArray(err?.errors)) {
+      errorMessage = err.errors.map((e: any) => e.message || `${e.path?.join('.')}: ${e.code}`).join('; ');
+    }
+    return { success: false, error: errorMessage };
   }
 }
 

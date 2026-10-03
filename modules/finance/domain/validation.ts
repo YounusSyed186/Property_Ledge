@@ -25,6 +25,9 @@ export const paymentMethodSchema = z.enum([
   'other',
 ]);
 
+const emptyToNull = (val: unknown) => (val === '' || val === undefined ? null : val);
+const emptyToUndefined = (val: unknown) => (val === '' ? undefined : val);
+
 export const createTransactionSchema = z.object({
   amount: z
     .number({ invalid_type_error: 'Amount is required and must be a number' })
@@ -35,30 +38,30 @@ export const createTransactionSchema = z.object({
     .string()
     .min(1, 'Transaction date is required')
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be formatted as YYYY-MM-DD'),
-  property_id: z.string().uuid('Property is required'),
-  workspace_id: z.string().uuid().optional(),
-  payment_method: paymentMethodSchema.nullable().optional(),
-  description: z.string().max(500, 'Description cannot exceed 500 characters').nullable().optional(),
-  reference: z.string().max(100, 'Reference cannot exceed 100 characters').nullable().optional(),
-  vendor_name: z.string().max(200, 'Vendor name cannot exceed 200 characters').nullable().optional(),
-  notes: z.string().max(2000, 'Notes cannot exceed 2000 characters').nullable().optional(),
+  property_id: z.preprocess(emptyToUndefined, z.string().uuid('Property is required')),
+  workspace_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+  payment_method: z.preprocess(emptyToNull, paymentMethodSchema.nullable().optional()),
+  description: z.preprocess(emptyToNull, z.string().max(500, 'Description cannot exceed 500 characters').nullable().optional()),
+  reference: z.preprocess(emptyToNull, z.string().max(100, 'Reference cannot exceed 100 characters').nullable().optional()),
+  vendor_name: z.preprocess(emptyToNull, z.string().max(200, 'Vendor name cannot exceed 200 characters').nullable().optional()),
+  notes: z.preprocess(emptyToNull, z.string().max(2000, 'Notes cannot exceed 2000 characters').nullable().optional()),
   status: transactionStatusSchema.default('completed'),
-  tenant_id: z.string().uuid().nullable().optional(),
-  lease_id: z.string().uuid().nullable().optional(),
-  invoice_id: z.string().uuid().nullable().optional(),
+  tenant_id: z.preprocess(emptyToNull, z.string().uuid().nullable().optional()),
+  lease_id: z.preprocess(emptyToNull, z.string().uuid().nullable().optional()),
+  invoice_id: z.preprocess(emptyToNull, z.string().uuid().nullable().optional()),
 
   // GST & Tax Classification
   gst_inclusive: z.boolean().default(false).optional(),
   gst_amount: z.number().min(0).default(0).optional(),
-  tax_classification_id: z.string().uuid().nullable().optional(),
+  tax_classification_id: z.preprocess(emptyToNull, z.string().uuid().nullable().optional()),
 
   // Receipt Attachment (Stored in Vercel Blob)
-  receipt_url: z.string().url().nullable().optional(),
-  receipt_blob_path: z.string().nullable().optional(),
-  receipt_file_name: z.string().nullable().optional(),
-  receipt_file_size: z.number().nullable().optional(),
-  receipt_mime_type: z.string().nullable().optional(),
-  receipt_uploaded_at: z.string().nullable().optional(),
+  receipt_url: z.preprocess(emptyToNull, z.string().url().nullable().optional()),
+  receipt_blob_path: z.preprocess(emptyToNull, z.string().nullable().optional()),
+  receipt_file_name: z.preprocess(emptyToNull, z.string().nullable().optional()),
+  receipt_file_size: z.preprocess(emptyToNull, z.number().nullable().optional()),
+  receipt_mime_type: z.preprocess(emptyToNull, z.string().nullable().optional()),
+  receipt_uploaded_at: z.preprocess(emptyToNull, z.string().nullable().optional()),
 });
 
 export const updateTransactionSchema = createTransactionSchema.partial();
@@ -150,27 +153,27 @@ export const createExpenseSchema = z.object({
   amount: z
     .number({ invalid_type_error: 'Amount is required and must be a number' })
     .positive('Amount must be greater than 0'),
-  property_id: z.string().uuid('Property is required'),
-  lease_id: z.string().uuid().nullable().optional(),
-  transaction_category_id: z.string().uuid().nullable().optional(),
+  property_id: z.preprocess(emptyToUndefined, z.string().uuid('Property is required')),
+  lease_id: z.preprocess(emptyToNull, z.string().uuid('Invalid lease ID').nullable().optional()),
+  transaction_category_id: z.preprocess(emptyToNull, z.string().uuid('Invalid category ID').nullable().optional()),
   expense_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be formatted as YYYY-MM-DD').optional(),
   transaction_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be formatted as YYYY-MM-DD').optional(),
-  vendor_name: z.string().max(200, 'Vendor name cannot exceed 200 characters').nullable().optional(),
-  description: z.string().max(500, 'Description cannot exceed 500 characters').nullable().optional(),
-  reference: z.string().max(100, 'Reference cannot exceed 100 characters').nullable().optional(),
-  notes: z.string().max(2000, 'Notes cannot exceed 2000 characters').nullable().optional(),
+  vendor_name: z.preprocess(emptyToNull, z.string().max(200, 'Vendor name cannot exceed 200 characters').nullable().optional()),
+  description: z.preprocess(emptyToNull, z.string().max(500, 'Description cannot exceed 500 characters').nullable().optional()),
+  reference: z.preprocess(emptyToNull, z.string().max(100, 'Reference cannot exceed 100 characters').nullable().optional()),
+  notes: z.preprocess(emptyToNull, z.string().max(2000, 'Notes cannot exceed 2000 characters').nullable().optional()),
   status: expenseStatusSchema.default('completed'),
-  payment_method: paymentMethodSchema.nullable().optional(),
-  receipt_url: z.string().max(1000).nullable().optional(),
-  receipt_blob_path: z.string().nullable().optional(),
-  receipt_file_name: z.string().nullable().optional(),
-  receipt_file_size: z.number().nullable().optional(),
-  receipt_mime_type: z.string().nullable().optional(),
-  receipt_uploaded_at: z.string().nullable().optional(),
-  workspace_id: z.string().uuid().optional(),
+  payment_method: z.preprocess(emptyToNull, paymentMethodSchema.nullable().optional()),
+  receipt_url: z.preprocess(emptyToNull, z.string().max(1000).nullable().optional()),
+  receipt_blob_path: z.preprocess(emptyToNull, z.string().nullable().optional()),
+  receipt_file_name: z.preprocess(emptyToNull, z.string().nullable().optional()),
+  receipt_file_size: z.preprocess(emptyToNull, z.number().nullable().optional()),
+  receipt_mime_type: z.preprocess(emptyToNull, z.string().nullable().optional()),
+  receipt_uploaded_at: z.preprocess(emptyToNull, z.string().nullable().optional()),
+  workspace_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
   gst_inclusive: z.boolean().default(false).optional(),
   gst_amount: z.number().min(0).default(0).optional(),
-  tax_classification_id: z.string().uuid().nullable().optional(),
+  tax_classification_id: z.preprocess(emptyToNull, z.string().uuid().nullable().optional()),
   attachments: z.array(z.object({
     blob_url: z.string(),
     blob_path: z.string(),

@@ -273,7 +273,7 @@ export function ExpenseModal({
         const updatePayload: UpdateExpenseInput = {
           property_id: propertyId,
           lease_id: leaseId || null,
-          transaction_category_id: categoryId,
+          transaction_category_id: categoryId || null,
           amount: parsedAmount,
           transaction_date: expenseDate,
           vendor_name: vendorName.trim() || null,
@@ -309,7 +309,7 @@ export function ExpenseModal({
         const createPayload: CreateExpenseInput = {
           property_id: propertyId,
           lease_id: leaseId || null,
-          transaction_category_id: categoryId,
+          transaction_category_id: categoryId || null,
           amount: parsedAmount,
           transaction_date: expenseDate,
           vendor_name: vendorName.trim() || null,
