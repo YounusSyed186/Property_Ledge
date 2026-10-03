@@ -90,8 +90,8 @@ export function WorkspaceSelector({ className, showCreateLink = true, variant = 
     return () => window.removeEventListener('workspace-avatar-updated', handleWorkspaceAvatarUpdated);
   }, [refreshBootstrap]);
 
-  const filteredWorkspaces = workspaces.filter((w) =>
-    w.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredWorkspaces = (workspaces || []).filter((w) =>
+    (w?.name || '').toLowerCase().includes((searchQuery || '').toLowerCase())
   );
 
   const handleSelect = async (workspace: (typeof workspaces)[0]) => {

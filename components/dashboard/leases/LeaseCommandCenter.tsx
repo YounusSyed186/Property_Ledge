@@ -84,7 +84,7 @@ export function LeaseCommandCenter({
         <div className="flex-1 flex flex-col justify-center min-w-0">
           <div className="mb-3.5">
             <h2 className="text-xl sm:text-[22px] font-heading font-bold text-white tracking-tight">
-              Lease Command Center
+              Leases
             </h2>
             <p className="text-xs sm:text-[13px] text-white/80 mt-0.5 font-normal">
               Your lease portfolio at a glance

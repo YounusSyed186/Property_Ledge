@@ -54,10 +54,13 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
     };
   }, []);
 
-  const filteredProperties = availableProperties.filter(p =>
-    p.propertyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.organizationName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProperties = (availableProperties || []).filter((p) => {
+    if (!p) return false;
+    const query = (searchQuery || '').toLowerCase();
+    const propName = (p.propertyName || '').toLowerCase();
+    const orgName = (p.organizationName || '').toLowerCase();
+    return propName.includes(query) || orgName.includes(query);
+  });
 
   const isNavbar = variant === 'navbar';
   const triggerClass = isNavbar
@@ -80,7 +83,7 @@ export function PropertySelector({ className, showCreateLink = true, onCreateCli
     }
   };
 
-  const currentDisplayName = selectedProperty ? selectedProperty.propertyName : 'All Properties';
+  const currentDisplayName = selectedProperty?.propertyName || 'All Properties';
 
   return (
     <div
