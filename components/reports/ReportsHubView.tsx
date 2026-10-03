@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   BarChart3,
@@ -33,6 +34,7 @@ import { GstReportTab } from '@/components/reports/GstReportTab';
 import { TaxClassificationTab } from '@/components/reports/TaxClassificationTab';
 import { PropertyPerformanceTab } from '@/components/reports/PropertyPerformanceTab';
 import { TransactionDetailTab } from '@/components/reports/TransactionDetailTab';
+import { cn } from '@/lib/utils';
 
 interface ReportsHubViewProps {
   initialReportType: FinanceReportType;
@@ -89,6 +91,7 @@ export function ReportsHubView({
     if (newFilters.financialYear) params.set('fy', String(newFilters.financialYear));
     if (newFilters.propertyId) params.set('propertyId', newFilters.propertyId);
     if (newFilters.categoryId) params.set('categoryId', newFilters.categoryId);
+    if (newFilters.transactionType) params.set('type', newFilters.transactionType);
     if (newFilters.taxClassificationId) params.set('taxClassificationId', newFilters.taxClassificationId);
     if (newFilters.dateFrom) params.set('from', newFilters.dateFrom);
     if (newFilters.dateTo) params.set('to', newFilters.dateTo);
@@ -125,6 +128,10 @@ export function ReportsHubView({
     loadData(activeTab, newFilters);
   };
 
+  const handleRefresh = () => {
+    loadData(activeTab, filters);
+  };
+
   // Initial load if no initialData was hydrated
   useEffect(() => {
     if (!initialData) {
@@ -133,87 +140,113 @@ export function ReportsHubView({
   }, []);
 
   return (
-    <div className="h-full w-full min-h-0 flex-1 overflow-y-auto overscroll-contain">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-admin-border pb-5">
-        <div>
-          <h1 className="font-heading text-page-title font-bold tracking-tight text-admin-foreground flex items-center gap-2.5">
-            <PieChart className="w-6 h-6 text-admin-primary" />
-            Financial Reporting & Insights
-          </h1>
-          <p className="mt-1 text-body-sm text-admin-muted">
-            Australian Financial Year compliant reporting, cash flow analysis, BAS tracking, and tax categorization.
-          </p>
+    <div className="h-full w-full min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F7FAFC] dark:bg-[#07111F]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-6">
+        {/* Breadcrumb Navigation */}
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <Link href="/dashboard/money" className="hover:text-[#008F83] dark:hover:text-[#32D5C4] transition-colors">
+            Financials
+          </Link>
+          <span className="text-slate-400">/</span>
+          <span className="text-slate-800 dark:text-slate-200">Reports</span>
         </div>
 
-        <div className="flex items-center gap-3">
-          <ExportDropdown reportType={activeTab} filters={filters} />
-        </div>
-      </div>
-
-      {/* Global Filter Bar */}
-      <ReportFilterBar
-        filters={filters}
-        onFilterChange={handleFilterChange}
-        properties={filterOptions.properties}
-        categories={filterOptions.categories}
-        taxClassifications={filterOptions.taxClassifications}
-      />
-
-      {/* Report Navigation Tabs */}
-      <div className="border-b border-admin-border">
-        <nav className="flex space-x-2 overflow-x-auto pb-2 scrollbar-none" aria-label="Reports">
-          {REPORT_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabSelect(tab.id)}
-                className={`flex items-center gap-2 py-2.5 px-4 rounded-xl text-body-sm font-semibold transition-all whitespace-nowrap cursor-pointer min-h-[42px] ${
-                  isActive
-                    ? 'bg-admin-primary text-white shadow-sm shadow-admin-primary/20'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-admin-foreground hover:bg-admin-surface-subtle/80'
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Active Tab Content Area */}
-      <div className="mt-6">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 bg-admin-surface rounded-2xl border border-admin-border">
-            <Loader2 className="w-8 h-8 animate-spin text-admin-primary mb-3" />
-            <div className="text-body-sm font-medium text-admin-muted">
-              Aggregating Australian Financial Year data...
-            </div>
-          </div>
-        ) : errorMessage ? (
-          <div className="p-6 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl text-rose-700 dark:text-rose-300">
-            <h3 className="text-base font-bold">Error loading report</h3>
-            <p className="mt-1 text-body-sm">{errorMessage}</p>
-          </div>
-        ) : reportData ? (
+        {/* Page Header Bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-1">
           <div>
-            {activeTab === 'overview' && <FinancialOverviewTab data={reportData} />}
-            {activeTab === 'income' && <IncomeReportTab data={reportData} />}
-            {activeTab === 'expenses' && <ExpenseReportTab data={reportData} />}
-            {activeTab === 'cashflow' && <CashFlowTab data={reportData} />}
-            {activeTab === 'rent-reconciliation' && <RentReconciliationTab data={reportData} />}
-            {activeTab === 'gst' && <GstReportTab data={reportData} />}
-            {activeTab === 'tax-classification' && <TaxClassificationTab data={reportData} />}
-            {activeTab === 'property-performance' && <PropertyPerformanceTab data={reportData} />}
-            {activeTab === 'transactions' && <TransactionDetailTab data={reportData} />}
+            <h1 className="text-2xl sm:text-[28px] lg:text-[30px] font-bold tracking-tight text-slate-900 dark:text-white">
+              Financial Reporting & Insights
+            </h1>
+            <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+              Analyze your financial performance across properties, categories, and reporting periods.
+            </p>
           </div>
-        ) : null}
+
+          <div className="flex items-center gap-3 shrink-0">
+            <ExportDropdown reportType={activeTab} filters={filters} />
+          </div>
+        </div>
+
+        {/* Unified Filter Toolbar */}
+        <ReportFilterBar
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          properties={filterOptions.properties}
+          categories={filterOptions.categories}
+          taxClassifications={filterOptions.taxClassifications}
+          onRefresh={handleRefresh}
+          isRefreshing={isLoading}
+        />
+
+        {activeTab !== 'overview' && (
+          <div className="border-b border-slate-200/80 dark:border-slate-800">
+            <nav className="flex space-x-1.5 overflow-x-auto pb-2 scrollbar-none" aria-label="Reports Navigation">
+              {REPORT_TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabSelect(tab.id)}
+                    className={cn(
+                      'flex items-center gap-2 py-2 px-3.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer min-h-[38px]',
+                      isActive
+                        ? 'bg-[#008F83] text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+                    )}
+                  >
+                    <Icon className={cn('w-4 h-4', isActive ? 'text-white' : 'text-slate-400')} />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        )}
+
+        {/* Active Tab Content Area */}
+        <div className="mt-6">
+          {isLoading && !reportData ? (
+            <div className="space-y-6 animate-pulse">
+              {/* Skeletons for 3 KPIs */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-32 bg-white dark:bg-[#0B1726] border border-border rounded-2xl p-5" />
+                ))}
+              </div>
+              {/* Skeleton for Analytics */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <div className="lg:col-span-8 h-80 bg-white dark:bg-[#0B1726] border border-border rounded-2xl" />
+                <div className="lg:col-span-4 h-80 bg-white dark:bg-[#0B1726] border border-border rounded-2xl" />
+              </div>
+            </div>
+          ) : errorMessage ? (
+            <div className="p-6 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl text-rose-700 dark:text-rose-300 space-y-3">
+              <h3 className="text-base font-bold">Unable to load financial report</h3>
+              <p className="text-xs text-rose-600 dark:text-rose-400">{errorMessage}</p>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : reportData ? (
+            <div>
+              {activeTab === 'overview' && <FinancialOverviewTab data={reportData} />}
+              {activeTab === 'income' && <IncomeReportTab data={reportData} />}
+              {activeTab === 'expenses' && <ExpenseReportTab data={reportData} />}
+              {activeTab === 'cashflow' && <CashFlowTab data={reportData} />}
+              {activeTab === 'rent-reconciliation' && <RentReconciliationTab data={reportData} />}
+              {activeTab === 'gst' && <GstReportTab data={reportData} />}
+              {activeTab === 'tax-classification' && <TaxClassificationTab data={reportData} />}
+              {activeTab === 'property-performance' && <PropertyPerformanceTab data={reportData} />}
+              {activeTab === 'transactions' && <TransactionDetailTab data={reportData} />}
+            </div>
+          ) : null}
+        </div>
       </div>
-    </div>
     </div>
   );
 }
