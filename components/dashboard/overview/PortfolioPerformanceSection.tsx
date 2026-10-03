@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { formatCurrencyNoDecimals } from '@/lib/format/currency';
 import type { UserPropertyAccess } from '@/lib/properties/queries';
+import { PortfolioPatternPieChart } from './PortfolioPatternPieChart';
 import { cn } from '@/lib/utils';
 
 export interface PropertyPerformanceItem {
@@ -202,123 +203,15 @@ export function PortfolioPerformanceSection({
         </div>
       </div>
 
-      {/* RIGHT (4 COLS / ~32%): Visual Circular Occupancy & Mix Gauge */}
-      <div className="lg:col-span-4 rounded-[24px] border border-slate-200/80 dark:border-[#17283A] bg-white dark:bg-[#07111F] p-6 lg:p-7 shadow-[0_2px_12px_rgba(0,0,0,0.02)] dark:shadow-none flex flex-col justify-between">
-        <div>
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-heading font-bold text-slate-900 dark:text-white tracking-tight">
-              Portfolio
-            </h3>
-            <span className="text-[11px] font-bold text-slate-400 dark:text-[#7F8B99]">
-              {properties.length} Assets
-            </span>
-          </div>
-
-          {/* Integrated Circular Donut Ring */}
-          <div className="mt-5 flex flex-col items-center justify-center">
-            <div className="relative w-36 h-36 flex items-center justify-center">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
-                {/* Background Ring */}
-                <circle
-                  cx="60"
-                  cy="60"
-                  r={radius}
-                  className="text-slate-100 dark:text-[#0E1E33]"
-                  strokeWidth="10"
-                  stroke="currentColor"
-                  fill="transparent"
-                />
-                {/* Active Occupancy Arc */}
-                <circle
-                  cx="60"
-                  cy="60"
-                  r={radius}
-                  className="text-[#008F83] dark:text-[#32D5C4] transition-all duration-700 ease-out"
-                  strokeWidth="10"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeDashoffset}
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="transparent"
-                />
-              </svg>
-
-              {/* Center Metric */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="font-heading text-2xl sm:text-3xl font-bold tabular-nums text-slate-900 dark:text-white">
-                  {occupancyRate}%
-                </span>
-                <span className="text-[10.5px] font-medium text-slate-400 dark:text-[#7F8B99]">
-                  Occupancy
-                </span>
-              </div>
-            </div>
-
-            {/* Occupied vs Vacant Split */}
-            <div className="mt-4 flex items-center gap-6 text-xs">
-              <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[#008F83] dark:bg-[#32D5C4]" />
-                <span className="text-slate-600 dark:text-[#94A3B8]">Occupied</span>
-                <span className="font-bold text-slate-900 dark:text-white tabular-nums">{occupancyRate}%</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-slate-200 dark:bg-[#1E293B]" />
-                <span className="text-slate-600 dark:text-[#94A3B8]">Vacant</span>
-                <span className="font-bold text-slate-900 dark:text-white tabular-nums">{vacantRate}%</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Asset Mix Breakdown */}
-          <div className="mt-6 pt-5 border-t border-slate-100 dark:border-[#17283A]/80 space-y-2.5">
-            <span className="text-xs font-semibold text-slate-500 dark:text-[#7F8B99]">
-              Asset mix
-            </span>
-
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-700 dark:text-slate-300 font-medium">Residential</span>
-                <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
-                  {categoryBreakdown.residential} ({resPercentage}%)
-                </span>
-              </div>
-              <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-[#0E1E33] overflow-hidden">
-                <div
-                  style={{ width: `${resPercentage}%` }}
-                  className="h-full rounded-full bg-[#008F83] dark:bg-[#32D5C4]"
-                />
-              </div>
-            </div>
-
-            {categoryBreakdown.commercial > 0 && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-700 dark:text-slate-300 font-medium">Commercial</span>
-                  <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
-                    {categoryBreakdown.commercial} ({comPercentage}%)
-                  </span>
-                </div>
-                <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-[#0E1E33] overflow-hidden">
-                  <div
-                    style={{ width: `${comPercentage}%` }}
-                    className="h-full rounded-full bg-sky-500"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Action Link */}
-        <div className="mt-6 pt-4 border-t border-slate-100 dark:border-[#17283A]/80">
-          <Link
-            href="/dashboard/leases"
-            className="text-xs font-semibold text-[#008F83] dark:text-[#32D5C4] hover:underline inline-flex items-center gap-1"
-          >
-            <span>View all leases</span>
-            <span>→</span>
-          </Link>
-        </div>
+      {/* RIGHT (4 COLS / ~32%): Visual Pattern Pie Chart & Portfolio Mix */}
+      <div className="lg:col-span-4 flex flex-col justify-between">
+        <PortfolioPatternPieChart
+          occupancyRate={occupancyRate}
+          residentialCount={categoryBreakdown.residential}
+          commercialCount={categoryBreakdown.commercial}
+          totalProperties={properties.length}
+          className="h-full flex flex-col justify-between"
+        />
       </div>
     </div>
   );

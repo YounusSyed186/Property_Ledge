@@ -40,6 +40,7 @@ import { InvoiceDTO, CreateInvoiceDTO, UpdateInvoiceDTO } from '@/modules/invoic
 import { formatCurrency } from '@/modules/invoices/domain/value-objects/currency';
 import {
   fetchInvoicesAction,
+  fetchInvoiceByIdAction,
   createInvoiceAction,
   updateInvoiceAction,
   issueInvoiceAction,
@@ -205,6 +206,20 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
   }, [scopedInvoices]);
 
   // Actions
+  const handleViewInvoice = async (invoice: InvoiceDTO) => {
+    setSelectedInvoice(invoice);
+    const detailedInvoice = await fetchInvoiceByIdAction(invoice.id);
+    if (detailedInvoice) {
+      setSelectedInvoice((current) => current?.id === invoice.id ? detailedInvoice : current);
+    }
+  };
+
+  const handleEditInvoice = async (invoice: InvoiceDTO) => {
+    const detailedInvoice = await fetchInvoiceByIdAction(invoice.id);
+    setInvoiceToEdit(detailedInvoice || invoice);
+    setIsCreateOpen(true);
+  };
+
   const handleCreateSubmit = async (
     dto: CreateInvoiceDTO,
     issueImmediately = false,
@@ -587,7 +602,7 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setSelectedInvoice(inv);
+                  void handleViewInvoice(inv);
                 }}
                 className="px-2 py-1 text-admin-primary hover:bg-admin-primary/10 rounded transition-colors inline-flex items-center gap-1 font-bold text-xs"
                 title="View Invoice"
@@ -598,8 +613,7 @@ export function InvoiceList({ initialInvoices }: { initialInvoices?: InvoiceDTO[
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setInvoiceToEdit(inv);
-                    setIsCreateOpen(true);
+                    void handleEditInvoice(inv);
                   }}
                   className="p-1 text-admin-muted hover:text-admin-foreground hover:bg-admin-surface-subtle rounded transition-colors"
                   title="Edit Invoice"

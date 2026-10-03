@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  overflow-x: hidden;
+  min-height: 100%;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
 /* ============================================================
    PROPERTYLEDGE DESIGN TOKEN SYSTEM
    ============================================================ */
@@ -34,6 +50,23 @@
   --warning: #D97706;
   --danger: #DC2626;
   --info: #0284C7;
+  --primary: #008F83;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --input: #E2E8F0;
+  --ring: #008F83;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --chart-1: #008F83;
+  --chart-2: #0284C7;
+  --chart-3: #D97706;
+  --chart-4: #E11D48;
+  --chart-5: #8B5CF6;
   --shadow-color: rgba(15, 23, 42, 0.04);
   --scrollbar-thumb: rgba(15, 23, 42, 0.16);
   --scrollbar-thumb-hover: rgba(15, 23, 42, 0.28);
@@ -105,6 +138,23 @@
   --warning: #B77908;
   --danger: #D64545;
   --info: #28709E;
+  --primary: #008F83;
+  --primary-foreground: #FFFFFF;
+  --secondary: #152538;
+  --secondary-foreground: #F4F7F9;
+  --input: #1B2B3D;
+  --ring: #008F83;
+  --card: #0B1726;
+  --card-foreground: #F4F7F9;
+  --popover: #0B1726;
+  --popover-foreground: #F4F7F9;
+  --destructive: #D64545;
+  --destructive-foreground: #FFFFFF;
+  --chart-1: #00A99D;
+  --chart-2: #38BDF8;
+  --chart-3: #FBBF24;
+  --chart-4: #FB7185;
+  --chart-5: #A78BFA;
   --shadow-color: rgba(0, 0, 0, 0.55);
   --scrollbar-thumb: rgba(255, 255, 255, 0.18);
   --scrollbar-thumb-hover: rgba(255, 255, 255, 0.32);

@@ -14,6 +14,11 @@ test.describe('Permission-based nav', () => {
     expect(canAccessNavItem('manager', 'team', ['team.member.view'])).toBe(true);
   });
 
+  test('automation access requires settings permission, not property visibility alone', () => {
+    expect(canAccessNavItem('viewer', 'automations', ['property.view'])).toBe(false);
+    expect(canAccessNavItem('manager', 'automations', ['team.settings.view'])).toBe(true);
+  });
+
   test('falls back to persona when no permissions provided', () => {
     expect(canAccessNavItem('owner', 'portfolio')).toBe(true);
     expect(canAccessNavItem('viewer', 'people')).toBe(false);

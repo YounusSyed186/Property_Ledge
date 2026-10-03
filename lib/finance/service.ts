@@ -15,7 +15,11 @@ import {
   isIncome,
   isExpense,
 } from '@/modules/finance/domain/calculations';
-import { createTransactionSchema, updateTransactionSchema } from '@/modules/finance/domain/validation';
+import {
+  assertPropertyWorkspaceMatch,
+  createTransactionSchema,
+  updateTransactionSchema,
+} from '@/modules/finance/domain/validation';
 
 /**
  * Fetch all active financial categories (or filtered by income/expense)
@@ -252,21 +256,18 @@ export async function createTransaction(
   }
 
   // 2. Resolve Workspace ID from Property if not explicitly passed
-  let workspaceId = validated.workspace_id;
-  if (!workspaceId) {
-    const { data: propData, error: propError } = await supabase
-      .from('properties')
-      .select('id, workspace_id')
-      .eq('id', validated.property_id)
-      .single();
+  const { data: propData, error: propError } = await supabase
+    .from('properties')
+    .select('id, workspace_id')
+    .eq('id', validated.property_id)
+    .single();
 
-    const property = propData as { id: string; workspace_id: string } | null;
-
-    if (propError || !property) {
-      throw new Error('Associated property was not found.');
-    }
-    workspaceId = property.workspace_id;
+  const property = propData as { id: string; workspace_id: string } | null;
+  if (propError || !property) {
+    throw new Error('Associated property was not found.');
   }
+  const workspaceId = property.workspace_id;
+  if (validated.workspace_id) assertPropertyWorkspaceMatch(validated.workspace_id, workspaceId);
 
   // 3. If lease_id is provided, verify it exists and belongs to the selected property
   if (validated.lease_id) {
@@ -664,6 +665,26 @@ export async function createBatchAutoAllocatedTransactions(
 
   if (validAllocations.length === 0) {
     throw new Error('No non-zero allocations provided for batch processing.');
+  }
+
+  for (const allocation of validAllocations) {
+    const { data: leaseData, error: leaseError } = await supabase
+      .from('leases')
+      .select('id, property_id, property:properties!inner(workspace_id)')
+      .eq('id', allocation.lease_id)
+      .maybeSingle();
+
+    const lease = leaseData as unknown as {
+      id: string;
+      property_id: string;
+      property: { workspace_id: string };
+    } | null;
+
+    if (leaseError || !lease) throw new Error('An allocated lease was not found.');
+    if (lease.property_id !== allocation.property_id) {
+      throw new Error('An allocated lease does not belong to its selected property.');
+    }
+    assertPropertyWorkspaceMatch(input.workspace_id, lease.property.workspace_id);
   }
 
   const batchRef = `ALLOC-${Date.now().toString().slice(-6)}`;

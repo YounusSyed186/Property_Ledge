@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
+  assertPropertyWorkspaceMatch,
   createTransactionSchema,
   updateTransactionSchema,
   transactionFilterSchema,
@@ -35,6 +36,12 @@ test.describe('PropertyLedge Expense Tracking - Unit, Integrity & Ledger Tests',
 
   // 1. Validation Tests
   test.describe('1. Expense Validation Rules', () => {
+    test('rejects transactions whose property belongs to another workspace', () => {
+      expect(() => assertPropertyWorkspaceMatch(sampleWorkspaceId, '99999999-9999-4999-8999-999999999999'))
+        .toThrow('Selected property does not belong to the active workspace.');
+      expect(() => assertPropertyWorkspaceMatch(sampleWorkspaceId, sampleWorkspaceId)).not.toThrow();
+    });
+
     test('Should successfully validate a standard expense with mandatory fields and no lease', () => {
       const validExpenseInput: CreateTransactionInput = {
         amount: 350.5,

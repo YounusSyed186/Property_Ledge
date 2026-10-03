@@ -112,7 +112,7 @@ export const CANONICAL_ROUTES: RouteConfig[] = [
     group: 'Operations',
     requiresWorkspace: true,
     supportsPropertyFilter: false,
-    permission: 'automation.view',
+    permission: 'team.settings.view',
   },
   {
     id: 'documents',

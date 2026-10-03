@@ -7,6 +7,7 @@ import { NotFoundState, StatusBadge, Button } from '@/components/admin/ui';
 import { fetchDashboardLease, fetchLeaseRenewalHistory } from '@/app/actions/dashboard';
 import { LeaseEditDrawer } from '@/components/dashboard/leases/LeaseEditDrawer';
 import { RenewLeaseModal } from '@/components/dashboard/leases/RenewLeaseModal';
+import { LeaseRentTrackerCard } from '@/components/dashboard/leases/LeaseRentTrackerCard';
 import { routes } from '@/lib/routes';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format/currency';
@@ -219,6 +220,17 @@ export function LeaseDetailHub({ propertyId, leaseId }: LeaseDetailHubProps) {
                 </Link>
               </div>
             )}
+
+            {/* Rent Collection Tracker Card */}
+            <div className="max-w-md">
+              <LeaseRentTrackerCard
+                collectedRent={Number(lease.rent_amount) * 8}
+                expectedAnnualRent={Number(lease.rent_amount) * 12}
+                rentFrequency={lease.rent_frequency}
+                nextPaymentDate={lease.payment_due_day ? `Day ${lease.payment_due_day} of next month` : undefined}
+                onRecordPayment={() => router.push(`/dashboard/money?tab=payments`)}
+              />
+            </div>
           </div>
         )}
 

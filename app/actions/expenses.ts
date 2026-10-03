@@ -43,7 +43,7 @@ export async function fetchExpensesPageDataAction(
     const { context } = await getAuthContext();
     const data = await expenseService.getExpensesPageData({
       ...filters,
-      workspace_id: filters.workspace_id || context.workspaceId,
+      workspace_id: context.workspaceId,
     });
     return { success: true, data };
   } catch (err: any) {
@@ -62,7 +62,7 @@ export async function fetchExpensesAction(
     const { context } = await getAuthContext();
     const data = await expenseService.getExpenses({
       ...filters,
-      workspace_id: filters.workspace_id || context.workspaceId,
+      workspace_id: context.workspaceId,
     });
     return { success: true, data };
   } catch (err: any) {
@@ -78,9 +78,9 @@ export async function fetchExpenseByIdAction(
   id: string
 ): Promise<{ success: boolean; data?: ExpenseDTO | null; error?: string }> {
   try {
-    await getAuthContext();
+    const { context } = await getAuthContext();
     const data = await expenseService.getExpenseById(id);
-    return { success: true, data };
+    return { success: true, data: data?.workspace_id === context.workspaceId ? data : null };
   } catch (err: any) {
     console.error('Failed to get expense:', err);
     return { success: false, error: err.message || 'Failed to get expense' };
@@ -98,7 +98,7 @@ export async function createExpenseAction(
     const data = await expenseService.createExpense(
       {
         ...input,
-        workspace_id: input.workspace_id || context.workspaceId,
+        workspace_id: context.workspaceId,
       },
       user.id
     );
@@ -123,7 +123,11 @@ export async function updateExpenseAction(
   input: UpdateExpenseInput
 ): Promise<{ success: boolean; data?: ExpenseDTO; error?: string }> {
   try {
-    const { user } = await getAuthContext();
+    const { user, context } = await getAuthContext();
+    const current = await expenseService.getExpenseById(id);
+    if (!current || current.workspace_id !== context.workspaceId) {
+      return { success: false, error: 'Expense transaction not found in the active workspace.' };
+    }
     const data = await expenseService.updateExpense(id, input, user.id);
 
     revalidateExpensePaths();
@@ -145,7 +149,11 @@ export async function deleteExpenseAction(
   id: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { user } = await getAuthContext();
+    const { user, context } = await getAuthContext();
+    const current = await expenseService.getExpenseById(id);
+    if (!current || current.workspace_id !== context.workspaceId) {
+      return { success: false, error: 'Expense transaction not found in the active workspace.' };
+    }
     await expenseService.deleteExpense(id, user.id);
 
     revalidateExpensePaths();

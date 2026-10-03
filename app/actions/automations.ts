@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { resolveWorkspaceContext } from '@/lib/workspace/context';
 import { getCurrentUser } from '@/lib/auth/queries';
+import { authorizeOrThrow } from '@/lib/auth/authorize';
+import type { TeamPermission } from '@/lib/auth/authorization';
 import { createAdminClient } from '@/lib/supabase/server';
 import { actionRegistry } from '@/modules/automation/application/actions/action-registry';
 import { SendLeaseAction } from '@/modules/automation/application/actions/send-lease-action';
@@ -17,12 +19,34 @@ import { container } from '@/composition/container';
 const isUuid = (val?: string | null): boolean =>
   typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
+async function resolveWorkspaceInvoiceTemplateId(
+  supabase: any,
+  templateId: string | undefined,
+  workspaceId: string
+): Promise<string | null> {
+  if (!templateId) return null;
+  if (!isUuid(templateId)) throw new Error('Invoice template ID is invalid.');
+
+  const { data, error } = await supabase
+    .from('invoice_templates')
+    .select('id')
+    .eq('id', templateId)
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+
+  if (error || !data) throw new Error('Invoice template not found in the active workspace.');
+  return data.id;
+}
+
 actionRegistry.register(new SendLeaseAction());
 
-async function getContext() {
+async function getContext(permission?: TeamPermission) {
   const [user, context] = await Promise.all([getCurrentUser(), resolveWorkspaceContext()]);
   if (!user || !context) {
     throw new Error('Unauthorized or no active workspace');
+  }
+  if (permission) {
+    await authorizeOrThrow({ workspaceId: context.workspaceId, permission });
   }
   return { user, context };
 }
@@ -75,7 +99,7 @@ export async function fetchAutomationsAction(filters?: {
   leaseId?: string;
 }): Promise<AutomationItem[]> {
   try {
-    const { context } = await getContext();
+    const { context } = await getContext('team.settings.view');
     const supabase = await createAdminClient();
 
     let query = (supabase as any)
@@ -201,7 +225,7 @@ export interface CreateLeaseAutomationDTO {
 
 export async function createLeaseAutomationAction(dto: CreateLeaseAutomationDTO) {
   try {
-    const { user, context } = await getContext();
+    const { user, context } = await getContext('team.settings.update');
     const supabase = await createAdminClient();
 
     if (!dto.leaseId) {
@@ -213,31 +237,28 @@ export async function createLeaseAutomationAction(dto: CreateLeaseAutomationDTO)
       .from('leases')
       .select(`
         *,
-        property:properties(name),
+        property:properties!inner(name, workspace_id),
         lease_tenants!lease_tenants_lease_id_fkey(
           tenant:tenants!lease_tenants_tenant_id_fkey(first_name, last_name, email, phone)
         )
       `)
       .eq('id', dto.leaseId)
+      .eq('property.workspace_id', context.workspaceId)
       .maybeSingle();
 
-    let lease = rawLease as any;
-
-    if (!lease) {
-      const { data: simpleLease, error: simpleErr } = await (supabase as any)
-        .from('leases')
-        .select('*')
-        .eq('id', dto.leaseId)
-        .maybeSingle();
-
-      if (simpleErr || !simpleLease) {
-        return {
-          success: false,
-          error: `Target lease not found (${dto.leaseId}).`,
-        };
-      }
-      lease = simpleLease;
+    const lease = rawLease as any;
+    if (leaseErr || !lease) {
+      return {
+        success: false,
+        error: `Target lease not found in the active workspace (${dto.leaseId}).`,
+      };
     }
+
+    const invoiceTemplateId = await resolveWorkspaceInvoiceTemplateId(
+      supabase,
+      dto.invoiceTemplateId,
+      context.workspaceId
+    );
 
     const tRel = lease.lease_tenants?.[0];
     const t = tRel?.tenant;
@@ -279,7 +300,7 @@ export async function createLeaseAutomationAction(dto: CreateLeaseAutomationDTO)
         workspace_id: context.workspaceId,
         automation_type: 'lease',
         lease_id: dto.leaseId,
-        invoice_template_id: isUuid(dto.invoiceTemplateId) ? dto.invoiceTemplateId : null,
+        invoice_template_id: invoiceTemplateId,
         name,
         description: `Automated ${dto.actionType} for ${propName}`,
         trigger_type: 'schedule',
@@ -291,7 +312,7 @@ export async function createLeaseAutomationAction(dto: CreateLeaseAutomationDTO)
             type: dto.actionType,
             params: {
               leaseId: dto.leaseId,
-              templateId: dto.invoiceTemplateId || undefined,
+              templateId: invoiceTemplateId || undefined,
               customerName: tenantName,
               customerEmail: tenantEmail,
               customerPhone: metadata.customerPhone,
@@ -347,7 +368,7 @@ export interface CreateStandaloneInvoiceAutomationDTO {
 
 export async function createStandaloneInvoiceAutomationAction(dto: CreateStandaloneInvoiceAutomationDTO) {
   try {
-    const { user, context } = await getContext();
+    const { user, context } = await getContext('team.settings.update');
     const supabase = await createAdminClient();
 
     if (!dto.customerName || !dto.customerEmail) {
@@ -357,6 +378,12 @@ export async function createStandaloneInvoiceAutomationAction(dto: CreateStandal
     if (dto.amount <= 0) {
       return { success: false, error: 'Invoice amount must be greater than 0.' };
     }
+
+    const invoiceTemplateId = await resolveWorkspaceInvoiceTemplateId(
+      supabase,
+      dto.invoiceTemplateId,
+      context.workspaceId
+    );
 
     const name = `Monthly Invoice — ${dto.customerName} (${dto.description || 'Service'})`;
 
@@ -374,7 +401,7 @@ export async function createStandaloneInvoiceAutomationAction(dto: CreateStandal
         workspace_id: context.workspaceId,
         automation_type: 'invoice',
         lease_id: null,
-        invoice_template_id: isUuid(dto.invoiceTemplateId) ? dto.invoiceTemplateId : null,
+        invoice_template_id: invoiceTemplateId,
         name,
         description: `Automated recurring invoice for ${dto.customerName}`,
         trigger_type: 'schedule',
@@ -405,7 +432,7 @@ export async function createStandaloneInvoiceAutomationAction(dto: CreateStandal
               description: dto.description,
               amount: dto.amount,
               currency: dto.currency || 'AUD',
-              templateId: dto.invoiceTemplateId || undefined,
+              templateId: invoiceTemplateId || undefined,
               issuedBy: dto.issuedByOverride || undefined,
               dueDays: dto.paymentDueDays || 14,
               emailSubject: dto.emailSubject || undefined,
@@ -438,7 +465,7 @@ export async function createStandaloneInvoiceAutomationAction(dto: CreateStandal
 
 export async function togglePauseAutomationAction(id: string) {
   try {
-    const { context } = await getContext();
+    const { context } = await getContext('team.settings.update');
     const supabase = await createAdminClient();
 
     const { data: current, error: fetchErr } = await (supabase as any)
@@ -473,7 +500,7 @@ export async function togglePauseAutomationAction(id: string) {
 
 export async function triggerAutomationNowAction(id: string) {
   try {
-    const { context } = await getContext();
+    const { context } = await getContext('team.settings.update');
     const supabase = await createAdminClient();
 
     const { data: rawAuto, error: autoErr } = await (supabase as any)
@@ -533,7 +560,7 @@ export async function triggerAutomationNowAction(id: string) {
 
 export async function deleteAutomationAction(id: string) {
   try {
-    const { context } = await getContext();
+    const { context } = await getContext('team.settings.update');
     const supabase = await createAdminClient();
 
     const { error } = await (supabase as any)
@@ -554,7 +581,7 @@ export async function deleteAutomationAction(id: string) {
 export async function bulkDeleteAutomationsAction(ids: string[]) {
   try {
     if (!ids || ids.length === 0) return { success: true, count: 0 };
-    const { context } = await getContext();
+    const { context } = await getContext('team.settings.update');
     const supabase = await createAdminClient();
 
     const { error } = await (supabase as any)
@@ -574,7 +601,7 @@ export async function bulkDeleteAutomationsAction(ids: string[]) {
 
 export async function fetchAutomationExecutionsAction(automationId: string) {
   try {
-    const { context } = await getContext();
+    const { context } = await getContext('team.settings.view');
     const supabase = await createAdminClient();
 
     const { data, error } = await (supabase as any)
@@ -597,7 +624,7 @@ export async function fetchExecutionHistoryAction(options?: {
   limit?: number;
 }): Promise<{ items: any[] }> {
   try {
-    const { context } = await getContext();
+    const { context } = await getContext('team.settings.view');
     const supabase = await createAdminClient();
 
     let query = (supabase as any)
@@ -636,7 +663,7 @@ export async function fetchExecutionHistoryAction(options?: {
 
 export async function retryExecutionAction(executionId: string) {
   try {
-    const { context } = await getContext();
+    const { context } = await getContext('team.settings.update');
     const supabase = await createAdminClient();
 
     const { data: exec, error } = await (supabase as any)
@@ -658,7 +685,7 @@ export async function retryExecutionAction(executionId: string) {
 
 export async function fetchInvoiceTemplatesAction() {
   try {
-    const { context } = await getContext();
+    const { context } = await getContext('team.settings.view');
     const supabase = await createAdminClient();
 
     const { data, error } = await (supabase as any)
@@ -684,7 +711,7 @@ export async function fetchInvoiceTemplatesAction() {
  */
 export async function evaluateDueAutomationsAction() {
   try {
-    const { context } = await getContext();
+    const { context } = await getContext('team.settings.update');
     const supabase = await createAdminClient();
     const nowIso = new Date().toISOString();
 
@@ -786,7 +813,7 @@ export interface SendAutomationTestEmailDTO {
 
 export async function sendAutomationTestEmailAction(dto: SendAutomationTestEmailDTO) {
   try {
-    const { user } = await getContext();
+    const { user, context } = await getContext('team.settings.update');
     const targetEmail = dto.testRecipient?.trim() || user.email;
     if (!targetEmail) {
       throw new Error('Please provide a valid test recipient email address');
@@ -809,9 +836,14 @@ export async function sendAutomationTestEmailAction(dto: SendAutomationTestEmail
       if (dto.leaseId) {
         const { data: lease } = await (supabase as any)
           .from('leases')
-          .select('*, property:properties(*), lease_tenants:lease_tenants(tenant:tenants(*))')
+          .select('*, property:properties!inner(*), lease_tenants:lease_tenants(tenant:tenants(*))')
           .eq('id', dto.leaseId)
+          .eq('property.workspace_id', context.workspaceId)
           .maybeSingle();
+
+        if (!lease) {
+          return { success: false, error: 'Lease not found in the active workspace.' };
+        }
 
         if (lease) {
           propertyName = lease.property?.name || propertyName;
@@ -969,7 +1001,17 @@ export interface SendLeaseAgreementTestEmailDTO {
 
 export async function sendLeaseAgreementTestEmailAction(dto: SendLeaseAgreementTestEmailDTO) {
   try {
-    const { user } = await getContext();
+    const { user, context } = await getContext('team.settings.update');
+    if (dto.propertyId) {
+      const supabase = await createAdminClient();
+      const { data: property } = await (supabase as any)
+        .from('properties')
+        .select('id')
+        .eq('id', dto.propertyId)
+        .eq('workspace_id', context.workspaceId)
+        .maybeSingle();
+      if (!property) return { success: false, error: 'Property not found in the active workspace.' };
+    }
     const targetEmail = dto.testRecipient?.trim() || user.email;
     if (!targetEmail) {
       throw new Error('Please provide a valid test recipient email address');

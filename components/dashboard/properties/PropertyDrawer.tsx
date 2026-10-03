@@ -212,7 +212,7 @@ export function PropertyDrawer({
     try {
       const res = await handleDeleteProperty(targetId);
       if (!res.success) throw new Error('Could not delete property.');
-      success('Property Removed', 'The property has been deleted from your portfolio.');
+      success('Property Archived', 'The property and its history remain available in Archived properties.');
       try {
         await refreshProperties();
       } catch (e) {
@@ -542,9 +542,9 @@ export function PropertyDrawer({
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDelete}
-        title="Delete Property Asset"
-        description="Are you sure you want to delete this property? Units, leases, and tenant associations should be reviewed first."
-        confirmLabel="Delete Property"
+        title="Archive Property"
+        description="This property will move to Archived. Its leases, tenants, transactions, and history will be preserved."
+        confirmLabel="Archive Property"
         variant="danger"
       />
     </div>,

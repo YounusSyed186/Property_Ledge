@@ -12,6 +12,12 @@ export const transactionStatusSchema = z.enum([
   'refunded',
 ]);
 
+export function assertPropertyWorkspaceMatch(workspaceId: string, propertyWorkspaceId: string): void {
+  if (workspaceId !== propertyWorkspaceId) {
+    throw new Error('Selected property does not belong to the active workspace.');
+  }
+}
+
 export const paymentMethodSchema = z.enum([
   'bank_transfer',
   'cash',

@@ -55,11 +55,8 @@ interface PropertyProviderProps {
 }
 
 import {
-  useEntityCacheStore,
   buildCacheKey,
   fetchWithDeduplication,
-  isDataFresh,
-  FRESHNESS_THRESHOLDS,
 } from '@/lib/stores/useEntityCacheStore';
 
 export function PropertyProvider({ children, initialProperties }: PropertyProviderProps) {
@@ -103,19 +100,7 @@ export function PropertyProvider({ children, initialProperties }: PropertyProvid
       return;
     }
 
-    const cacheKey = buildCacheKey('properties', activeWorkspaceId);
-    const cachedEntry = useEntityCacheStore.getState().properties;
-    const isCurrentMatching = cachedEntry && cachedEntry.workspaceId === activeWorkspaceId;
-
-    if (!force && isCurrentMatching && isDataFresh(cachedEntry, FRESHNESS_THRESHOLDS.normal)) {
-      if (cachedEntry.data && cachedEntry.data.length > 0) {
-        setAvailableProperties(cachedEntry.data);
-        setSelectedPropertyState(resolveSelection(cachedEntry.data, activeWorkspaceId));
-        setIsLoading(false);
-        setIsRefreshing(false);
-        return;
-      }
-    }
+    const cacheKey = buildCacheKey('property-access', activeWorkspaceId);
 
     try {
       if (availableProperties.length === 0 && !isHydratedRef.current) {
@@ -137,7 +122,6 @@ export function PropertyProvider({ children, initialProperties }: PropertyProvid
       });
 
       setAvailableProperties(properties);
-      useEntityCacheStore.getState().setProperties(properties, activeWorkspaceId);
 
       const selection = resolveSelection(properties, activeWorkspaceId);
       setSelectedPropertyState(selection);
@@ -179,7 +163,6 @@ export function PropertyProvider({ children, initialProperties }: PropertyProvid
       setAvailableProperties(initialProperties);
       if (activeWorkspaceId) {
         setSelectedPropertyState(resolveSelection(initialProperties, activeWorkspaceId));
-        useEntityCacheStore.getState().setProperties(initialProperties, activeWorkspaceId);
       }
       setIsLoading(false);
       isHydratedRef.current = true;

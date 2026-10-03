@@ -69,18 +69,20 @@ export async function fetchFormDropdownOptionsAction() {
           end_date,
           rent_amount,
           status,
-          property:properties(id, name),
+          property:properties!inner(id, name, workspace_id),
           lease_tenants!lease_tenants_lease_id_fkey(
             is_primary,
             tenant:tenants!lease_tenants_tenant_id_fkey(id, first_name, last_name)
           )
         `)
+        .eq('property.workspace_id', context.workspaceId)
         .order('created_at', { ascending: false }),
 
       // Tenants
       supabase
         .from('tenants')
-        .select('id, first_name, last_name, email, property_id')
+        .select('id, first_name, last_name, email, property_id, property:properties!inner(workspace_id)')
+        .eq('property.workspace_id', context.workspaceId)
         .order('last_name', { ascending: true }),
 
       // Tax Classifications in workspace
@@ -150,7 +152,7 @@ export async function fetchFinancialPageDataAction(
   const { context } = await getAuthContext();
   return financeService.getFinancialPageData({
     ...filters,
-    workspace_id: filters.workspace_id || context.workspaceId,
+    workspace_id: context.workspaceId,
   });
 }
 
@@ -163,7 +165,7 @@ export async function fetchTransactionsAction(
   const { context } = await getAuthContext();
   return financeService.getTransactions({
     ...filters,
-    workspace_id: filters.workspace_id || context.workspaceId,
+    workspace_id: context.workspaceId,
   });
 }
 
@@ -176,7 +178,7 @@ export async function fetchLedgerAction(
   const { context } = await getAuthContext();
   return financeService.getLedger({
     ...filters,
-    workspace_id: filters.workspace_id || context.workspaceId,
+    workspace_id: context.workspaceId,
   });
 }
 
@@ -189,7 +191,7 @@ export async function fetchFinancialOverviewAction(
   const { context } = await getAuthContext();
   return financeService.getFinancialOverview({
     ...filters,
-    workspace_id: filters.workspace_id || context.workspaceId,
+    workspace_id: context.workspaceId,
   });
 }
 
@@ -197,8 +199,9 @@ export async function fetchFinancialOverviewAction(
  * Fetch single transaction
  */
 export async function fetchTransactionByIdAction(id: string): Promise<TransactionDTO | null> {
-  await getAuthContext();
-  return financeService.getTransactionById(id);
+  const { context } = await getAuthContext();
+  const transaction = await financeService.getTransactionById(id);
+  return transaction?.workspace_id === context.workspaceId ? transaction : null;
 }
 
 /**
@@ -212,7 +215,7 @@ export async function createTransactionAction(
     const created = await financeService.createTransaction(
       {
         ...input,
-        workspace_id: input.workspace_id || context.workspaceId,
+        workspace_id: context.workspaceId,
       },
       user.id
     );
@@ -233,7 +236,11 @@ export async function updateTransactionAction(
   input: UpdateTransactionInput
 ): Promise<{ success: boolean; data?: TransactionDTO; error?: string }> {
   try {
-    const { user } = await getAuthContext();
+    const { user, context } = await getAuthContext();
+    const current = await financeService.getTransactionById(id);
+    if (!current || current.workspace_id !== context.workspaceId) {
+      return { success: false, error: 'Transaction not found in the active workspace.' };
+    }
     const updated = await financeService.updateTransaction(id, input, user.id);
 
     revalidateFinancialPaths();
@@ -251,7 +258,11 @@ export async function deleteTransactionAction(
   id: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { user } = await getAuthContext();
+    const { user, context } = await getAuthContext();
+    const current = await financeService.getTransactionById(id);
+    if (!current || current.workspace_id !== context.workspaceId) {
+      return { success: false, error: 'Transaction not found in the active workspace.' };
+    }
     await financeService.deleteTransaction(id, user.id);
 
     revalidateFinancialPaths();
@@ -271,7 +282,7 @@ export async function exportLedgerCsvAction(
   const { context } = await getAuthContext();
   const ledgerEntries = await financeService.getLedger({
     ...filters,
-    workspace_id: filters.workspace_id || context.workspaceId,
+    workspace_id: context.workspaceId,
   });
 
   const content = financeService.generateLedgerCsv(ledgerEntries);
@@ -305,7 +316,7 @@ export async function createBatchAutoAllocatedTransactionsAction(input: {
     const data = await financeService.createBatchAutoAllocatedTransactions(
       {
         ...input,
-        workspace_id: input.workspace_id || context.workspaceId,
+        workspace_id: context.workspaceId,
       },
       user.id
     );

@@ -84,8 +84,8 @@ export function TransactionModal({
   const [leaseId, setLeaseId] = useState('');
   const [invoiceId, setInvoiceId] = useState('');
 
-  // GST & Tax Classification State
-  const [gstTreatment, setGstTreatment] = useState<'inclusive' | 'exclusive' | 'none'>('exclusive');
+  // GST & Tax Classification State (Exclusive only / GST-Free)
+  const [gstTreatment, setGstTreatment] = useState<'exclusive' | 'none'>('exclusive');
   const [gstInclusive, setGstInclusive] = useState(false);
   const [gstAmount, setGstAmount] = useState('');
   const [taxClassificationId, setTaxClassificationId] = useState('');
@@ -148,9 +148,8 @@ export function TransactionModal({
         setTenantId(transactionToEdit.tenant_id || '');
         setLeaseId(transactionToEdit.lease_id || '');
         setInvoiceId(transactionToEdit.invoice_id || '');
-        const isInc = Boolean(transactionToEdit.gst_inclusive);
-        setGstInclusive(isInc);
-        setGstTreatment(isInc ? 'inclusive' : Number(transactionToEdit.gst_amount || 0) > 0 ? 'exclusive' : 'none');
+        setGstInclusive(false);
+        setGstTreatment(Number(transactionToEdit.gst_amount || 0) > 0 ? 'exclusive' : 'none');
         setGstAmount(transactionToEdit.gst_amount !== undefined && transactionToEdit.gst_amount !== null ? String(transactionToEdit.gst_amount) : '');
         setTaxClassificationId(transactionToEdit.tax_classification_id || '');
 
@@ -203,22 +202,17 @@ export function TransactionModal({
   // Auto-calculate GST when amount or treatment changes
   const handleAmountOrGstChange = (
     newAmount: string,
-    treatment: 'inclusive' | 'exclusive' | 'none' = gstTreatment
+    treatment: 'exclusive' | 'none' = gstTreatment
   ) => {
     setAmount(newAmount);
     setGstTreatment(treatment);
-    const isInc = treatment === 'inclusive';
-    setGstInclusive(isInc);
+    setGstInclusive(false);
 
     const val = parseFloat(newAmount);
     if (!isNaN(val) && val > 0) {
       if (treatment === 'exclusive') {
         // GST Exclusive: 10% of amount (e.g. $1,000 -> $100.00 GST)
         const calculatedGst = (val * 0.1).toFixed(2);
-        setGstAmount(calculatedGst);
-      } else if (treatment === 'inclusive') {
-        // GST Inclusive: 1/11th of total gross amount
-        const calculatedGst = (val - val / 1.1).toFixed(2);
         setGstAmount(calculatedGst);
       } else {
         setGstAmount('0.00');
@@ -389,7 +383,7 @@ export function TransactionModal({
           invoice_id: transactionType === 'income' && invoiceId ? invoiceId : undefined,
           gst_inclusive: isGstEnabledOnProperty ? gstInclusive : false,
           gst_amount: isGstEnabledOnProperty && gstAmount ? parseFloat(gstAmount) : 0,
-          tax_classification_id: isGstEnabledOnProperty && taxClassificationId ? taxClassificationId : null,
+          tax_classification_id: taxClassificationId || null,
         };
 
         const res = await updateTransactionAction(transactionToEdit.id, updateInput);
@@ -423,7 +417,7 @@ export function TransactionModal({
           invoice_id: transactionType === 'income' && invoiceId ? invoiceId : undefined,
           gst_inclusive: isGstEnabledOnProperty ? gstInclusive : false,
           gst_amount: isGstEnabledOnProperty && gstAmount ? parseFloat(gstAmount) : 0,
-          tax_classification_id: isGstEnabledOnProperty && taxClassificationId ? taxClassificationId : null,
+          tax_classification_id: taxClassificationId || null,
         };
 
         const res = await createTransactionAction(createInput);
@@ -588,7 +582,7 @@ export function TransactionModal({
                     const tc = taxClassifications.find((t) => t.id === cat.default_tax_classification_id);
                     const isTaxable = tc?.bas_code === '1B' || tc?.bas_code === 'G10' || tc?.bas_code === 'G1';
                     if (isTaxable && gstTreatment === 'none') {
-                      handleAmountOrGstChange(amount, 'inclusive');
+                      handleAmountOrGstChange(amount, 'exclusive');
                     }
                   }
                   if (formErrors.categoryId) setFormErrors((p) => ({ ...p, categoryId: '' }));
@@ -681,7 +675,7 @@ export function TransactionModal({
                   setInvoiceId('');
                   const prop = properties.find((p: any) => p.id === newPropId);
                   if (prop?.gst_enabled && gstTreatment === 'none') {
-                    handleAmountOrGstChange(amount, 'inclusive');
+                    handleAmountOrGstChange(amount, 'exclusive');
                   }
                   if (formErrors.propertyId) setFormErrors((p) => ({ ...p, propertyId: '' }));
                 }}
@@ -721,10 +715,8 @@ export function TransactionModal({
                   <span>🇦🇺</span> Tax & GST Treatment
                 </span>
                 <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                  {gstTreatment === 'inclusive'
-                    ? '10% GST (Included in Total)'
-                    : gstTreatment === 'exclusive'
-                    ? '10% GST (Added to Net)'
+                  {gstTreatment === 'exclusive'
+                    ? '10% GST (Added to Base)'
                     : 'GST Free / No Tax'}
                 </span>
               </div>

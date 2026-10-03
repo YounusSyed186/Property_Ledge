@@ -3128,12 +3128,42 @@ CREATE INDEX idx_automation_executions_status ON public.automation_executions US
 
 CREATE INDEX idx_automation_executions_workspace ON public.automation_executions USING btree (workspace_id);
 
-CREATE POLICY "Workspace members can access automation executions" ON "public"."automation_executions"
-  FOR ALL
-  TO "authenticated"
-  USING (((EXISTS ( SELECT 1
-   FROM public.workspace_members wm
-  WHERE ((wm.workspace_id = automation_executions.workspace_id) AND (wm.user_id = auth.uid())))) OR public.is_platform_admin()));
+CREATE POLICY "Workspace settings viewers can read automation executions"
+  ON public.automation_executions
+  FOR SELECT
+  TO authenticated
+  USING (
+    public.has_workspace_permission(workspace_id, 'team.settings.view')
+    OR public.is_platform_admin()
+  );
+CREATE POLICY "Workspace settings managers can insert automation executions"
+  ON public.automation_executions
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    public.has_workspace_permission(workspace_id, 'team.settings.update')
+    OR public.is_platform_admin()
+  );
+CREATE POLICY "Workspace settings managers can update automation executions"
+  ON public.automation_executions
+  FOR UPDATE
+  TO authenticated
+  USING (
+    public.has_workspace_permission(workspace_id, 'team.settings.update')
+    OR public.is_platform_admin()
+  )
+  WITH CHECK (
+    public.has_workspace_permission(workspace_id, 'team.settings.update')
+    OR public.is_platform_admin()
+  );
+CREATE POLICY "Workspace settings managers can delete automation executions"
+  ON public.automation_executions
+  FOR DELETE
+  TO authenticated
+  USING (
+    public.has_workspace_permission(workspace_id, 'team.settings.update')
+    OR public.is_platform_admin()
+  );
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE "public"."automation_executions" TO "authenticated", "postgres", "service_role";
 
@@ -3194,36 +3224,42 @@ CREATE INDEX idx_automations_workspace_status ON public.automations USING btree 
 
 CREATE INDEX idx_automations_workspace ON public.automations USING btree (workspace_id);
 
-CREATE POLICY "Workspace members can delete automations" ON "public"."automations"
-  FOR DELETE
-  TO "authenticated"
-  USING (((EXISTS ( SELECT 1
-   FROM public.workspace_members wm
-  WHERE ((wm.workspace_id = automations.workspace_id) AND (wm.user_id = auth.uid())))) OR public.is_platform_admin()));
-
-CREATE POLICY "Workspace members can insert automations" ON "public"."automations"
-  FOR INSERT
-  TO "authenticated"
-  WITH CHECK (((EXISTS ( SELECT 1
-   FROM public.workspace_members wm
-  WHERE ((wm.workspace_id = automations.workspace_id) AND (wm.user_id = auth.uid())))) OR public.is_platform_admin()));
-
-CREATE POLICY "Workspace members can select automations" ON "public"."automations"
+CREATE POLICY "Workspace settings viewers can read automations"
+  ON public.automations
   FOR SELECT
-  TO "authenticated"
-  USING (((EXISTS ( SELECT 1
-   FROM public.workspace_members wm
-  WHERE ((wm.workspace_id = automations.workspace_id) AND (wm.user_id = auth.uid())))) OR public.is_platform_admin()));
-
-CREATE POLICY "Workspace members can update automations" ON "public"."automations"
+  TO authenticated
+  USING (
+    public.has_workspace_permission(workspace_id, 'team.settings.view')
+    OR public.is_platform_admin()
+  );
+CREATE POLICY "Workspace settings managers can insert automations"
+  ON public.automations
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    public.has_workspace_permission(workspace_id, 'team.settings.update')
+    OR public.is_platform_admin()
+  );
+CREATE POLICY "Workspace settings managers can update automations"
+  ON public.automations
   FOR UPDATE
-  TO "authenticated"
-  USING (((EXISTS ( SELECT 1
-   FROM public.workspace_members wm
-  WHERE ((wm.workspace_id = automations.workspace_id) AND (wm.user_id = auth.uid())))) OR public.is_platform_admin()))
-  WITH CHECK (((EXISTS ( SELECT 1
-   FROM public.workspace_members wm
-  WHERE ((wm.workspace_id = automations.workspace_id) AND (wm.user_id = auth.uid())))) OR public.is_platform_admin()));
+  TO authenticated
+  USING (
+    public.has_workspace_permission(workspace_id, 'team.settings.update')
+    OR public.is_platform_admin()
+  )
+  WITH CHECK (
+    public.has_workspace_permission(workspace_id, 'team.settings.update')
+    OR public.is_platform_admin()
+  );
+CREATE POLICY "Workspace settings managers can delete automations"
+  ON public.automations
+  FOR DELETE
+  TO authenticated
+  USING (
+    public.has_workspace_permission(workspace_id, 'team.settings.update')
+    OR public.is_platform_admin()
+  );
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE "public"."automations" TO "authenticated", "postgres", "service_role";
 
@@ -5591,6 +5627,377 @@ GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.inspection_rooms TO authent
 GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.inspection_items TO authenticated, service_role, postgres;
 GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.inspection_defects TO authenticated, service_role, postgres;
 GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.inspection_photos TO authenticated, service_role, postgres;
+
+
+-- ====================================================================
+-- FINANCIAL SYSTEM & AUSTRALIAN TAX / GST (BAS)
+-- ====================================================================
+
+-- 1. category_groups table
+CREATE TABLE IF NOT EXISTS public.category_groups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_category_groups_workspace_name UNIQUE (workspace_id, name)
+);
+
+ALTER TABLE public.category_groups ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Workspace members can view category groups"
+    ON public.category_groups FOR SELECT TO authenticated
+    USING (public.can_access_workspace(workspace_id) OR public.is_platform_admin());
+
+CREATE POLICY "Workspace managers can manage category groups"
+    ON public.category_groups FOR ALL TO authenticated
+    USING (public.can_access_workspace(workspace_id) OR public.is_platform_admin())
+    WITH CHECK (public.can_access_workspace(workspace_id) OR public.is_platform_admin());
+
+GRANT ALL ON public.category_groups TO authenticated, service_role;
+
+-- 2. categories table
+CREATE TABLE IF NOT EXISTS public.categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    category_group_id UUID REFERENCES public.category_groups(id) ON DELETE SET NULL,
+    transaction_type TEXT NOT NULL CHECK (transaction_type IN ('income', 'expense')),
+    name TEXT NOT NULL,
+    description TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_categories_type_name UNIQUE (transaction_type, name),
+    CONSTRAINT uq_categories_id_type UNIQUE (id, transaction_type)
+);
+
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Workspace members can view categories"
+    ON public.categories FOR SELECT TO authenticated
+    USING (true);
+
+CREATE POLICY "Workspace managers can manage categories"
+    ON public.categories FOR ALL TO authenticated
+    USING (public.is_platform_admin())
+    WITH CHECK (public.is_platform_admin());
+
+GRANT ALL ON public.categories TO authenticated, service_role;
+
+-- 3. tax_classifications table
+CREATE TABLE IF NOT EXISTS public.tax_classifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    bas_code TEXT,
+    description TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_tax_classifications_workspace_name UNIQUE (workspace_id, name)
+);
+
+ALTER TABLE public.tax_classifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Workspace members can view tax classifications"
+    ON public.tax_classifications FOR SELECT TO authenticated
+    USING (public.can_access_workspace(workspace_id) OR public.is_platform_admin());
+
+CREATE POLICY "Workspace managers can manage tax classifications"
+    ON public.tax_classifications FOR ALL TO authenticated
+    USING (public.can_access_workspace(workspace_id) OR public.is_platform_admin())
+    WITH CHECK (public.can_access_workspace(workspace_id) OR public.is_platform_admin());
+
+GRANT ALL ON public.tax_classifications TO authenticated, service_role;
+
+-- 4. transactions table
+CREATE TABLE IF NOT EXISTS public.transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    amount NUMERIC(12,4) NOT NULL CHECK (amount > 0),
+    transaction_type TEXT NOT NULL CHECK (transaction_type IN ('income', 'expense')),
+    transaction_category_id UUID NOT NULL,
+    tax_classification_id UUID REFERENCES public.tax_classifications(id) ON DELETE SET NULL,
+    gst_inclusive BOOLEAN NOT NULL DEFAULT FALSE,
+    gst_amount NUMERIC(12,4) NOT NULL DEFAULT 0.0000,
+    transaction_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    payment_method TEXT,
+    description TEXT,
+    reference TEXT,
+    vendor_name TEXT,
+    notes TEXT,
+    status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('pending', 'completed', 'failed', 'reversed', 'refunded')),
+    tenant_id UUID REFERENCES public.tenants(id) ON DELETE SET NULL,
+    lease_id UUID REFERENCES public.leases(id) ON DELETE SET NULL,
+    invoice_id UUID REFERENCES public.invoices(id) ON DELETE SET NULL,
+    property_id UUID NOT NULL REFERENCES public.properties(id) ON DELETE CASCADE,
+    workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
+    receipt_url TEXT,
+    receipt_blob_path TEXT,
+    receipt_file_name TEXT,
+    receipt_file_size BIGINT,
+    receipt_mime_type TEXT,
+    receipt_uploaded_at TIMESTAMPTZ,
+    created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT fk_transactions_category_type FOREIGN KEY (transaction_category_id, transaction_type) 
+        REFERENCES public.categories(id, transaction_type) ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_workspace_date ON public.transactions(workspace_id, transaction_date DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_property_date ON public.transactions(property_id, transaction_date DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_lease ON public.transactions(lease_id) WHERE lease_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_transactions_tenant ON public.transactions(tenant_id) WHERE tenant_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_transactions_category ON public.transactions(transaction_category_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_tax_classification ON public.transactions(tax_classification_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_receipt_blob ON public.transactions(receipt_blob_path) WHERE receipt_blob_path IS NOT NULL;
+
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Workspace members can view transactions"
+    ON public.transactions FOR SELECT TO authenticated
+    USING (public.can_access_workspace(workspace_id) OR public.is_platform_admin());
+
+CREATE POLICY "Workspace members can manage transactions"
+    ON public.transactions FOR ALL TO authenticated
+    USING (public.can_access_workspace(workspace_id) OR public.is_platform_admin())
+    WITH CHECK (public.can_access_workspace(workspace_id) OR public.is_platform_admin());
+
+GRANT ALL ON public.transactions TO authenticated, service_role;
+
+-- 5. expected_payment_schedule & allocations
+CREATE TABLE IF NOT EXISTS public.expected_payment_schedule (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
+    property_id UUID REFERENCES public.properties(id) ON DELETE CASCADE,
+    lease_id UUID REFERENCES public.leases(id) ON DELETE CASCADE,
+    tenant_id UUID REFERENCES public.tenants(id) ON DELETE SET NULL,
+    transaction_category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
+    tax_classification_id UUID REFERENCES public.tax_classifications(id) ON DELETE SET NULL,
+    gst_inclusive BOOLEAN NOT NULL DEFAULT FALSE,
+    gst_amount NUMERIC(12,4) NOT NULL DEFAULT 0.0000,
+    schedule_name TEXT NOT NULL,
+    schedule_type TEXT NOT NULL CHECK (schedule_type IN ('lease', 'independent')),
+    amount NUMERIC(12,4) NOT NULL CHECK (amount > 0),
+    due_date DATE NOT NULL,
+    frequency TEXT NOT NULL DEFAULT 'monthly' CHECK (frequency IN ('weekly', 'fortnightly', 'monthly', 'quarterly', 'yearly', 'custom')),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'partially_paid', 'paid', 'overdue', 'cancelled')),
+    start_date DATE,
+    end_date DATE,
+    notes TEXT,
+    created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_expected_schedule_workspace_due ON public.expected_payment_schedule (workspace_id, due_date ASC);
+CREATE INDEX IF NOT EXISTS idx_expected_schedule_property_due ON public.expected_payment_schedule (property_id, due_date ASC);
+CREATE INDEX IF NOT EXISTS idx_expected_schedule_lease ON public.expected_payment_schedule (lease_id) WHERE lease_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_expected_schedule_status ON public.expected_payment_schedule (status);
+
+ALTER TABLE public.expected_payment_schedule ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Workspace members can view expected schedules"
+    ON public.expected_payment_schedule FOR SELECT TO authenticated
+    USING (public.can_access_workspace(workspace_id) OR public.is_platform_admin());
+
+CREATE POLICY "Workspace members can manage expected schedules"
+    ON public.expected_payment_schedule FOR ALL TO authenticated
+    USING (public.can_access_workspace(workspace_id) OR public.is_platform_admin())
+    WITH CHECK (public.can_access_workspace(workspace_id) OR public.is_platform_admin());
+
+GRANT ALL ON public.expected_payment_schedule TO authenticated, service_role;
+
+CREATE TABLE IF NOT EXISTS public.transaction_schedule_allocations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    transaction_id UUID NOT NULL REFERENCES public.transactions(id) ON DELETE CASCADE,
+    expected_payment_id UUID NOT NULL REFERENCES public.expected_payment_schedule(id) ON DELETE CASCADE,
+    allocated_amount NUMERIC(12,4) NOT NULL CHECK (allocated_amount > 0),
+    notes TEXT,
+    created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_transaction_schedule_allocations UNIQUE (transaction_id, expected_payment_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_allocations_transaction ON public.transaction_schedule_allocations (transaction_id);
+CREATE INDEX IF NOT EXISTS idx_allocations_expected_payment ON public.transaction_schedule_allocations (expected_payment_id);
+
+ALTER TABLE public.transaction_schedule_allocations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Workspace members can view allocations"
+    ON public.transaction_schedule_allocations FOR SELECT TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.transactions t
+            WHERE t.id = transaction_schedule_allocations.transaction_id
+              AND (public.can_access_workspace(t.workspace_id) OR public.is_platform_admin())
+        )
+    );
+
+CREATE POLICY "Workspace members can manage allocations"
+    ON public.transaction_schedule_allocations FOR ALL TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.transactions t
+            WHERE t.id = transaction_schedule_allocations.transaction_id
+              AND (public.can_access_workspace(t.workspace_id) OR public.is_platform_admin())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.transactions t
+            WHERE t.id = transaction_schedule_allocations.transaction_id
+              AND (public.can_access_workspace(t.workspace_id) OR public.is_platform_admin())
+        )
+    );
+
+GRANT ALL ON public.transaction_schedule_allocations TO authenticated, service_role;
+
+-- ====================================================================
+-- TRANSACTION ATTACHMENTS (Multi-file Expense Receipts & Invoices)
+-- ====================================================================
+
+CREATE TABLE IF NOT EXISTS public.transaction_attachments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
+    transaction_id UUID NOT NULL REFERENCES public.transactions(id) ON DELETE CASCADE,
+    blob_url TEXT NOT NULL,
+    blob_path TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    mime_type TEXT,
+    file_size BIGINT,
+    source_path TEXT,
+    uploaded_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_transaction_attachments_tx ON public.transaction_attachments(transaction_id);
+CREATE INDEX IF NOT EXISTS idx_transaction_attachments_workspace ON public.transaction_attachments(workspace_id);
+
+ALTER TABLE public.transaction_attachments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Workspace access can view transaction attachments"
+    ON public.transaction_attachments FOR SELECT TO authenticated
+    USING (public.can_access_workspace(workspace_id) OR public.is_platform_admin());
+
+CREATE POLICY "Workspace access can manage transaction attachments"
+    ON public.transaction_attachments FOR ALL TO authenticated
+    USING (public.can_access_workspace(workspace_id) OR public.is_platform_admin())
+    WITH CHECK (public.can_access_workspace(workspace_id) OR public.is_platform_admin());
+
+GRANT ALL ON public.transaction_attachments TO authenticated, service_role;
+
+-- ====================================================================
+-- DOCUMENTS SYSTEM (Agreements, Insurance, Compliance, Notices)
+-- ====================================================================
+
+CREATE TABLE IF NOT EXISTS public.documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
+  property_id UUID REFERENCES public.properties(id) ON DELETE SET NULL,
+  lease_id UUID REFERENCES public.leases(id) ON DELETE SET NULL,
+  tenant_id UUID REFERENCES public.tenants(id) ON DELETE SET NULL,
+  title VARCHAR(255) NOT NULL,
+  document_type VARCHAR(50) NOT NULL DEFAULT 'other' CHECK (
+    document_type IN (
+      'lease_agreement',
+      'condition_report',
+      'receipt',
+      'insurance_policy',
+      'strata_notice',
+      'compliance_certificate',
+      'council_notice',
+      'photo',
+      'other'
+    )
+  ),
+  file_name VARCHAR(255) NOT NULL,
+  file_url TEXT NOT NULL,
+  blob_path TEXT,
+  file_size BIGINT,
+  mime_type VARCHAR(100),
+  description TEXT,
+  tags TEXT[] DEFAULT '{}'::TEXT[],
+  uploaded_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_documents_workspace_id ON public.documents(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_documents_property_id ON public.documents(property_id);
+CREATE INDEX IF NOT EXISTS idx_documents_lease_id ON public.documents(lease_id);
+CREATE INDEX IF NOT EXISTS idx_documents_tenant_id ON public.documents(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_documents_type ON public.documents(document_type);
+CREATE INDEX IF NOT EXISTS idx_documents_created_at ON public.documents(created_at DESC);
+
+ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Workspace access can view documents"
+  ON public.documents FOR SELECT TO authenticated
+  USING (public.can_access_workspace(workspace_id) OR public.is_platform_admin());
+
+CREATE POLICY "Workspace access can insert documents"
+  ON public.documents FOR INSERT TO authenticated
+  WITH CHECK (
+    (
+      public.can_access_workspace(workspace_id)
+      AND (
+        property_id IS NULL
+        OR EXISTS (
+          SELECT 1 FROM public.properties p
+          WHERE p.id = documents.property_id
+            AND p.workspace_id = documents.workspace_id
+        )
+      )
+    )
+    OR public.is_platform_admin()
+  );
+
+CREATE POLICY "Workspace access can update documents"
+  ON public.documents FOR UPDATE TO authenticated
+  USING (
+    public.can_access_workspace(workspace_id)
+    OR public.is_platform_admin()
+  )
+  WITH CHECK (
+    (
+      public.can_access_workspace(workspace_id)
+      AND (
+        property_id IS NULL
+        OR EXISTS (
+          SELECT 1 FROM public.properties p
+          WHERE p.id = documents.property_id
+            AND p.workspace_id = documents.workspace_id
+        )
+      )
+    )
+    OR public.is_platform_admin()
+  );
+
+CREATE POLICY "Workspace access can delete documents"
+  ON public.documents FOR DELETE TO authenticated
+  USING (public.can_access_workspace(workspace_id) OR public.is_platform_admin());
+
+CREATE OR REPLACE FUNCTION public.set_documents_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = timezone('utc'::text, now());
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_set_documents_updated_at ON public.documents;
+CREATE TRIGGER trigger_set_documents_updated_at
+  BEFORE UPDATE ON public.documents
+  FOR EACH ROW
+  EXECUTE FUNCTION public.set_documents_updated_at();
+
+GRANT ALL ON public.documents TO authenticated, service_role;
+
+NOTIFY pgrst, 'reload schema';
+
 
 
 

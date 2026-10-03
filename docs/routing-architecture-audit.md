@@ -57,7 +57,7 @@ This audit verifies the actual routing, authentication, multi-tenant workspace i
 | `/dashboard/tasks` | `app/(app)/dashboard/tasks/page.tsx` | Workspace-wide | Yes | Yes | Optional | `task.view` | Workspace task board & actions |
 | `/dashboard/team` | `app/(app)/dashboard/team/page.tsx` | Workspace-wide | Yes | Yes | None | `team.member.view` | Team members, roles & seats |
 | `/dashboard/activity` | `app/(app)/dashboard/activity/page.tsx` | Workspace-wide | Yes | Yes | Optional | `activity.view` | Audit log & system activity trail |
-| `/dashboard/automations`| `app/(app)/dashboard/automations/page.tsx`| Workspace-wide | Yes | Yes | None | `automation.view` | Automated notification triggers |
+| `/dashboard/automations`| `app/(app)/dashboard/automations/page.tsx`| Workspace-wide | Yes | Yes | None | `team.settings.view` | Automated notification triggers |
 | `/dashboard/reports` | `app/(app)/dashboard/reports/page.tsx` | Workspace-wide | Yes | Yes | Optional | `financial.view` | Tax, yield & financial reports |
 | `/dashboard/settings` | `app/(app)/dashboard/settings/page.tsx` | Workspace-wide | Yes | Yes | None | `workspace.edit` | Workspace profile & banking |
 | `/subscription` | `app/(app)/subscription/page.tsx` | Workspace-wide | Yes | Yes | None | `subscription.view`| Billing plans & seat add-ons |

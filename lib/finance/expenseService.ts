@@ -9,6 +9,7 @@ import {
 import {
   createExpenseSchema,
   updateExpenseSchema,
+  assertPropertyWorkspaceMatch,
 } from '@/modules/finance/domain/validation';
 
 /**
@@ -135,13 +136,7 @@ export async function getExpenses(
     return q;
   };
 
-  let { data, error } = await buildQuery(supabase);
-  if (error && (error.message?.includes('transaction_attachments') || error.code === '42501')) {
-    const adminSupabase = await createAdminClient();
-    const adminRes = await buildQuery(adminSupabase);
-    data = adminRes.data;
-    error = adminRes.error;
-  }
+  const { data, error } = await buildQuery(supabase);
 
   if (error) {
     console.error('Error fetching expenses from transactions:', error);
@@ -202,7 +197,7 @@ export async function getExpensesPageData(
 export async function getExpenseById(id: string): Promise<ExpenseDTO | null> {
   const supabase = await createClient();
 
-  let { data, error } = await supabase
+  const { data, error } = await supabase
     .from('transactions')
     .select(`
       id,
@@ -284,52 +279,6 @@ export async function getExpenseById(id: string): Promise<ExpenseDTO | null> {
     .eq('transaction_type', 'expense')
     .maybeSingle();
 
-  if (error && (error.message?.includes('transaction_attachments') || error.code === '42501')) {
-    const adminSupabase = await createAdminClient();
-    const adminRes = await adminSupabase
-      .from('transactions')
-      .select(`
-        id,
-        amount,
-        transaction_type,
-        transaction_category_id,
-        transaction_date,
-        payment_method,
-        description,
-        reference,
-        vendor_name,
-        notes,
-        status,
-        tenant_id,
-        lease_id,
-        invoice_id,
-        property_id,
-        workspace_id,
-        created_by,
-        created_at,
-        updated_at,
-        gst_inclusive,
-        gst_amount,
-        tax_classification_id,
-        receipt_url,
-        receipt_blob_path,
-        receipt_file_name,
-        receipt_file_size,
-        receipt_mime_type,
-        receipt_uploaded_at,
-        category:categories(id, transaction_type, name, description, is_active),
-        tax_classification:tax_classifications(id, name, bas_code, description, is_active),
-        property:properties(id, name, address_line_1, city, state),
-        lease:leases(id, start_date, end_date, rent_amount, status)
-      `)
-      .eq('id', id)
-      .eq('transaction_type', 'expense')
-      .maybeSingle();
-
-    data = adminRes.data;
-    error = adminRes.error;
-  }
-
   if (error) {
     if (error.code === 'PGRST116') return null;
     throw new Error(`Failed to get expense: ${error.message}`);
@@ -359,20 +308,18 @@ export async function createExpense(
   const supabase = await createClient();
 
   // 1. Resolve Workspace ID from Property
-  let workspaceId = validated.workspace_id;
-  if (!workspaceId) {
-    const { data: propData, error: propError } = await supabase
-      .from('properties')
-      .select('id, workspace_id')
-      .eq('id', validated.property_id)
-      .single();
+  const { data: propData, error: propError } = await supabase
+    .from('properties')
+    .select('id, workspace_id')
+    .eq('id', validated.property_id)
+    .single();
 
-    const property = propData as { id: string; workspace_id: string } | null;
-    if (propError || !property) {
-      throw new Error('Associated property was not found.');
-    }
-    workspaceId = property.workspace_id;
+  const property = propData as { id: string; workspace_id: string } | null;
+  if (propError || !property) {
+    throw new Error('Associated property was not found.');
   }
+  const workspaceId = property.workspace_id;
+  if (validated.workspace_id) assertPropertyWorkspaceMatch(validated.workspace_id, workspaceId);
 
   // 2. Validate Category if provided
   let effectiveCategoryId = validated.transaction_category_id;
@@ -646,24 +593,15 @@ export async function deleteExpense(id: string, userId?: string): Promise<void> 
     throw new Error('Expense transaction not found.');
   }
 
-  let { error } = await supabase
+  const { error } = await supabase
     .from('transactions')
     .delete()
     .eq('id', id)
     .eq('transaction_type', 'expense');
 
   if (error) {
-    const adminClient = await createAdminClient();
-    const adminRes = await adminClient
-      .from('transactions')
-      .delete()
-      .eq('id', id)
-      .eq('transaction_type', 'expense');
-
-    if (adminRes.error) {
-      console.error('Error deleting expense transaction:', adminRes.error);
-      throw new Error(`Failed to delete expense: ${adminRes.error.message}`);
-    }
+    console.error('Error deleting expense transaction:', error);
+    throw new Error(`Failed to delete expense: ${error.message}`);
   }
 
   // Log activity

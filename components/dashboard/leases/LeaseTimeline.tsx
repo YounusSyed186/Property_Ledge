@@ -260,33 +260,28 @@ export function LeaseTimeline({
     switch (type) {
       case 'start':
         return {
-          icon: <FileText className="w-3.5 h-3.5 text-[#32D5C4]" />,
-          dot: 'bg-[#32D5C4] ring-4 ring-[#008F83]/40',
-          titleColor: 'text-white',
+          icon: <FileText className="w-3.5 h-3.5 text-[#008F83] dark:text-[#32D5C4]" />,
+          dot: 'bg-[#008F83] dark:bg-[#32D5C4] ring-4 ring-[#008F83]/20 dark:ring-[#32D5C4]/20',
         };
       case 'end':
         return {
-          icon: <Clock className="w-3.5 h-3.5 text-[#F87171]" />,
-          dot: 'bg-[#EF4444] ring-4 ring-[#EF4444]/30',
-          titleColor: 'text-white',
+          icon: <Clock className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" />,
+          dot: 'bg-rose-500 ring-4 ring-rose-500/20',
         };
       case 'rent_due':
         return {
-          icon: <Disc className="w-3.5 h-3.5 text-[#32D5C4]" />,
-          dot: 'bg-[#32D5C4] ring-4 ring-[#008F83]/40',
-          titleColor: 'text-white',
+          icon: <Disc className="w-3.5 h-3.5 text-[#008F83] dark:text-[#32D5C4]" />,
+          dot: 'bg-[#008F83] dark:bg-[#32D5C4] ring-4 ring-[#008F83]/20 dark:ring-[#32D5C4]/20',
         };
       case 'renewal':
         return {
-          icon: <Calendar className="w-3.5 h-3.5 text-[#38BDF8]" />,
-          dot: 'bg-[#38BDF8] ring-4 ring-[#38BDF8]/30',
-          titleColor: 'text-white',
+          icon: <Calendar className="w-3.5 h-3.5 text-sky-500 dark:text-[#38BDF8]" />,
+          dot: 'bg-sky-500 dark:bg-[#38BDF8] ring-4 ring-sky-500/20 dark:ring-[#38BDF8]/20',
         };
       case 'periodic_review':
         return {
-          icon: <RefreshCw className="w-3.5 h-3.5 text-[#38BDF8]" />,
-          dot: 'bg-[#38BDF8] ring-4 ring-[#38BDF8]/30',
-          titleColor: 'text-white',
+          icon: <RefreshCw className="w-3.5 h-3.5 text-sky-500 dark:text-[#38BDF8]" />,
+          dot: 'bg-sky-500 dark:bg-[#38BDF8] ring-4 ring-sky-500/20 dark:ring-[#38BDF8]/20',
         };
     }
   };
@@ -294,18 +289,18 @@ export function LeaseTimeline({
   return (
     <div
       className={cn(
-        'rounded-[24px] border border-[#17283A] bg-[#061222] p-5 sm:p-6 shadow-xl flex flex-col justify-between relative overflow-hidden text-white',
+        'rounded-[24px] border border-slate-200/80 dark:border-[#17283A] bg-white dark:bg-[#07111F] p-5 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)] dark:shadow-none flex flex-col justify-between relative overflow-hidden',
         className
       )}
     >
       <div>
         {/* Header & Timeframe Selector */}
-        <div className="flex items-center justify-between gap-4 pb-4 border-b border-[#17283A]">
+        <div className="flex items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-[#17283A]/80">
           <div>
-            <h3 className="text-sm sm:text-base font-heading font-bold text-white tracking-tight">
+            <h3 className="text-sm sm:text-base font-heading font-bold text-slate-900 dark:text-white tracking-tight">
               Lease Timeline
             </h3>
-            <p className="text-xs sm:text-[13px] text-[#94A3B8] mt-0.5">
+            <p className="text-xs sm:text-[13px] text-slate-500 dark:text-[#94A3B8] mt-0.5">
               Upcoming lease events across your portfolio
             </p>
           </div>
@@ -314,13 +309,13 @@ export function LeaseTimeline({
             <select
               value={timeframeMonths}
               onChange={(e) => setTimeframeMonths(Number(e.target.value))}
-              className="appearance-none pl-3 pr-8 py-1.5 rounded-xl bg-[#0E1E33] border border-[#17283A] text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-[#32D5C4] cursor-pointer"
+              className="appearance-none pl-3 pr-8 py-1.5 rounded-xl bg-slate-50 dark:bg-[#0E1E33] border border-slate-200/80 dark:border-[#17283A] text-xs font-semibold text-slate-700 dark:text-white hover:border-slate-300 dark:hover:border-slate-600 focus:outline-none focus:ring-1 focus:ring-[#008F83] dark:focus:ring-[#32D5C4] cursor-pointer transition-colors"
             >
               <option value={3}>Next 3 Months</option>
               <option value={6}>Next 6 Months</option>
               <option value={12}>Next 12 Months</option>
             </select>
-            <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-[#94A3B8] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
         </div>
 
@@ -328,10 +323,10 @@ export function LeaseTimeline({
         <div className="mt-5">
           {isLoading ? (
             <div className="py-8 space-y-4">
-              <div className="h-4 rounded-full bg-[#0E1E33] animate-pulse w-full" />
+              <div className="h-4 rounded-full bg-slate-100 dark:bg-[#0E1E33] animate-pulse w-full" />
               <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 pt-4">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="h-32 rounded-2xl bg-[#0E1E33] animate-pulse" />
+                  <div key={i} className="h-32 rounded-2xl bg-slate-100 dark:bg-[#0E1E33] animate-pulse" />
                 ))}
               </div>
             </div>
@@ -340,15 +335,15 @@ export function LeaseTimeline({
               {/* Columns container */}
               <div className="relative">
                 {/* Horizontal continuous timeline track */}
-                <div className="absolute left-8 right-8 top-[48px] h-0.5 bg-[#17283A] z-0" />
+                <div className="absolute left-8 right-8 top-[48px] h-0.5 bg-slate-200/90 dark:bg-[#17283A]/80 z-0" />
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 relative z-10">
-                  {timelineColumns.map(({ bucket, event }, idx) => {
+                  {timelineColumns.map(({ bucket, event }) => {
                     const styles = event ? getEventBadgeStyles(event.type) : null;
                     return (
                       <div key={bucket.key} className="flex flex-col items-center">
                         {/* 1. Month Label */}
-                        <div className="text-xs sm:text-[12.5px] font-bold text-[#94A3B8] mb-4 text-center h-5">
+                        <div className="text-xs sm:text-[12.5px] font-bold text-slate-500 dark:text-[#94A3B8] mb-4 text-center h-5">
                           {bucket.label}
                         </div>
 
@@ -363,45 +358,45 @@ export function LeaseTimeline({
                               )}
                             />
                           ) : (
-                            <div className="w-2.5 h-2.5 rounded-full bg-[#17283A]" />
+                            <div className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-[#17283A]" />
                           )}
                         </div>
 
-                        {/* 3. Event Card (Teal Card on Navy Background) */}
+                        {/* 3. Event Card */}
                         {event ? (
                           <div
                             onClick={() => onSelectLease?.(event.lease)}
-                            className="w-full group p-3.5 sm:p-4 rounded-[18px] bg-gradient-to-br from-[#008F83]/20 via-[#007F78]/15 to-[#0E1E33]/90 hover:from-[#008F83]/30 hover:to-[#007F78]/25 border border-[#008F83]/35 hover:border-[#32D5C4]/60 backdrop-blur-md transition-all duration-200 shadow-md hover:shadow-xl cursor-pointer flex flex-col justify-between text-left min-h-[120px]"
+                            className="w-full group p-3.5 sm:p-4 rounded-[18px] bg-slate-50/70 dark:bg-[#0E1E33]/60 hover:bg-white dark:hover:bg-[#0E1E33] border border-slate-200/70 dark:border-[#17283A] hover:border-[#008F83]/40 dark:hover:border-[#008F83]/40 hover:shadow-xs transition-all duration-200 cursor-pointer flex flex-col justify-between text-left min-h-[120px]"
                           >
                             <div>
                               {/* Header: Icon + Event Title */}
-                              <div className="flex items-center gap-1.5 mb-2">
+                              <div className="flex items-center gap-1.5 mb-1.5">
                                 {styles?.icon}
-                                <span className="font-bold text-xs sm:text-[13px] text-white leading-tight">
+                                <span className="font-bold text-xs sm:text-[13px] text-slate-900 dark:text-white leading-tight group-hover:text-[#008F83] dark:group-hover:text-[#32D5C4] transition-colors">
                                   {event.label}
                                 </span>
                               </div>
 
                               {/* Property */}
-                              <p className="text-xs sm:text-[12.5px] font-semibold text-white/90 truncate">
+                              <p className="text-xs sm:text-[12.5px] font-semibold text-slate-800 dark:text-slate-200 truncate mt-1">
                                 {event.property}
                               </p>
 
                               {/* Tenant */}
-                              <p className="text-xs text-[#94A3B8] truncate mt-1 font-normal">
+                              <p className="text-xs text-slate-500 dark:text-[#94A3B8] truncate mt-0.5 font-normal">
                                 {event.tenant}
                               </p>
                             </div>
 
                             {/* Event Date */}
-                            <div className="pt-2 mt-2 border-t border-[#008F83]/20 flex items-center justify-between">
-                              <span className="text-xs font-semibold text-[#32D5C4] tabular-nums">
+                            <div className="pt-2 mt-2 border-t border-slate-200/60 dark:border-[#17283A]/60 flex items-center justify-between">
+                              <span className="text-xs font-semibold text-[#008F83] dark:text-[#32D5C4] tabular-nums">
                                 {event.dateString}
                               </span>
                             </div>
                           </div>
                         ) : (
-                          <div className="w-full h-[120px] rounded-[18px] border border-dashed border-[#17283A] bg-[#0E1E33]/30 flex items-center justify-center text-xs text-[#94A3B8]">
+                          <div className="w-full h-[120px] rounded-[18px] border border-dashed border-slate-200 dark:border-[#17283A]/60 bg-slate-50/40 dark:bg-[#0E1E33]/20 flex items-center justify-center text-xs text-slate-400 dark:text-[#7F8B99]">
                             No events
                           </div>
                         )}

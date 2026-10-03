@@ -50,7 +50,7 @@ export const NAV_PERMISSIONS: Partial<Record<NavItemId, string[]>> = {
   reports: ['insights.view', 'property.view', 'invoice.view', 'expense.view', 'payment.view'],
   team: ['team.member.view'],
   settings: ['team.settings.view'],
-  automations: ['team.settings.view', 'property.view'],
+  automations: ['team.settings.view'],
 };
 
 export type QuickActionId =

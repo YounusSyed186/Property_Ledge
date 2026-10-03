@@ -56,9 +56,9 @@ export function ExpenseModal({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('bank_transfer');
   const [notes, setNotes] = useState('');
 
-  // GST & Tax Classification State
-  const [gstTreatment, setGstTreatment] = useState<'inclusive' | 'exclusive' | 'none'>('inclusive');
-  const [gstInclusive, setGstInclusive] = useState(true);
+  // GST & Tax Classification State (Exclusive only / GST-Free)
+  const [gstTreatment, setGstTreatment] = useState<'exclusive' | 'none'>('exclusive');
+  const [gstInclusive, setGstInclusive] = useState(false);
   const [gstAmount, setGstAmount] = useState('');
   const [taxClassificationId, setTaxClassificationId] = useState('');
 
@@ -127,10 +127,9 @@ export function ExpenseModal({
         setPaymentMethod((expenseToEdit.payment_method as PaymentMethod) || 'bank_transfer');
         setNotes(expenseToEdit.notes || '');
 
-        const isInc = Boolean(expenseToEdit.gst_inclusive);
         const hasGst = Number(expenseToEdit.gst_amount || 0) > 0;
-        setGstInclusive(isInc);
-        setGstTreatment(isInc ? 'inclusive' : hasGst ? 'exclusive' : 'none');
+        setGstInclusive(false);
+        setGstTreatment(hasGst ? 'exclusive' : 'none');
         setGstAmount(expenseToEdit.gst_amount !== undefined && expenseToEdit.gst_amount !== null ? String(expenseToEdit.gst_amount) : '');
         setTaxClassificationId(expenseToEdit.tax_classification_id || '');
 
@@ -159,8 +158,8 @@ export function ExpenseModal({
         setExistingReceipt(null);
         setSelectedReceiptFile(null);
         setNotes('');
-        setGstTreatment('inclusive');
-        setGstInclusive(true);
+        setGstTreatment('exclusive');
+        setGstInclusive(false);
         setGstAmount('');
         setTaxClassificationId('');
       }
@@ -185,20 +184,16 @@ export function ExpenseModal({
   // Auto-calculate GST when amount or treatment changes
   const handleAmountOrGstChange = (
     newAmount: string,
-    treatment: 'inclusive' | 'exclusive' | 'none' = gstTreatment
+    treatment: 'exclusive' | 'none' = gstTreatment
   ) => {
     setAmount(newAmount);
     setGstTreatment(treatment);
-    const isInc = treatment === 'inclusive';
-    setGstInclusive(isInc);
+    setGstInclusive(false);
 
     const val = parseFloat(newAmount);
     if (!isNaN(val) && val > 0) {
       if (treatment === 'exclusive') {
         const calculatedGst = (val * 0.1).toFixed(2);
-        setGstAmount(calculatedGst);
-      } else if (treatment === 'inclusive') {
-        const calculatedGst = (val - val / 1.1).toFixed(2);
         setGstAmount(calculatedGst);
       } else {
         setGstAmount('0.00');
@@ -282,7 +277,7 @@ export function ExpenseModal({
           payment_method: paymentMethod,
           notes: notes.trim() || null,
           status: 'completed',
-          gst_inclusive: gstTreatment === 'inclusive',
+          gst_inclusive: false,
           gst_amount: parsedGst,
           tax_classification_id: taxClassificationId || null,
           receipt_url: existingReceipt?.url || null,
@@ -318,7 +313,7 @@ export function ExpenseModal({
           payment_method: paymentMethod,
           notes: notes.trim() || null,
           status: 'completed',
-          gst_inclusive: gstTreatment === 'inclusive',
+          gst_inclusive: false,
           gst_amount: parsedGst,
           tax_classification_id: taxClassificationId || null,
           receipt_url: existingReceipt?.url || null,
@@ -509,9 +504,8 @@ export function ExpenseModal({
                         onChange={(e) => handleAmountOrGstChange(amount, e.target.value as any)}
                         className="w-full h-10 px-3 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#008F83]/30"
                       >
-                        <option value="inclusive">GST Inclusive (1/11th)</option>
                         <option value="exclusive">GST Exclusive (+10%)</option>
-                        <option value="none">GST-Free / Non-Taxable</option>
+                        <option value="none">GST-Free / Non-Taxable (0%)</option>
                       </select>
                     </div>
 

@@ -487,6 +487,11 @@ export async function uploadWorkspaceDocumentAction(
 
     if (insertError) {
       console.error('[INSERT_DOCUMENT_ERROR]', insertError);
+      try {
+        await deleteDocumentFromBlob(blobResult.blobPath);
+      } catch (cleanupError) {
+        console.error('[DOCUMENT_BLOB_CLEANUP_ERROR]', cleanupError);
+      }
       throw insertError;
     }
 

@@ -871,7 +871,7 @@ export function AppShell({
 
   return (
     <div
-      className="h-screen w-screen bg-[#F4F5F7] dark:bg-[#030914] text-slate-800 dark:text-admin-foreground flex flex-row overflow-hidden font-sans antialiased p-0 md:p-3.5 gap-0 md:gap-3.5 selection:bg-admin-foreground/10 selection:text-admin-foreground"
+      className="app-shell-root h-screen w-full min-w-0 overflow-hidden bg-[#F4F5F7] dark:bg-[#030914] text-slate-800 dark:text-admin-foreground flex flex-row font-sans antialiased p-0 md:p-3.5 gap-0 md:gap-3.5 selection:bg-admin-foreground/10 selection:text-admin-foreground"
       style={{ '--shell-navbar-height': `${SHELL_NAVBAR_HEIGHT}px` } as React.CSSProperties}
     >
       {/* Floating Sidebar on the left */}
@@ -893,7 +893,7 @@ export function AppShell({
       </AnimatePresence>
 
       {/* Right side: Workspace canvas blending seamlessly with shell */}
-      <div className="app-workspace relative flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden bg-transparent rounded-none md:rounded-[24px]">
+      <div className="app-workspace relative flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden bg-transparent rounded-none md:rounded-[24px] max-w-full">
         <GlobalNavbar
           homeHref={homeHref}
           brandBadge={brandBadge}
@@ -916,7 +916,7 @@ export function AppShell({
           headerExtras={headerExtras}
         />
 
-        <main className="flex h-full w-full flex-1 flex-col min-w-0 min-h-0 overflow-hidden">
+        <main className="flex h-full w-full flex-1 flex-col min-w-0 min-h-0 overflow-hidden overflow-x-hidden">
           {children}
         </main>
         <div id="workspace-drawer-root" className="absolute inset-0 z-40 pointer-events-none [&>*]:pointer-events-auto" />

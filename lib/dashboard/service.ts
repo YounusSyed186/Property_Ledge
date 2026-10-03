@@ -6,6 +6,14 @@ import { serverCache } from '@/lib/cache/server-cache';
 
 type Tables = Database['public']['Tables'];
 
+export function sanitizePropertyUpdateInput(input: Tables['properties']['Update']) {
+  const sanitized = { ...input } as Record<string, unknown>;
+  for (const field of ['id', 'workspace_id', 'owner_id', 'created_at', 'updated_at']) {
+    delete sanitized[field];
+  }
+  return sanitized;
+}
+
 async function recordActivityLog(params: {
   propertyId: string;
   action: string;
@@ -135,7 +143,7 @@ export async function updateProperty(propertyId: string, input: Tables['properti
   const postcodeStr = (input as Record<string, unknown>).postcode as string || input.postal_code;
   const carSpacesVal = (input as Record<string, unknown>).car_spaces ?? input.parking_spaces;
 
-  const rawInput = { ...input } as Record<string, unknown>;
+  const rawInput = sanitizePropertyUpdateInput(input);
   delete rawInput.address;
   delete rawInput.image;
   delete rawInput.suburb;
@@ -193,6 +201,26 @@ export async function deleteProperty(propertyId: string) {
   const { error } = await adminClient.from('properties').delete().eq('id', propertyId);
   if (error) throw new Error(error.message);
   serverCache.invalidateUser(user.id);
+}
+
+export async function archiveProperty(propertyId: string) {
+  await requirePropertyPermission(propertyId, 'property.delete');
+  const user = await requireAuthenticatedUser();
+  const adminClient = await createAdminClient();
+
+  await recordActivityLog({ propertyId, action: 'archived', entityType: 'property', entityId: propertyId });
+
+  const { data, error } = await adminClient
+    .from('properties')
+    .update({ status: 'archived', updated_at: new Date().toISOString() } as never)
+    .eq('id', propertyId)
+    .select('workspace_id')
+    .single();
+
+  if (error) throw new Error(error.message);
+  serverCache.invalidateUser(user.id);
+  const workspaceId = (data as unknown as { workspace_id?: string } | null)?.workspace_id;
+  if (workspaceId) serverCache.invalidateWorkspace(workspaceId);
 }
 
 // Units (Deprecated in Standalone Property Model)

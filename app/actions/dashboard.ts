@@ -230,7 +230,7 @@ export async function handleUpdateProperty(propertyId: string, input: Tables['pr
 }
 
 export async function handleDeleteProperty(propertyId: string) {
-  await service.deleteProperty(propertyId);
+  await service.archiveProperty(propertyId);
   revalidateDashboard('/dashboard/properties', '/dashboard');
   return { success: true };
 }

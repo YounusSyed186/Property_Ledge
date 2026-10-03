@@ -167,7 +167,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       </div>
 
       {/* Form (Email & Password) */}
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+      <form method="post" onSubmit={handleSubmit} className="space-y-4" noValidate>
         {/* Email Field */}
         <div className="space-y-1.5">
           <label
